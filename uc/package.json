@@ -1,0 +1,26 @@
+{
+    "name": "uc",
+    "displayName": "UnrealScriptLang",
+    "description": "UnrealScript Language support",
+    "publisher": "Eliot van Uytfanghe",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.29.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "unrealscript",
+            "aliases": ["UnrealScript", "unrealscript"],
+            "extensions": [".uc"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "unrealscript",
+            "scopeName": "source.uc",
+            "path": "./syntaxes/UnrealScript.tmLanguage"
+        }]
+    }
+}
