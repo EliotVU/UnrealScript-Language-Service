@@ -95,6 +95,20 @@
                             "name": "entity.other.inherited-class.uc"
                         }
                     },
+                    "patterns": [
+                        {
+                            "begin": "(dependson|config|hidecategories|showcategories)\\s*\\(\\s*(@?[_[:alpha:]][_[:alnum:]]*)\\s*",
+                            "beginCaptures": {
+                                "1": {
+                                    "name": "keyword.other.modifier.uc"
+                                },
+                                "2": {
+                                    "name": "entity.name.type.ts"
+                                }
+                            },
+                            "end": "\\)"
+                        }
+                    ],
                     "end": ";"
                 }
             ]
@@ -105,13 +119,16 @@
             "end": "(?<=;)",
             "patterns": [
                 {
-                    "begin": "(const)\\s+(@?[_[:alpha:]][_[:alnum:]]*)\\s*\\=\\s*",
+                    "begin": "(const)\\s+(@?[_[:alpha:]][_[:alnum:]]*)\\s*(\\=)\\s*",
                     "captures": {
                         "1": {
                             "name": "keyword.other.constant.uc"
                         },
                         "2": {
-                            "name": "entity.name.constant"
+                            "name": "entity.name.constant.uc"
+                        },
+                        "3": {
+                            "name": "keyword.operator.assignment.uc"
                         }
                     },
                     "end": ";",
@@ -129,19 +146,56 @@
             "end": "(?<=;)",
             "patterns": [
                 {
-                    "captures": {
+                    "begin": "(var)\\b(\\s*\\((@?[_[:alpha:]][_[:alnum:]]*)\\))?",
+                    "beginCaptures": {
                         "1": {
                             "name": "keyword.other.variable.uc"
                         },
                         "3": {
-                            "name": "storage.modifier.uc"
-                        },
-                        "4": {
-                            "name": "entity.name.tag.uc"
+                            "name": "meta.tag.uc"
                         }
                     },
-                    "match": "(var)(\\s*?\\(\\s*?(@?[_[:alpha:]][_[:alnum:]]*)\\s*?,?\\s*?(@?[_[:alpha:]][_[:alnum:]]*)\\s*?\\))?"
+                    "end": "\\s+"
+                },
+                {
+                    "begin": "((public|protected|private|const|editconst|config|globalconfig|localized)\\b)",
+                    "beginCaptures": {
+                        "2": {
+                            "name": "storage.modifier.uc"
+                        }
+                    },
+                    "end": "\\b"
+                },
+                {
+                    "begin": "(@?[_[:alpha:]][_[:alnum:]]*)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "entity.name.type.ts"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "begin": "\\<(\\b(@?[_[:alpha:]][_[:alnum:]]*))",
+                            "beginCaptures": {
+                                "1": {
+                                    "name": "entity.name.type.ts"
+                                }
+                            },
+                            "end": "\\>"
+                        },
+                        {
+                            "begin": "(@?[_[:alpha:]][_[:alnum:]]*)(\\b,\\b)?",
+                            "beginCaptures": {
+                                "1": {
+                                    "name": "entity.name.variable.uc"
+                                }
+                            },
+                            "end": ""
+                        }
+                    ],
+                    "end": ";"
                 }
+
             ]
         },
         "method-declaration": {
