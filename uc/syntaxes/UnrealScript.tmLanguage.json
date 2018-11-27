@@ -175,9 +175,15 @@
                     },
                     "patterns": [
                         {
-                            "begin": "\\<(\\b(@?[_[:alpha:]][_[:alnum:]]*))",
+                            "begin": "\\<(\\b(@?[_[:alpha:]][_[:alnum:]]*)(.(@?[_[:alpha:]][_[:alnum:]]*))?)",
                             "beginCaptures": {
-                                "1": {
+                                "2": {
+                                    "name": "entity.name.type.ts"
+                                },
+                                "3": {
+                                    "name": "punctuation.accessor.uc"
+                                },
+                                "4": {
                                     "name": "entity.name.type.ts"
                                 }
                             },
@@ -200,23 +206,20 @@
         },
         "method-declaration": {
             "name": "meta.method",
-            "begin": "(?=\\b((final|public)\\s+)*(function|event|delegate)\\b)",
+            "begin": "(?=\\b(static|final|simulated|public|protected|private))",
             "end": "(?<=\\{)",
             "patterns": [
                 {
-                    "begin": "((final|public|private|protected)\\b)*(function|event|delegate)\\s+(@?[_[:alpha:]][_[:alnum:]]*)",
+                    "begin": "(function|event|delegate|operator|preoperator|postoperator)",
                     "beginCaptures": {
-                        "1": {
+                        "0": {
                             "name": "storage.modifier.uc"
                         },
-                        "2": {
-                            "name": "keyword.other.method"
-                        },
-                        "3": {
-                            "name": "entity.name.tag.uc"
+                        "1": {
+                            "name": "keyword.other.method.uc"
                         }
                     },
-                    "end": "\\{"
+                    "end": "\\b"
                 }
             ]
         },
