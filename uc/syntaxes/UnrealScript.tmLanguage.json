@@ -19,6 +19,9 @@
             "include": "#method-declaration"
         },
         {
+            "include": "#defaultproperties"
+        },
+        {
             "name": "keyword.other",
             "match": "(struct|enum)"
         }
@@ -222,6 +225,36 @@
                     "end": "\\b"
                 }
             ]
+        },
+        "defaultproperties": {
+            "name": "meta.block",
+            "begin": "(?=\\b(defaultproperties))",
+            "patterns": [
+                {
+                    "name": "keyword.other.method.uc",
+                    "match": "(defaultproperties)"
+                },
+                {
+                    "begin": "\\{",
+                    "patterns": [
+                        {
+                            "begin": "\\b(@?[_[:alpha:]][_[:alnum:]]*)",
+                            "beginCaptures": {
+                                "0": {
+                                    "name": "variable.name.uc"
+                                }
+                            },
+                            "end": "\\b"
+                        },
+                        {
+                            "name": "keyword.operator.assignment.uc",
+                            "match": "\\="
+                        }
+                    ],
+                    "end": "\\}"
+                }
+            ],
+            "end": "(?<=\\})"
         },
         "punctuation-comma": {
 			"name": "punctuation.separator.comma.uc",
