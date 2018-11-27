@@ -7,6 +7,74 @@
             "include": "#comment"
         },
         {
+            "include": "#class-declaration"
+        },
+        {
+            "include": "#const-declaration"
+        },
+        {
+            "include": "#var-declaration"
+        },
+        {
+            "include": "#method-declaration"
+        },
+        {
+            "name": "keyword.other",
+            "match": "(struct|enum)"
+        }
+    ],
+    "repository": {
+        "comment": {
+            "patterns": [
+                {
+                    "name": "comment.block.uc",
+                    "begin": "/\\*",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.comment.uc"
+                        }
+                    },
+                    "end": "\\*/",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.comment.uc"
+                        }
+                    }
+                },
+                {
+                    "name": "comment.line.double-slash.uc",
+                    "begin": "//",
+                    "end": "\n"
+                }
+            ]
+        },
+        "literal": {
+            "patterns": [
+                {
+                    "name": "string.quoted.single.uc",
+                    "begin": "'",
+                    "end": "'"
+                },
+                {
+                    "name": "string.quoted.double.uc",
+                    "begin": "\"",
+                    "end": "\""
+                },
+                {
+                    "name": "constant.language.boolean.uc",
+                    "match": "true|false"
+                },
+                {
+                    "name": "constant.numeric.hex.uc",
+                    "match": "0(x|X)[0-9a-fA-F]?"
+                },
+                {
+                    "name": "constant.numeric.decimal.uc",
+                    "match": "([0-9_]+)?(\\.[0-9]+(F|f)?)?"
+                }
+            ]
+        },
+        "class-declaration": {
             "name": "meta.class",
             "begin": "(?=\\bclass\\b)",
             "end": "(?<=;)",
@@ -31,61 +99,70 @@
                 }
             ]
         },
-        {
-            "include": "#declarations"
-        },
-        {
-            "name": "keyword.other",
-            "match": "(var|function|event|delegate|struct|enum)"
-        }
-    ],
-    "repository": {
-        "comment": {
+        "const-declaration": {
+            "name": "meta.constant",
+            "begin": "(?=\\bconst\\b)",
+            "end": "(?<=;)",
             "patterns": [
                 {
-                    "name": "comment.block.uc",
-                    "begin": "/\\*",
-                    "beginCaptures": {
-                        "0": {
-                            "name": "punctuation.definition.comment.uc"
+                    "begin": "(const)\\s+(@?[_[:alpha:]][_[:alnum:]]*)\\s*\\=\\s*",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.other.constant.uc"
+                        },
+                        "2": {
+                            "name": "entity.name.constant"
                         }
                     },
-                    "end": "\\*/",
-                    "endCaptures": {
-                        "0": {
-                            "name": "punctuation.definition.comment.uc"
+                    "end": ";",
+                    "patterns": [
+                        {
+                            "include": "#literal"
                         }
-                    }
-                }
-            ]
-        },
-        "declarations": {
-            "patterns": [
-                {
-                    "include": "type-declarations"
-                }
-            ]
-        },
-        "type-declarations": {
-            "patterns": [
-                {
-                    "include": "var-declaration"
+                    ]
                 }
             ]
         },
         "var-declaration": {
             "name": "meta.variable",
-            "begin": "(?=\\var\\b)",
+            "begin": "(?=\\bvar\\b)",
             "end": "(?<=;)",
             "patterns": [
                 {
-                    "begin": "(var)",
-                    "beginCaptures": {
+                    "captures": {
                         "1": {
                             "name": "keyword.other.variable.uc"
+                        },
+                        "3": {
+                            "name": "storage.modifier.uc"
+                        },
+                        "4": {
+                            "name": "entity.name.tag.uc"
                         }
                     },
-                    "end": ";"
+                    "match": "(var)(\\s*?\\(\\s*?(@?[_[:alpha:]][_[:alnum:]]*)\\s*?,?\\s*?(@?[_[:alpha:]][_[:alnum:]]*)\\s*?\\))?"
+                }
+            ]
+        },
+        "method-declaration": {
+            "name": "meta.method",
+            "begin": "(?=\\b((final|public)\\s+)*(function|event|delegate)\\b)",
+            "end": "(?<=\\{)",
+            "patterns": [
+                {
+                    "begin": "((final|public|private|protected)\\b)*(function|event|delegate)\\s+(@?[_[:alpha:]][_[:alnum:]]*)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "storage.modifier.uc"
+                        },
+                        "2": {
+                            "name": "keyword.other.method"
+                        },
+                        "3": {
+                            "name": "entity.name.tag.uc"
+                        }
+                    },
+                    "end": "\\{"
                 }
             ]
         },
