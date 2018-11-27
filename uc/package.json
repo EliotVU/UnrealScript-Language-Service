@@ -20,7 +20,7 @@
         "grammars": [{
             "language": "unrealscript",
             "scopeName": "source.uc",
-            "path": "./syntaxes/UnrealScript.tmLanguage"
+            "path": "./syntaxes/UnrealScript.tmLanguage.json"
         }]
     }
 }
