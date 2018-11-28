@@ -10,6 +10,9 @@
             "include": "#class-declaration"
         },
         {
+            "include": "#cppblock"
+        },
+        {
             "include": "#const-declaration"
         },
         {
@@ -221,7 +224,6 @@
                     ],
                     "end": ";"
                 }
-
             ]
         },
         "method-declaration": {
@@ -242,6 +244,21 @@
                     "end": "\\b"
                 }
             ]
+        },
+        "cppblock": {
+            "begin": "(?i)(?=\\b(cpptext|structcpptext))",
+            "patterns": [
+                {
+                    "name": "keyword.other.method.uc",
+                    "match": "(?i)(cpptext|structcpptext)"
+                },
+                {
+                    "begin": "\\{",
+                    "include": "source.cpp",
+                    "end": "\\}"
+                }
+            ],
+            "end": "(?<=\\})"
         },
         "defaultproperties": {
             "name": "meta.block",
