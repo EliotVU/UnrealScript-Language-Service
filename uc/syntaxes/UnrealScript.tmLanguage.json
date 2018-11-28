@@ -114,7 +114,7 @@
                                     "name": "keyword.other.modifier.uc"
                                 },
                                 "3": {
-                                    "name": "string.quoted.double.uc"
+                                    "name": "string.quoted.single.uc"
                                 }
                             },
                             "end": "\\b"
@@ -175,7 +175,7 @@
                             "name": "keyword.other.variable.uc"
                         },
                         "3": {
-                            "name": "string.quoted.double.uc"
+                            "name": "string.quoted.single.uc"
                         }
                     },
                     "end": "\\s+"
@@ -232,7 +232,7 @@
             "end": "(?<=\\{)",
             "patterns": [
                 {
-                    "begin": "(?i)(function|event|delegate|operator|preoperator|postoperator)",
+                    "begin": "(?i)\\b(function|event|delegate|operator|preoperator|postoperator)\\b",
                     "beginCaptures": {
                         "0": {
                             "name": "storage.modifier.uc"
