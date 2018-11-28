@@ -23,7 +23,7 @@
         },
         {
             "name": "keyword.other",
-            "match": "(struct|enum)"
+            "match": "\\b(?i)(struct|enum|state|none|local|for|if|return|true|false|break|continue|goto|case|switch|do|while|until|static|default)\\b"
         }
     ],
     "repository": {
@@ -79,11 +79,11 @@
         },
         "class-declaration": {
             "name": "meta.class",
-            "begin": "(?=\\bclass\\b)",
+            "begin": "(?i)(?=\\b(class|interface)\\b)",
             "end": "(?<=;)",
             "patterns": [
                 {
-                    "begin": "(class)\\s+(@?[_[:alpha:]][_[:alnum:]]*)\\s*(extends)\\s+(@?[_[:alpha:]][_[:alnum:]]*)",
+                    "begin": "(?i)(class|interface)\\s+(@?[_[:alpha:]][_[:alnum:]]*)\\s*((?i)(extends|expands)\\s+(@?[_[:alpha:]][_[:alnum:]]*))?",
                     "beginCaptures": {
                         "1": {
                             "name": "keyword.other.class.uc"
@@ -91,22 +91,39 @@
                         "2": {
                             "name": "entity.name.type.class.uc"
                         },
-                        "3": {
+                        "4": {
                             "name": "keyword.other.extends.uc"
                         },
-                        "4": {
+                        "5": {
                             "name": "entity.other.inherited-class.uc"
                         }
                     },
                     "patterns": [
                         {
-                            "begin": "(dependson|config|hidecategories|showcategories)\\s*\\(\\s*(@?[_[:alpha:]][_[:alnum:]]*)\\s*",
+                            "begin": "\\b(?i)(abstract|export|exportstructs|noexport|noexportheader|nativereplication|transient|nontransient|nousercreate|notplaceable|placeable)\\b",
+                            "name": "keyword.other.modifier.uc",
+                            "end": "\\b"
+                        },
+                        {
+                            "begin": "\\b(?i)(config|native|intrinsic)\\b\\s*(\\(\\s*(@?[_[:alpha:]][_[:alnum:]]*)\\s*)?",
+                            "beginCaptures": {
+                                "1": {
+                                    "name": "keyword.other.modifier.uc"
+                                },
+                                "3": {
+                                    "name": "string.quoted.double.uc"
+                                }
+                            },
+                            "end": "\\b"
+                        },
+                        {
+                            "begin": "\\b(?i)(dllbind|inherits|dependson|hidecategories|showcategories|implements|classgroup|autocollapsecategories|dontautocollapsecategories|autoexpandcategories|dontsortcategories)\\s*\\(\\s*(@?[_[:alpha:]][_[:alnum:]]*)\\s*",
                             "beginCaptures": {
                                 "1": {
                                     "name": "keyword.other.modifier.uc"
                                 },
                                 "2": {
-                                    "name": "entity.name.type.ts"
+                                    "name": "entity.name.type.uc"
                                 }
                             },
                             "end": "\\)"
@@ -118,11 +135,11 @@
         },
         "const-declaration": {
             "name": "meta.constant",
-            "begin": "(?=\\bconst\\b)",
+            "begin": "(?i)(?=\\bconst\\b)",
             "end": "(?<=;)",
             "patterns": [
                 {
-                    "begin": "(const)\\s+(@?[_[:alpha:]][_[:alnum:]]*)\\s*(\\=)\\s*",
+                    "begin": "(?i)(const)\\s+(@?[_[:alpha:]][_[:alnum:]]*)\\s*(\\=)\\s*",
                     "captures": {
                         "1": {
                             "name": "keyword.other.constant.uc"
@@ -145,23 +162,23 @@
         },
         "var-declaration": {
             "name": "meta.variable",
-            "begin": "(?=\\bvar\\b)",
+            "begin": "(?i)(?=\\bvar\\b)",
             "end": "(?<=;)",
             "patterns": [
                 {
-                    "begin": "(var)\\b(\\s*\\((@?[_[:alpha:]][_[:alnum:]]*)\\))?",
+                    "begin": "(?i)(var)\\b(\\s*\\((@?[_[:alpha:]][_[:alnum:]]*)\\))?",
                     "beginCaptures": {
                         "1": {
                             "name": "keyword.other.variable.uc"
                         },
                         "3": {
-                            "name": "meta.tag.uc"
+                            "name": "string.quoted.double.uc"
                         }
                     },
                     "end": "\\s+"
                 },
                 {
-                    "begin": "((public|protected|private|const|editconst|config|globalconfig|localized)\\b)",
+                    "begin": "((?i)(public|protected|private|const|noexport|editconst|editconstarray|automated|config|globalconfig|localized|native|transient)\\b)",
                     "beginCaptures": {
                         "2": {
                             "name": "storage.modifier.uc"
@@ -173,7 +190,7 @@
                     "begin": "(@?[_[:alpha:]][_[:alnum:]]*)",
                     "beginCaptures": {
                         "1": {
-                            "name": "entity.name.type.ts"
+                            "name": "entity.name.type.uc"
                         }
                     },
                     "patterns": [
@@ -181,13 +198,13 @@
                             "begin": "\\<(\\b(@?[_[:alpha:]][_[:alnum:]]*)(.(@?[_[:alpha:]][_[:alnum:]]*))?)",
                             "beginCaptures": {
                                 "2": {
-                                    "name": "entity.name.type.ts"
+                                    "name": "entity.name.type.uc"
                                 },
                                 "3": {
                                     "name": "punctuation.accessor.uc"
                                 },
                                 "4": {
-                                    "name": "entity.name.type.ts"
+                                    "name": "entity.name.type.uc"
                                 }
                             },
                             "end": "\\>"
@@ -209,11 +226,11 @@
         },
         "method-declaration": {
             "name": "meta.method",
-            "begin": "(?=\\b(static|final|simulated|public|protected|private))",
+            "begin": "(?i)(?=\\b(static|final|simulated|public|protected|private))",
             "end": "(?<=\\{)",
             "patterns": [
                 {
-                    "begin": "(function|event|delegate|operator|preoperator|postoperator)",
+                    "begin": "(?i)(function|event|delegate|operator|preoperator|postoperator)",
                     "beginCaptures": {
                         "0": {
                             "name": "storage.modifier.uc"
@@ -228,11 +245,11 @@
         },
         "defaultproperties": {
             "name": "meta.block",
-            "begin": "(?=\\b(defaultproperties))",
+            "begin": "(?i)(?=\\b(defaultproperties))",
             "patterns": [
                 {
                     "name": "keyword.other.method.uc",
-                    "match": "(defaultproperties)"
+                    "match": "((?i)defaultproperties)"
                 },
                 {
                     "begin": "\\{",
