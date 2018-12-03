@@ -11,7 +11,12 @@ import {
 	CompletionItem,
 	CompletionItemKind,
 	TextDocumentPositionParams,
-	RemoteWorkspace
+	RemoteWorkspace,
+	Hover,
+	DocumentHighlight,
+	DocumentHighlightKind,
+	DefinitionRequest,
+	Location
 } from 'vscode-languageserver';
 
 import { uriToFilePath } from 'vscode-languageserver/lib/files';
@@ -20,6 +25,7 @@ let connection = createConnection(ProposedFeatures.all);
 
 let documents: TextDocuments = new TextDocuments();
 let workspaceUCFiles: string[] = [];
+let projectClassTypes: CompletionItem[] = [];
 
 let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
@@ -38,9 +44,13 @@ connection.onInitialize((params: InitializeParams) => {
 	return {
 		capabilities: {
 			textDocumentSync: documents.syncKind,
+			documentHighlightProvider: true,
+			hoverProvider: true,
 			completionProvider: {
-				resolveProvider: true
-			}
+				resolveProvider: true,
+				triggerCharacters: ['.']
+			},
+			definitionProvider: true
 		}
 	};
 });
@@ -82,6 +92,17 @@ async function scanWorkspaceForClasses(workspace: RemoteWorkspace) {
 	return filePaths;
 }
 
+function initializeClassTypes(classFilePaths: string[]) {
+	projectClassTypes = classFilePaths
+		.map((document => {
+			return {
+				label: path.basename(document, '.uc'),
+				kind: CompletionItemKind.Class,
+				data: document
+			}
+		}));
+}
+
 connection.onInitialized(async () => {
 	if (hasConfigurationCapability) {
 		connection.client.register(
@@ -91,8 +112,11 @@ connection.onInitialized(async () => {
 	}
 	if (hasWorkspaceFolderCapability) {
 		workspaceUCFiles = await scanWorkspaceForClasses(connection.workspace);
+		initializeClassTypes(workspaceUCFiles);
+
 		connection.workspace.onDidChangeWorkspaceFolders(async _event => {
 			workspaceUCFiles = await scanWorkspaceForClasses(connection.workspace);
+			initializeClassTypes(workspaceUCFiles);
 		});
 	}
 });
@@ -144,17 +168,36 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	return;
 }
 
+// connection.onDocumentHighlight((docParams: TextDocumentPositionParams): DocumentHighlight[] => {
+// 	return [{
+// 		range: { start: { line: 1, character: 0 }, end: { line: 100, character: 100 } },
+// 		kind: DocumentHighlightKind.Read
+// 	}];
+// });
+
+// connection.onHover((_txtDocumentPosition) => {
+// 	return null as Hover;
+// });
+
+connection.onDefinition((_textDocumentPosition, token): Location => {
+	return {
+		uri: '',
+		range: {
+			start: {
+				line: 1,
+				character: 1
+			},
+			end: {
+				line: 1,
+				character: 1
+			}
+		}
+	};
+});
+
 connection.onCompletion(
 	async (_textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
-		var classTypes = workspaceUCFiles
-			.map((document => {
-				return {
-					label: path.basename(document, '.uc'),
-					kind: CompletionItemKind.Class,
-					data: document
-				}
-			}));
-
+		var classTypes = projectClassTypes;
 		return classTypes;
 	}
 );
