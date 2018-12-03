@@ -46,29 +46,36 @@ connection.onInitialize((params: InitializeParams) => {
 });
 
 async function scanWorkspaceForClasses(workspace: RemoteWorkspace) {
-	function scanPath(filePath: string, cb: (filePath: string) => void) {
-		if (!fs.existsSync(filePath)) {
-			return;
-		}
+	function scanPath(filePath: string, cb: (filePath: string) => void): Promise<boolean> {
+		let promise = new Promise<boolean>((resolve, reject) => {
+			if (!fs.existsSync(filePath)) {
+				resolve(false);
+				return;
+			}
 
-		let stats = fs.lstatSync(filePath);
-		if (stats.isDirectory()) {
-			let filePaths: string[] = fs.readdirSync(filePath);
-			for (let fileName of filePaths) {
-				scanPath(path.join(filePath, fileName), cb);
-			}
-		} else {
-			if (path.extname(filePath) === '.uc') {
-				cb(filePath);
-			}
-		}
+			fs.lstat(filePath, (err, stats) => {
+				if (stats.isDirectory()) {
+					fs.readdir(filePath, (err, filePaths) => {
+						for (let fileName of filePaths) {
+							resolve(scanPath(path.join(filePath, fileName), cb));
+						}
+					});
+				} else {
+					if (path.extname(filePath) === '.uc') {
+						cb(filePath);
+					}
+					resolve(true);
+				}
+			});
+		});
+		return promise;
 	}
 
 	let filePaths = [];
 	let folders = await workspace.getWorkspaceFolders();
 	for (let folder of folders) {
 		let folderPath = uriToFilePath(folder.uri);
-		scanPath(folderPath, (filePath => {
+		await scanPath(folderPath, (filePath => {
 			filePaths.push(filePath);
 		}));
 	}
