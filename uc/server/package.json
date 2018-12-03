@@ -1,0 +1,10 @@
+{
+	"name": "lsp-unrealscript",
+	"description": "A language server for UnrealScript.",
+	"version": "1.0.0",
+	"author": "Eliot van Uytfanghe",
+	"license": "",
+	"dependencies": {
+		"vscode-languageserver": "^4.1.3"
+	}
+}
