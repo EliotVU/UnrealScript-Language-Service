@@ -2,12 +2,26 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
+            "name": "antlr4-unrealscript",
+            "type": "antlr-debug",
+            "request": "launch",
+            "input": "grammars/test.uc",
+            "grammar": "grammars/UCGrammar.g4",
+            "startRule": "program",
+            "printParseTree": true,
+			"visualParseTree": true
+        },
+		{
 			"type": "extensionHost",
 			"request": "launch",
 			"name": "Launch Client",
 			"runtimeExecutable": "${execPath}",
-			"args": ["--extensionDevelopmentPath=${workspaceRoot}"],
-			"outFiles": ["${workspaceRoot}/client/out/**/*.js"],
+			"args": [
+				"--extensionDevelopmentPath=${workspaceRoot}"
+			],
+			"outFiles": [
+				"${workspaceRoot}/client/out/**/*.js"
+			],
 			"preLaunchTask": {
 				"type": "npm",
 				"script": "watch"
@@ -19,7 +33,9 @@
 			"name": "Attach to Server",
 			"port": 6009,
 			"restart": true,
-			"outFiles": ["${workspaceRoot}/server/out/**/*.js"]
+			"outFiles": [
+				"${workspaceRoot}/server/out/**/*.js"
+			]
 		},
 		{
 			"name": "Language Server E2E Test",
@@ -31,13 +47,18 @@
 				"--extensionTestsPath=${workspaceRoot}/client/out/test",
 				"${workspaceRoot}/client/testFixture"
 			],
-			"outFiles": ["${workspaceRoot}/client/out/test/**/*.js"]
+			"outFiles": [
+				"${workspaceRoot}/client/out/test/**/*.js"
+			]
 		}
 	],
 	"compounds": [
 		{
 			"name": "Client + Server",
-			"configurations": ["Launch Client", "Attach to Server"]
+			"configurations": [
+				"Launch Client",
+				"Attach to Server"
+			]
 		}
 	]
 }
