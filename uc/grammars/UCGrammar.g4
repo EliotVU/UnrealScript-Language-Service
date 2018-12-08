@@ -12,6 +12,11 @@ BLOCK_COMMENT
 
 WS : [ \t\r\n]+ -> channel(HIDDEN);
 
+PP_HASH
+	: '#' ~[\n]+
+		-> channel(HIDDEN)
+	;
+
 // Keys
 KW_SELF
     :   'self'
@@ -55,7 +60,7 @@ KW_LOCAL
 	;
 
 KW_REPLICATION
-	:   'replication' | 'Replication'
+	:   'replication'
 	;
 
 KW_OPERATOR
@@ -75,7 +80,7 @@ KW_DELEGATE
 	;
 
 KW_FUNCTION
-    :   'function' | 'Function'
+    :   'function'
 	;
 
 KW_EVENT
@@ -125,11 +130,11 @@ KW_UNTIL
 	;
 
 KW_DO
-	:	'do' | 'Do'
+	:	'do'
 	;
 
 KW_WHILE
-	:	'while' | 'While'
+	:	'while'
 	;
 
 KW_ELSE
@@ -209,11 +214,7 @@ KW_NONE
     ;
 
 KW_EXTENDS
-	:	'extends'
-	;
-
-KW_EXPANDS
-	:	'expands'
+	:	'extends' | 'expands'
 	;
 
 KW_PUBLIC: 'public';
@@ -229,6 +230,7 @@ KW_FINAL: 'final';
 KW_LATENT: 'latent';
 KW_SINGULAR: 'singular';
 KW_STATIC: 'static';
+KW_EXEC: 'exec';
 KW_ITERATOR: 'iterator';
 KW_SIMULATED: 'simulated';
 KW_AUTO: 'auto';
@@ -244,9 +246,15 @@ KW_PEROBJECTCONFIG: 'perobjectconfig';
 KW_PEROBJECTLOCALIZE: 'perobjectlocalize';
 KW_PLACEABLE: 'placeable';
 KW_NOTPLACEABLE: 'notplaceable';
+KW_DEPENDSON: 'dependson';
+KW_HIDECATEGORIES: 'hidecategories';
+KW_SHOWCATEGORIES: 'showcategories';
 KW_TRANSIENT: 'transient';
+KW_CACHE: 'cache';
 KW_EDITINLINE: 'editinline';
 KW_AUTOMATED: 'automated';
+KW_CACHEEXEMPT : 'cacheexempt';
+KW_HIDEDROPDOWN : 'hidedropdown';
 
 ID
 	:   [a-zA-Z_][a-zA-Z0-9_]*
@@ -337,9 +345,12 @@ NAME
     :   '\'' (~['\\] | ESC_SEQ)* '\''
     ;
 
+ATSIGN: '@';
+DOLLARSIGN: '$';
+
 OPERATORID
 	:
-		('$'|'@'|HASHTAG|EQUALS_SIGN|'!'|'&'|'|'|'^'|'*'|MINUS|PLUS|'/'|'%'|'~'|LARROW|RARROW)
+		(DOLLARSIGN|ATSIGN|HASHTAG|EQUALS_SIGN|'!'|'&'|'|'|'^'|'*'|MINUS|PLUS|'/'|'%'|'~'|LARROW|RARROW)
         ('|'|'&'|'^'|'*'|'-'|'+'|'/'|LARROW|RARROW|EQUALS_SIGN)
 	;
 
@@ -419,10 +430,6 @@ literal
     :   ((noneLiteral | booleanLiteral | numeric | stringLiteral | nameLiteral) | classLiteral)
     ;
 
-inherits
-	:	(KW_EXTENDS | KW_EXPANDS)
-	;
-
 numeric
 	:	DECIMAL | FLOAT
 	;
@@ -432,14 +439,35 @@ reference
     ;
 
 classDecl
-	:	(KW_CLASS | KW_INTERFACE) className (inherits reference (KW_WITHIN reference)?)?
+	:	(KW_CLASS | KW_INTERFACE) className (KW_EXTENDS classExtendsReference (KW_WITHIN classWithinReference)?)?
 			classModifier* SEMICOLON
 	;
 
+classReference
+	: 	reference
+	;
+
+classExtendsReference
+	: 	classReference
+	;
+
+classWithinReference
+	: 	classReference
+	;
+
 classModifier
-	:	KW_NATIVE | KW_NOEXPORT | KW_NATIVEREPLICATION | (KW_CONFIG modifierArgument?)
-        | KW_ABSTRACT | KW_PEROBJECTCONFIG | KW_PEROBJECTLOCALIZE
-        | KW_TRANSIENT | KW_EXPORT | KW_PLACEABLE | KW_NOTPLACEABLE
+	:	KW_NATIVE | KW_NATIVEREPLICATION
+		| KW_CACHEEXEMPT | KW_HIDEDROPDOWN
+		| KW_LOCALIZED // ?
+        | KW_ABSTRACT
+		| KW_PEROBJECTCONFIG | KW_PEROBJECTLOCALIZE
+        | KW_TRANSIENT
+		| KW_EXPORT | KW_NOEXPORT
+		| KW_PLACEABLE | KW_NOTPLACEABLE
+		| (KW_CONFIG modifierArgument?)
+		| (KW_DEPENDSON modifierArguments)
+		| (KW_SHOWCATEGORIES modifierArguments)
+		| (KW_HIDECATEGORIES modifierArguments)
         //ID (LPARENT ID (COMMA ID)* RPARENT)?
 	;
 
@@ -450,6 +478,10 @@ modifierValue
 
 modifierArgument
 	: LPARENT modifierValue RPARENT
+	;
+
+modifierArguments
+	: LPARENT (modifierValue COMMA?)* RPARENT
 	;
 
 constDecl
@@ -478,9 +510,9 @@ variableName
 varDecl
 	:	KW_VAR (LPARENT (categoryName (COMMA categoryName)*)? RPARENT)?
         variableModifier*
-        (variableType | enumDecl | structDecl)
+        (enumDecl? | structDecl? | variableType)
         variable (COMMA variable)*
-        nativeType?
+        //nativeType?
         SEMICOLON
     ;
 
@@ -488,7 +520,7 @@ variableModifier
 	:	(KW_PUBLIC | KW_PROTECTED | KW_PRIVATE
         | KW_LOCALIZED | KW_NATIVE | KW_CONST
         | KW_INIT | KW_NOEXPORT | KW_EDITCONST
-        | KW_CONFIG | KW_GLOBALCONFIG | KW_TRANSIENT | KW_EXPORT | KW_EDITINLINE | KW_AUTOMATED)
+        | KW_CONFIG | KW_GLOBALCONFIG | KW_TRANSIENT | KW_CACHE | KW_EXPORT | KW_EDITINLINE | KW_AUTOMATED)
 	;
 
 categoryName
@@ -527,19 +559,24 @@ mapType
 enumDecl
 	:	KW_ENUM enumName
 		LBRACE
-			((enumElement) (COMMA enumElement?)*)?
+			(valueName COMMA?)*
 		RBRACE
 	;
 
 enumName
     :   ID
     ;
-enumElement
+
+valueName
     :   ID
     ;
 
+structReference
+	: reference
+	;
+
 structDecl
-	:	KW_STRUCT nativeType? structModifier* structName (inherits reference)?
+	:	KW_STRUCT nativeType? structModifier* structName (KW_EXTENDS structReference)?
         LBRACE
         	(constDecl*
             |(enumDecl SEMICOLON)*
@@ -600,12 +637,14 @@ functionDecl
 
 functionModifier
     :   KW_PUBLIC | KW_PROTECTED | KW_PRIVATE
-        |KW_SIMULATED | KW_NATIVE (LPARENT DECIMAL RPARENT)?
+        |KW_SIMULATED
+		|(KW_NATIVE (LPARENT DECIMAL RPARENT)?)
         |KW_FINAL
         |KW_LATENT
         |KW_ITERATOR
         |KW_SINGULAR
         |KW_STATIC
+		|KW_EXEC
     ;
 
 // #$@|&!^*-+/%~<>
@@ -640,8 +679,12 @@ localDecl
     :   KW_LOCAL variableType variable (COMMA variable)* SEMICOLON
     ;
 
+stateReference
+	: reference
+	;
+
 stateDecl
-	:	(stateModifier)* KW_STATE (categoryName)? stateName (inherits reference)?
+	:	(stateModifier)* KW_STATE (categoryName)? stateName (KW_EXTENDS stateReference)?
 		LBRACE
 			(KW_IGNORES ID (COMMA ID)* SEMICOLON)?
 
