@@ -347,12 +347,14 @@ NAME
 
 ATSIGN: '@';
 DOLLARSIGN: '$';
-
-OPERATORID
-	:
-		(DOLLARSIGN|ATSIGN|HASHTAG|EQUALS_SIGN|'!'|'&'|'|'|'^'|'*'|MINUS|PLUS|'/'|'%'|'~'|LARROW|RARROW)
-        ('|'|'&'|'^'|'*'|'-'|'+'|'/'|LARROW|RARROW|EQUALS_SIGN)
-	;
+NOTSIGN: '!';
+ANDSIGN: '&';
+ORSIGN: '|';
+MULTIPLYSIGN: '*';
+ARROWUPSIGN: '^';
+DIVIDESIGN: '/';
+MODULUSSIGN: '%';
+TILTSIGN: '~';
 
 fragment DIGIT
     :   [0-9]
@@ -620,8 +622,8 @@ functionDecl
         functionKind
 			// We have to identify LPARENT in each,
 			// - to prevent a false positive 'operatorName' identification.
-			(returnType functionName LPARENT)? | (functionName LPARENT)
-				functionParam*
+			((returnType functionName LPARENT)? | (functionName LPARENT))
+				(functionParam)*
             RPARENT
             (KW_CONST)?
 		((
@@ -660,11 +662,17 @@ returnType
     :   (variableType)
     ;
 
+operatorId
+	:
+		(DOLLARSIGN|ATSIGN|HASHTAG|EQUALS_SIGN|NOTSIGN|ANDSIGN|ORSIGN|ARROWUPSIGN|MULTIPLYSIGN|MINUS|PLUS|DIVIDESIGN|MODULUSSIGN|TILTSIGN|LARROW|RARROW)
+        (ORSIGN|ANDSIGN|ARROWUPSIGN|MULTIPLYSIGN|MINUS|PLUS|DIVIDESIGN|LARROW|RARROW|EQUALS_SIGN)?
+	;
+
 operatorName
     :   (
             (QUESTIONMARK | COLON)
             |(
-                (OPERATORID)?
+                (operatorId)?
                 RARROW?
             )
             |ID
