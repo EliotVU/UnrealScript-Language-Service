@@ -16,10 +16,16 @@ import {
 	DocumentHighlight,
 	DocumentHighlightKind,
 	DefinitionRequest,
-	Location
+	Location,
+	Diagnostic,
+	DiagnosticSeverity,
+	Range
 } from 'vscode-languageserver';
 
 import { uriToFilePath } from 'vscode-languageserver/lib/files';
+
+import { ScopeParser, UCDocument, UCFunction, UCProperty, UCStruct } from './parser';
+import { Token } from 'antlr4ts/Token';
 
 let connection = createConnection(ProposedFeatures.all);
 
@@ -44,8 +50,8 @@ connection.onInitialize((params: InitializeParams) => {
 	return {
 		capabilities: {
 			textDocumentSync: documents.syncKind,
-			documentHighlightProvider: true,
-			hoverProvider: true,
+			// documentHighlightProvider: true,
+			// hoverProvider: true,
 			completionProvider: {
 				resolveProvider: true,
 				triggerCharacters: ['.']
@@ -160,24 +166,132 @@ documents.onDidClose(e => {
 });
 
 documents.onDidChangeContent(change => {
+	if (workspaceUCFiles.length === 0) {
+		return;
+	}
 	validateTextDocument(change.document);
 });
 
+let projectDocuments: Map<string, UCDocument> = new Map<string, UCDocument>();
+let documentItems: CompletionItem[] = [];
+
+function rangeFromToken(token: Token): Range {
+	return {
+		start: {
+			line: token.line-1,
+			character: token.charPositionInLine
+		},
+		end: {
+			line: token.line-1,
+			character: token.charPositionInLine + token.text.length
+		}
+	};
+}
+
+function parseTextDocument(textDocument: TextDocument): UCDocument {
+	// TODO: Hash check
+	let document;// = projectDocuments.get(textDocument.uri);
+	if (!document) {
+		const scopeParser = new ScopeParser(textDocument.uri, textDocument.getText());
+		document = scopeParser.parse((className) => {
+			console.log('Looking for external document', className);
+
+			let filePaths = workspaceUCFiles;
+			let filePath = filePaths.find((value => {
+				return path.basename(value, '.uc') === className;
+			}));
+
+			if (!filePath) {
+				return null;
+			}
+
+			// FIXME: may not exist
+			let documentContent = fs.readFileSync(filePath).toString();
+			let externalTextDocument = TextDocument.create(filePath, 'unrealscript', 0.0, documentContent);
+			return parseTextDocument(externalTextDocument);
+		});
+		projectDocuments.set(document.uri, document);
+	}
+	return document;
+}
+
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-	// TODO:
+	documentItems = []; // reset, never show any items from previous documents.
+
+	let document = parseTextDocument(textDocument);
+	if (document.class === null || document.class.nameToken === null) {
+		// TODO: Generate diagnostic
+		return;
+	}
+
+	const className = document.class.nameToken.text;
+
+	documentItems.push({
+		label: className,
+		kind: CompletionItemKind.Class,
+		data: 'UnrealScript Class'
+	});
+
+	for (let fieldStruct: UCStruct = document.class; fieldStruct; fieldStruct = fieldStruct.extends) {
+		if (!fieldStruct.fields) {
+			continue;
+		}
+
+		for (const field of fieldStruct.fields) {
+			let item = null;
+			try {
+				if (field instanceof UCFunction) {
+					item = {
+						label: field.nameToken.text,
+						kind: CompletionItemKind.Method,
+						data: (field as UCFunction).returnTypeToken ? (field as UCFunction).returnTypeToken.text : 'none'
+					};
+				} else if (field instanceof UCProperty) {
+					item = {
+						label: field.nameToken.text,
+						kind: CompletionItemKind.Property,
+						data: (field as UCProperty).typeToken ? (field as UCProperty).typeToken.text : 'none'
+					};
+				} else {
+					item = {
+						label: field.nameToken.text,
+						kind: CompletionItemKind.Field,
+						data: undefined
+					};
+				}
+			} catch (err) {
+				console.error(err);
+			}
+
+			if (item) {
+				documentItems.push(item);
+			}
+		}
+	}
+
+	const workingClassName = path.basename(textDocument.uri, '.uc');
+	if (workingClassName != className) {
+		let diagnostic = Diagnostic.create(
+			rangeFromToken(document.class.nameToken),
+			`Class ${className} name must be equal to file name ${workingClassName}!`,
+			DiagnosticSeverity.Error
+		);
+
+		connection.sendDiagnostics({
+			uri: textDocument.uri,
+			diagnostics: [diagnostic]
+		});
+	}
 	return;
 }
 
-// connection.onDocumentHighlight((docParams: TextDocumentPositionParams): DocumentHighlight[] => {
-// 	return [{
-// 		range: { start: { line: 1, character: 0 }, end: { line: 100, character: 100 } },
-// 		kind: DocumentHighlightKind.Read
-// 	}];
-// });
+connection.onDocumentHighlight((docParams: TextDocumentPositionParams): DocumentHighlight[] => {
+	return [];
+});
 
-// connection.onHover((_txtDocumentPosition) => {
-// 	return null as Hover;
-// });
+connection.onHover((_txtDocumentPosition) => {
+	return null as Hover;
+});
 
 connection.onDefinition((_textDocumentPosition, token): Location => {
 	return {
@@ -196,17 +310,15 @@ connection.onDefinition((_textDocumentPosition, token): Location => {
 });
 
 connection.onCompletion(
-	async (_textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
+	(_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
 		var classTypes = projectClassTypes;
-		return classTypes;
+		return documentItems.concat(classTypes);
 	}
 );
 
 connection.onCompletionResolve(
 	(item: CompletionItem): CompletionItem => {
-		if (item.kind == CompletionItemKind.Class) {
-			item.documentation = 'UnrealScript Class\n' + item.data;
-		}
+		item.documentation = item.data;
 		return item;
 	}
 );
