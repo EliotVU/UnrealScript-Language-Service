@@ -181,8 +181,6 @@ SEMICOLON: ';';
 
 COMMA: ',';
 
-DOT: '.';
-
 SQUOT: '\'';
 
 MINUS: '-';
@@ -194,6 +192,8 @@ FLOAT:
 	DIGIT+ DOT DIGIT* EXPONENT?
 	| DOT DIGIT+ EXPONENT?
 	| DIGIT+ EXPONENT;
+
+DOT: '.';
 
 STRING: '"' (~["\\] | ESC_SEQ)* '"';
 
@@ -224,7 +224,10 @@ fragment NEWLINE: [\r\n];
 id:
 	ID
 	| KW_NAME
-	| KW_EXTENDS ; // FIXME: need to allow most KW but this is ugly and probably inefficient!
+	| KW_EXTENDS
+	| KW_STRING
+	| KW_SWITCH
+	| KW_CLASS; // FIXME: need to allow most KW but this is ugly and probably inefficient!
 
 // TODO: Rep and def may be anywhere but can only be defined
 program:
@@ -249,7 +252,8 @@ booleanLiteral: KW_TRUE | KW_FALSE;
 
 noneLiteral: KW_NONE;
 
-classLiteral: (KW_CLASS | id) SQUOT reference SQUOT;
+// Maybe leave the post DOT parsing to the expression parsing?
+classLiteral: (KW_CLASS | id) SQUOT reference SQUOT (DOT (KW_STATIC | KW_DEFAULT | KW_CONST) DOT)?;
 
 literal: (
 		(
@@ -268,7 +272,7 @@ numeric: DECIMAL | FLOAT;
 // Package.Class.Field
 // Class.Field
 // Class / Field
-reference: id;// (DOT id)? (DOT id)?;
+reference: id (DOT id (DOT id)?)?;
 
 classDecl
 	:
@@ -376,8 +380,8 @@ primitiveType:
 	| KW_CLASS
 	; // This is actually a reference but this is necessary because it's a "reserved" keyword.
 
-// TODO: Add const and enum support
-arraySize: LBRACKET (DECIMAL) RBRACKET;
+// TODO: May reference a constant in class or an external enum/const
+arraySize: LBRACKET (DECIMAL | reference) RBRACKET;
 
 dynArrayType:
 	KW_ARRAY LARROW (
@@ -386,7 +390,7 @@ dynArrayType:
 		| classType?
 		| mapType?
 		| primitiveType
-		| id
+		| reference
 	) RARROW;
 
 classType: KW_CLASS LARROW classReference RARROW;
@@ -546,9 +550,9 @@ statement:
 		| sm_while
 		| sm_do_until
 		| sm_switch
-		| sm_return
-		| expression
-	) SEMICOLON;
+		| (sm_return SEMICOLON)
+		| (expression SEMICOLON)
+	);
 
 // should be EXPR = EXPR but UnrealScript is an exception in that it does - only allow assignments
 // as primary statements. Rule: a.b.c.d = 4+5 Invalid: "00" = "1", "00".Length = 1 FIXME: Only
@@ -560,8 +564,11 @@ condition: expression;
 expression:
 	expression operatorExpression expression
 	| operatorExpression expression
+	| expression operatorExpression
+	| literal
 	| specifier
-	| id // FIXME: KW_CONST in literal context.
+	| call arrayElement?
+	| id arrayElement? // FIXME: KW_CONST in literal context.
 	| (LPARENT expression RPARENT);
 
 operatorExpression: DOT | QUESTIONMARK | COLON | operatorId;
@@ -575,13 +582,11 @@ specifier:
 
 funcSpecifier: (KW_GLOBAL | (KW_SUPER (LPARENT classReference RPARENT)?)) DOT;
 
-exprtest: (specifier DOT)? (((funcSpecifier DOT)? call) | id) arrayElement?;
-
 arrayElement: (LBRACKET expression RBRACKET);
 
 cast: classType | id;
 
-call: id LPARENT expression RPARENT;
+call: id LPARENT (expression COMMA?)* RPARENT;
 
 sm_if: KW_IF (LPARENT condition RPARENT) codeBody;
 
@@ -600,11 +605,12 @@ sm_do_until:
 	KW_DO codeBody KW_UNTIL (LPARENT condition RPARENT);
 
 sm_switch:
-	KW_SWITCH (LPARENT expression RPARENT) LBRACE (
-		KW_CASE literal COLON codeBlock
-	)*? (KW_DEFAULT COLON codeBlock)? RBRACE;
+	KW_SWITCH (LPARENT expression RPARENT)
+	LBRACE?
+		((KW_CASE | KW_DEFAULT) literal COLON codeBody)*
+	RBRACE?;
 
-sm_return: KW_RETURN (expression);
+sm_return: KW_RETURN expression?;
 
 defaultpropertiesBlock: (
 		KW_DEFAULTPROPERTIES
