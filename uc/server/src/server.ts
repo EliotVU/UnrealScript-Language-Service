@@ -166,31 +166,35 @@ function parseTextDocument(textDocument: TextDocument): UCDocument {
 	// TODO: Hash check
 	let document = projectDocuments.get(textDocument.uri);
 	if (!document) {
-		const scopeParser = new ScopeParser(textDocument.uri, textDocument.getText());
-		document = scopeParser.parse((className): UCDocument => {
-			console.log('Looking for external document', className);
+		try {
+			const scopeParser = new ScopeParser(textDocument.uri, textDocument.getText());
+			document = scopeParser.parse((className): UCDocument => {
+				console.log('Looking for external document', className);
 
-			let filePaths = workspaceUCFiles;
-			let filePath = filePaths.find((value => {
-				return path.basename(value, '.uc') === className;
-			}));
+				let filePaths = workspaceUCFiles;
+				let filePath = filePaths.find((value => {
+					return path.basename(value, '.uc') === className;
+				}));
 
-			if (!filePath) {
-				return null;
-			}
+				if (!filePath) {
+					return null;
+				}
 
-			const externalDocument = projectDocuments.get(filePath);
-			if (externalDocument) {
-				return externalDocument;
-			}
-			// FIXME: may not exist
-			let documentContent = fs.readFileSync(filePath).toString();
-			let externalTextDocument = TextDocument.create(filePath, 'unrealscript', 0.0, documentContent);
-			return parseTextDocument(externalTextDocument);
-		});
-		scopeParser.link();
-		diagnoseDocument(document);
-		projectDocuments.set(document.uri, document);
+				const externalDocument = projectDocuments.get(filePath);
+				if (externalDocument) {
+					return externalDocument;
+				}
+				// FIXME: may not exist
+				let documentContent = fs.readFileSync(filePath).toString();
+				let externalTextDocument = TextDocument.create(filePath, 'unrealscript', 0.0, documentContent);
+				return parseTextDocument(externalTextDocument);
+			});
+			scopeParser.link();
+			diagnoseDocument(document);
+			projectDocuments.set(document.uri, document);
+		} catch (err) {
+			console.error('couldn\' parse document!', err);
+		}
 	}
 	return document;
 }
@@ -213,7 +217,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		for (const field of fieldStruct.fields) {
 			try {
 				let item: CompletionItem = {
-					label: field.nameToken.text,
+					label: field.getName(),
 					detail: field.getTooltip(),
 					documentation: field.getDocumentation(),
 					data: field
@@ -321,7 +325,7 @@ connection.onDocumentSymbol((e: DocumentSymbolParams): SymbolInformation[] => {
 	}
 
 	return document.class.fields.map(field => {
-		return SymbolInformation.create(field.getName(), field.getKind(), field.getRange());
+		return SymbolInformation.create(field.getName(), field.getKind(), field.getRange(), field.outer ? field.outer.getName() : undefined);
 	});
 });
 

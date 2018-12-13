@@ -87,7 +87,7 @@ export class UCField extends TokenItem {
 	public nameToken: Token;
 
 	getName(): string {
-		return this.nameToken.text;
+		return this.nameToken ? this.nameToken.text : 'None';
 	}
 
 	getRange(): Range {
@@ -100,8 +100,8 @@ export class UCField extends TokenItem {
 
 	getTooltip(token?: Token): string {
 		return this.outer
-			? this.outer.getTooltip(token) + '.' + this.nameToken.text
-			: this.nameToken.text;
+			? this.outer.getTooltip(token) + '.' + this.getName()
+			: this.getName()
 	}
 
 	link(document: UCDocument) {
@@ -174,7 +174,7 @@ export class UCStruct extends UCField {
 
 	public findFieldByName(name: string, deepSearch?: boolean) {
 		for (let outer: UCStruct = this; outer; outer = outer.extends) {
-			let field = outer.fields.find(f => f.nameToken.text.toLowerCase() === name);
+			let field = outer.fields.find(f => f.getName().toLowerCase() === name);
 			if (field) {
 				return field;
 			}
@@ -203,7 +203,7 @@ export class UCClass extends UCStruct {
 	}
 
 	public link(document: UCDocument) {
-		const className = this.nameToken.text;
+		const className = this.getName();
 		const documentName = path.basename(document.uri, '.uc');
 		if (className.toLowerCase() != documentName.toLowerCase()) {
 			const errorNode = new CodeErrorNode(
@@ -216,21 +216,22 @@ export class UCClass extends UCStruct {
 		if (this.replicatedNameTokens) {
 			this.replicatedFields = [];
 			for (let nameToken of this.replicatedNameTokens) {
-				let field: UCField = this.findFieldByName(nameToken.text.toLowerCase());
+				var repName = nameToken.text;
+				var field: UCField = this.findFieldByName(repName.toLowerCase());
 				if (field) {
 					if (field instanceof UCProperty || field instanceof UCFunction) {
 						this.replicatedFields.push(field);
 					} else {
 						const errorNode = new CodeErrorNode(
 							nameToken,
-							`Type of field '${nameToken.text}' is not replicatable!`
+							`Type of field '${repName}' is not replicatable!`
 						);
 						document.nodes.push(errorNode);
 					}
 				} else {
 					const errorNode = new CodeErrorNode(
 						nameToken,
-						`Variable '${nameToken.text}' does not exist in class '${document.class.nameToken.text}'.`
+						`Variable '${repName}' does not exist in class '${document.class.getName()}'.`
 					);
 					document.nodes.push(errorNode);
 				}
@@ -407,12 +408,8 @@ export class ScopeParser {
 	parse(getDocument: (className: string) => UCDocument): UCDocument {
 		this.listener.getDocument = getDocument;
 
-		try {
-			let tree = this.parser.program();
-			ParseTreeWalker.DEFAULT.walk(this.listener, tree);
-		} catch (err) {
-			console.log('something went wrong parsing a document!', err);
-		}
+		let tree = this.parser.program();
+		ParseTreeWalker.DEFAULT.walk(this.listener, tree);
 		return this.document;
 	}
 
