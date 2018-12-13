@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 
+import URI from 'vscode-uri';
 import {
 	createConnection,
 	TextDocuments,
@@ -10,60 +11,52 @@ import {
 	DidChangeConfigurationNotification,
 	CompletionItem,
 	CompletionItemKind,
-	TextDocumentPositionParams,
 	RemoteWorkspace,
 	Hover,
-	DocumentHighlight,
-	DocumentHighlightKind,
-	DefinitionRequest,
 	Location,
 	Diagnostic,
-	DiagnosticSeverity,
-	Range
-} from 'vscode-languageserver';
+	Definition,
+	DocumentSymbolParams,
+	SymbolInformation} from 'vscode-languageserver';
 
-import { uriToFilePath } from 'vscode-languageserver/lib/files';
-
-import { ScopeParser, UCDocument, UCFunction, UCProperty, UCStruct } from './parser';
-import { Token } from 'antlr4ts/Token';
+import { ScopeParser, UCDocument, UCFunction, UCProperty, UCStruct, UCConst, UCEnum, rangeFromToken } from './parser';
 
 let connection = createConnection(ProposedFeatures.all);
 
-let documents: TextDocuments = new TextDocuments();
 let workspaceUCFiles: string[] = [];
+
+let documents: TextDocuments = new TextDocuments();
+let projectDocuments: Map<string, UCDocument> = new Map<string, UCDocument>();
+
+let documentItems: CompletionItem[] = [];
 let projectClassTypes: CompletionItem[] = [];
 
 let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
-let hasDiagnosticRelatedInformationCapability: boolean = false;
 
 connection.onInitialize((params: InitializeParams) => {
 	let capabilities = params.capabilities;
 
 	hasConfigurationCapability = !!(capabilities.workspace && !!capabilities.workspace.configuration);
 	hasWorkspaceFolderCapability = !!(capabilities.workspace && !!capabilities.workspace.workspaceFolders);
-	hasDiagnosticRelatedInformationCapability =
-		!!(capabilities.textDocument &&
-			capabilities.textDocument.publishDiagnostics &&
-			capabilities.textDocument.publishDiagnostics.relatedInformation);
 
 	return {
 		capabilities: {
 			textDocumentSync: documents.syncKind,
-			// documentHighlightProvider: true,
-			// hoverProvider: true,
+			hoverProvider: true,
 			completionProvider: {
 				resolveProvider: true,
 				triggerCharacters: ['.']
 			},
-			definitionProvider: true
+			definitionProvider: true,
+			documentSymbolProvider: true
 		}
 	};
 });
 
 async function scanWorkspaceForClasses(workspace: RemoteWorkspace) {
 	function scanPath(filePath: string, cb: (filePath: string) => void): Promise<boolean> {
-		let promise = new Promise<boolean>((resolve, reject) => {
+		let promise = new Promise<boolean>((resolve) => {
 			if (!fs.existsSync(filePath)) {
 				resolve(false);
 				return;
@@ -90,7 +83,7 @@ async function scanWorkspaceForClasses(workspace: RemoteWorkspace) {
 	let filePaths = [];
 	let folders = await workspace.getWorkspaceFolders();
 	for (let folder of folders) {
-		let folderPath = uriToFilePath(folder.uri);
+		let folderPath = URI.parse(folder.uri).fsPath;
 		await scanPath(folderPath, (filePath => {
 			filePaths.push(filePath);
 		}));
@@ -117,9 +110,6 @@ connection.onInitialized(async () => {
 		);
 	}
 	if (hasWorkspaceFolderCapability) {
-		workspaceUCFiles = await scanWorkspaceForClasses(connection.workspace);
-		initializeClassTypes(workspaceUCFiles);
-
 		connection.workspace.onDidChangeWorkspaceFolders(async _event => {
 			workspaceUCFiles = await scanWorkspaceForClasses(connection.workspace);
 			initializeClassTypes(workspaceUCFiles);
@@ -132,68 +122,52 @@ interface UCSettings {
 }
 
 const defaultSettings: UCSettings = {};
-let globalSettings: UCSettings = defaultSettings;
 let documentSettings: Map<string, Thenable<UCSettings>> = new Map();
 
 connection.onDidChangeConfiguration(change => {
 	if (hasConfigurationCapability) {
 		documentSettings.clear();
 	} else {
-		globalSettings = <UCSettings>(
-			(change.settings.ucLanguageServer || defaultSettings)
-		);
 	}
 	documents.all().forEach(validateTextDocument);
 });
 
-function getDocumentSettings(resource: string): Thenable<UCSettings> {
-	if (!hasConfigurationCapability) {
-		return Promise.resolve(globalSettings);
+
+documents.onDidOpen(async e => {
+	if (workspaceUCFiles.length === 0) {
+		workspaceUCFiles = await scanWorkspaceForClasses(connection.workspace);
+		initializeClassTypes(workspaceUCFiles);
 	}
-	let result = documentSettings.get(resource);
-	if (!result) {
-		result = connection.workspace.getConfiguration({
-			scopeUri: resource,
-			section: 'ucLanguageServer'
-		});
-		documentSettings.set(resource, result);
+	validateTextDocument(e.document);
+});
+
+documents.onDidChangeContent(async e => {
+	if (workspaceUCFiles.length === 0) {
+		workspaceUCFiles = await scanWorkspaceForClasses(connection.workspace);
+		initializeClassTypes(workspaceUCFiles);
 	}
-	return result;
-}
+	invalidateDocument(e.document);
+	validateTextDocument(e.document);
+});
 
 documents.onDidClose(e => {
 	documentSettings.delete(e.document.uri);
 });
 
-documents.onDidChangeContent(change => {
-	if (workspaceUCFiles.length === 0) {
-		return;
-	}
-	validateTextDocument(change.document);
-});
-
-let projectDocuments: Map<string, UCDocument> = new Map<string, UCDocument>();
-let documentItems: CompletionItem[] = [];
-
-function rangeFromToken(token: Token): Range {
-	return {
-		start: {
-			line: token.line-1,
-			character: token.charPositionInLine
-		},
-		end: {
-			line: token.line-1,
-			character: token.charPositionInLine + token.text.length
-		}
-	};
+function invalidateDocument(textDocument: TextDocument) {
+	connection.sendDiagnostics({
+		uri: textDocument.uri,
+		diagnostics: []
+	});
+	projectDocuments.delete(textDocument.uri);
 }
 
 function parseTextDocument(textDocument: TextDocument): UCDocument {
 	// TODO: Hash check
-	let document;// = projectDocuments.get(textDocument.uri);
+	let document = projectDocuments.get(textDocument.uri);
 	if (!document) {
 		const scopeParser = new ScopeParser(textDocument.uri, textDocument.getText());
-		document = scopeParser.parse((className) => {
+		document = scopeParser.parse((className): UCDocument => {
 			console.log('Looking for external document', className);
 
 			let filePaths = workspaceUCFiles;
@@ -205,123 +179,161 @@ function parseTextDocument(textDocument: TextDocument): UCDocument {
 				return null;
 			}
 
+			const externalDocument = projectDocuments.get(filePath);
+			if (externalDocument) {
+				return externalDocument;
+			}
 			// FIXME: may not exist
 			let documentContent = fs.readFileSync(filePath).toString();
 			let externalTextDocument = TextDocument.create(filePath, 'unrealscript', 0.0, documentContent);
 			return parseTextDocument(externalTextDocument);
 		});
+		scopeParser.link();
+		diagnoseDocument(document);
 		projectDocuments.set(document.uri, document);
 	}
 	return document;
 }
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-	documentItems = []; // reset, never show any items from previous documents.
 
 	let document = parseTextDocument(textDocument);
-	if (document.class === null || document.class.nameToken === null) {
-		// TODO: Generate diagnostic
+	diagnoseDocument(document);
+
+	if (document.class === null) {
 		return;
 	}
 
-	const className = document.class.nameToken.text;
-
-	documentItems.push({
-		label: className,
-		kind: CompletionItemKind.Class,
-		data: 'UnrealScript Class'
-	});
-
+	documentItems = []; // reset, never show any items from previous documents.
 	for (let fieldStruct: UCStruct = document.class; fieldStruct; fieldStruct = fieldStruct.extends) {
 		if (!fieldStruct.fields) {
 			continue;
 		}
 
 		for (const field of fieldStruct.fields) {
-			let item = null;
 			try {
+				let item: CompletionItem = {
+					label: field.nameToken.text,
+					detail: field.getTooltip(),
+					documentation: field.getDocumentation(),
+					data: field
+				};
+
 				if (field instanceof UCFunction) {
-					item = {
-						label: field.nameToken.text,
-						kind: CompletionItemKind.Method,
-						data: (field as UCFunction).returnTypeToken ? (field as UCFunction).returnTypeToken.text : 'none'
-					};
+					item.kind = CompletionItemKind.Method;
 				} else if (field instanceof UCProperty) {
-					item = {
-						label: field.nameToken.text,
-						kind: CompletionItemKind.Property,
-						data: (field as UCProperty).typeToken ? (field as UCProperty).typeToken.text : 'none'
-					};
+					item.kind = CompletionItemKind.Property;
+				} else if (field instanceof UCConst) {
+					item.kind = CompletionItemKind.Constant;
+				} else if (field instanceof UCStruct) {
+					item.kind = CompletionItemKind.Struct;
+				} else if (field instanceof UCEnum) {
+					item.kind = CompletionItemKind.Enum;
 				} else {
-					item = {
-						label: field.nameToken.text,
-						kind: CompletionItemKind.Field,
-						data: undefined
-					};
+					item.kind = CompletionItemKind.Field;
 				}
+
+				documentItems.push(item);
 			} catch (err) {
 				console.error(err);
 			}
-
-			if (item) {
-				documentItems.push(item);
-			}
 		}
 	}
-
-	const workingClassName = path.basename(textDocument.uri, '.uc');
-	if (workingClassName != className) {
-		let diagnostic = Diagnostic.create(
-			rangeFromToken(document.class.nameToken),
-			`Class ${className} name must be equal to file name ${workingClassName}!`,
-			DiagnosticSeverity.Error
-		);
-
-		connection.sendDiagnostics({
-			uri: textDocument.uri,
-			diagnostics: [diagnostic]
-		});
-	}
-	return;
 }
 
-connection.onDocumentHighlight((docParams: TextDocumentPositionParams): DocumentHighlight[] => {
-	return [];
-});
+function diagnoseDocument(document: UCDocument) {
+	const diagnostics: Diagnostic[] = [];
+	if (document.nodes && document.nodes.length > 0) {
+		let errors: Diagnostic[] = document.nodes
+			.map(node => {
+				return Diagnostic.create(
+					rangeFromToken(node.getToken()),
+					node.toString()
+				);
+			});
 
-connection.onHover((_txtDocumentPosition) => {
-	return null as Hover;
-});
+		diagnostics.push(...errors);
+	}
 
-connection.onDefinition((_textDocumentPosition, token): Location => {
+	connection.sendDiagnostics({
+		uri: document.uri,
+		diagnostics: diagnostics
+	});
+}
+
+connection.onHover((e): Hover => {
+	let document = projectDocuments.get(e.textDocument.uri);
+	if (!document) {
+		return undefined;
+	}
+
+	const hoverOffset = documents.get(document.uri).offsetAt(e.position);
+	const tokenItem = document.getItemAtOffset(hoverOffset);
+	if (!tokenItem) {
+		return undefined;
+	}
+
+	const token = tokenItem.findTokenAtPosition(e.position);
+
 	return {
-		uri: '',
-		range: {
-			start: {
-				line: 1,
-				character: 1
-			},
-			end: {
-				line: 1,
-				character: 1
-			}
-		}
+		contents: tokenItem.getTooltip(token),
+		range: token ? rangeFromToken(token) : undefined
 	};
 });
 
-connection.onCompletion(
-	(_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-		var classTypes = projectClassTypes;
-		return documentItems.concat(classTypes);
+// Bare implementation to support "go-to-defintion" for variable declarations type references.
+connection.onDefinition((e): Definition => {
+	let document = projectDocuments.get(e.textDocument.uri);
+	if (!document) {
+		return null;
 	}
-);
 
-connection.onCompletionResolve(
-	(item: CompletionItem): CompletionItem => {
-		item.documentation = item.data;
-		return item;
+	const hoverOffset = documents.get(document.uri).offsetAt(e.position);
+	const tokenItem = document.getItemAtOffset(hoverOffset);
+	if (!tokenItem) {
+		return null;
 	}
-);
+
+	if (tokenItem instanceof UCProperty) {
+		// assumed
+		const typeToken = tokenItem.findTokenAtPosition(e.position);
+		console.log('type token', typeToken);
+		if (typeToken) {
+			const typeName = typeToken.text.toLowerCase();
+
+			const classFilePaths = workspaceUCFiles.filter(filePath => path.basename(filePath, '.uc').toLowerCase() === typeName);
+			const emptyRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+
+			const locations = classFilePaths.map(filePath => Location.create(URI.file(filePath).toString(), emptyRange));
+			return locations;
+		}
+	}
+	// const getOuterMost = (outer: UCField) => {
+	// 	for (var field = outer; field; field = field.outer);
+	// 	return field;
+	// };
+});
+
+connection.onDocumentSymbol((e: DocumentSymbolParams): SymbolInformation[] => {
+	let document = projectDocuments.get(e.textDocument.uri);
+	if (!document || !document.class) {
+		return null;
+	}
+
+	return document.class.fields.map(field => {
+		return SymbolInformation.create(field.getName(), field.getKind(), field.getRange());
+	});
+});
+
+connection.onCompletion((): CompletionItem[] => {
+	var classTypes = projectClassTypes;
+	return documentItems.concat(classTypes);
+});
+
+connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
+	item.documentation = item.data;
+	return item;
+});
 
 documents.listen(connection);
 connection.listen();

@@ -1,221 +1,114 @@
 grammar UCGrammar;
 
-LINE_COMMENT
-    :   '//' ~[\n]+
-		-> channel(HIDDEN)
-	;
+LINE_COMMENT: '//' ~[\n]+ -> channel(HIDDEN);
 
-BLOCK_COMMENT
-    :    '/*' .*? '*/'
-        -> channel(HIDDEN)
-    ;
+BLOCK_COMMENT: '/*' .*? '*/' -> channel(HIDDEN);
 
-WS : [ \t\r\n]+ -> channel(HIDDEN);
+WS: [ \t\r\n]+ -> skip;
 
-PP_HASH
-	: '#' ~[\n]+
-		-> channel(HIDDEN)
-	;
+PP_HASH: '#' ~[\n]+ -> skip;
 
 // Keys
-KW_SELF
-    :   'self'
-    ;
+KW_SELF: 'self';
 
-KW_SUPER
-    :   'super'
-    ;
+KW_SUPER: 'super';
 
-KW_GLOBAL
-    :   'global'
-    ;
+KW_GLOBAL: 'global';
 
-KW_CLASS : 'class';
+KW_CLASS: 'class';
 
-KW_INTERFACE
-	:   'interface'
-	;
+KW_INTERFACE: 'interface';
 
-KW_WITHIN
-	:   'within'
-	;
+KW_WITHIN: 'within';
 
-KW_CONST
-	:   'const'
-	;
-KW_ENUM
-	:   'enum'
-	;
+KW_CONST: 'const';
+KW_ENUM: 'enum';
 
-KW_STRUCT
-	:   'struct'
-	;
+KW_STRUCT: 'struct';
 
-KW_VAR
-	:   'var'
-	;
+KW_VAR: 'var';
 
-KW_LOCAL
-	:   'local'
-	;
+KW_LOCAL: 'local';
 
-KW_REPLICATION
-	:   'replication'
-	;
+KW_REPLICATION: 'replication';
 
-KW_OPERATOR
-	:   'operator'
-	;
+KW_OPERATOR: 'operator';
 
-KW_PREOPERATOR
-	:   'preoperator'
-	;
+KW_PREOPERATOR: 'preoperator';
 
-KW_POSTOPERATOR
-	:   'postoperator'
-	;
+KW_POSTOPERATOR: 'postoperator';
 
-KW_DELEGATE
-	:   'delegate'
-	;
+KW_DELEGATE: 'delegate';
 
-KW_FUNCTION
-    :   'function'
-	;
+KW_FUNCTION: 'function';
 
-KW_EVENT
-	:   'event'
-	;
+KW_EVENT: 'event';
 
-KW_STATE
-	:   'state';
+KW_STATE: 'state';
 
-KW_DEFAULT
-	:   'default';
+KW_DEFAULT: 'default';
 
-KW_MAP
-	:	'map'
-	;
+KW_MAP: 'map';
 
-KW_DEFAULTPROPERTIES
-	:	'defaultproperties'
-	;
+KW_DEFAULTPROPERTIES: 'defaultproperties';
 
-KW_STRUCTDEFAULTPROPERTIES
-	:	'structdefaultproperties'
-	;
+KW_STRUCTDEFAULTPROPERTIES: 'structdefaultproperties';
 
-KW_FOR
-	:	'for'
-	;
+KW_FOR: 'for';
 
-KW_FOREACH
-	:	'foreach'
-	;
+KW_FOREACH: 'foreach';
 
-KW_RETURN
-	:	'return'
-	;
+KW_RETURN: 'return';
 
-KW_CASE
-	:	'case'
-	;
+KW_CASE: 'case';
 
-KW_SWITCH
-	:	'switch'
-	;
+KW_SWITCH: 'switch';
 
-KW_UNTIL
-	:	'until'
-	;
+KW_UNTIL: 'until';
 
-KW_DO
-	:	'do'
-	;
+KW_DO: 'do';
 
-KW_WHILE
-	:	'while'
-	;
+KW_WHILE: 'while';
 
-KW_ELSE
-	:	'else'
-	;
+KW_ELSE: 'else';
 
-KW_IF
-	:	'if'
-	;
+KW_IF: 'if';
 
-KW_IGNORES
-	:	'ignores'
-	;
+KW_IGNORES: 'ignores';
 
-KW_RELIABLE
-	:	'reliable'
-	;
+KW_RELIABLE: 'reliable';
 
-KW_UNRELIABLE
-	:	'unreliable'
-	;
+KW_UNRELIABLE: 'unreliable';
 
-KW_CPPTEXT
-	:	'cpptext'
-	;
+KW_CPPTEXT: 'cpptext';
 
-KW_STRUCTCPPTEXT
-	:	'structcpptext'
-	;
+KW_STRUCTCPPTEXT: 'structcpptext';
 
-KW_CPPSTRUCT
-	:	'cppstruct'
-	;
+KW_CPPSTRUCT: 'cppstruct';
 
-KW_ARRAY
-	:	'array'
-	;
+KW_ARRAY: 'array';
 
-KW_BYTE
-	:	'byte'
-	;
+KW_BYTE: 'byte';
 
-KW_INT
-	:	'int'
-	;
+KW_INT: 'int';
 
-KW_FLOAT
-	:	'float'
-	;
+KW_FLOAT: 'float';
 
-KW_STRING
-	:	'string'
-	;
+KW_STRING: 'string';
 
-KW_BUTTON
-	:	'button'
-	;
+KW_BUTTON: 'button';
 
-KW_BOOL
-	:	'bool'
-	;
+KW_BOOL: 'bool';
 
-KW_NAME
-	:	'name'
-	;
+KW_NAME: 'name';
 
-KW_TRUE
-	:	'true'
-	;
+KW_TRUE: 'true';
 
-KW_FALSE
-	:	'false'
-	;
+KW_FALSE: 'false';
 
-KW_NONE
-    :   'none'
-    ;
+KW_NONE: 'none';
 
-KW_EXTENDS
-	:	'extends' | 'expands'
-	;
+KW_EXTENDS: 'extends' | 'expands';
 
 KW_PUBLIC: 'public';
 KW_PROTECTED: 'protected';
@@ -253,97 +146,58 @@ KW_TRANSIENT: 'transient';
 KW_CACHE: 'cache';
 KW_EDITINLINE: 'editinline';
 KW_AUTOMATED: 'automated';
-KW_CACHEEXEMPT : 'cacheexempt';
-KW_HIDEDROPDOWN : 'hidedropdown';
+KW_TRAVEL: 'travel';
+KW_CACHEEXEMPT: 'cacheexempt';
+KW_HIDEDROPDOWN: 'hidedropdown';
+KW_EXPORTSTRUCTS: 'exportstructs';
 
-ID
-	:   [a-zA-Z_][a-zA-Z0-9_]*
-	;
+ID: [a-zA-Z_][a-zA-Z0-9_]*;
 
-LBRACKET
-	:	'['
-	;
+LBRACKET: '[';
 
-RBRACKET
-	:	']'
-	;
+RBRACKET: ']';
 
-LBRACE
-	:	'{'
-	;
+LBRACE: '{';
 
-RBRACE
-	:	'}'
-	;
+RBRACE: '}';
 
-LPARENT
-	:	'('
-	;
+LPARENT: '(';
 
-RPARENT
-	:	')'
-	;
+RPARENT: ')';
 
-LARROW
-	:	'<'
-	;
+LARROW: '<';
 
-RARROW
-	:	'>'
-	;
+RARROW: '>';
 
-EQUALS_SIGN
-	:	'='
-	;
+EQUALS_SIGN: '=';
 
-COLON
-	:	':'
-	;
+COLON: ':';
 
-HASHTAG
-    :   '#'
-    ;
+HASHTAG: '#';
 
-QUESTIONMARK
-    :   '?'
-    ;
+QUESTIONMARK: '?';
 
-SEMICOLON
-	:	';'
-	;
+SEMICOLON: ';';
 
-COMMA
-	:	','
-	;
+COMMA: ',';
 
-DOT
-	:	'.'
-	;
+DOT: '.';
 
-SQUOT
-    :   '\''
-    ;
+SQUOT: '\'';
 
 MINUS: '-';
 PLUS: '+';
 
-DECIMAL
-    :   (DIGIT 'x' HEX_DIGIT+) | DIGIT+
-    ;
+DECIMAL: (DIGIT 'x' HEX_DIGIT+) | DIGIT+;
 
-FLOAT
-    :   DIGIT+ DOT DIGIT* EXPONENT?
-        | DOT DIGIT+ EXPONENT?
-        | DIGIT+ EXPONENT
-    ;
+FLOAT:
+	DIGIT+ DOT DIGIT* EXPONENT?
+	| DOT DIGIT+ EXPONENT?
+	| DIGIT+ EXPONENT;
 
-STRING
-    :   '"' (~["\\] | ESC_SEQ)* '"'
-    ;
+STRING: '"' (~["\\] | ESC_SEQ)* '"';
 
-NAME
-    :   '\'' (~['\\] | ESC_SEQ)* '\''
-    ;
+NAME: '\'' (~['\\] | ESC_SEQ)* '\'';
 
 ATSIGN: '@';
 DOLLARSIGN: '$';
@@ -356,515 +210,419 @@ DIVIDESIGN: '/';
 MODULUSSIGN: '%';
 TILTSIGN: '~';
 
-fragment DIGIT
-    :   [0-9]
-    ;
+fragment DIGIT: [0-9];
 
-fragment EXPONENT
-    :   ('e'|'E') ('+'|'-')? DIGIT+
-    ;
+fragment EXPONENT: ('e' | 'E') ('+' | '-')? DIGIT+;
 
-fragment HEX_DIGIT
-    :   (DIGIT|'a'..'f'|'A'..'F')
-    ;
+fragment HEX_DIGIT: (DIGIT | 'a' ..'f' | 'A' ..'F');
 
-fragment ESC_SEQ
-    :   '\\' ('b'|'t'|'n'|'r'|'"'|'\''|'\\')
-    ;
+fragment ESC_SEQ:
+	'\\' ('b' | 't' | 'n' | 'r' | '"' | '\'' | '\\');
 
-fragment NEWLINE
-    :   [\r\n]
-    ;
+fragment NEWLINE: [\r\n];
+
+id:
+	ID
+	| KW_NAME
+	| KW_EXTENDS ; // FIXME: need to allow most KW but this is ugly and probably inefficient!
 
 // TODO: Rep and def may be anywhere but can only be defined
-program
-    :
-        classDecl
-		(
-			cpptextBlock
-			| constDecl
-			| (enumDecl SEMICOLON)
-			| (structDecl SEMICOLON)
-			| varDecl
-			| replicationBlock
-		)*
-        (
-			(
-				functionDecl
-				| stateDecl
-				| replicationBlock
-			)*
-		)
-        defaultpropertiesBlock?
-    ;
+program:
+	classDecl (
+		cpptextBlock
+		| constDecl
+		| (enumDecl SEMICOLON)
+		| (structDecl SEMICOLON)
+		| varDecl
+	)* (( functionDecl | stateDecl | replicationBlock)*) defaultpropertiesBlock?;
 
 //exec
-//    :   HASHTAG NEWLINE
-//    ;
+// : HASHTAG NEWLINE ;
 
-typeName
-	: ID
-	;
+typeName: id;
 
-className
-	: ID
-	;
+className: id;
 
-stringLiteral
-    :   STRING
-    ;
-nameLiteral
-    :   NAME
-    ;
-booleanLiteral
-    :   KW_TRUE | KW_FALSE
-    ;
+stringLiteral: STRING;
+nameLiteral: NAME;
+booleanLiteral: KW_TRUE | KW_FALSE;
 
-noneLiteral
-    :   KW_NONE
-    ;
+noneLiteral: KW_NONE;
 
-classLiteral
- 	:	(KW_CLASS|ID) SQUOT reference SQUOT
- 	;
+classLiteral: (KW_CLASS | id) SQUOT reference SQUOT;
 
-literal
-    :   ((noneLiteral | booleanLiteral | numeric | stringLiteral | nameLiteral) | classLiteral)
-    ;
+literal: (
+		(
+			noneLiteral
+			| booleanLiteral
+			| numeric
+			| stringLiteral
+			| nameLiteral
+		)
+		| classLiteral
+	);
 
-numeric
-	:	DECIMAL | FLOAT
-	;
+numeric: DECIMAL | FLOAT;
 
-reference
-    :   typeName (DOT typeName (DOT typeName)?)?
-    ;
+// Parses the following possiblities.
+// Package.Class.Field
+// Class.Field
+// Class / Field
+reference: id;// (DOT id)? (DOT id)?;
 
 classDecl
-	:	(KW_CLASS | KW_INTERFACE) className (KW_EXTENDS classExtendsReference (KW_WITHIN classWithinReference)?)?
+	:
+		(KW_CLASS | KW_INTERFACE) className
+			(
+				KW_EXTENDS classExtendsReference
+				(KW_WITHIN classWithinReference)?
+			)?
 			classModifier* SEMICOLON
 	;
 
-classReference
-	: 	reference
-	;
+classReference: reference;
 
-classExtendsReference
-	: 	classReference
-	;
+classExtendsReference: classReference;
 
-classWithinReference
-	: 	classReference
-	;
+classWithinReference: classReference;
 
-classModifier
-	:	KW_NATIVE | KW_NATIVEREPLICATION
-		| KW_CACHEEXEMPT | KW_HIDEDROPDOWN
-		| KW_LOCALIZED // ?
-        | KW_ABSTRACT
-		| KW_PEROBJECTCONFIG | KW_PEROBJECTLOCALIZE
-        | KW_TRANSIENT
-		| KW_EXPORT | KW_NOEXPORT
-		| KW_PLACEABLE | KW_NOTPLACEABLE
-		| (KW_CONFIG modifierArgument?)
-		| (KW_DEPENDSON modifierArguments)
-		| (KW_SHOWCATEGORIES modifierArguments)
-		| (KW_HIDECATEGORIES modifierArguments)
-        //ID (LPARENT ID (COMMA ID)* RPARENT)?
-	;
+classModifier:
+	KW_NATIVE
+	| KW_NATIVEREPLICATION
+	| KW_CACHEEXEMPT
+	| KW_HIDEDROPDOWN
+	| KW_LOCALIZED // ?
+	| KW_ABSTRACT
+	| KW_PEROBJECTCONFIG
+	| KW_PEROBJECTLOCALIZE
+	| KW_TRANSIENT
+	| KW_EXPORT
+	| KW_NOEXPORT
+	| KW_EXPORTSTRUCTS
+	| KW_PLACEABLE
+	| KW_NOTPLACEABLE
+	| (KW_CONFIG modifierArgument?)
+	| (KW_DEPENDSON modifierArguments)
+	| (KW_SHOWCATEGORIES modifierArguments)
+	| (KW_HIDECATEGORIES modifierArguments)
+	; //ID (LPARENT ID (COMMA ID)* RPARENT)?
 
 // TODO: may be a numeric or typeName!
-modifierValue
-	: ID
+modifierValue: id;
+
+modifierArgument: LPARENT modifierValue RPARENT;
+
+modifierArguments: LPARENT (modifierValue COMMA?)* RPARENT;
+
+constDecl: KW_CONST constName EQUALS_SIGN constValue SEMICOLON;
+
+constName: id;
+constValue: literal;
+
+nativeType: LPARENT .*? RPARENT;
+
+varDecl:
+	KW_VAR
+		(LPARENT (categoryName (COMMA categoryName)*)? RPARENT)?
+		variableModifier*
+		variableDeclType
+		variable (COMMA variable)*
+	//nativeType?
+	SEMICOLON;
+
+variable: variableName (arraySize)?;
+
+variableName: id;
+categoryName: id;
+
+variableModifier: (
+		KW_PUBLIC
+		| KW_PROTECTED
+		| KW_PRIVATE
+		| KW_LOCALIZED
+		| KW_NATIVE
+		| KW_CONST
+		| KW_INIT
+		| KW_NOEXPORT
+		| KW_EDITCONST
+		| KW_CONFIG
+		| KW_GLOBALCONFIG
+		| KW_TRANSIENT
+		| KW_CACHE
+		| KW_EXPORT
+		| KW_EDITINLINE
+		| KW_AUTOMATED
+		| KW_TRAVEL
+	);
+
+variableType:
+	dynArrayType
+	| classType
+	| mapType
+	| primitiveType
+	| reference
 	;
 
-modifierArgument
-	: LPARENT modifierValue RPARENT
-	;
+variableDeclType: (enumDecl | structDecl | variableType);
 
-modifierArguments
-	: LPARENT (modifierValue COMMA?)* RPARENT
-	;
-
-constDecl
-	:	KW_CONST constName EQUALS_SIGN constValue SEMICOLON
-	;
-
-constName
-    :   ID
-    ;
-constValue
-    :   literal
-    ;
-
-nativeType
-	:	LPARENT .*? RPARENT
-	;
-
-variable
-	:	variableName (arraySize)?
-	;
-
-variableName
-    :   ID
-    ;
-
-varDecl
-	:	KW_VAR (LPARENT (categoryName (COMMA categoryName)*)? RPARENT)?
-        variableModifier*
-        (enumDecl? | structDecl? | variableType)
-        variable (COMMA variable)*
-        //nativeType?
-        SEMICOLON
-    ;
-
-variableModifier
-	:	(KW_PUBLIC | KW_PROTECTED | KW_PRIVATE
-        | KW_LOCALIZED | KW_NATIVE | KW_CONST
-        | KW_INIT | KW_NOEXPORT | KW_EDITCONST
-        | KW_CONFIG | KW_GLOBALCONFIG | KW_TRANSIENT | KW_CACHE | KW_EXPORT | KW_EDITINLINE | KW_AUTOMATED)
-	;
-
-categoryName
-	:	ID
-	;
-
-variableType
-    :   dynArrayType | classType | primitiveType | reference | mapType
-    ;
-
-primitiveType
-	:	(
-            KW_BYTE | KW_INT | KW_FLOAT | KW_STRING | KW_BOOL | KW_NAME
-            | KW_BUTTON // alias for a string with an input modifier
-            | KW_CLASS // This is actually a reference but this is necessary because it's a "reserved" keyword.
-        )
-	;
+primitiveType:
+	KW_BYTE
+	| KW_INT
+	| KW_FLOAT
+	| KW_BOOL
+	| KW_STRING
+	| KW_NAME
+	| KW_BUTTON // alias for a string with an input modifier
+	| KW_CLASS
+	; // This is actually a reference but this is necessary because it's a "reserved" keyword.
 
 // TODO: Add const and enum support
-arraySize
-	:	LBRACKET (DECIMAL | reference) RBRACKET
-	;
+arraySize: LBRACKET (DECIMAL) RBRACKET;
 
-dynArrayType
-	:	KW_ARRAY LARROW (reference | (classType | mapType) | primitiveType) RARROW
-	;
+dynArrayType:
+	KW_ARRAY LARROW (
+		structDecl
+		| enumDecl
+		| classType?
+		| mapType?
+		| primitiveType
+		| id
+	) RARROW;
 
-classType
-	:	KW_CLASS LARROW reference RARROW
-	;
+classType: KW_CLASS LARROW classReference RARROW;
 
-mapType
-	:	KW_MAP LARROW (reference | (classType | mapType | dynArrayType) | primitiveType) RARROW
-	;
+mapType:
+	KW_MAP LARROW (
+		reference
+		| (classType | mapType | dynArrayType)
+		| primitiveType
+	) RARROW;
 
-enumDecl
-	:	KW_ENUM enumName
-		LBRACE
-			(valueName COMMA?)*
-		RBRACE
-	;
+enumDecl: KW_ENUM enumName LBRACE (valueName COMMA?)* RBRACE;
 
-enumName
-    :   ID
-    ;
+enumName: id;
 
-valueName
-    :   ID
-    ;
+valueName: id;
 
-structReference
-	: reference
-	;
+structReference: reference;
 
-structDecl
-	:	KW_STRUCT nativeType? structModifier* structName (KW_EXTENDS structReference)?
-        LBRACE
-        	(constDecl*
-            |(enumDecl SEMICOLON)*
-            |(structDecl SEMICOLON)*
-            |varDecl*)
+structDecl:
+	KW_STRUCT nativeType? structModifier* structName (
+		KW_EXTENDS structReference
+	)? LBRACE (
+		constDecl*
+		| (enumDecl SEMICOLON)*
+		| (structDecl SEMICOLON)*
+		| varDecl*
+	) cpptextBlock? defaultpropertiesBlock? RBRACE SEMICOLON?;
 
-            cpptextBlock?
-        	defaultpropertiesBlock?
-        RBRACE SEMICOLON?
-    ;
+structName: id;
 
-structName
-    :   ID
-    ;
+structModifier: (KW_NATIVE | KW_EXPORT);
 
-structModifier
-	:	(KW_NATIVE | KW_EXPORT)
-	;
+cpptextBlock: (KW_CPPTEXT | (KW_STRUCTCPPTEXT | KW_CPPSTRUCT)) LBRACE .*? RBRACE;
 
-cpptextBlock
-	:	(KW_CPPTEXT | (KW_STRUCTCPPTEXT | KW_CPPSTRUCT))
-		LBRACE
-            .*?
-		RBRACE
-	;
+replicationBlock:
+	KW_REPLICATION LBRACE replicationStatement* RBRACE;
 
-replicationBlock
-	:	KW_REPLICATION
-		LBRACE
-			((KW_RELIABLE | KW_UNRELIABLE)? KW_IF LPARENT expression RPARENT
-				ID (COMMA ID)* SEMICOLON)*
-		RBRACE
-	;
+replicationModifier: (KW_RELIABLE | KW_UNRELIABLE);
 
-// public simulated function test(optional int p1, int p2) const;
-// public simulated function test(optional int p1, int p2) const
-// {
-// }
-functionDecl
-	:	functionModifier*
-        functionKind
-			// We have to identify LPARENT in each,
-			// - to prevent a false positive 'operatorName' identification.
-			((returnType functionName LPARENT)? | (functionName LPARENT))
-				(functionParam)*
-            RPARENT
-            (KW_CONST)?
-		((
+replicationStatement:
+	replicationModifier? KW_IF (LPARENT condition RPARENT) (
+		replicateVariableName (COMMA replicateVariableName)* SEMICOLON
+	);
+
+replicateVariableName: id;
+
+// public simulated function test(optional int p1, int p2) const; public simulated function
+// test(optional int p1, int p2) const { }
+functionDecl:
+	functionModifier* functionKind
+	// We have to identify LPARENT in each, - to prevent a false positive 'operatorName'
+	// identification.
+	((returnType functionName LPARENT)? | (functionName LPARENT)) (
+		functionParam
+	)* RPARENT (KW_CONST)? (
+		(
 			LBRACE
-				constDecl*
-				localDecl*
-
-				// methodBody
+				constDecl* localDecl*
+				statement*
 			RBRACE
-		) | SEMICOLON)
-	;
+		)
+		| SEMICOLON
+	);
 
-
-functionModifier
-    :   KW_PUBLIC | KW_PROTECTED | KW_PRIVATE
-        |KW_SIMULATED
-		|(KW_NATIVE (LPARENT DECIMAL RPARENT)?)
-        |KW_FINAL
-        |KW_LATENT
-        |KW_ITERATOR
-        |KW_SINGULAR
-        |KW_STATIC
-		|KW_EXEC
-    ;
+functionModifier:
+	KW_PUBLIC
+	| KW_PROTECTED
+	| KW_PRIVATE
+	| KW_SIMULATED
+	| (KW_NATIVE (LPARENT DECIMAL RPARENT)?)
+	| KW_FINAL
+	| KW_LATENT
+	| KW_ITERATOR
+	| KW_SINGULAR
+	| KW_STATIC
+	| KW_EXEC;
 
 // #$@|&!^*-+/%~<>
-functionName
-    :   ID | operatorName
-    ;
+functionName: id | operatorExpression;
 
-functionParam
-	: paramModifier* variableType variable (EQUALS_SIGN expression)? COMMA?
-	;
+functionParam:
+	paramModifier* variableType variable (EQUALS_SIGN expression)? COMMA?;
 
-returnType
-    :   (variableType)
-    ;
+methodReference : id;
 
-operatorId
-	:
-		(DOLLARSIGN|ATSIGN|HASHTAG|EQUALS_SIGN|NOTSIGN|ANDSIGN|ORSIGN|ARROWUPSIGN|MULTIPLYSIGN|MINUS|PLUS|DIVIDESIGN|MODULUSSIGN|TILTSIGN|LARROW|RARROW)
-        (ORSIGN|ANDSIGN|ARROWUPSIGN|MULTIPLYSIGN|MINUS|PLUS|DIVIDESIGN|LARROW|RARROW|EQUALS_SIGN)?
-	;
+returnType: (variableType);
 
-operatorName
-    :   (
-            (QUESTIONMARK | COLON)
-            |(
-                (operatorId)?
-                RARROW?
-            )
-            |ID
-        )
-    ;
+operatorId:
+	(
+		DOLLARSIGN
+		| ATSIGN
+		| HASHTAG
+		| EQUALS_SIGN
+		| NOTSIGN
+		| ANDSIGN
+		| ORSIGN
+		| ARROWUPSIGN
+		| MULTIPLYSIGN
+		| MINUS
+		| PLUS
+		| DIVIDESIGN
+		| MODULUSSIGN
+		| TILTSIGN
+		| LARROW
+		| RARROW
+	) (
+		ORSIGN
+		| ANDSIGN
+		| ARROWUPSIGN
+		| MULTIPLYSIGN
+		| MINUS
+		| PLUS
+		| DIVIDESIGN
+		| LARROW
+		| RARROW
+		| EQUALS_SIGN
+	)? (RARROW)?;
 
-paramModifier
-    :   KW_OUT | KW_OPTIONAL | KW_INIT | KW_SKIP | KW_COERCE | KW_CONST
-    ;
+paramModifier:
+	KW_OUT
+	| KW_OPTIONAL
+	| KW_INIT
+	| KW_SKIP
+	| KW_COERCE
+	| KW_CONST;
 
-localDecl
-    :   KW_LOCAL variableType variable (COMMA variable)* SEMICOLON
-    ;
+localDecl:
+	KW_LOCAL variableType variable (COMMA variable)* SEMICOLON;
 
-stateReference
-	: reference
-	;
+labelName: id;
 
-stateDecl
-	:	(stateModifier)* KW_STATE (categoryName)? stateName (KW_EXTENDS stateReference)?
+stateReference: reference;
+
+stateDecl: (stateModifier)* KW_STATE (categoryName)? stateName
+		(KW_EXTENDS stateReference)?
 		LBRACE
-			(KW_IGNORES ID (COMMA ID)* SEMICOLON)?
-
+			(KW_IGNORES methodReference (COMMA methodReference)* SEMICOLON)?
 			(functionDecl)*
+			(labelName COLON statement*)*
+		RBRACE;
 
-			(ID COLON statement*)*
-		RBRACE
-	;
+stateName: id;
 
-stateName
-    :   ID
-    ;
+stateModifier: KW_AUTO | KW_SIMULATED;
 
-stateModifier
-	:	KW_AUTO | KW_SIMULATED
-	;
+codeBody: (codeBlock | statement*);
 
-methodBody
-	:	statement*
-	;
+codeBlock: (LBRACE statement* RBRACE);
 
-codeBody
-    :   (codeBlock | statement*)
-    ;
+statement:
+	(
+		sm_if
+		| sm_else
+		| sm_for
+		| sm_foreach
+		| sm_while
+		| sm_do_until
+		| sm_switch
+		| sm_return
+		| expression
+	) SEMICOLON;
 
-codeBlock
-	:	(LBRACE statement* RBRACE)
-	;
+// should be EXPR = EXPR but UnrealScript is an exception in that it does - only allow assignments
+// as primary statements. Rule: a.b.c.d = 4+5 Invalid: "00" = "1", "00".Length = 1 FIXME: Only
+// supports ID = expression
+assignment: expression EQUALS_SIGN expression;
 
-statement
-	:
-		(
-			sm_if
-			|sm_else
-			|sm_for
-			|sm_foreach
-			|sm_while
-			|sm_do_until
-			|sm_switch
-			|sm_return
-			|expression
-		)
-		SEMICOLON
-	;
+condition: expression;
 
-// should be EXPR = EXPR but UnrealScript is an exception in that it does
-// - only allow assignments as primary statements.
-// Rule: a.b.c.d = 4+5
-// Invalid: "00" = "1", "00".Length = 1
-// FIXME: Only supports ID = expression
-assignment
-	:	expression EQUALS_SIGN expression
-	;
+expression:
+	expression operatorExpression expression
+	| operatorExpression expression
+	| specifier
+	| id // FIXME: KW_CONST in literal context.
+	| (LPARENT expression RPARENT);
 
-condition
-    :   expression
-    ;
+operatorExpression: DOT | QUESTIONMARK | COLON | operatorId;
 
-expression
-    :
-        |(LPARENT expression RPARENT)
-        |codeContext
-        |operatorCall
-        |call
-        // |(cast? (LPARENT expression RPARENT)) // cast
-    ;
+specifier:
+	KW_SELF
+	| KW_STATIC
+	| KW_CONST
+	| KW_DEFAULT
+	| KW_SUPER;
 
-specifier
-    :   KW_SELF | KW_STATIC | KW_CONST | KW_DEFAULT | KW_SUPER
-    ;
+funcSpecifier: (KW_GLOBAL | (KW_SUPER (LPARENT classReference RPARENT)?)) DOT;
 
-funcSpecifier
-    :   (KW_GLOBAL | (KW_SUPER (LPARENT ID RPARENT)?)) DOT
-    ;
+exprtest: (specifier DOT)? (((funcSpecifier DOT)? call) | id) arrayElement?;
 
-exprtest
-    :   (specifier DOT)? (((funcSpecifier DOT)? call) | ID) arrayElement?
-    ;
+arrayElement: (LBRACKET expression RBRACKET);
 
-arrayElement
-    :   (LBRACKET expression RBRACKET)
-    ;
+cast: classType | id;
 
-codeContext: literal | (exprtest (DOT exprtest)?);
+call: id LPARENT expression RPARENT;
 
-cast
-    :   classType | ID
-    ;
+sm_if: KW_IF (LPARENT condition RPARENT) codeBody;
 
-binaryOperator
-    :  codeContext operatorName codeContext
-    ;
+sm_else: KW_ELSE statement;
 
-preOperator
-    :   operatorName codeContext
-    ;
+sm_foreach: KW_FOREACH call codeBody;
 
-postOperator
-    :   codeContext operatorName
-    ;
+sm_for:
+	KW_FOR (
+		LPARENT assignment SEMICOLON condition SEMICOLON expression RPARENT
+	) codeBody;
 
-operatorCall
-    :   binaryOperator | preOperator | postOperator
-    ;
+sm_while: KW_WHILE (LPARENT condition RPARENT) codeBody;
 
-call
-	:   ID LPARENT expression RPARENT
-	;
+sm_do_until:
+	KW_DO codeBody KW_UNTIL (LPARENT condition RPARENT);
 
-sm_if
-	:	KW_IF (LPARENT condition RPARENT)
-			codeBody
-	;
+sm_switch:
+	KW_SWITCH (LPARENT expression RPARENT) LBRACE (
+		KW_CASE literal COLON codeBlock
+	)*? (KW_DEFAULT COLON codeBlock)? RBRACE;
 
-sm_else
-    : 	KW_ELSE statement
-    ;
+sm_return: KW_RETURN (expression);
 
-sm_foreach
-	:	KW_FOREACH call
-			codeBody
-	;
+defaultpropertiesBlock: (
+		KW_DEFAULTPROPERTIES
+		| KW_STRUCTDEFAULTPROPERTIES
+	) LBRACE defaultProperty* RBRACE;
 
-sm_for
-	:	KW_FOR (LPARENT assignment SEMICOLON condition SEMICOLON expression RPARENT)
-			codeBody
-	;
+defaultProperty: (
+		id (
+			(LPARENT DECIMAL RPARENT)
+			| (LBRACKET DECIMAL RBRACKET)
+		)?
+	) EQUALS_SIGN (.*? (SEMICOLON)?);
 
-sm_while
-	:	KW_WHILE (LPARENT condition RPARENT)
-			codeBody
-	;
-
-sm_do_until
-	:	KW_DO
-			codeBody
-		KW_UNTIL (LPARENT condition RPARENT)
-	;
-
-sm_switch
-	:	KW_SWITCH (LPARENT expression RPARENT)
-		LBRACE
-			(KW_CASE literal COLON
-				codeBlock
-			)*?
-
-			(KW_DEFAULT COLON
-				codeBlock
-			)?
-		RBRACE
-	;
-
-sm_return
-	:	KW_RETURN (expression)
-	;
-
-defaultpropertiesBlock
-	:	(KW_DEFAULTPROPERTIES | KW_STRUCTDEFAULTPROPERTIES)
-		LBRACE
-            defaultProperty*
-		RBRACE
-	;
-
-defaultProperty
-    :   (ID((LPARENT DECIMAL RPARENT) | (LBRACKET DECIMAL RBRACKET))?)
-        EQUALS_SIGN
-        (.*? (SEMICOLON)?)
-    ;
-
-functionKind
-    :   (KW_EVENT | KW_FUNCTION | KW_DELEGATE
-        | (KW_OPERATOR (LPARENT DECIMAL RPARENT))
-        | (KW_PREOPERATOR)
-        | (KW_POSTOPERATOR))
-    ;
+functionKind: (
+		KW_EVENT
+		| KW_FUNCTION
+		| KW_DELEGATE
+		| (KW_OPERATOR (LPARENT DECIMAL RPARENT))
+		| (KW_PREOPERATOR)
+		| (KW_POSTOPERATOR)
+	);
