@@ -1,45 +1,47 @@
-/*==============================================================================
-	A Comment
-	Another Line
-==============================================================================*/
-class test extends Mutator
-	config(MyConfigFileName)
-	notplaceable;
+//=============================================================================
+// Object: The base class all objects.
+// This is a built-in Unreal class and it shouldn't be modified.
+//=============================================================================
+class test extends Object
+    dependson(Object)
+	noexport;
 
-struct sInventoryCollection
+/**
+	HELLO
+ */
+var struct NotReplicatable {
+    var() string Name;
+} InlineStruct;
+
+// ALREADY EXISTS?
+var(CategoryName) string Extends;
+
+var() bool bSimulateGravity;
+var() bool bIsCrouched, test;
+
+var Sound ObjectReference;
+
+var array<int> IntArray;
+var array<Sound> ObjectArray;
+var array<class<Object> > ClassArray;
+var array<struct structWithinArray {
+    var string Name;
+}> StructArray;
+
+replication
 {
-	/** MultiComment 1 */
-	var() config int ScoreReq;
-	var() config array< class<Inventory> > Inventories;
-};
+	reliable if( bNetDirty && (Role==ROLE_Authority) )
+        test, Name, NotReplicatable, bSimulateGravity, bIsCrouched, bIsWalking;
 
-struct sStruct2 extends sInventoryCollection
-{
-	struct sSubStruct
-	{
-		var() public const int TestVar, TestVar2;
-	};
-};
-
-var() config array<sInventoryCollection> LoadedLevels;
-var() config bool bUseKills;
-var() config bool bBalanceWithDeaths;
-
-var protected LoadedRules LR;
-
-simulated event PostBeginPlay()
-{
-	local xPickupBase P;
-	local WeaponLocker WL;
+	reliable if( Role<ROLE_Authority )
+		ServerChangedWeapon, NextItem, ServerNoTranslocator;
 }
 
-final static function StubFunctionVoid();
-final static function StubFunctionVoid2(int int1) const;
+function NextItem();
 
-final static function string StubFunction(
-	int Int0,
-	out float TestParam1,
-	optional coerce string TestParam2)
+function CodeMethod()
 {
-	local int Int1;
+    local int Integer;
+
+    test = NextItem;
 }
