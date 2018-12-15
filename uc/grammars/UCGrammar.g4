@@ -444,9 +444,9 @@ functionDecl:
 	functionModifier* functionKind
 	// We have to identify LPARENT in each, - to prevent a false positive 'operatorName'
 	// identification.
-	((returnType functionName LPARENT)? | (functionName LPARENT)) (
-		functionParam
-	)* RPARENT (KW_CONST)? (
+	((returnType functionName LPARENT)? | (functionName LPARENT))
+		functionParam*
+	RPARENT (KW_CONST)? (
 		(
 			LBRACE
 				constDecl* localDecl*
@@ -590,7 +590,7 @@ call: id LPARENT (expression COMMA?)* RPARENT;
 
 sm_if: KW_IF (LPARENT condition RPARENT) codeBody;
 
-sm_else: KW_ELSE statement;
+sm_else: KW_ELSE codeBody;
 
 sm_foreach: KW_FOREACH call codeBody;
 
