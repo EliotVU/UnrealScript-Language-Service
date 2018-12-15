@@ -7,6 +7,7 @@ BLOCK_COMMENT: '/*' .*? '*/' -> channel(HIDDEN);
 WS: [ \t\r\n]+ -> skip;
 
 PP_HASH: '#' ~[\n]+ -> skip;
+PP_TICK: '`' ~[\n]+ -> skip;
 
 // Keys
 KW_SELF: 'self';
@@ -243,7 +244,7 @@ SQUOT: '\'';
 MINUS: '-';
 PLUS: '+';
 
-DECIMAL: (DIGIT 'x' HEX_DIGIT+) | DIGIT+;
+INTEGER: (DIGIT 'x' HEX_DIGIT+) | DIGIT+;
 
 FLOAT:
 	DIGIT+ DOT DIGIT* EXPONENT?
@@ -267,7 +268,7 @@ DIVIDESIGN: '/';
 MODULUSSIGN: '%';
 TILTSIGN: '~';
 
-fragment DIGIT: [0-9];
+fragment DIGIT: [0-9]('f' | 'F')?;
 
 fragment EXPONENT: ('e' | 'E') ('+' | '-')? DIGIT+;
 
@@ -323,7 +324,7 @@ literal: (
 		| classLiteral
 	);
 
-numeric: DECIMAL | FLOAT;
+numeric: INTEGER | FLOAT;
 
 // Parses the following possiblities.
 // Package.Class.Field
@@ -376,7 +377,7 @@ classModifier:
 	| (KW_DONTCOLLAPSECATEGORIES modifierArguments)
 	| (KW_SHOWCATEGORIES modifierArguments)
 	| (KW_HIDECATEGORIES modifierArguments)
-	| (KW_GUID (LPARENT DECIMAL COMMA DECIMAL COMMA DECIMAL COMMA DECIMAL RPARENT))
+	| (KW_GUID (LPARENT INTEGER COMMA INTEGER COMMA INTEGER COMMA INTEGER RPARENT))
 	// UC3+
 	| KW_NATIVEONLY
 	| KW_NONTRANSIENT
@@ -498,7 +499,7 @@ primitiveType:
 	; // This is actually a reference but this is necessary because it's a "reserved" keyword.
 
 // TODO: May reference a constant in class or an external enum/const
-arraySize: LBRACKET (DECIMAL | reference) RBRACKET;
+arraySize: LBRACKET (INTEGER | reference) RBRACKET;
 
 dynArrayType:
 	KW_ARRAY LARROW (
@@ -599,7 +600,7 @@ functionModifier:
 	| KW_PROTECTED
 	| KW_PRIVATE
 	| KW_SIMULATED
-	| (KW_NATIVE (LPARENT DECIMAL RPARENT)?)
+	| (KW_NATIVE (LPARENT INTEGER RPARENT)?)
 	| KW_FINAL
 	| KW_LATENT
 	| KW_ITERATOR
@@ -772,8 +773,8 @@ defaultpropertiesBlock
 
 defaultProperty: (
 		id (
-			(LPARENT DECIMAL RPARENT)
-			| (LBRACKET DECIMAL RBRACKET)
+			(LPARENT INTEGER RPARENT)
+			| (LBRACKET INTEGER RBRACKET)
 		)?
 	) EQUALS_SIGN (.*? (SEMICOLON)?);
 
@@ -781,7 +782,7 @@ functionKind: (
 		KW_EVENT
 		| KW_FUNCTION
 		| KW_DELEGATE
-		| (KW_OPERATOR (LPARENT DECIMAL RPARENT))
+		| (KW_OPERATOR (LPARENT INTEGER RPARENT))
 		| (KW_PREOPERATOR)
 		| (KW_POSTOPERATOR)
 	);
