@@ -25,6 +25,7 @@ export function rangeFromToken(token: Token): Range {
 		}
 	};
 }
+
 abstract class TokenItem {
 	protected startToken: Token;
 	protected stopToken: Token;
@@ -124,7 +125,7 @@ export class UCConst extends UCField {
 export class UCProperty extends UCField {
 	public typeToken: Token;
 
-	constructor(ctx: UCParser.VarDeclContext, stopToken: Token) {
+	constructor(ctx: ParserRuleContext, stopToken: Token) {
 		super(ctx);
 
 		// Small hack neccessary to separate this UCProperty from a multiple-var-declaration case.
@@ -269,7 +270,7 @@ export class UCDocument {
 	}
 }
 
-class ScopeListener implements UCGrammarListener {
+class DocumentListener implements UCGrammarListener {
 	public getDocument: (className: string) => UCDocument;
 
 	constructor(private stream: CommonTokenStream, private document: UCDocument) {
@@ -373,6 +374,31 @@ class ScopeListener implements UCGrammarListener {
 			parsedFunction.nameToken = functionNameTree.start;
 		}
 		this.pushField(parsedFunction);
+		this.document.push(parsedFunction);
+
+		for (const paramCtx of ctx.paramDecl()) {
+			let propTypeToken = paramCtx.variableType().start;
+			let varCtx = paramCtx.variable();
+			let nameToken = varCtx.variableName().start;
+
+			let prop = new UCProperty(varCtx, paramCtx.stop);
+			prop.typeToken = propTypeToken;
+			prop.nameToken = nameToken;
+			this.pushField(prop);
+		}
+
+		for (const localCtx of ctx.localDecl()) {
+			let propTypeToken = localCtx.variableType().start;
+			for (const varCtx of localCtx.variable()) {
+				let nameToken = varCtx.variableName().start;
+
+				let prop = new UCProperty(localCtx, localCtx.stop);
+				prop.typeToken = propTypeToken;
+				prop.nameToken = nameToken;
+				this.pushField(prop);
+			}
+		}
+		this.document.pop();
 	}
 
 	enterReplicationStatement(ctx: UCParser.ReplicationStatementContext) {
@@ -383,8 +409,8 @@ class ScopeListener implements UCGrammarListener {
 	}
 }
 
-export class ScopeParser {
-	private listener: ScopeListener;
+export class DocumentAnalyzer {
+	private listener: DocumentListener;
 	private lexer: UCGrammarLexer;
 	private parser: UCParser.UCGrammarParser;
 	private tokenStream: CommonTokenStream;
@@ -402,7 +428,7 @@ export class ScopeParser {
 		this.parser.buildParseTree = true;
 
 		this.document = new UCDocument(uri);
-		this.listener = new ScopeListener(this.tokenStream, this.document);
+		this.listener = new DocumentListener(this.tokenStream, this.document);
 	}
 
 	parse(getDocument: (className: string) => UCDocument): UCDocument {
@@ -416,4 +442,4 @@ export class ScopeParser {
 	link() {
 		this.document.class.link(this.document);
 	}
-};
+}

@@ -19,7 +19,7 @@ import {
 	DocumentSymbolParams,
 	SymbolInformation} from 'vscode-languageserver';
 
-import { ScopeParser, UCDocument, UCFunction, UCProperty, UCStruct, UCConst, UCEnum, rangeFromToken } from './parser';
+import { DocumentAnalyzer, UCDocument, UCFunction, UCProperty, UCStruct, UCConst, UCEnum, rangeFromToken } from './parser';
 
 let connection = createConnection(ProposedFeatures.all);
 
@@ -167,7 +167,7 @@ function parseTextDocument(textDocument: TextDocument): UCDocument {
 	let document = projectDocuments.get(textDocument.uri);
 	if (!document) {
 		try {
-			const scopeParser = new ScopeParser(textDocument.uri, textDocument.getText());
+			const scopeParser = new DocumentAnalyzer(textDocument.uri, textDocument.getText());
 			document = scopeParser.parse((className): UCDocument => {
 				console.log('Looking for external document', className);
 
@@ -219,8 +219,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 				let item: CompletionItem = {
 					label: field.getName(),
 					detail: field.getTooltip(),
-					documentation: field.getDocumentation(),
-					data: field
+					documentation: field.getDocumentation()
 				};
 
 				if (field instanceof UCFunction) {
@@ -329,15 +328,32 @@ connection.onDocumentSymbol((e: DocumentSymbolParams): SymbolInformation[] => {
 	});
 });
 
-connection.onCompletion((): CompletionItem[] => {
-	var classTypes = projectClassTypes;
-	return documentItems.concat(classTypes);
+connection.onCompletion((e): CompletionItem[] => {
+	let document = projectDocuments.get(e.textDocument.uri);
+	if (!document) {
+		return null;
+	}
+
+	const items = projectClassTypes;
+
+	const hoverOffset = documents.get(document.uri).offsetAt(e.position);
+	const tokenItem = document.getItemAtOffset(hoverOffset);
+	if (!tokenItem) {
+		return items;
+	}
+
+	return items.concat(documentItems, tokenItem instanceof UCStruct ? (tokenItem as UCStruct).fields.map(field => {
+		return {
+			label: field.getName(),
+			detail: field.getTooltip(),
+			documentation: field.getDocumentation(),
+		} as CompletionItem;
+	}) : []);
 });
 
-connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
-	item.documentation = item.data;
-	return item;
-});
+// connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
+// 	return item;
+// });
 
 documents.listen(connection);
 connection.listen();
