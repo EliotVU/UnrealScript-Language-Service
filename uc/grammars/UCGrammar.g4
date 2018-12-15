@@ -445,7 +445,7 @@ functionDecl:
 	// We have to identify LPARENT in each, - to prevent a false positive 'operatorName'
 	// identification.
 	((returnType functionName LPARENT)? | (functionName LPARENT))
-		functionParam*
+		paramDecl*
 	RPARENT (KW_CONST)? (
 		(
 			LBRACE
@@ -472,7 +472,7 @@ functionModifier:
 // #$@|&!^*-+/%~<>
 functionName: id | operatorExpression;
 
-functionParam:
+paramDecl:
 	paramModifier* variableType variable (EQUALS_SIGN expression)? COMMA?;
 
 methodReference : id;
