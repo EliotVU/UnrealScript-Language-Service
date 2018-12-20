@@ -19,7 +19,7 @@ import {
 	DocumentSymbolParams,
 	SymbolInformation} from 'vscode-languageserver';
 
-import { DocumentAnalyzer, UCDocument, UCFunction, UCProperty, UCStruct, UCConst, UCEnum, rangeFromToken } from './parser';
+import { DocumentParser, UCDocument, UCFunction, UCProperty, UCStruct, UCConst, UCEnum, rangeFromToken, UCClass } from './parser';
 
 let connection = createConnection(ProposedFeatures.all);
 
@@ -45,7 +45,6 @@ connection.onInitialize((params: InitializeParams) => {
 			textDocumentSync: documents.syncKind,
 			hoverProvider: true,
 			completionProvider: {
-				resolveProvider: true,
 				triggerCharacters: ['.']
 			},
 			definitionProvider: true,
@@ -88,6 +87,10 @@ async function scanWorkspaceForClasses(workspace: RemoteWorkspace) {
 			filePaths.push(filePath);
 		}));
 	}
+	// FIXME: hacky
+	// await scanPath(URI.parse('file:///D:/Projecten/UnrealScriptLang/uc/grammars/native').fsPath, (filePath => {
+	// 	filePaths.push(filePath);
+	// }));
 	return filePaths;
 }
 
@@ -163,12 +166,13 @@ function invalidateDocument(textDocument: TextDocument) {
 }
 
 function parseTextDocument(textDocument: TextDocument): UCDocument {
+
 	// TODO: Hash check
 	let document = projectDocuments.get(textDocument.uri);
 	if (!document) {
 		try {
-			const scopeParser = new DocumentAnalyzer(textDocument.uri, textDocument.getText());
-			document = scopeParser.parse((className): UCDocument => {
+			const parser = new DocumentParser(textDocument.uri, textDocument.getText());
+			document = parser.parse((className): UCDocument => {
 				console.log('Looking for external document', className);
 
 				let filePaths = workspaceUCFiles;
@@ -189,7 +193,7 @@ function parseTextDocument(textDocument: TextDocument): UCDocument {
 				let externalTextDocument = TextDocument.create(filePath, 'unrealscript', 0.0, documentContent);
 				return parseTextDocument(externalTextDocument);
 			});
-			scopeParser.link();
+			parser.link();
 			diagnoseDocument(document);
 			projectDocuments.set(document.uri, document);
 		} catch (err) {
@@ -202,6 +206,9 @@ function parseTextDocument(textDocument: TextDocument): UCDocument {
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
 	let document = parseTextDocument(textDocument);
+	if (!document) {
+		return;
+	}
 	diagnoseDocument(document);
 
 	if (document.class === null) {
@@ -210,36 +217,12 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
 	documentItems = []; // reset, never show any items from previous documents.
 	for (let fieldStruct: UCStruct = document.class; fieldStruct; fieldStruct = fieldStruct.extends) {
-		if (!fieldStruct.fields) {
+		if (!fieldStruct.symbols) {
 			continue;
 		}
 
-		for (const field of fieldStruct.fields) {
-			try {
-				let item: CompletionItem = {
-					label: field.getName(),
-					detail: field.getTooltip(),
-					documentation: field.getDocumentation()
-				};
-
-				if (field instanceof UCFunction) {
-					item.kind = CompletionItemKind.Method;
-				} else if (field instanceof UCProperty) {
-					item.kind = CompletionItemKind.Property;
-				} else if (field instanceof UCConst) {
-					item.kind = CompletionItemKind.Constant;
-				} else if (field instanceof UCStruct) {
-					item.kind = CompletionItemKind.Struct;
-				} else if (field instanceof UCEnum) {
-					item.kind = CompletionItemKind.Enum;
-				} else {
-					item.kind = CompletionItemKind.Field;
-				}
-
-				documentItems.push(item);
-			} catch (err) {
-				console.error(err);
-			}
+		for (const symbol of fieldStruct.symbols.values()) {
+			documentItems.push(symbol.toCompletionItem());
 		}
 	}
 }
@@ -271,7 +254,7 @@ connection.onHover((e): Hover => {
 	}
 
 	const hoverOffset = documents.get(document.uri).offsetAt(e.position);
-	const tokenItem = document.getItemAtOffset(hoverOffset);
+	const tokenItem = document.getSymbolAtOffset(hoverOffset);
 	if (!tokenItem) {
 		return undefined;
 	}
@@ -292,7 +275,7 @@ connection.onDefinition((e): Definition => {
 	}
 
 	const hoverOffset = documents.get(document.uri).offsetAt(e.position);
-	const tokenItem = document.getItemAtOffset(hoverOffset);
+	const tokenItem = document.getSymbolAtOffset(hoverOffset);
 	if (!tokenItem) {
 		return null;
 	}
@@ -323,9 +306,18 @@ connection.onDocumentSymbol((e: DocumentSymbolParams): SymbolInformation[] => {
 		return null;
 	}
 
-	return document.class.fields.map(field => {
-		return SymbolInformation.create(field.getName(), field.getKind(), field.getRange(), field.outer ? field.outer.getName() : undefined);
-	});
+	var contextSymbols = [];
+	var buildSymbolsList = (container: UCStruct) => {
+		for (let symbol of container.symbols.values()) {
+			if (symbol instanceof UCStruct) {
+				buildSymbolsList(symbol as UCStruct);
+			}
+			contextSymbols.push(symbol.toSymbolInfo());
+		}
+	};
+
+	buildSymbolsList(document.class);
+	return contextSymbols;
 });
 
 connection.onCompletion((e): CompletionItem[] => {
@@ -336,24 +328,44 @@ connection.onCompletion((e): CompletionItem[] => {
 
 	const items = projectClassTypes;
 
-	const hoverOffset = documents.get(document.uri).offsetAt(e.position);
-	const tokenItem = document.getItemAtOffset(hoverOffset);
-	if (!tokenItem) {
-		return items;
+	const offset = documents.get(document.uri).offsetAt(e.position);
+	let contextSymbol = document.getSymbolAtOffset(offset);
+	if (!contextSymbol) {
+		contextSymbol = document.class;
 	}
 
-	return items.concat(documentItems, tokenItem instanceof UCStruct ? (tokenItem as UCStruct).fields.map(field => {
-		return {
-			label: field.getName(),
-			detail: field.getTooltip(),
-			documentation: field.getDocumentation(),
-		} as CompletionItem;
-	}) : []);
-});
+	if (contextSymbol instanceof UCClass) {
+		return ['var', 'struct', 'function', 'enum', 'const']
+			.map(kw => {
+				return {
+					label: kw,
+					kind: CompletionItemKind.Keyword
+				} as CompletionItem;
+			});
+	} else if(contextSymbol instanceof UCProperty) {
+		return projectClassTypes.concat(
+			['string', 'float', 'int', 'byte', 'name', 'struct', 'enum', 'pointer']
+				.map(type => {
+						return {
+							label: type,
+							kind: CompletionItemKind.Keyword
+						} as CompletionItem;
+				})
+		);
+	}
 
-// connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
-// 	return item;
-// });
+	if (contextSymbol instanceof UCStruct) {
+		(contextSymbol as UCStruct).symbols.forEach((symbol, key) => {
+			items.push({
+				label: symbol.getName(),
+				detail: symbol.getTooltip(),
+				documentation: symbol.getDocumentation(),
+			});
+		});
+	}
+
+	return items.concat(documentItems);
+});
 
 documents.listen(connection);
 connection.listen();
