@@ -503,7 +503,12 @@ mapType:
 		| primitiveType
 	) RARROW;
 
-enumDecl: KW_ENUM enumName LBRACE (valueName COMMA?)* RBRACE;
+enumDecl:
+	KW_ENUM enumName
+	LBRACE
+		(valueName COMMA?)*
+	RBRACE
+	;
 
 enumName: ID;
 
@@ -604,7 +609,7 @@ functionModifier:
 	| KW_DEMORECORDING;
 
 // #$@|&!^*-+/%~<>
-functionName: ID | operatorExpression;
+functionName: ID | operatorId;
 
 paramDecl:
 	paramModifier* variableType variable (EQUALS_SIGN expression)? COMMA?;
@@ -614,7 +619,8 @@ methodReference : ID;
 returnModifier: KW_COERCE;
 returnType: (variableType);
 
-operatorId:
+operatorId
+	:
 	(
 		DOLLARSIGN
 		| ATSIGN
@@ -632,9 +638,11 @@ operatorId:
 		| TILTSIGN
 		| LARROW
 		| RARROW
-	) (
-		ORSIGN
+	)
+	(
+		EQUALS_SIGN
 		| ANDSIGN
+		| ORSIGN
 		| ARROWUPSIGN
 		| MULTIPLYSIGN
 		| MINUS
@@ -642,8 +650,9 @@ operatorId:
 		| DIVIDESIGN
 		| LARROW
 		| RARROW
-		| EQUALS_SIGN
-	)? (RARROW)?;
+	)?
+	(RARROW)?
+	;
 
 paramModifier:
 	kwOUT
@@ -706,7 +715,7 @@ expression:
 	| ID arrayElement? // FIXME: KW_CONST in literal context.
 	| (LPAREN expression RPAREN);
 
-operatorExpression: DOT | QUESTIONMARK | COLON | operatorId;
+operatorExpression: DOT | QUESTIONMARK | COLON | ID | operatorId;
 
 specifier:
 	kwSELF
@@ -721,7 +730,7 @@ arrayElement: (LBRACKET expression RBRACKET);
 
 cast: classType | ID;
 
-call: ID LPAREN (expression COMMA?)* RPAREN;
+call: ID LPAREN (COMMA* expression)* RPAREN;
 
 sm_if: KW_IF (LPAREN condition RPAREN) codeBody;
 
