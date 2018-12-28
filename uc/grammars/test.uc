@@ -8,12 +8,12 @@ class test extends Object
 
 const TEST_CONSTANT = 10;
 
-struct TopStruct {
-
-};
-
 enum ETopEnum {
     TE_Value1
+};
+
+struct TopStruct {
+
 };
 
 /**
@@ -21,19 +21,25 @@ enum ETopEnum {
  */
 var struct NotReplicatable {
     var() string Name;
+
+    struct ChildStruct {
+        var string Name;
+    }
+
+    var() string AnotherName;
 } InlineStruct;
 
 var array<struct structWithinArray {
     var string Name;
 }> InlinedStructArray;
 
-var Engine.Actor DeepReference;
-var array<class<Engine.Actor>> DeepActorClassArray;
-var array<Object.Vector> DeepVectorArray;
+var public Engine.Actor DeepReference;
+var protected array<class<Engine.Actor> > DeepActorClassArray;
+var private array<Object.Vector> DeepVectorArray;
 
-var Sound ObjectProperty;
-var array<int> ArrayProperty;
-var map<Actor> MapProperty;
+var const Sound objectProperty;
+var array<int> arrayProperty;
+var map<Actor> mapProperty;
 var float floatProperty;
 var int intProperty;
 var bool boolProperty;
@@ -54,17 +60,33 @@ var public const int ModifiedProperty;
 replication
 {
 	reliable if( bNetDirty && (Role==ROLE_Authority) )
-        ObjectProperty, thisDoesntExist, NotReplicatable;
+        objectProperty, thisDoesntExist, notReplicatable;
 
 	reliable if( Role<ROLE_Authority )
 		ReplicatedFunction;
 }
 
+native(121) static final operator(24) bool >= ( string A, string B );
+
 function ReplicatedFunction();
 
-function CodeMethod()
+simulated event CodeMethod()
 {
     local int Integer;
+    local Object obj;
 
-    test = NextItem();
+    test = NextItem(, Integer,, test);
+    obj = new(, "test") class'Object';
+}
+
+function int Param(float float1, float float2)
+{
+    // Should be an error: "const variables cannot be modified!"
+    class'Actor'.default.Name = 'Test';
+    return float1;
+}
+
+defaultproperties
+{
+    CategoryProperty="Defaults"
 }
