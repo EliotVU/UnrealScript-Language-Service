@@ -759,7 +759,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 		const extendsCtx = ctx.structReference();
 		if (extendsCtx) {
-			symbol.extendsRef = new UCStructRef(extendsCtx.start, ctx);
+			symbol.extendsRef = new UCStructRef(extendsCtx.start, extendsCtx);
 		}
 
 		this.declare(symbol);
@@ -828,7 +828,15 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	enterStateDecl(ctx: UCParser.StateDeclContext) {
-		var symbol = new UCState(ctx.start, ctx);
+		var stateName = ctx.stateName();
+		var symbol = new UCState(stateName.start, ctx);
+
+		const extendsCtx = ctx.stateReference();
+		if (extendsCtx) {
+			// FIXME: UCStateRef?
+			symbol.extendsRef = new UCStructRef(extendsCtx.start, extendsCtx);
+		}
+
 		this.declare(symbol);
 		this.push(symbol);
 	}
