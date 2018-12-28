@@ -669,7 +669,7 @@ labelName: ID;
 
 stateReference: reference;
 
-stateDecl: (stateModifier)* kwSTATE (categoryName)? stateName
+stateDecl: (stateModifier)* kwSTATE (LPAREN RPAREN)? stateName
 		(KW_EXTENDS stateReference)?
 		LBRACE
 			(KW_IGNORES methodReference (COMMA methodReference)* SEMICOLON)?
