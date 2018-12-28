@@ -48,11 +48,11 @@ KW_FUNCTION: 'function';
 
 kwEVENT: { this.keyword('event') }? ID;
 
-KW_STATE: 'state';
+kwSTATE: { this.keyword('state') }? ID;
 
 KW_DEFAULT: 'default';
 
-KW_MAP: 'map';
+kwMAP: { this.keyword('map') }? ID;
 
 KW_DEFAULTPROPERTIES: 'defaultproperties';
 
@@ -357,7 +357,7 @@ classModifier:
 	| KW_NOTEDITINLINENEW
 	| (KW_DEPENDSON modifierArguments)
 	| (KW_COLLAPSECATEGORIES modifierArguments)
-	| (KW_DONTCOLLAPSECATEGORIES modifierArguments)
+	| (KW_DONTCOLLAPSECATEGORIES modifierArguments?)
 	| (KW_SHOWCATEGORIES modifierArguments)
 	| (KW_HIDECATEGORIES modifierArguments)
 	| (kwGUID (LPAREN INTEGER COMMA INTEGER COMMA INTEGER COMMA INTEGER RPAREN))
@@ -497,7 +497,7 @@ dynArrayType:
 classType: kwCLASS LARROW classReference RARROW;
 
 mapType:
-	KW_MAP LARROW (
+	kwMAP LARROW (
 		reference
 		| (classType | mapType | dynArrayType)
 		| primitiveType
@@ -669,7 +669,7 @@ labelName: ID;
 
 stateReference: reference;
 
-stateDecl: (stateModifier)* KW_STATE (categoryName)? stateName
+stateDecl: (stateModifier)* kwSTATE (categoryName)? stateName
 		(KW_EXTENDS stateReference)?
 		LBRACE
 			(KW_IGNORES methodReference (COMMA methodReference)* SEMICOLON)?
@@ -711,7 +711,7 @@ expression:
 	| expression operatorExpression
 	| literal
 	| specifier
-	| call arrayElement?
+	| call arrayElement? expression? // HACK for special operators
 	| ID arrayElement? // FIXME: KW_CONST in literal context.
 	| (LPAREN expression RPAREN);
 
