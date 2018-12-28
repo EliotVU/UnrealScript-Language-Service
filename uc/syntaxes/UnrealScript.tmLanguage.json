@@ -1,5 +1,4 @@
 {
-    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
     "name": "UnrealScript",
     "scopeName": "source.uc",
     "patterns": [
@@ -75,16 +74,16 @@
                 },
                 {
                     "name": "constant.numeric.hex.uc",
-                    "match": "0(x|X)[0-9a-fA-F]?"
+                    "match": "0(x|X)[0-9a-fA-F]+"
                 },
                 {
                     "name": "constant.numeric.decimal.uc",
-                    "match": "([0-9_]+)?(\\.[0-9]+(F|f)?)?"
+                    "match": "[0-9]*(\\.[0-9]*(f|F)?)?"
                 }
             ]
         },
         "type-declaration": {
-            "match": "([_[:alpha:]][_[:alnum:]]*)(.?)\\b",
+            "match": "(\\.?[_[:alpha:]][_[:alnum:]]*)+",
             "name": "entity.name.type.uc",
             "patterns": [
                 {
@@ -116,7 +115,7 @@
             "end": "(?<=;)",
             "patterns": [
                 {
-                    "begin": "(?i)(class|interface)\\s+([_[:alpha:]][_[:alnum:]]*)\\s*((?i)(extends|expands)\\s+([_[:alpha:]][_[:alnum:]]*))?",
+                    "begin": "(?i)(class|interface)\\s+([_[:alpha:]][_[:alnum:]]*)\\s*((?i)(extends|expands)\\s+([_[:alpha:]][_[:alnum:]]*))?\\s*((?i)(within)\\s+([_[:alpha:]][_[:alnum:]]*))?",
                     "beginCaptures": {
                         "1": {
                             "name": "keyword.other.class.uc"
@@ -129,11 +128,17 @@
                         },
                         "5": {
                             "name": "entity.other.inherited-class.uc"
+                        },
+                        "7": {
+                            "name": "keyword.other.within.uc"
+                        },
+                        "8": {
+                            "name": "entity.other.inherited-class.uc"
                         }
                     },
                     "patterns": [
                         {
-                            "begin": "\\b(?i)(abstract|export|exportstructs|noexport|noexportheader|nativereplication|transient|nontransient|nousercreate|notplaceable|placeable)\\b",
+                            "begin": "\\b(?i)(abstract|export|exportstructs|noexport|noexportheader|nativereplication|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|hidedropdown|noteditinlinenew)\\b",
                             "name": "keyword.other.modifier.uc",
                             "end": "\\b"
                         },
@@ -150,7 +155,7 @@
                             "end": "\\b"
                         },
                         {
-                            "begin": "\\b(?i)(dllbind|inherits|dependson|hidecategories|showcategories|implements|classgroup|autocollapsecategories|dontautocollapsecategories|autoexpandcategories|dontsortcategories)\\s*\\(\\s*([_[:alpha:]][_[:alnum:]]*)\\s*",
+                            "begin": "\\b(?i)(dllbind|inherits|dependson|hidecategories|showcategories|implements|classgroup|autocollapsecategories|dontautocollapsecategories|autoexpandcategories|dontsortcategories|collapsecategories|dontcollapsecategories)\\s*\\(\\s*([_[:alpha:]][_[:alnum:]]*)\\s*",
                             "beginCaptures": {
                                 "1": {
                                     "name": "keyword.other.modifier.uc"
@@ -199,6 +204,9 @@
             "end": "(?<=;)",
             "patterns": [
                 {
+                    "include": "#comment"
+                },
+                {
                     "begin": "(?i)(var)\\b(\\s*\\(([_[:alpha:]][_[:alnum:]]*)\\))?",
                     "beginCaptures": {
                         "1": {
@@ -211,7 +219,7 @@
                     "end": "\\s+"
                 },
                 {
-                    "begin": "((?i)(public|protected|private|const|noexport|editconst|editconstarray|automated|config|globalconfig|localized|native|transient)\\b)?",
+                    "begin": "((?i)(public|protected|private|privatewrite|localized|native|const|editconst|config|globalconfig|transient|travel|input|export|noexport|cache|automated|editinline|editinlinenotify|editconstarray|edfindable|init|editfixedsize|editoronly|editortextbox|noclear|noimport|serializetext|nontransactional|instanced|databinding|duplicatetransient|repretry|repnotify|interp|deprecated|notforconsole|archetype|crosslevelactive|crosslevelpassive\\b)*)?",
                     "beginCaptures": {
                         "2": {
                             "name": "storage.modifier.uc"
@@ -219,15 +227,20 @@
                     },
                     "patterns": [
                         {
-                            "include": "#type-declaration"
-                        }
-                    ],
-                    "endCaptures": {
-                        "1": {
+                            "begin": "\\s+",
+                            "patterns": [
+                                {
+                                    "include": "#type-declaration"
+                                }
+                            ],
+                            "end": "\\b"
+                        },
+                        {
+                            "match": "([_[:alpha:]][_[:alnum:]]*)(\\[[0-9]\\])?",
                             "name": "entity.name.variable.uc"
                         }
-                    },
-                    "end": "([_[:alpha:]][_[:alnum:]]*)(\\b,\\b)?\\s*\\;"
+                    ],
+                    "end": ";"
                 }
             ]
         },
@@ -237,7 +250,7 @@
             "end": "(?<=\\{)",
             "patterns": [
                 {
-                    "begin": "(?i)(static|final|simulated|public|protected|private|exec)",
+                    "begin": "(?i)(static|final|simulated|public|protected|private|exec|(native ([0-9])?))",
                     "name": "storage.modifier.uc",
                     "end": "\\b"
                 },
