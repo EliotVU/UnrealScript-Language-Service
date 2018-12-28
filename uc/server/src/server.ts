@@ -17,9 +17,17 @@ import {
 	Diagnostic,
 	Definition,
 	DocumentSymbolParams,
-	SymbolInformation} from 'vscode-languageserver';
+	SymbolInformation,
+	ReferenceParams,
+	SymbolKind,
+	WorkspaceSymbolParams} from 'vscode-languageserver';
 
-import { DocumentParser, UCDocument, UCFunction, UCProperty, UCStruct, UCConst, UCEnum, rangeFromToken, UCClass } from './parser';
+import {
+	DocumentParser, UCDocument, UCDocSymbol, UCProperty, UCStruct, rangeFromToken, UCClass,
+	FUNCTION_MODIFIERS, CLASS_DECLARATIONS, PRIMITIVE_TYPE_NAMES, VARIABLE_MODIFIERS,
+	UCFunction, FUNCTION_DECLARATIONS, STRUCT_DECLARATIONS,
+	STRUCT_MODIFIERS, UCScriptStruct, UCPackage, UCSymbolRef, NATIVE_SYMBOLS
+} from './parser';
 
 let connection = createConnection(ProposedFeatures.all);
 
@@ -48,7 +56,8 @@ connection.onInitialize((params: InitializeParams) => {
 				triggerCharacters: ['.']
 			},
 			definitionProvider: true,
-			documentSymbolProvider: true
+			documentSymbolProvider: true,
+			referencesProvider: true
 		}
 	};
 });
@@ -87,10 +96,6 @@ async function scanWorkspaceForClasses(workspace: RemoteWorkspace) {
 			filePaths.push(filePath);
 		}));
 	}
-	// FIXME: hacky
-	// await scanPath(URI.parse('file:///D:/Projecten/UnrealScriptLang/uc/grammars/native').fsPath, (filePath => {
-	// 	filePaths.push(filePath);
-	// }));
 	return filePaths;
 }
 
@@ -124,10 +129,9 @@ interface UCSettings {
 
 }
 
-const defaultSettings: UCSettings = {};
 let documentSettings: Map<string, Thenable<UCSettings>> = new Map();
 
-connection.onDidChangeConfiguration(change => {
+connection.onDidChangeConfiguration(() => {
 	if (hasConfigurationCapability) {
 		documentSettings.clear();
 	} else {
@@ -165,13 +169,16 @@ function invalidateDocument(textDocument: TextDocument) {
 	projectDocuments.delete(textDocument.uri);
 }
 
+var WorkspacePackage = new UCPackage('Workspace');
+NATIVE_SYMBOLS.forEach(symbol => WorkspacePackage.addSymbol(symbol));
+
 function parseTextDocument(textDocument: TextDocument): UCDocument {
 
 	// TODO: Hash check
 	let document = projectDocuments.get(textDocument.uri);
 	if (!document) {
 		try {
-			const parser = new DocumentParser(textDocument.uri, textDocument.getText());
+			const parser = new DocumentParser(textDocument.uri, textDocument.getText(), WorkspacePackage);
 			document = parser.parse((className): UCDocument => {
 				console.log('Looking for external document', className);
 
@@ -204,7 +211,6 @@ function parseTextDocument(textDocument: TextDocument): UCDocument {
 }
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-
 	let document = parseTextDocument(textDocument);
 	if (!document) {
 		return;
@@ -259,11 +265,9 @@ connection.onHover((e): Hover => {
 		return undefined;
 	}
 
-	const token = tokenItem.findTokenAtPosition(e.position);
-
 	return {
-		contents: tokenItem.getTooltip(token),
-		range: token ? rangeFromToken(token) : undefined
+		contents: tokenItem.getTooltip(),
+		range: tokenItem.getRange()
 	};
 });
 
@@ -275,29 +279,17 @@ connection.onDefinition((e): Definition => {
 	}
 
 	const hoverOffset = documents.get(document.uri).offsetAt(e.position);
-	const tokenItem = document.getSymbolAtOffset(hoverOffset);
-	if (!tokenItem) {
+	const symbol = document.getSymbolAtOffset(hoverOffset);
+	if (!symbol) {
 		return null;
 	}
 
-	if (tokenItem instanceof UCProperty) {
-		// assumed
-		const typeToken = tokenItem.findTokenAtPosition(e.position);
-		console.log('type token', typeToken);
-		if (typeToken) {
-			const typeName = typeToken.text.toLowerCase();
-
-			const classFilePaths = workspaceUCFiles.filter(filePath => path.basename(filePath, '.uc').toLowerCase() === typeName);
-			const emptyRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
-
-			const locations = classFilePaths.map(filePath => Location.create(URI.file(filePath).toString(), emptyRange));
-			return locations;
+	if (symbol instanceof UCSymbolRef) {
+		let reference = symbol.getReference() as UCDocSymbol;
+		if (reference instanceof UCDocSymbol) {
+			return Location.create(reference.getUri() , reference.getRange());
 		}
 	}
-	// const getOuterMost = (outer: UCField) => {
-	// 	for (var field = outer; field; field = field.outer);
-	// 	return field;
-	// };
 });
 
 connection.onDocumentSymbol((e: DocumentSymbolParams): SymbolInformation[] => {
@@ -309,15 +301,35 @@ connection.onDocumentSymbol((e: DocumentSymbolParams): SymbolInformation[] => {
 	var contextSymbols = [];
 	var buildSymbolsList = (container: UCStruct) => {
 		for (let symbol of container.symbols.values()) {
+			contextSymbols.push(symbol.toSymbolInfo());
 			if (symbol instanceof UCStruct) {
 				buildSymbolsList(symbol as UCStruct);
 			}
-			contextSymbols.push(symbol.toSymbolInfo());
 		}
 	};
 
 	buildSymbolsList(document.class);
 	return contextSymbols;
+});
+
+connection.onWorkspaceSymbol((e: WorkspaceSymbolParams) => {
+	console.error('ws, symbol', e.query);
+	return undefined;
+});
+
+connection.onReferences((e: ReferenceParams): Location[] => {
+	let document = projectDocuments.get(e.textDocument.uri);
+	if (!document) {
+		return null;
+	}
+
+	const offset = documents.get(document.uri).offsetAt(e.position);
+	let contextSymbol = document.getSymbolAtOffset(offset);
+	if (!contextSymbol) {
+		return undefined;
+	}
+
+	return contextSymbol.getLinks();
 });
 
 connection.onCompletion((e): CompletionItem[] => {
@@ -326,7 +338,7 @@ connection.onCompletion((e): CompletionItem[] => {
 		return null;
 	}
 
-	const items = projectClassTypes;
+	const items = [];
 
 	const offset = documents.get(document.uri).offsetAt(e.position);
 	let contextSymbol = document.getSymbolAtOffset(offset);
@@ -335,7 +347,8 @@ connection.onCompletion((e): CompletionItem[] => {
 	}
 
 	if (contextSymbol instanceof UCClass) {
-		return ['var', 'struct', 'function', 'enum', 'const']
+		return []
+			.concat(CLASS_DECLARATIONS, FUNCTION_MODIFIERS)
 			.map(kw => {
 				return {
 					label: kw,
@@ -343,28 +356,69 @@ connection.onCompletion((e): CompletionItem[] => {
 				} as CompletionItem;
 			});
 	} else if(contextSymbol instanceof UCProperty) {
-		return projectClassTypes.concat(
-			['string', 'float', 'int', 'byte', 'name', 'struct', 'enum', 'pointer']
-				.map(type => {
-						return {
-							label: type,
-							kind: CompletionItemKind.Keyword
-						} as CompletionItem;
-				})
-		);
-	}
-
-	if (contextSymbol instanceof UCStruct) {
-		(contextSymbol as UCStruct).symbols.forEach((symbol, key) => {
+		document.class.symbols.forEach((symbol) => {
+			if (symbol.getKind() !== SymbolKind.Struct && symbol.getKind() !== SymbolKind.Enum) {
+				return;
+			}
 			items.push({
 				label: symbol.getName(),
 				detail: symbol.getTooltip(),
 				documentation: symbol.getDocumentation(),
 			});
 		});
+
+		return []
+			.concat(VARIABLE_MODIFIERS, PRIMITIVE_TYPE_NAMES)
+			.map(type => {
+					return {
+						label: type,
+						kind: CompletionItemKind.Keyword
+					} as CompletionItem;
+			})
+			.concat(projectClassTypes, items);
+	}
+	else if (contextSymbol instanceof UCFunction) {
+		document.class.symbols.forEach((symbol) => {
+			if (symbol.getKind() === SymbolKind.Struct) {
+				return;
+			}
+			items.push({
+				label: symbol.getName(),
+				detail: symbol.getTooltip(),
+				documentation: symbol.getDocumentation(),
+			});
+		});
+
+		return []
+			.concat(FUNCTION_DECLARATIONS, FUNCTION_MODIFIERS, PRIMITIVE_TYPE_NAMES)
+			.map(type => {
+					return {
+						label: type,
+						kind: CompletionItemKind.Keyword
+					} as CompletionItem;
+			})
+			.concat(projectClassTypes, items);
+	}
+	else if (contextSymbol instanceof UCScriptStruct) {
+		return []
+			.concat(STRUCT_DECLARATIONS, STRUCT_MODIFIERS)
+			.map(type => {
+					return {
+						label: type,
+						kind: CompletionItemKind.Keyword
+					} as CompletionItem;
+			});
 	}
 
-	return items.concat(documentItems);
+	return []
+		.concat(STRUCT_DECLARATIONS)
+		.map(type => {
+			return {
+				label: type,
+				kind: CompletionItemKind.Keyword
+			} as CompletionItem;
+		})
+		.concat(items, documentItems);
 });
 
 documents.listen(connection);
