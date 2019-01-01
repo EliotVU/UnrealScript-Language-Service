@@ -9,26 +9,7 @@
             "include": "#hashpp"
         },
         {
-            "include": "#class-declaration"
-        },
-        {
-            "include": "#cppblock"
-        },
-        {
-            "include": "#const-declaration"
-        },
-        {
-            "include": "#var-declaration"
-        },
-        {
-            "include": "#method-declaration"
-        },
-        {
-            "include": "#defaultproperties"
-        },
-        {
-            "name": "keyword.other",
-            "match": "\\b(?i)(struct|enum|state|none|local|for|if|return|true|false|break|continue|goto|case|switch|do|while|until|default)\\b"
+            "include": "#declarations"
         }
     ],
     "repository": {
@@ -56,6 +37,11 @@
                 }
             ]
         },
+        "hashpp": {
+            "name": "string.quoted.single.uc",
+            "begin": "(?=^\\#)",
+            "end": "(?<=\\n)"
+        },
         "literal": {
             "patterns": [
                 {
@@ -70,7 +56,7 @@
                 },
                 {
                     "name": "constant.language.boolean.uc",
-                    "match": "true|false"
+                    "match": "(?i)(true|false)"
                 },
                 {
                     "name": "constant.numeric.hex.uc",
@@ -78,42 +64,105 @@
                 },
                 {
                     "name": "constant.numeric.decimal.uc",
-                    "match": "[0-9]*(\\.[0-9]*(f|F)?)?"
+                    "match": "[0-9]+(f|F)?"
                 }
             ]
         },
-        "type-declaration": {
-            "match": "(\\.?[_[:alpha:]][_[:alnum:]]*)+",
-            "name": "entity.name.type.uc",
+        "declarations": {
             "patterns": [
                 {
-                    "begin": "\\<(\\b([_[:alpha:]][_[:alnum:]]*)(.([_[:alpha:]][_[:alnum:]]*))?)",
+                    "include": "#class-declaration"
+                },
+                {
+                    "include": "#cppblock"
+                },
+                {
+                    "include": "#type-declarations"
+                },
+                {
+                    "include": "#replication"
+                },
+                {
+                    "include": "#method-modifier"
+                },
+                {
+                    "include": "#method-declaration"
+                },
+                {
+                    "include": "#state-modifier"
+                },
+                {
+                    "include": "#state-declaration"
+                },
+                {
+                    "include": "#defaultproperties"
+                }
+            ]
+        },
+        "type-declarations": {
+            "patterns": [
+                {
+                    "include": "#const-declaration"
+                },
+                {
+                    "include": "#enum-declaration"
+                },
+                {
+                    "include": "#struct-declaration"
+                },
+                {
+                    "include": "#var-declaration"
+                }
+            ]
+        },
+        "type-modifier": {
+            "name": "storage.modifier.uc",
+            "match": "\\b((?i)public|protected|private|privatewrite|localized|native|intrinsic|const|editconst|config|globalconfig|transient|travel|input|export|noexport|cache|automated|editinline|editinlinenotify|editconstarray|edfindable|init|editfixedsize|editoronly|editortextbox|noclear|noimport|serializetext|nontransactional|instanced|databinding|duplicatetransient|repretry|repnotify|interp|deprecated|notforconsole|archetype|crosslevelactive|crosslevelpassive)\\b"
+        },
+        "type-declaration": {
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#type-modifier"
+                },
+                {
+                    "begin": "[_[:alpha:]][_[:alnum:]]*",
                     "beginCaptures": {
-                        "2": {
-                            "name": "entity.name.type.uc"
-                        },
-                        "3": {
-                            "name": "punctuation.accessor.uc"
-                        },
-                        "4": {
+                        "0": {
                             "name": "entity.name.type.uc"
                         }
                     },
-                    "end": "\\>"
+                    "patterns": [
+                        {
+                            "begin": "\\<",
+                            "patterns": [
+                                {
+                                    "include": "#enum-declaration"
+                                },
+                                {
+                                    "include": "#struct-declaration"
+                                },
+                                {
+                                    "include": "#type-declaration"
+                                }
+                            ],
+                            "end": "\\>"
+                        }
+                    ],
+                    "end": "\\s*"
                 }
-            ],
-            "end": "\\b"
-        },
-        "hashpp": {
-            "name": "string.quoted.single.uc",
-            "begin": "(?=\\#)",
-            "end": "(?<=\\n)"
+            ]
         },
         "class-declaration": {
             "name": "meta.class",
             "begin": "(?i)(?=\\b(class|interface)\\b)",
             "end": "(?<=;)",
             "patterns": [
+                {
+                    "include": "#comment"
+                },
                 {
                     "begin": "(?i)(class|interface)\\s+([_[:alpha:]][_[:alnum:]]*)\\s*((?i)(extends|expands)\\s+([_[:alpha:]][_[:alnum:]]*))?\\s*((?i)(within)\\s+([_[:alpha:]][_[:alnum:]]*))?",
                     "beginCaptures": {
@@ -124,13 +173,13 @@
                             "name": "entity.name.type.class.uc"
                         },
                         "4": {
-                            "name": "keyword.other.extends.uc"
+                            "name": "storage.modifier.uc"
                         },
                         "5": {
                             "name": "entity.other.inherited-class.uc"
                         },
                         "7": {
-                            "name": "keyword.other.within.uc"
+                            "name": "storage.modifier.uc"
                         },
                         "8": {
                             "name": "entity.other.inherited-class.uc"
@@ -138,15 +187,15 @@
                     },
                     "patterns": [
                         {
-                            "begin": "\\b(?i)(abstract|export|exportstructs|noexport|noexportheader|nativereplication|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|hidedropdown|noteditinlinenew)\\b",
-                            "name": "keyword.other.modifier.uc",
+                            "begin": "\\b(?i)(abstract|export|exportstructs|noexport|noexportheader|nativereplication|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|hidedropdown|noteditinlinenew|cacheexempt)\\b",
+                            "name": "storage.modifier.uc",
                             "end": "\\b"
                         },
                         {
                             "begin": "\\b(?i)(config|native|intrinsic)\\b\\s*(\\(\\s*([_[:alpha:]][_[:alnum:]]*)\\s*)?",
                             "beginCaptures": {
                                 "1": {
-                                    "name": "keyword.other.modifier.uc"
+                                    "name": "storage.modifier.uc"
                                 },
                                 "3": {
                                     "name": "string.quoted.single.uc"
@@ -158,7 +207,7 @@
                             "begin": "\\b(?i)(dllbind|inherits|dependson|hidecategories|showcategories|implements|classgroup|autocollapsecategories|dontautocollapsecategories|autoexpandcategories|dontsortcategories|collapsecategories|dontcollapsecategories)\\s*\\(\\s*([_[:alpha:]][_[:alnum:]]*)\\s*",
                             "beginCaptures": {
                                 "1": {
-                                    "name": "keyword.other.modifier.uc"
+                                    "name": "storage.modifier.uc"
                                 },
                                 "2": {
                                     "name": "entity.name.type.uc"
@@ -177,7 +226,7 @@
             "end": "(?<=;)",
             "patterns": [
                 {
-                    "begin": "(?i)(const)\\s+([_[:alpha:]][_[:alnum:]]*)\\s*(\\=)\\s*",
+                    "begin": "((?i)const)\\s+([_[:alpha:]][_[:alnum:]]*)\\s*(\\=)\\s*",
                     "captures": {
                         "1": {
                             "name": "keyword.other.constant.uc"
@@ -198,86 +247,154 @@
                 }
             ]
         },
+        "enum-declaration": {
+            "name": "meta.enum.declaration.uc",
+            "begin": "\\b((?i)enum)\\s*([_[:alpha:]][_[:alnum:]]*)",
+            "beginCaptures": {
+                "1": {
+                    "name": "storage.type.enum.uc"
+                },
+                "2": {
+                    "name": "entity.name.type.enum.uc"
+                }
+            },
+            "patterns": [
+                {
+                    "name": "meta.block.uc",
+                    "begin": "{",
+                    "patterns": [
+                        {
+                            "include": "#comment"
+                        },
+                        {
+                            "match": "[_[:alpha:]][_[:alnum:]]*",
+                            "name": "variable.other.enummember.uc"
+                        }
+                    ],
+                    "end": "}"
+                }
+            ],
+            "end": "(?<=\\}|\\;)"
+        },
+        "struct-declaration": {
+            "name": "meta.struct.declaration.uc",
+            "begin": "\\b((?i)struct)\\s*(\\b((?i)native|intrinsic|init|long)\\b\\s*)*([_[:alpha:]][_[:alnum:]]*)(\\s*((?i)extends)\\s*([_[:alpha:]][_[:alnum:]]*))?",
+            "beginCaptures": {
+                "1": {
+                    "name": "storage.type.struct.uc"
+                },
+                "3": {
+                    "name": "storage.modifier.uc"
+                },
+                "4": {
+                    "name": "entity.name.type.struct.uc"
+                },
+                "5": {
+                    "name": "storage.modifier.uc"
+                },
+                "6": {
+                    "name": "entity.other.inherited-class.uc"
+                }
+            },
+            "patterns": [
+                {
+                    "name": "meta.block.uc",
+                    "begin": "{",
+                    "patterns": [
+                        {
+                            "include": "#comment"
+                        },
+                        {
+                            "include": "#type-declarations"
+                        },
+                        {
+                            "include": "#cppblock"
+                        }
+                    ],
+                    "end": "}"
+                }
+            ],
+            "end": "(?<=\\}|\\;)"
+        },
         "var-declaration": {
             "name": "meta.variable",
-            "begin": "(?i)(?=\\bvar\\b)",
-            "end": "(?<=;)",
+            "begin": "((?i)\\bvar\\b)(\\s*\\(\\s*([_[:alpha:]][_[:alnum:]]*)\\s*\\))?",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.other.variable.uc"
+                },
+                "3": {
+                    "name": "string.quoted.single.uc"
+                }
+            },
             "patterns": [
                 {
                     "include": "#comment"
                 },
                 {
-                    "begin": "(?i)(var)\\b(\\s*\\(([_[:alpha:]][_[:alnum:]]*)\\))?",
-                    "beginCaptures": {
-                        "1": {
-                            "name": "keyword.other.variable.uc"
-                        },
-                        "3": {
-                            "name": "string.quoted.single.uc"
-                        }
-                    },
-                    "end": "\\s+"
+                    "include": "#enum-declaration"
                 },
                 {
-                    "begin": "((?i)(public|protected|private|privatewrite|localized|native|const|editconst|config|globalconfig|transient|travel|input|export|noexport|cache|automated|editinline|editinlinenotify|editconstarray|edfindable|init|editfixedsize|editoronly|editortextbox|noclear|noimport|serializetext|nontransactional|instanced|databinding|duplicatetransient|repretry|repnotify|interp|deprecated|notforconsole|archetype|crosslevelactive|crosslevelpassive\\b)*)?",
-                    "beginCaptures": {
-                        "2": {
-                            "name": "storage.modifier.uc"
-                        }
-                    },
-                    "patterns": [
-                        {
-                            "begin": "\\s+",
-                            "patterns": [
-                                {
-                                    "include": "#type-declaration"
-                                }
-                            ],
-                            "end": "\\b"
-                        },
-                        {
-                            "match": "([_[:alpha:]][_[:alnum:]]*)(\\[[0-9]\\])?",
-                            "name": "entity.name.variable.uc"
-                        }
-                    ],
-                    "end": ";"
+                    "include": "#struct-declaration"
+                },
+                {
+                    "include": "#type-declaration"
                 }
-            ]
+            ],
+            "end": "(?<=\\;)"
+        },
+        "method-modifier": {
+            "match": "(?i)(\\b(static|final|simulated|public|protected|private|exec|iterator|latent|singular|const|noexport|noexportheader|virtual|reliable|unreliable|server|client|dllimport|demorecording|native|intrinsic)\\b)(\\s*\\(\\s*([0-9]*)\\s*\\))?",
+            "captures": {
+                "2": {
+                    "name": "storage.modifier.uc"
+                },
+                "4": {
+                    "name": "constant.numeric.uc"
+                }
+            }
         },
         "method-declaration": {
-            "begin": "(?i)(?=\\b(static|final|simulated|public|protected|private|exec|function|event|delegate|operator|preoperator|postoperator)\\b)",
-            "name": "meta.method",
-            "end": "(?<=\\{)",
-            "patterns": [
-                {
-                    "begin": "(?i)(static|final|simulated|public|protected|private|exec|(native ([0-9])?))",
-                    "name": "storage.modifier.uc",
-                    "end": "\\b"
-                },
-                {
-                    "match": "(?i)\\b(function|event|delegate)\\b",
+            "name": "meta.method.declaration",
+            "begin": "(?i)\\b((function|event|delegate|preoperator|postoperator)|((operator))((\\s*\\(\\s*([0-9]*)\\s*\\))))",
+            "end": "(?<=\\}|\\;)",
+            "beginCaptures": {
+                "2": {
                     "name": "keyword.other.method.uc"
                 },
-                {
-                    "match": "(?i)\\b(operator|preoperator|postoperator)\\b",
-                    "name": "keyword.other.operator.uc"
+                "4": {
+                    "name": "keyword.other.method.uc"
                 },
+                "7": {
+                    "name": "constant.numeric.uc"
+                }
+            },
+            "patterns": [
                 {
-                    "disabled": 0,
+                    "name": "punctuation.parenthese.uc",
                     "begin": "\\(",
                     "patterns": [
                         {
-                            "name": "constant.numeric.decimal.uc",
-                            "match": "([0-9_]+)?(\\.[0-9]+(F|f)?)?"
+                            "include": "method-arguments"
                         }
                     ],
                     "end": "\\)"
                 },
                 {
-                    "include": "#type-declaration"
+                    "begin": "\\{",
+                    "name": "meta.block.uc",
+                    "patterns": [
+                        {
+                            "include": "#local-declaration"
+                        },
+                        {
+                            "include": "#statement"
+                        }
+                    ],
+                    "end": "\\}"
                 },
                 {
-                    "begin": "\\b([_[:alpha:]][_[:alnum:]]*)|(\\$|\\@|\\%\\#)",
+                    "begin": "\\b([_[:alpha:]][_[:alnum:]]*)|((\\$|\\@|\\%\\#)+)",
                     "beginCaptures": {
                         "1": {
                             "name": "entity.name.method.name.uc"
@@ -289,6 +406,80 @@
                     "end": "\\b"
                 }
             ]
+        },
+        "method-arguments": {
+            "patterns": [
+                {
+                    "match": "[_[:alpha:]][_[:alnum:]]*",
+                    "name": "entity.name.type.uc"
+                }
+            ]
+        },
+        "local-declaration": {
+            "name": "meta.variable",
+            "begin": "(?i)\\b(local)\\b",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.other.variable.uc"
+                }
+            },
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#type-declaration"
+                }
+            ],
+            "end": "(?<=\\;)"
+        },
+        "state-modifier": {
+            "match": "(?i)(\\b(auto|simulated)\\b)",
+            "captures": {
+                "2": {
+                    "name": "storage.modifier.uc"
+                }
+            }
+        },
+        "state-declaration": {
+            "name": "meta.state.declaration.uc",
+            "begin": "\\b((?i)state)(\\s*\\(\\s*\\))?\\s*([_[:alpha:]][_[:alnum:]]*)(\\s*((?i)extends)\\s*([_[:alpha:]][_[:alnum:]]*))?",
+            "beginCaptures": {
+                "1": {
+                    "name": "storage.type.state.uc"
+                },
+                "3": {
+                    "name": "entity.name.type.state.uc"
+                },
+                "5": {
+                    "name": "storage.modifier.uc"
+                },
+                "6": {
+                    "name": "entity.other.inherited-class.uc"
+                }
+            },
+            "patterns": [
+                {
+                    "name": "meta.block.uc",
+                    "begin": "{",
+                    "patterns": [
+                        {
+                            "include": "#comment"
+                        },
+                        {
+                            "include": "#type-declarations"
+                        },
+                        {
+                            "include": "#method-modifier"
+                        },
+                        {
+                            "include": "#method-declaration"
+                        }
+                    ],
+                    "end": "}"
+                }
+            ],
+            "end": "(?<=\\}|\\;)"
         },
         "cppblock": {
             "begin": "(?i)(?=\\b(cpptext|structcpptext))",
@@ -305,29 +496,60 @@
             ],
             "end": "(?<=\\})"
         },
-        "defaultproperties": {
-            "name": "meta.block",
-            "begin": "(?i)(?=\\b(defaultproperties))",
+        "replication": {
+            "begin": "(?=\\b((?i)replication))",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.other.replication.uc"
+                }
+            },
             "patterns": [
                 {
-                    "name": "keyword.other.method.uc",
-                    "match": "((?i)defaultproperties)"
-                },
-                {
+                    "name": "meta.block",
                     "begin": "\\{",
                     "patterns": [
                         {
-                            "begin": "\\b([_[:alpha:]][_[:alnum:]]*)",
-                            "beginCaptures": {
-                                "0": {
-                                    "name": "variable.name.uc"
-                                }
-                            },
-                            "end": "\\b"
+                            "include": "#comment"
                         },
                         {
-                            "name": "keyword.operator.assignment.uc",
-                            "match": "\\="
+                            "begin": "(?i)(unreliable|reliable)\\s*(if)?",
+                            "beginCaptures": {
+                                "1": {
+                                    "name": "keyword.other.modifier.uc"
+                                },
+                                "2": {
+                                    "name": "keyword.control.conditional.uc"
+                                }
+                            },
+                            "patterns": [
+                                {
+                                    "include": "#comment"
+                                },
+                                {
+                                    "begin": "\\(",
+                                    "beginCaptures": {
+                                        "0": {
+                                            "name": "meta.brace.round.uc"
+                                        }
+                                    },
+                                    "patterns": [
+                                        {
+                                            "include": "#expression"
+                                        }
+                                    ],
+                                    "end": "\\)",
+                                    "endCaptures": {
+                                        "0": {
+                                            "name": "meta.brace.round.uc"
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "support.variable.dom",
+                                    "match": "([_[:alpha:]][_[:alnum:]]*)"
+                                }
+                            ],
+                            "end": ";"
                         }
                     ],
                     "end": "\\}"
@@ -335,17 +557,117 @@
             ],
             "end": "(?<=\\})"
         },
-        "punctuation-comma": {
-			"name": "punctuation.separator.comma.uc",
-			"match": ","
-		},
-		"punctuation-semicolon": {
-			"name": "punctuation.terminator.statement.uc",
-			"match": ";"
-		},
-		"punctuation-accessor": {
-			"name": "punctuation.accessor.uc",
-			"match": "\\."
+        "statement": {
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "name": "keyword.control.conditional.uc",
+                    "match": "(?i)\\b(if|switch|while|foreach|for|do|until|else)\\b"
+                },
+                {
+                    "name": "keyword.control.flow.uc",
+                    "match": "(?i)\\b(return|continue|break|stop|goto|super)\\b"
+                },
+                {
+                    "include": "#expression"
+                }
+            ]
+        },
+        "expression": {
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#literal"
+                },
+                {
+                    "name": "constant.language.null.uc",
+                    "match": "(?i)\\b(none)\\b"
+                },
+                {
+                    "name": "keyword.control.flow.uc",
+                    "match": "(?i)\\b(super)\\b"
+                },
+                {
+                    "name": "variable.language.this.uc",
+                    "match": "(?i)\\b(global|self|default|static)\\b"
+                },
+                {
+                    "begin": "(([_[:alpha:]][_[:alnum:]]*))\\s*(\\()",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "meta.function-call.uc"
+                        },
+                        "2": {
+                            "name": "entity.name.function.uc"
+                        },
+                        "3": {
+                            "name": "meta.brace.round.uc"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#expression"
+                        }
+                    ],
+                    "end": "\\)",
+                    "endCaptures": {
+                        "0": {
+                            "name": "meta.brace.round.uc"
+                        }
+                    }
+                },
+                {
+                    "name": "support.variable.dom.uc",
+                    "match": "([_[:alpha:]][_[:alnum:]]*)"
+                },
+                {
+                    "name": "meta.block.uc",
+                    "begin": "{",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.block.uc"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#comment"
+                        },
+                        {
+                            "include": "#statement"
+                        }
+                    ],
+                    "end": "}",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.block.uc"
+                        }
+                    }
+                }
+            ]
+        },
+        "defaultproperties": {
+            "begin": "(?i)(?=\\b(defaultproperties))",
+            "patterns": [
+                {
+                    "name": "keyword.other.method.uc",
+                    "match": "((?i)defaultproperties)"
+                },
+                {
+                    "name": "meta.block",
+                    "begin": "\\{",
+                    "patterns": [
+                        {
+                            "include": "#expression"
+                        }
+                    ],
+                    "end": "\\}"
+                }
+            ],
+            "end": "(?<=\\})"
         }
     }
 }
