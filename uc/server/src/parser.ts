@@ -2,7 +2,7 @@ import * as path from 'path';
 
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Location } from 'vscode-languageserver-types';
 
-import { Token, ParserRuleContext, CommonTokenStream, ANTLRErrorListener, RecognitionException, Recognizer } from 'antlr4ts';
+import { Token, ParserRuleContext, CommonTokenStream, ANTLRErrorListener, RecognitionException, Recognizer, ConsoleErrorListener } from 'antlr4ts';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 import { ParseTreeWalker } from 'antlr4ts/tree/ParseTreeWalker';
 
@@ -230,8 +230,24 @@ export class UCSymbolRef extends UCDocSymbol {
 		// TODO: verify type, and parse classes that are not within scope!
 		this.reference = document.class.findOuterSymbol<UCField>(this.getName(), true);
 		if (!this.reference) {
-			document.nodes.push(new CodeErrorNode(this.nameToken, `Type '${this.getName()}' not found!`));
+			// TODO: only check for existance first
+			let classDoc = document.getDocument(this.getName());
+			if (classDoc) {
+				this.setReference(classDoc.class);
+				classDoc.class.linkLocation(Location.create(document.uri, this.getRange()));
+				classDoc.class.link(classDoc);
+			} else {
+				document.nodes.push(new CodeErrorNode(this.nameToken, `Type '${this.getName()}' not found!`));
+			}
 		}
+		else if (this.reference instanceof UCDocSymbol) {
+			this.reference.linkLocation(Location.create(document.uri, this.getRange()));
+		}
+	}
+
+	getLinks(): Location[] | undefined {
+		var ref = this.getReference();
+		return ref instanceof UCDocSymbol ? ref.getLinks() : super.getLinks();
 	}
 
 	setReference(symbol: ISimpleSymbol) {
@@ -252,7 +268,7 @@ export class UCClassRef extends UCStructRef {
 		let classDoc = document.getDocument(this.getName());
 		if (classDoc) {
 			this.setReference(classDoc.class);
-			classDoc.class.linkLocation(Location.create(document.uri, rangeFromToken(this.nameToken)));
+			classDoc.class.linkLocation(Location.create(document.uri, this.getRange()));
 			classDoc.class.link(classDoc);
 		} else {
 			const errorNode = new CodeErrorNode(
@@ -348,8 +364,6 @@ export class UCEnumMember extends UCField {
 
 export class UCStruct extends UCField implements ITraversable {
 	public extendsRef?: UCStructRef;
-
-	// TODO: Link (except for UCClass)
 	public extends?: UCStruct;
 	public symbols: Map<string, UCDocSymbol> = new Map();
 
@@ -424,15 +438,6 @@ export class UCDefaultProperty extends UCProperty {
 	getKind(): SymbolKind {
 		return SymbolKind.Property;
 	}
-
-	public link(document: UCDocument) {
-		// var defaults = (this.outer as UCDefaults);
-
-		// this.reference = defaults.findOuterSymbol(this.getName(), true);
-		// if (this.reference) {
-		// 	this.reference.linkLocation(Location.create(document.uri, rangeFromToken(this.nameToken)));
-		// }
-	}
 }
 
 export class UCDefaults extends UCStruct {
@@ -462,7 +467,7 @@ export class UCFunction extends UCStruct {
 	}
 
 	getTooltip(): string {
-		return '(method) ' + super.getTooltip() + this.buildArguments() + this.buildReturnType();
+		return '(method) ' + this.getName() + this.buildArguments() + this.buildReturnType();
 	}
 
 	getSymbolAtOffset(offset: number): UCDocSymbol | undefined {
@@ -735,15 +740,23 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	enterConstDecl(ctx: UCParser.ConstDeclContext) {
-		const nameToken = ctx.constName().start;
-		const symbol = new UCConst(nameToken, ctx);
+		const nameCtx = ctx.constName();
+		if (!nameCtx) {
+			return;
+		}
+
+		const symbol = new UCConst(nameCtx.start, ctx);
 		symbol.valueToken = ctx.constValue().start;
 		this.declare(symbol);
 	}
 
 	enterEnumDecl(ctx: UCParser.EnumDeclContext) {
-		const nameToken = ctx.enumName().start;
-		const symbol = new UCEnum(nameToken, ctx);
+		const nameCtx = ctx.enumName();
+		if (!nameCtx) {
+			return;
+		}
+
+		const symbol = new UCEnum(nameCtx.start, ctx);
 		for (const valueCtx of ctx.valueName()) {
 			const member = new UCEnumMember(valueCtx.start, valueCtx);
 			this.declare(member);
@@ -754,9 +767,12 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	enterStructDecl(ctx: UCParser.StructDeclContext) {
-		const nameToken = ctx.structName().start;
-		const symbol = new UCScriptStruct(nameToken, ctx);
+		const nameCtx = ctx.structName();
+		if (!nameCtx) {
+			return;
+		}
 
+		const symbol = new UCScriptStruct(nameCtx.start, ctx);
 		const extendsCtx = ctx.structReference();
 		if (extendsCtx) {
 			symbol.extendsRef = new UCStructRef(extendsCtx.start, extendsCtx);
@@ -796,6 +812,10 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	enterFunctionDecl(ctx: UCParser.FunctionDeclContext) {
 		const nameCtx = ctx.functionName();
+		if (!nameCtx) {
+			return;
+		}
+
 		const symbol = new UCFunction(nameCtx.start, nameCtx, ctx);
 		const returnTypeTree = ctx.returnType();
 		if (returnTypeTree) {
@@ -804,22 +824,39 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.declare(symbol);
 		this.push(symbol);
 
+		if (!ctx.paramDecl()) {
+			console.error('no params');
+		}
+
 		for (const paramCtx of ctx.paramDecl()) {
+			if (!paramCtx) {
+				break;
+			}
 			const propTypeCtx = paramCtx.variableType();
 			const varCtx = paramCtx.variable();
-			const nameToken = varCtx.variableName().start;
 
-			const prop = new UCProperty(nameToken, paramCtx, paramCtx.stop);
+			const propName = varCtx.variableName();
+			if (!propName) {
+				continue;
+			}
+			const prop = new UCProperty(propName.start, paramCtx, paramCtx.stop);
 			prop.typeRef = new UCSymbolRef(propTypeCtx.start, propTypeCtx);
 			symbol.params.push(prop);
 			this.declare(prop);
 		}
 
 		for (const localCtx of ctx.localDecl()) {
+			if (!localCtx) {
+				break;
+			}
+
 			const propTypeCtx = localCtx.variableType();
 			for (const varCtx of localCtx.variable()) {
-				const nameToken = varCtx.variableName().start;
-				const prop = new UCProperty(nameToken, localCtx, localCtx.stop);
+				const propName = varCtx.variableName();
+				if (!propName) {
+					continue;
+				}
+				const prop = new UCProperty(propName.start, localCtx, localCtx.stop);
 				prop.typeRef = new UCSymbolRef(propTypeCtx.start, propTypeCtx);
 				this.declare(prop);
 			}
@@ -829,8 +866,11 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	enterStateDecl(ctx: UCParser.StateDeclContext) {
 		var stateName = ctx.stateName();
-		var symbol = new UCState(stateName.start, ctx);
+		if (!stateName) {
+			return;
+		}
 
+		var symbol = new UCState(stateName.start, ctx);
 		const extendsCtx = ctx.stateReference();
 		if (extendsCtx) {
 			// FIXME: UCStateRef?
