@@ -153,7 +153,6 @@ documents.onDidChangeContent(async e => {
 		workspaceUCFiles = await scanWorkspaceForClasses(connection.workspace);
 		initializeClassTypes(workspaceUCFiles);
 	}
-	invalidateDocument(e.document);
 	validateTextDocument(e.document);
 });
 
@@ -174,13 +173,15 @@ NATIVE_SYMBOLS.forEach(symbol => WorkspacePackage.addSymbol(symbol));
 
 function parseTextDocument(textDocument: TextDocument): UCDocument {
 
+	connection.console.log('Parsing document ' + textDocument.uri);
+
 	// TODO: Hash check
 	let document = projectDocuments.get(textDocument.uri);
 	if (!document) {
 		try {
 			const parser = new DocumentParser(textDocument.uri, textDocument.getText(), WorkspacePackage);
 			document = parser.parse((className): UCDocument => {
-				console.log('Looking for external document', className);
+				connection.console.log('Looking for external document ' + className);
 
 				let filePaths = workspaceUCFiles;
 				let filePath = filePaths.find((value => {
@@ -193,6 +194,7 @@ function parseTextDocument(textDocument: TextDocument): UCDocument {
 
 				const externalDocument = projectDocuments.get(filePath);
 				if (externalDocument) {
+					connection.console.log('Cached doc found for ' + className);
 					return externalDocument;
 				}
 				// FIXME: may not exist
@@ -200,11 +202,9 @@ function parseTextDocument(textDocument: TextDocument): UCDocument {
 				let externalTextDocument = TextDocument.create(filePath, 'unrealscript', 0.0, documentContent);
 				return parseTextDocument(externalTextDocument);
 			});
-			parser.link();
-			diagnoseDocument(document);
 			projectDocuments.set(document.uri, document);
 		} catch (err) {
-			console.error('couldn\' parse document!', err);
+			console.error('couldn\'t parse document!', textDocument.uri, err);
 		}
 	}
 	return document;
@@ -215,11 +215,15 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	if (!document) {
 		return;
 	}
-	diagnoseDocument(document);
 
 	if (document.class === null) {
 		return;
 	}
+
+	document.class.link(document);
+
+	invalidateDocument(textDocument);
+	diagnoseDocument(document);
 
 	documentItems = []; // reset, never show any items from previous documents.
 	for (let fieldStruct: UCStruct = document.class; fieldStruct; fieldStruct = fieldStruct.extends) {
@@ -275,13 +279,13 @@ connection.onHover((e): Hover => {
 connection.onDefinition((e): Definition => {
 	let document = projectDocuments.get(e.textDocument.uri);
 	if (!document) {
-		return null;
+		return undefined;
 	}
 
 	const hoverOffset = documents.get(document.uri).offsetAt(e.position);
 	const symbol = document.getSymbolAtOffset(hoverOffset);
 	if (!symbol) {
-		return null;
+		return undefined;
 	}
 
 	if (symbol instanceof UCSymbolRef) {
@@ -295,7 +299,7 @@ connection.onDefinition((e): Definition => {
 connection.onDocumentSymbol((e: DocumentSymbolParams): SymbolInformation[] => {
 	let document = projectDocuments.get(e.textDocument.uri);
 	if (!document || !document.class) {
-		return null;
+		return undefined;
 	}
 
 	var contextSymbols = [];
@@ -320,25 +324,25 @@ connection.onWorkspaceSymbol((e: WorkspaceSymbolParams) => {
 connection.onReferences((e: ReferenceParams): Location[] => {
 	let document = projectDocuments.get(e.textDocument.uri);
 	if (!document) {
-		return null;
-	}
-
-	const offset = documents.get(document.uri).offsetAt(e.position);
-	let contextSymbol = document.getSymbolAtOffset(offset);
-	if (!contextSymbol) {
 		return undefined;
 	}
 
-	return contextSymbol.getLinks();
+	const offset = documents.get(document.uri).offsetAt(e.position);
+	let symbol = document.getSymbolAtOffset(offset);
+	if (!symbol) {
+		return undefined;
+	}
+
+	return symbol.getLinks();
 });
 
 connection.onCompletion((e): CompletionItem[] => {
 	let document = projectDocuments.get(e.textDocument.uri);
 	if (!document) {
-		return null;
+		return undefined;
 	}
 
-	const items = [];
+	const items: CompletionItem[] = [];
 
 	const offset = documents.get(document.uri).offsetAt(e.position);
 	let contextSymbol = document.getSymbolAtOffset(offset);

@@ -29,12 +29,13 @@ export function activate(context: ExtensionContext) {
 		documentSelector: [{ scheme: 'file', language: 'unrealscript' }],
 		synchronize: {
 			fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
-		}
+		},
+		outputChannelName: 'UnrealScript LS',
 	};
 
 	client = new LanguageClient(
 		'ucLanguageServer',
-		'UnrealScript Language Server',
+		'UnrealScript LS',
 		serverOptions,
 		clientOptions
 	);

@@ -126,8 +126,8 @@ export abstract class UCDocSymbol implements ISimpleSymbol {
 		this.tokens = stream.getTokens(this.startToken.tokenIndex, this.stopToken.tokenIndex);
 	}
 
-	getName(): string | 'None' {
-		return this.nameToken ? this.nameToken.text : 'None';
+	getName(): string | 'none' {
+		return this.nameToken ? this.nameToken.text : 'none';
 	}
 
 	getFullName(): string {
@@ -235,7 +235,7 @@ export class UCSymbolRef extends UCDocSymbol {
 			if (classDoc) {
 				this.setReference(classDoc.class);
 				classDoc.class.linkLocation(Location.create(document.uri, this.getRange()));
-				classDoc.class.link(classDoc);
+				// classDoc.class.link(classDoc);
 			} else {
 				document.nodes.push(new CodeErrorNode(this.nameToken, `Type '${this.getName()}' not found!`));
 			}
@@ -269,7 +269,7 @@ export class UCClassRef extends UCStructRef {
 		if (classDoc) {
 			this.setReference(classDoc.class);
 			classDoc.class.linkLocation(Location.create(document.uri, this.getRange()));
-			classDoc.class.link(classDoc);
+			// classDoc.class.link(classDoc);
 		} else {
 			const errorNode = new CodeErrorNode(
 				this.nameToken,
