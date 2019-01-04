@@ -1,8 +1,8 @@
 import * as path from 'path';
 
-import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Location } from 'vscode-languageserver-types';
+import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Location, Position } from 'vscode-languageserver-types';
 
-import { Token, ParserRuleContext, CommonTokenStream, ANTLRErrorListener, RecognitionException, Recognizer, ConsoleErrorListener } from 'antlr4ts';
+import { Token, CommonTokenStream, ANTLRErrorListener, RecognitionException, Recognizer } from 'antlr4ts';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 import { ParseTreeWalker } from 'antlr4ts/tree/ParseTreeWalker';
 
@@ -10,10 +10,12 @@ import { UCGrammarListener } from './antlr/UCGrammarListener';
 import { UCGrammarLexer } from './antlr/UCGrammarLexer';
 import * as UCParser from './antlr/UCGrammarParser';
 
-import { DiagnosticNode, CodeErrorNode } from './diagnostics';
+import { SemanticErrorNode, SyntaxErrorNode, IDiagnosticNode } from './diagnostics';
 import { CaseInsensitiveStream } from './CaseInsensitiveStream';
+import { ISimpleSymbol } from './ISimpleSymbol';
+import { ITraversable } from './ITraversable';
 
-export function rangeFromToken(token: Token): Range {
+function rangeFromToken(token: Token): Range {
 	return {
 		start: {
 			line: token.line - 1,
@@ -26,7 +28,7 @@ export function rangeFromToken(token: Token): Range {
 	};
 }
 
-export function rangeFromTokens(startToken: Token, stopToken: Token): Range {
+function rangeFromTokens(startToken: Token, stopToken: Token): Range {
 	return {
 		start: {
 			line: startToken.line - 1,
@@ -39,69 +41,27 @@ export function rangeFromTokens(startToken: Token, stopToken: Token): Range {
 	};
 }
 
-export const CLASS_DECLARATIONS = [
-	'class', 'const', 'enum', 'struct', 'var',
-	'function', 'event',
-	'operator', 'preoperator', 'postoperator',
-	'state',
-	'cpptext',
-	'defaultproperties'
-];
-
-export const STRUCT_DECLARATIONS = [
-	'const', 'enum', 'struct', 'var',
-	'structcpptext',
-	'structdefaultproperties'
-];
-
-export const FUNCTION_DECLARATIONS = [
-	'const', 'local'
-];
-
-export const STRUCT_MODIFIERS = [
-	'native', 'long'
-];
-
-export const PRIMITIVE_TYPE_NAMES = [
-	'int', 'float', 'byte', 'name', 'string',
-	'bool', 'array', 'map', 'class', 'pointer'
-];
-
-export const COMMON_MODIFIERS = ['public', 'protected', 'private', 'const', 'native'];
-export const FUNCTION_MODIFIERS = COMMON_MODIFIERS.concat(['simulated', 'final', 'static']);
-export const VARIABLE_MODIFIERS = COMMON_MODIFIERS.concat(['config']);
-
-interface ISimpleSymbol {
-	outer?: ISimpleSymbol;
-	getName(): string;
-	getKind(): SymbolKind;
-	getUri(): string;
-	getTooltip(): string;
+export interface ISymbolId {
+	name: string;
+	range: Range;
 }
 
-interface ITraversable extends ISimpleSymbol {
-	symbols?: Map<string, ISimpleSymbol>;
-	addSymbol(symbol: ISimpleSymbol): void;
-	findInheritedSymbol<T>(name: string, deepSearch?: boolean): ISimpleSymbol;
+export interface ISymbolOffset {
+	range: Range;
 }
 
 /**
  * A symbol that resides in a document, holding a name, start and stop token.
  */
-export abstract class UCDocSymbol implements ISimpleSymbol {
+export abstract class UCSymbol implements ISimpleSymbol {
 	public outer?: ISimpleSymbol;
 
 	/** Locations that reference this symbol. */
-	private links: Location[] = [];
+	private links?: Location[];
+	private commentToken?: Token;
 
-	private startToken: Token;
-	protected stopToken: Token;
-	private commentToken: Token;
-	protected tokens?: Token[];
+	constructor(private id: ISymbolId) {
 
-	constructor(protected nameToken: Token, ctx: ParserRuleContext) {
-		this.startToken = ctx.start;
-		this.stopToken = ctx.stop;
 	}
 
 	getTooltip(): string | undefined {
@@ -112,22 +72,18 @@ export abstract class UCDocSymbol implements ISimpleSymbol {
 		return this.commentToken ? this.commentToken.text : undefined;
 	}
 
-	tryAddComment(stream: CommonTokenStream) {
-		const tokens = stream.getHiddenTokensToLeft(this.startToken.tokenIndex, UCGrammarLexer.HIDDEN);
-		if (tokens) {
-			const lastToken = tokens.pop();
-			if (lastToken) {
-				this.commentToken = lastToken;
-			}
-		}
-	}
+	// tryAddComment() {
+	// 	const tokens = stream.getHiddenTokensToLeft(this.offset, UCGrammarLexer.HIDDEN);
+	// 	if (tokens) {
+	// 		const lastToken = tokens.pop();
+	// 		if (lastToken) {
+	// 			this.commentToken = lastToken;
+	// 		}
+	// 	}
+	// }
 
-	fetchTokens(stream: CommonTokenStream) {
-		this.tokens = stream.getTokens(this.startToken.tokenIndex, this.stopToken.tokenIndex);
-	}
-
-	getName(): string | 'none' {
-		return this.nameToken ? this.nameToken.text : 'none';
+	getName(): string {
+		return this.id.name;
 	}
 
 	getFullName(): string {
@@ -142,65 +98,40 @@ export abstract class UCDocSymbol implements ISimpleSymbol {
 		return SymbolKind.Field;
 	}
 
-	getOffset(): number {
-		return this.startToken.startIndex;
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Text;
 	}
 
 	getRange(): Range {
-		return rangeFromToken(this.nameToken);
+		return this.getIdRange();
 	}
 
-	getFullRange(): Range {
-		return rangeFromTokens(this.startToken, this.stopToken);
+	getIdRange(): Range {
+		return this.id.range;
 	}
 
-	getSize(): number {
-		return this.stopToken.stopIndex - this.getOffset();
+	protected isIdWithinPosition(position: Position): boolean {
+		var range = this.id.range;
+		var isInRange = position.line >= range.start.line && position.line <= range.end.line
+				&& position.character >= range.start.character && position.character <= range.end.character;
+		return isInRange;
 	}
 
-	toSymbolInfo(): SymbolInformation {
-		return SymbolInformation.create(this.getName(), this.getKind(), this.getFullRange(), undefined, this.outer.getName());
-	}
-
-	toCompletionItem(): CompletionItem {
-		const item = CompletionItem.create(this.getName());
-		item.detail = this.getTooltip();
-		item.documentation = this.getDocumentation();
-		item.kind = this.getKind() as any as CompletionItemKind;
-		return item;
-	}
-
-	getSymbolAtOffset(offset: number): UCDocSymbol | undefined {
-		var offsetIsContained = offset >= this.getOffset()
-			&& offset <= this.stopToken.stopIndex;
-
-		if (offsetIsContained) {
+	getSymbol(position: Position): UCSymbol | undefined {
+		if (this.isIdWithinPosition(position)) {
 			return this;
 		}
 		return undefined;
 	}
 
-	public findOuterSymbol<T>(name: string, deepSearch?: boolean) {
-		name = name.toLowerCase();
-		for (let outer: ISimpleSymbol = this; outer; outer = outer.outer) {
-			if (outer['findInheritedSymbol']) {
-				let symbol = (outer as ITraversable).findInheritedSymbol<T>(name, deepSearch);
-				if (symbol) {
-					return symbol;
-				}
-			}
-
-			if (!deepSearch) {
-				break;
-			}
-		}
-	}
-
-	link(document: UCDocument) {
+	link(_document: UCDocument) {
 
 	}
 
 	linkLocation(location: Location) {
+		if (!this.links) {
+			this.links = [];
+		}
 		this.links.push(location);
 	}
 
@@ -211,12 +142,25 @@ export abstract class UCDocSymbol implements ISimpleSymbol {
 	getUri(): string {
 		return this.outer.getUri();
 	}
+
+	toSymbolInfo(): SymbolInformation {
+		return SymbolInformation.create(this.getName(), this.getKind(), this.getRange(), undefined, this.outer.getName());
+	}
+
+	toCompletionItem(): CompletionItem {
+		const item = CompletionItem.create(this.getName());
+		item.detail = this.getTooltip();
+		item.documentation = this.getDocumentation();
+		item.kind = this.getCompletionItemKind();
+		return item;
+	}
 }
 
 /**
  * For general symbol references, like a function's return type which cannot yet be identified.
  */
-export class UCSymbolRef extends UCDocSymbol {
+export class UCSymbolRef extends UCSymbol {
+	protected hasBeenLinked?: boolean;
 	protected reference?: ISimpleSymbol;
 
 	getTooltip(): string {
@@ -227,27 +171,32 @@ export class UCSymbolRef extends UCDocSymbol {
 	}
 
 	link(document: UCDocument) {
+		if (this.hasBeenLinked) {
+			return;
+		}
+		this.hasBeenLinked = true;
+
 		// TODO: verify type, and parse classes that are not within scope!
-		this.reference = document.class.findOuterSymbol<UCField>(this.getName(), true);
+		this.reference = document.class.findTypeSymbol(this.getName(), true);
 		if (!this.reference) {
 			// TODO: only check for existance first
 			let classDoc = document.getDocument(this.getName());
 			if (classDoc) {
 				this.setReference(classDoc.class);
-				classDoc.class.linkLocation(Location.create(document.uri, this.getRange()));
+				classDoc.class.linkLocation(Location.create(document.uri, this.getIdRange()));
 				// classDoc.class.link(classDoc);
 			} else {
-				document.nodes.push(new CodeErrorNode(this.nameToken, `Type '${this.getName()}' not found!`));
+				document.nodes.push(new SemanticErrorNode(this, `Type '${this.getName()}' not found!`));
 			}
 		}
-		else if (this.reference instanceof UCDocSymbol) {
-			this.reference.linkLocation(Location.create(document.uri, this.getRange()));
+		else if (this.reference instanceof UCSymbol) {
+			this.reference.linkLocation(Location.create(document.uri, this.getIdRange()));
 		}
 	}
 
 	getLinks(): Location[] | undefined {
 		var ref = this.getReference();
-		return ref instanceof UCDocSymbol ? ref.getLinks() : super.getLinks();
+		return ref instanceof UCSymbol ? ref.getLinks() : super.getLinks();
 	}
 
 	setReference(symbol: ISimpleSymbol) {
@@ -263,53 +212,78 @@ export class UCStructRef extends UCSymbolRef {
 
 }
 
+export class UCStateRef extends UCSymbolRef {
+
+}
+
 export class UCClassRef extends UCStructRef {
 	public link(document: UCDocument) {
+		if (this.hasBeenLinked) {
+			return;
+		}
+		this.hasBeenLinked = true;
+
 		let classDoc = document.getDocument(this.getName());
 		if (classDoc) {
 			this.setReference(classDoc.class);
-			classDoc.class.linkLocation(Location.create(document.uri, this.getRange()));
+			classDoc.class.linkLocation(Location.create(document.uri, this.getIdRange()));
 			// classDoc.class.link(classDoc);
 		} else {
-			const errorNode = new CodeErrorNode(
-				this.nameToken,
-				`Class '${this.nameToken.text}' does not exist in the Workspace!`,
+			const errorNode = new SemanticErrorNode(
+				this,
+				`Class '${this.getName()}' does not exist in the Workspace!`,
 			);
 			document.nodes.push(errorNode);
 		}
 	}
 }
 
-export class UCField extends UCDocSymbol {
+export class UCFieldSymbol extends UCSymbol {
+	constructor(id: ISymbolId, private offset: ISymbolOffset) {
+		super(id);
+	}
+
 	getTooltip(): string {
 		return this.getFullName();
 	}
+
+	getRange(): Range {
+		return this.offset.range;
+	}
+
+	isWithinPosition(position: Position) {
+		var range = this.getRange();
+		var isInRange = position.line >= range.start.line && position.line <= range.end.line
+				&& position.character >= range.start.character && position.character <= range.end.character;
+		return isInRange;
+	}
 }
 
-export class UCConst extends UCField {
+export class UCConstSymbol extends UCFieldSymbol {
 	public valueToken: Token;
 
 	getKind(): SymbolKind {
 		return SymbolKind.Constant;
 	}
 
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Constant;
+	}
+
 	getTooltip(): string {
-		return '(const) ' + super.getTooltip() + ' : ' + this.valueToken.text;
+		return '(const) ' + this.getName() + ' : ' + this.valueToken.text;
 	}
 }
 
-export class UCProperty extends UCField {
+export class UCPropertySymbol extends UCFieldSymbol {
 	public typeRef?: UCSymbolRef;
-
-	constructor(nameToken: Token, ctx: ParserRuleContext, stopToken: Token) {
-		super(nameToken, ctx);
-
-		// Small hack neccessary to separate this UCProperty from a multiple-var-declaration case.
-		this.stopToken = stopToken;
-	}
 
 	getKind(): SymbolKind {
 		return SymbolKind.Variable;
+	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Property;
 	}
 
 	getTooltip(): string {
@@ -323,14 +297,17 @@ export class UCProperty extends UCField {
 		return this.typeRef.getFullName();
 	}
 
-	getSymbolAtOffset(offset: number): UCDocSymbol | undefined {
-		var symbol = super.getSymbolAtOffset(offset);
-		if (symbol === this) {
-			if (this.typeRef && this.typeRef.getSymbolAtOffset(offset)) {
+	getSymbol(position: Position): UCSymbol | undefined {
+		if (this.isWithinPosition(position)) {
+			if (this.isIdWithinPosition(position)) {
+				return this;
+			}
+
+			if (this.typeRef && this.typeRef.getSymbol(position)) {
 				return this.typeRef;
 			}
 		}
-		return symbol;
+		return undefined;
 	}
 
 	public link(document: UCDocument) {
@@ -342,9 +319,13 @@ export class UCProperty extends UCField {
 	}
 }
 
-export class UCEnum extends UCField {
+export class UCEnumSymbol extends UCFieldSymbol {
 	getKind(): SymbolKind {
 		return SymbolKind.Enum;
+	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Enum;
 	}
 
 	getTooltip(): string {
@@ -352,9 +333,13 @@ export class UCEnum extends UCField {
 	}
 }
 
-export class UCEnumMember extends UCField {
+export class UCEnumMemberSymbol extends UCSymbol {
 	getKind(): SymbolKind {
 		return SymbolKind.EnumMember;
+	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.EnumMember;
 	}
 
 	getTooltip(): string {
@@ -362,48 +347,51 @@ export class UCEnumMember extends UCField {
 	}
 }
 
-export class UCStruct extends UCField implements ITraversable {
+export class UCStructSymbol extends UCFieldSymbol implements ITraversable {
 	public extendsRef?: UCStructRef;
-	public extends?: UCStruct;
-	public symbols: Map<string, UCDocSymbol> = new Map();
+	public extends?: UCStructSymbol;
+	public symbols: Map<string, UCFieldSymbol> = new Map();
 
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
+	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Module;
 	}
 
 	getTooltip(): string {
 		return `struct ${this.getName()}`;
 	}
 
-	addSymbol(symbol: UCDocSymbol) {
+	addSymbol(symbol: UCFieldSymbol) {
 		symbol.outer = this;
 		this.symbols.set(symbol.getName().toLowerCase(), symbol);
 	}
 
-	getSymbolAtOffset(offset: number): UCDocSymbol | undefined {
-		var symbol = super.getSymbolAtOffset(offset);
-		if (symbol == this) {
-			if (this.extendsRef && this.extendsRef.getSymbolAtOffset(offset)) {
+	getSymbol(position: Position): UCSymbol | undefined {
+		if (this.isWithinPosition(position)) {
+			if (this.isIdWithinPosition(position)) {
+				return this;
+			}
+
+			if (this.extendsRef && this.extendsRef.getSymbol(position)) {
 				return this.extendsRef;
 			}
-		}
 
-		// Check for children before considering ourself.
-		// HACK: Special case for UCClass as it can have symbols outside of its range.
-		if (this instanceof UCClass || symbol == this) {
 			for (let subSymbol of this.symbols.values()) {
-				subSymbol = subSymbol.getSymbolAtOffset(offset);
-				if (subSymbol) {
-					return subSymbol;
+				let innerSymbol = subSymbol.getSymbol(position);
+				if (innerSymbol) {
+					return innerSymbol;
 				}
 			}
 		}
-		return symbol;
+		return undefined;
 	}
 
-	findInheritedSymbol<T>(name: string, deepSearch?: boolean) {
+	findInheritedSymbol(name: string, deepSearch?: boolean) {
 		name = name.toLowerCase();
-		for (let superSymbol: UCStruct = this; superSymbol; superSymbol = superSymbol.extends) {
+		for (let superSymbol: UCStructSymbol = this; superSymbol; superSymbol = superSymbol.extends) {
 			let symbol = superSymbol.symbols.get(name);
 			if (symbol) {
 				return symbol;
@@ -419,7 +407,7 @@ export class UCStruct extends UCField implements ITraversable {
 		if (this.extendsRef) {
 			this.extendsRef.link(document);
 			// Temp hack
-			this.extends = this.extendsRef.getReference() as UCStruct;
+			this.extends = this.extendsRef.getReference() as UCStructSymbol;
 		}
 
 		for (let symbol of this.symbols.values()) {
@@ -428,56 +416,61 @@ export class UCStruct extends UCField implements ITraversable {
 	}
 }
 
-export class UCScriptStruct extends UCStruct {
+export class UCScriptStructSymbol extends UCStructSymbol {
 	getKind(): SymbolKind {
 		return SymbolKind.Struct;
 	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Struct;
+	}
 }
 
-export class UCDefaultProperty extends UCProperty {
+export class UCDefaultPropertySymbol extends UCPropertySymbol {
 	getKind(): SymbolKind {
 		return SymbolKind.Property;
 	}
 }
 
-export class UCDefaults extends UCStruct {
+export class UCDefaultsSymbol extends UCStructSymbol {
 
 }
 
-export class UCFunction extends UCStruct {
+export class UCFunctionSymbol extends UCStructSymbol {
 	public returnTypeRef?: UCSymbolRef;
-	public returnTypeSymbol?: UCDocSymbol;
-	public params: UCProperty[] = [];
-
-	constructor(nameToken: Token, nameCtx: UCParser.FunctionNameContext, ctx: ParserRuleContext,) {
-		super(ctx.start.tokenSource.tokenFactory.create(
-			{ source: nameToken.tokenSource, stream: nameToken.inputStream },
-			nameToken.type,
-			nameCtx.text,
-			nameToken.channel,
-			nameToken.startIndex,
-			nameToken.stopIndex,
-			nameToken.line,
-			nameToken.line
-		), ctx);
-	}
+	public returnTypeSymbol?: UCSymbol;
+	public params: UCPropertySymbol[] = [];
 
 	getKind(): SymbolKind {
 		return SymbolKind.Function;
+	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Function;
 	}
 
 	getTooltip(): string {
 		return '(method) ' + this.getName() + this.buildArguments() + this.buildReturnType();
 	}
 
-	getSymbolAtOffset(offset: number): UCDocSymbol | undefined {
-		var symbol = super.getSymbolAtOffset(offset);
-		if (symbol === this) {
-			if (this.returnTypeRef && this.returnTypeRef.getSymbolAtOffset(offset)) {
+	getSymbol(position: Position): UCSymbol | undefined {
+		if (this.isWithinPosition(position)) {
+			if (this.isIdWithinPosition(position)) {
+				return this;
+			}
+
+			if (this.returnTypeRef && this.returnTypeRef.getSymbol(position)) {
 				return this.returnTypeRef;
 			}
+
+			for (var subSymbol of this.symbols.values()) {
+				let innerSymbol = subSymbol.getSymbol(position);
+				if (innerSymbol) {
+					return innerSymbol;
+				}
+			}
 		}
-		return symbol;
+		return undefined;
 	}
 
 	public link(document: UCDocument) {
@@ -497,7 +490,7 @@ export class UCFunction extends UCStruct {
 	}
 }
 
-export class UCState extends UCStruct {
+export class UCStateSymbol extends UCStructSymbol {
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
 	}
@@ -507,26 +500,36 @@ export class UCState extends UCStruct {
 	}
 }
 
-export class UCClass extends UCStruct {
+export class UCClassSymbol extends UCStructSymbol {
 	public isLinked: boolean = false;
 	public document: UCDocument;
 
-	public withinRef?: UCDocSymbol;
+	public withinRef?: UCSymbol;
 
 	public replicatedNameTokens: Token[] = [];
-	public replicatedSymbols?: UCDocSymbol[];
+	public replicatedSymbols?: UCSymbol[];
 
-	public static visit(document: UCDocument, ctx: UCParser.ClassDeclContext): UCClass {
-		var symbol = new UCClass(ctx.className().start, ctx);
+	public static visit(ctx: UCParser.ClassDeclContext): UCClassSymbol {
+		var className = ctx.className();
+		var symbol = new UCClassSymbol(
+			{ name: className.text, range: rangeFromToken(className.start)},
+			{ range: rangeFromTokens(ctx.start, ctx.stop) }
+		);
 
 		var extendsCtx = ctx.classExtendsReference();
 		if (extendsCtx) {
-			symbol.extendsRef = new UCClassRef(extendsCtx.start, extendsCtx);
+			symbol.extendsRef = new UCClassRef({
+				name: extendsCtx.text,
+				range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
+			});
 		}
 
 		var withinCtx = ctx.classWithinReference();
 		if (withinCtx) {
-			symbol.withinRef = new UCClassRef(withinCtx.start, withinCtx);
+			symbol.withinRef = new UCClassRef({
+				name: withinCtx.text,
+				range: rangeFromTokens(withinCtx.start, withinCtx.stop)
+			});
 		}
 
 		return symbol;
@@ -534,6 +537,10 @@ export class UCClass extends UCStruct {
 
 	getKind(): SymbolKind {
 		return SymbolKind.Class;
+	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Class;
 	}
 
 	getTooltip(): string {
@@ -547,14 +554,46 @@ export class UCClass extends UCStruct {
 		return this.document.uri;
 	}
 
-	getSymbolAtOffset(offset: number): UCDocSymbol | undefined {
-		var symbol = super.getSymbolAtOffset(offset);
-		if (symbol === this) {
-			if (this.withinRef && this.withinRef.getSymbolAtOffset(offset)) {
+	getSymbol(position: Position): UCSymbol | undefined {
+		if (this.isWithinPosition(position)) {
+			if (this.isIdWithinPosition(position)) {
+				return this;
+			}
+			if (this.withinRef && this.withinRef.getSymbol(position)) {
 				return this.withinRef;
 			}
+		} else {
+			for (var subSymbol of this.symbols.values()) {
+				let innerSymbol = subSymbol.getSymbol(position);
+				if (innerSymbol) {
+					return innerSymbol;
+				}
+			}
 		}
-		return symbol;
+		return undefined;
+	}
+
+	findTypeSymbol(name: string, deepSearch: boolean): ISimpleSymbol | undefined {
+		name = name.toLowerCase();
+		var typeSymbol = this.document.classPackage.symbols.get(name)
+		if (typeSymbol) {
+			return typeSymbol;
+		}
+
+		for (var outer: UCStructSymbol = this; outer && outer instanceof UCStructSymbol; outer = outer.extends) {
+			for (var symbol of outer.symbols.values()) {
+				if (symbol instanceof UCScriptStructSymbol || symbol instanceof UCEnumSymbol) {
+					if (symbol.getName().toLowerCase() === name) {
+						return symbol;
+					}
+				}
+			}
+
+			if (!deepSearch) {
+				break;
+			}
+		}
+		return undefined;
 	}
 
 	link(document: UCDocument) {
@@ -574,8 +613,8 @@ export class UCClass extends UCStruct {
 		const className = this.getName();
 		const documentName = path.basename(document.uri, '.uc');
 		if (className.toLowerCase() != documentName.toLowerCase()) {
-			const errorNode = new CodeErrorNode(
-				this.nameToken,
+			const errorNode = new SemanticErrorNode(
+				this,
 				`Class name '${className}' must be equal to its file name ${documentName}!`,
 			);
 			document.nodes.push(errorNode);
@@ -584,22 +623,24 @@ export class UCClass extends UCStruct {
 		if (this.replicatedNameTokens) {
 			this.replicatedSymbols = [];
 			for (let nameToken of this.replicatedNameTokens) {
+				let nameSymbol = new UCSymbolRef({ name: nameToken.text, range: rangeFromToken(nameToken) });
+
 				let symbol = this.findInheritedSymbol(nameToken.text);
 				if (symbol) {
 					symbol.linkLocation(Location.create(document.uri, rangeFromToken(nameToken)));
 					this.replicatedSymbols.push(symbol);
-					if (symbol instanceof UCProperty || symbol instanceof UCFunction) {
+					if (symbol instanceof UCPropertySymbol || symbol instanceof UCFunctionSymbol) {
 						continue;
 					} else {
-						const errorNode = new CodeErrorNode(
-							nameToken,
+						const errorNode = new SemanticErrorNode(
+							nameSymbol,
 							`Type of field '${symbol.getName()}' is not replicatable!`
 						);
 						document.nodes.push(errorNode);
 					}
 				} else {
-					const errorNode = new CodeErrorNode(
-						nameToken,
+					const errorNode = new SemanticErrorNode(
+						nameSymbol,
 						`Variable '${nameToken.text}' does not exist in class '${document.class.getName()}'.`
 					);
 					document.nodes.push(errorNode);
@@ -620,6 +661,10 @@ export class UCNativeSymbol implements ISimpleSymbol {
 
 	getKind(): SymbolKind {
 		return SymbolKind.TypeParameter;
+	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Reference;
 	}
 
 	getUri(): string | undefined {
@@ -652,7 +697,7 @@ export class UCPackage implements ITraversable {
 
 	private name: string;
 
-	constructor(private uri: string) {
+	constructor(uri: string) {
 		this.name = path.basename(uri);
 	}
 
@@ -664,9 +709,12 @@ export class UCPackage implements ITraversable {
 		return SymbolKind.Package;
 	}
 
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Module;
+	}
+
 	getUri(): string {
 		throw new Error("getUri not implemented");
-		return "";
 	}
 
 	getTooltip(): string {
@@ -687,16 +735,16 @@ export class UCPackage implements ITraversable {
 export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {
 	public getDocument: (className: string) => UCDocument;
 
-	public class: UCClass;
-	public nodes: DiagnosticNode[] = [];
+	public class: UCClassSymbol;
+	public nodes: IDiagnosticNode[] = [];
 
-	private context: UCStruct[] = []; // FIXME: Type
+	private context: UCStructSymbol[] = []; // FIXME: Type
 
-	constructor(public classPackage: UCPackage, public uri: string, private stream: CommonTokenStream) {
+	constructor(public classPackage: UCPackage, public uri: string) {
 
 	}
 
-	push(newContext: UCStruct) {
+	push(newContext: UCStructSymbol) {
 		this.context.push(newContext);
 	}
 
@@ -710,20 +758,17 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			: this.classPackage;
 	}
 
-	declare(symbol: UCDocSymbol) {
+	declare(symbol: UCSymbol) {
 		const context = this.get();
 		context.addSymbol(symbol);
-
-		symbol.tryAddComment(this.stream);
-		symbol.fetchTokens(this.stream);
 	}
 
-	getSymbolAtOffset(offset: number): UCDocSymbol {
-		return this.class.getSymbolAtOffset(offset);
+	getSymbolAtPosition(position: Position): UCSymbol {
+		return this.class.getSymbol(position);
 	}
 
 	syntaxError(recognizer: Recognizer<Token, any>, offendingSymbol: Token | undefined, line: number, charPositionInLine: number, msg: string, e: RecognitionException | undefined) {
-		this.nodes.push(new CodeErrorNode(offendingSymbol, 'ANTLR Error | ' + msg));
+		this.nodes.push(new SyntaxErrorNode(rangeFromToken(offendingSymbol), 'ANTLR Error | ' + msg));
 	}
 
 	visitErrorNode(errNode: ErrorNode) {
@@ -732,7 +777,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	enterClassDecl(ctx: UCParser.ClassDeclContext) {
-		const symbol = UCClass.visit(this, ctx);
+		const symbol = UCClassSymbol.visit(ctx);
 		this.class = symbol;
 
 		this.declare(symbol); // push to package
@@ -745,9 +790,16 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			return;
 		}
 
-		const symbol = new UCConst(nameCtx.start, ctx);
-		symbol.valueToken = ctx.constValue().start;
+		const symbol = new UCConstSymbol(
+			{ name: nameCtx.text, range: rangeFromToken(nameCtx.start) },
+			{ range: rangeFromTokens(ctx.start, ctx.stop) }
+		);
 		this.declare(symbol);
+
+		const valueCtx = ctx.constValue();
+		if (valueCtx) {
+			symbol.valueToken = valueCtx.start;
+		}
 	}
 
 	enterEnumDecl(ctx: UCParser.EnumDeclContext) {
@@ -756,9 +808,16 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			return;
 		}
 
-		const symbol = new UCEnum(nameCtx.start, ctx);
+		const { text: name, start: nameToken } = nameCtx;
+		const symbol = new UCEnumSymbol(
+			{ name, range: rangeFromToken(nameToken) },
+			{ range: rangeFromTokens(ctx.start, ctx.stop) }
+		);
 		for (const valueCtx of ctx.valueName()) {
-			const member = new UCEnumMember(valueCtx.start, valueCtx);
+			const member = new UCEnumMemberSymbol({
+				name: valueCtx.text,
+				range: rangeFromToken(valueCtx.start)
+			});
 			this.declare(member);
 			// HACK: overwrite define() outer let.
 			member.outer = symbol;
@@ -772,10 +831,17 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			return;
 		}
 
-		const symbol = new UCScriptStruct(nameCtx.start, ctx);
+		const symbol = new UCScriptStructSymbol(
+			{ name: nameCtx.text, range: rangeFromToken(nameCtx.start) },
+			{ range: rangeFromTokens(ctx.start, ctx.stop) }
+		);
+
 		const extendsCtx = ctx.structReference();
 		if (extendsCtx) {
-			symbol.extendsRef = new UCStructRef(extendsCtx.start, extendsCtx);
+			symbol.extendsRef = new UCStructRef({
+				name: extendsCtx.text,
+				range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
+			});
 		}
 
 		this.declare(symbol);
@@ -788,18 +854,29 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	enterVarDecl(ctx: UCParser.VarDeclContext) {
 		const propDeclType = ctx.variableDeclType();
-		const propTypeToken = propDeclType.start;
+		const typeRef = new UCSymbolRef(
+			{ name: propDeclType.text, range: rangeFromTokens(propDeclType.start, propDeclType.stop) }
+		);
 		for (const varCtx of ctx.variable()) {
-			const nameToken = varCtx.variableName().start;
+			const varName = varCtx.variableName();
 
-			const prop = new UCProperty(nameToken, ctx, varCtx.stop);
-			prop.typeRef = new UCSymbolRef(propTypeToken, propDeclType);
-			this.declare(prop);
+			const symbol = new UCPropertySymbol(
+				{ name: varName.text, range: rangeFromToken(varName.start) },
+
+				// Stop at varCtx instead of ctx for mulitiple variable declarations.
+				{ range: rangeFromTokens(ctx.start, varCtx.stop) }
+			);
+			symbol.typeRef = typeRef;
+			this.declare(symbol);
 		}
 	}
 
 	enterReplicationBlock(ctx: UCParser.ReplicationBlockContext) {
-		var symbol = new UCStruct(ctx.start, ctx);
+		const nameCtx = ctx.kwREPLICATION();
+		const symbol = new UCStructSymbol(
+			{ name: nameCtx.text, range: rangeFromToken(nameCtx.start) },
+			{ range: rangeFromTokens(ctx.start, ctx.stop) }
+		);
 		this.declare(symbol);
 	}
 
@@ -816,33 +893,46 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			return;
 		}
 
-		const symbol = new UCFunction(nameCtx.start, nameCtx, ctx);
-		const returnTypeTree = ctx.returnType();
-		if (returnTypeTree) {
-			symbol.returnTypeRef = new UCSymbolRef(returnTypeTree.start, returnTypeTree);
+		const symbol = new UCFunctionSymbol(
+			// We need start and stop for functions with special symbols (which are made of multiple tokens)
+			{ name: nameCtx.text, range: rangeFromTokens(nameCtx.start, nameCtx.stop) },
+			{ range: rangeFromTokens(ctx.start, ctx.stop) }
+		);
+		const returnTypeCtx = ctx.returnType();
+		if (returnTypeCtx) {
+			symbol.returnTypeRef = new UCSymbolRef({
+				name: returnTypeCtx.text,
+				range: rangeFromTokens(returnTypeCtx.start, returnTypeCtx.stop)
+			});
 		}
 		this.declare(symbol);
 		this.push(symbol);
 
 		if (!ctx.paramDecl()) {
-			console.error('no params');
+			console.log('no params');
 		}
 
 		for (const paramCtx of ctx.paramDecl()) {
 			if (!paramCtx) {
 				break;
 			}
-			const propTypeCtx = paramCtx.variableType();
 			const varCtx = paramCtx.variable();
-
 			const propName = varCtx.variableName();
 			if (!propName) {
 				continue;
 			}
-			const prop = new UCProperty(propName.start, paramCtx, paramCtx.stop);
-			prop.typeRef = new UCSymbolRef(propTypeCtx.start, propTypeCtx);
-			symbol.params.push(prop);
-			this.declare(prop);
+			const propSymbol = new UCPropertySymbol(
+				{ name: propName.text, range: rangeFromToken(propName.start) },
+				{ range: rangeFromTokens(paramCtx.start, paramCtx.stop) }
+				);
+
+			const propTypeCtx = paramCtx.variableType();
+			propSymbol.typeRef = new UCSymbolRef({
+				name: propTypeCtx.text,
+				range: rangeFromTokens(propTypeCtx.start, propTypeCtx.stop)
+			});
+			symbol.params.push(propSymbol);
+			this.declare(propSymbol);
 		}
 
 		for (const localCtx of ctx.localDecl()) {
@@ -851,30 +941,45 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			}
 
 			const propTypeCtx = localCtx.variableType();
+			const propTypeRef = new UCSymbolRef({
+				name: propTypeCtx.text,
+				range: rangeFromTokens(propTypeCtx.start, propTypeCtx.stop)
+			});
 			for (const varCtx of localCtx.variable()) {
 				const propName = varCtx.variableName();
 				if (!propName) {
 					continue;
 				}
-				const prop = new UCProperty(propName.start, localCtx, localCtx.stop);
-				prop.typeRef = new UCSymbolRef(propTypeCtx.start, propTypeCtx);
-				this.declare(prop);
+
+				const propSymbol = new UCPropertySymbol(
+					{ name: propName.text, range: rangeFromToken(propName.start) },
+					// Stop at varCtx instead of localCtx for mulitiple variable declarations.
+					{ range: rangeFromTokens(localCtx.start, varCtx.stop) }
+				);
+				propSymbol.typeRef = propTypeRef;
+				this.declare(propSymbol);
 			}
 		}
 		this.pop();
 	}
 
 	enterStateDecl(ctx: UCParser.StateDeclContext) {
-		var stateName = ctx.stateName();
+		const stateName = ctx.stateName();
 		if (!stateName) {
 			return;
 		}
 
-		var symbol = new UCState(stateName.start, ctx);
+		const symbol = new UCStateSymbol(
+			{ name: stateName.text, range: rangeFromToken(stateName.start) },
+			{ range: rangeFromTokens(ctx.start, ctx.stop) }
+		);
 		const extendsCtx = ctx.stateReference();
 		if (extendsCtx) {
 			// FIXME: UCStateRef?
-			symbol.extendsRef = new UCStructRef(extendsCtx.start, extendsCtx);
+			symbol.extendsRef = new UCStateRef({
+				name: extendsCtx.text,
+				range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
+			});
 		}
 
 		this.declare(symbol);
@@ -886,14 +991,21 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	enterDefaultpropertiesBlock(ctx: UCParser.DefaultpropertiesBlockContext) {
-		var symbol = new UCDefaults(ctx.start, ctx);
+		const nameCtx = ctx.kwDEFAULTPROPERTIES();
+		const symbol = new UCDefaultsSymbol(
+			{ name: nameCtx.text, range: rangeFromToken(nameCtx.start) },
+			{ range: rangeFromTokens(ctx.start, ctx.stop) }
+		);
 		this.declare(symbol);
 		this.push(symbol);
 	}
 
 	enterDefaultProperty(ctx: UCParser.DefaultPropertyContext) {
-		var idCtx = ctx.ID();
-		var symbol = new UCDefaultProperty(idCtx.symbol, ctx, ctx.stop);
+		const idCtx = ctx.identifier();
+		const symbol = new UCDefaultPropertySymbol(
+			{ name: idCtx.text, range: rangeFromToken(ctx.start) },
+			{ range: rangeFromTokens(ctx.start, ctx.stop) }
+		);
 		this.declare(symbol);
 	}
 
@@ -907,28 +1019,17 @@ export class DocumentParser {
 	private parser: UCParser.UCGrammarParser;
 	private tokenStream: CommonTokenStream;
 
-	private document: UCDocument;
-
-	constructor(uri: string, text: string, classPackage: UCPackage) {
+	constructor(text: string) {
 		this.lexer = new UCGrammarLexer(new CaseInsensitiveStream(text));
 
 		this.tokenStream = new CommonTokenStream(this.lexer);
 		this.parser = new UCParser.UCGrammarParser(this.tokenStream);
 		this.parser.buildParseTree = true;
-
-		this.document = new UCDocument(classPackage, uri, this.tokenStream);
 	}
 
-	parse(getDocument: (className: string) => UCDocument): UCDocument {
-		this.document.getDocument = getDocument;
-
-		this.parser.addErrorListener(this.document);
+	parse(document: UCDocument) {
+		this.parser.addErrorListener(document);
 		let tree = this.parser.program();
-		ParseTreeWalker.DEFAULT.walk(this.document, tree);
-		return this.document;
-	}
-
-	link() {
-		this.document.class.link(this.document);
+		ParseTreeWalker.DEFAULT.walk(document, tree);
 	}
 }
