@@ -1,218 +1,23 @@
 grammar UCGrammar;
 
-@parser::members {
-	keyword(kw) {
-		return this.currentToken.text == kw;
-	}
-}
+fragment DIGIT: [0-9]('f' | 'F')?;
+fragment EXPONENT: ('e' | 'E') ('+' | '-')? DIGIT+;
+fragment HEX_DIGIT: (DIGIT | 'a' ..'f' | 'A' ..'F');
+fragment ESC_SEQ:
+	'\\' ('b' | 't' | 'n' | 'r' | '"' | '\'' | '\\');
+fragment NEWLINE: [\r\n];
 
 LINE_COMMENT: '//' ~[\n]+ -> channel(HIDDEN);
 
 BLOCK_COMMENT: '/*' .*? '*/' -> channel(HIDDEN);
 
-PP_HASH: '#' ~[\n]+ -> skip;
-PP_TICK: '`' ~[\n]+ -> skip;
+// PP_HASH: '#' .*? ~[\n]+ -> channel(HIDDEN);
+PP_TICK: '`' ~[\n] -> skip;
 
 WS: [ \t\r\n]+ -> skip;
 
-// Keys
-kwSELF: { this.keyword('self') }? ID;
-kwSUPER: { this.keyword('super') }? ID;
-kwGLOBAL: { this.keyword('global') }? ID;
-kwCLASS: { this.keyword('class') }? ID;
-
-KW_INTERFACE: 'interface';
-
-KW_WITHIN: 'within';
-
-KW_CONST: 'const';
-KW_ENUM: 'enum';
-
-KW_STRUCT: 'struct';
-
-KW_VAR: 'var';
-
-KW_LOCAL: 'local';
-
-KW_REPLICATION: 'replication';
-
-KW_OPERATOR: 'operator';
-
-KW_PREOPERATOR: 'preoperator';
-
-KW_POSTOPERATOR: 'postoperator';
-
-KW_DELEGATE: 'delegate';
-
-KW_FUNCTION: 'function';
-
-kwEVENT: { this.keyword('event') }? ID;
-
-kwSTATE: { this.keyword('state') }? ID;
-
-KW_DEFAULT: 'default';
-
-kwMAP: { this.keyword('map') }? ID;
-
-KW_DEFAULTPROPERTIES: 'defaultproperties';
-
-KW_STRUCTDEFAULTPROPERTIES: 'structdefaultproperties';
-
-KW_FOR: 'for';
-
-KW_FOREACH: 'foreach';
-
-KW_RETURN: 'return';
-
-kwCASE: { this.keyword('case') }? ID;
-
-kwSWITCH: { this.keyword('switch') }? ID;
-
-KW_UNTIL: 'until';
-
-KW_DO: 'do';
-
-KW_WHILE: 'while';
-
-KW_ELSE: 'else';
-
-KW_IF: 'if';
-
-KW_IGNORES: 'ignores';
-
-KW_RELIABLE: 'reliable';
-
-KW_UNRELIABLE: 'unreliable';
-
-KW_CPPTEXT: 'cpptext';
-
-KW_STRUCTCPPTEXT: 'structcpptext';
-
-KW_CPPSTRUCT: 'cppstruct';
-
-KW_ARRAY: 'array';
-
-kwBYTE: { this.keyword('byte') }? ID;
-
-kwINT: { this.keyword('int') }? ID;
-
-kwFLOAT: { this.keyword('float') }? ID;
-
-kwSTRING: { this.keyword('string') }? ID;
-
-kwButton: { this.keyword('button') }? ID;
-
-kwBOOL: { this.keyword('bool') }? ID;
-
-kwName: { this.keyword('name') }? ID;
-
-KW_TRUE: 'true';
-
-KW_FALSE: 'false';
-
-KW_NONE: 'none';
-
-KW_EXTENDS: 'extends' | 'expands';
-
-KW_PUBLIC: 'public';
-KW_PROTECTED: 'protected';
-KW_PROTECTEDWRITE: 'protectedwrite';
-KW_PRIVATE: 'private';
-KW_PRIVATEWRITE: 'privatewrite';
-KW_LOCALIZED: 'localized';
-kwOUT: { this.keyword('out') }? ID;
-KW_OPTIONAL: 'optional';
-kwINIT: { this.keyword('init') }? ID;
-KW_SKIP: 'skip';
-KW_COERCE: 'coerce';
-KW_FINAL: 'final';
-KW_LATENT: 'latent';
-KW_SINGULAR: 'singular';
-KW_STATIC: 'static';
-KW_EXEC: 'exec';
-KW_ITERATOR: 'iterator';
-KW_SIMULATED: 'simulated';
-KW_AUTO: 'auto';
-KW_NOEXPORT: 'noexport';
-KW_NOEXPORTHEADER: 'noexportheader';
-KW_EDITCONST: 'editconst';
-KW_EDFINDABLE: 'edfindable';
-KW_EDITINLINE: 'editinline';
-KW_EDITINLINENOTIFY: 'editinlinenotify';
-KW_EDITHIDE: 'edithide';
-KW_EDITCONSTARRAY: 'editconstarray';
-KW_EDITFIXEDSIZE: 'editfixedsize';
-KW_EDITORONLY: 'editoronly';
-KW_EDITORTEXTBOX: 'editortextbox';
-KW_NOCLEAR: 'noclear';
-KW_NOIMPORT: 'noimport';
-KW_NONTRANSACTIONAL: 'nontransactional';
-KW_SERIALIZETEXT: 'serializetext';
-KW_CONFIG: 'config';
-KW_GLOBALCONFIG: 'globalconfig';
-KW_NATIVE: 'native' | 'intrinsic';
-KW_NATIVEREPLICATION: 'nativereplication';
-KW_NATIVEONLY: 'nativeonly';
-KW_EXPORT: 'export';
-KW_ABSTRACT: 'abstract';
-KW_PEROBJECTCONFIG: 'perobjectconfig';
-KW_PEROBJECTLOCALIZED: 'perobjectlocalized';
-KW_PLACEABLE: 'placeable';
-KW_NOUSERCREATE: 'nousercreate';
-KW_NOTPLACEABLE: 'notplaceable';
-KW_SAFEREPLACE: 'safereplace';
-KW_DEPENDSON: 'dependson';
-KW_SHOWCATEGORIES: 'showcategories';
-KW_HIDECATEGORIES: 'hidecategories';
-kwGUID: { this.keyword('guid') }? ID;
-kwLONG: { this.keyword('long') }? ID;
-KW_TRANSIENT: 'transient';
-KW_NONTRANSIENT: 'nontransient';
-KW_CACHE: 'cache';
-KW_INTERP: 'interp';
-KW_REPRETRY: 'repretry';
-KW_REPNOTIFY: 'repnotify';
-KW_NOTFORCONSOLE: 'notforconsole';
-KW_ARCHETYPE: 'archetype';
-KW_CROSSLEVELACTIVE: 'crosslevelactive';
-KW_CROSSLEVELPASSIVE: 'crosslevelpassive';
-KW_AUTOMATED: 'automated';
-KW_TRAVEL: 'travel';
-kwInput: { this.keyword('input') }? ID;
-KW_CACHEEXEMPT: 'cacheexempt';
-KW_HIDEDROPDOWN: 'hidedropdown';
-KW_INSTANCED: 'instanced';
-KW_DATABINDING: 'databinding';
-KW_DUPLICATETRANSIENT: 'duplicatetransient';
-KW_PARSECONFIG: 'parseconfig';
-KW_EDITINLINENEW: 'editinlinenew';
-KW_NOTEDITINLINENEW: 'noteditinlinenew';
-KW_EXPORTSTRUCTS: 'exportstructs';
-KW_DLLBIND: 'dllbind';
-KW_DEPRECATED: 'deprecated';
-KW_STRICTCONFIG: 'strictconfig';
-KW_ATOMIC: 'atomic';
-KW_ATOMICWHENCOOKED: 'atomicwhencooked';
-KW_IMMUTABLE: 'immutable';
-KW_IMMUTABLEWHENCOOKED: 'immutablewhencooked';
-KW_VIRTUAL: 'virtual';
-KW_SERVER: 'server';
-KW_CLIENT: 'client';
-KW_DLLIMPORT: 'dllimport';
-KW_DEMORECORDING: 'demorecording';
-
-KW_COLLAPSECATEGORIES: 'collapsecategories';
-KW_DONTCOLLAPSECATEGORIES: 'dontcollapsecategories';
-KW_IMPLEMENTS: 'implements';
-KW_CLASSGROUP: 'classgroup';
-KW_AUTOEXPANDCATEGORIES: 'autoexpandcategories';
-KW_AUTOCOLLAPSECATEGORIES: 'autocollapsecategories';
-KW_DONTAUTOCOLLAPSECATEGORIES: 'dontautocollapsecategories';
-KW_DONTSORTCATEGORIES: 'dontsortcategories';
-KW_INHERITS: 'KW_INHERITS';
-KW_FORCESCRIPTORDER: 'forcescriptorder';
-
-ID: [a-zA-Z_][a-zA-Z0-9_]*;
+// ID:	[a-zA-Z_][a-zA-Z0-9_]*;
+ID:	[a-z_][a-z0-9_]*;
 
 LPAREN: '(';
 RPAREN: ')';
@@ -257,43 +62,357 @@ DIVIDESIGN: '/';
 MODULUSSIGN: '%';
 TILTSIGN: '~';
 
-fragment DIGIT: [0-9]('f' | 'F')?;
+kwDEFAULT: 'default';
+kwSELF: 'self';
+kwSUPER: 'super';
+kwGLOBAL: 'global';
+kwCLASS: 'class';
 
-fragment EXPONENT: ('e' | 'E') ('+' | '-')? DIGIT+;
+kwINTERFACE: 'interface';
+kwWITHIN: 'within';
+kwCONST: 'const';
+kwENUM: 'enum';
+kwSTRUCT: 'struct';
+kwVAR: 'var';
+kwLOCAL: 'local';
+kwREPLICATION: 'replication';
+kwOPERATOR: 'operator';
+kwPREOPERATOR: 'preoperator';
+kwPOSTOPERATOR: 'postoperator';
 
-fragment HEX_DIGIT: (DIGIT | 'a' ..'f' | 'A' ..'F');
+kwDELEGATE: 'delegate';
+kwFUNCTION: 'function';
 
-fragment ESC_SEQ:
-	'\\' ('b' | 't' | 'n' | 'r' | '"' | '\'' | '\\');
+kwEVENT: 'event';
+kwSTATE: 'state';
 
-fragment NEWLINE: [\r\n];
+kwMAP: 'map';
+kwDEFAULTPROPERTIES: 'defaultproperties' | 'structdefaultproperties';
 
-// TODO: Rep and def may be anywhere but can only be defined
+kwFOR: 'for';
+kwFOREACH: 'foreach';
+kwRETURN: 'return';
+kwBREAK: 'break';
+kwCONTINUE: 'continue';
+kwSTOP: 'stop';
+kwCASE: 'case';
+kwSWITCH: 'switch';
+kwUNTIL: 'until';
+kwDO: 'do';
+kwWHILE: 'while';
+kwELSE: 'else';
+kwIF: 'if';
+
+kwIGNORES: 'ignores';
+kwUNRELIABLE: 'unreliable';
+kwRELIABLE: 'reliable';
+
+kwCPPTEXT: 'cpptext';
+kwSTRUCTCPPTEXT: 'structcpptext';
+kwCPPSTRUCT: 'cppstruct';
+
+kwARRAY: 'array';
+kwBYTE: 'byte';
+kwINT: 'int';
+kwFLOAT: 'float';
+kwSTRING: 'string';
+kwButton: 'button';
+kwBOOL: 'bool';
+kwNAME: 'name';
+kwTRUE: 'true';
+kwFALSE: 'false';
+kwNONE: 'none';
+
+kwEXTENDS: 'extends' | 'expands';
+
+kwPUBLIC: 'public';
+kwPROTECTED: 'protected';
+kwPROTECTEDWRITE: 'protectedwrite';
+kwPRIVATE: 'private';
+kwPRIVATEWRITE: 'privatewrite';
+kwLOCALIZED: 'localized';
+kwOUT: 'out';
+kwOPTIONAL: 'optional';
+kwINIT: 'init';
+kwSKIP: 'skip';
+kwCOERCE: 'coerce';
+kwFINAL: 'final';
+kwLATENT: 'latent';
+kwSINGULAR: 'singular';
+kwSTATIC: 'static';
+kwEXEC: 'exec';
+kwITERATOR: 'iterator';
+kwSIMULATED: 'simulated';
+kwAUTO: 'auto';
+kwNOEXPORT: 'noexport';
+kwNOEXPORTHEADER: 'noexportheader';
+kwEDITCONST: 'editconst';
+kwEDFINDABLE: 'edfindable';
+kwEDITINLINE: 'editinline';
+kwEDITINLINENOTIFY: 'editinlinenotify';
+kwEDITHIDE: 'edithide';
+kwEDITCONSTARRAY: 'editconstarray';
+kwEDITFIXEDSIZE: 'editfixedsize';
+kwEDITORONLY: 'editoronly';
+kwEDITORTEXTBOX: 'editortextbox';
+kwNOCLEAR: 'noclear';
+kwNOIMPORT: 'noimport';
+kwNONTRANSACTIONAL: 'nontransactional';
+kwSERIALIZETEXT: 'serializetext';
+kwCONFIG: 'config';
+kwGLOBALCONFIG: 'globalconfig';
+kwNATIVE: 'native' | 'intrinsic';
+kwNATIVEREPLICATION: 'nativereplication';
+kwNATIVEONLY: 'nativeonly';
+kwEXPORT: 'export';
+kwABSTRACT: 'abstract';
+kwPEROBJECTCONFIG: 'perobjectconfig';
+kwPEROBJECTLOCALIZED: 'perobjectlocalized';
+kwPLACEABLE: 'placeable';
+kwNOUSERCREATE: 'nousercreate';
+kwNOTPLACEABLE: 'notplaceable';
+kwSAFEREPLACE: 'safereplace';
+kwDEPENDSON: 'dependson';
+kwSHOWCATEGORIES: 'showcategories';
+kwHIDECATEGORIES: 'hidecategories';
+kwGUID: 'guid';
+kwLONG: 'long';
+kwTRANSIENT: 'transient';
+kwNONTRANSIENT: 'nontransient';
+kwCACHE: 'cache';
+kwINTERP: 'interp';
+kwREPRETRY: 'repretry';
+kwREPNOTIFY: 'repnotify';
+kwNOTFORCONSOLE: 'notforconsole';
+kwARCHETYPE: 'archetype';
+kwCROSSLEVELACTIVE: 'crosslevelactive';
+kwCROSSLEVELPASSIVE: 'crosslevelpassive';
+kwAUTOMATED: 'automated';
+kwTRAVEL: 'travel';
+kwInput: 'input';
+kwCACHEEXEMPT: 'cacheexempt';
+kwHIDEDROPDOWN: 'hidedropdown';
+kwINSTANCED: 'instanced';
+kwDATABINDING: 'databinding';
+kwDUPLICATETRANSIENT: 'duplicatetransient';
+kwPARSECONFIG: 'parseconfig';
+kwEDITINLINENEW: 'editinlinenew';
+kwNOTEDITINLINENEW: 'noteditinlinenew';
+kwEXPORTSTRUCTS: 'exportstructs';
+kwDLLBIND: 'dllbind';
+kwDEPRECATED: 'deprecated';
+kwSTRICTCONFIG: 'strictconfig';
+kwATOMIC: 'atomic';
+kwATOMICWHENCOOKED: 'atomicwhencooked';
+kwIMMUTABLE: 'immutable';
+kwIMMUTABLEWHENCOOKED: 'immutablewhencooked';
+kwVIRTUAL: 'virtual';
+kwSERVER: 'server';
+kwCLIENT: 'client';
+kwDLLIMPORT: 'dllimport';
+kwDEMORECORDING: 'demorecording';
+
+kwCOLLAPSECATEGORIES: 'collapsecategories';
+kwDONTCOLLAPSECATEGORIES: 'dontcollapsecategories';
+kwIMPLEMENTS: 'implements';
+kwCLASSGROUP: 'classgroup';
+kwAUTOEXPANDCATEGORIES: 'autoexpandcategories';
+kwAUTOCOLLAPSECATEGORIES: 'autocollapsecategories';
+kwDONTAUTOCOLLAPSECATEGORIES: 'dontautocollapsecategories';
+kwDONTSORTCATEGORIES: 'dontsortcategories';
+kwINHERITS: 'inherits';
+kwFORCESCRIPTORDER: 'forcescriptorder';
+
+identifier: ID
+	|'default'
+	|'self'
+	|'super'
+	|'global'
+	|'class'
+	|'interface'
+	|'within'
+	|'const'
+	|'enum'
+	|'struct'
+	|'var'
+	|'local'
+	|'replication'
+	|'operator'
+	|'preoperator'
+	|'postoperator'
+	|'delegate'
+	|'function'
+	|'event'
+	|'state'
+	|'map'
+	|'defaultproperties'
+	|'structdefaultproperties'
+	|'for'
+	|'foreach'
+	|'return'
+	|'break'
+	|'continue'
+	|'stop'
+	|'case'
+	|'switch'
+	|'until'
+	|'do'
+	|'while'
+	|'else'
+	|'if'
+	|'ignores'
+	|'unreliable'
+	|'reliable'
+	|'cpptext'
+	|'structcpptext'
+	|'cppstruct'
+	|'array'
+	|'byte'
+	|'int'
+	|'float'
+	|'string'
+	|'button'
+	|'bool'
+	|'name'
+	|'true'
+	|'false'
+	|'none'
+	|'extends'
+	|'expands'
+	|'public'
+	|'protected'
+	|'protectedwrite'
+	|'private'
+	|'privatewrite'
+	|'localized'
+	|'out'
+	|'optional'
+	|'init'
+	|'skip'
+	|'coerce'
+	|'final'
+	|'latent'
+	|'singular'
+	|'static'
+	|'exec'
+	|'iterator'
+	|'simulated'
+	|'auto'
+	|'noexport'
+	|'noexportheader'
+	|'editconst'
+	|'edfindable'
+	|'editinline'
+	|'editinlinenotify'
+	|'edithide'
+	|'editconstarray'
+	|'editfixedsize'
+	|'editoronly'
+	|'editortextbox'
+	|'noclear'
+	|'noimport'
+	|'nontransactional'
+	|'serializetext'
+	|'config'
+	|'globalconfig'
+	|'intrinsic'
+	|'native'
+	|'nativereplication'
+	|'nativeonly'
+	|'export'
+	|'abstract'
+	|'perobjectconfig'
+	|'perobjectlocalized'
+	|'placeable'
+	|'nousercreate'
+	|'notplaceable'
+	|'safereplace'
+	|'dependson'
+	|'showcategories'
+	|'hidecategories'
+	|'guid'
+	|'long'
+	|'transient'
+	|'nontransient'
+	|'cache'
+	|'interp'
+	|'repretry'
+	|'repnotify'
+	|'notforconsole'
+	|'archetype'
+	|'crosslevelactive'
+	|'crosslevelpassive'
+	|'automated'
+	|'travel'
+	|'input'
+	|'cacheexempt'
+	|'hidedropdown'
+	|'instanced'
+	|'databinding'
+	|'duplicatetransient'
+	|'parseconfig'
+	|'editinlinenew'
+	|'noteditinlinenew'
+	|'exportstructs'
+	|'dllbind'
+	|'deprecated'
+	|'strictconfig'
+	|'atomic'
+	|'atomicwhencooked'
+	|'immutable'
+	|'immutablewhencooked'
+	|'virtual'
+	|'server'
+	|'client'
+	|'dllimport'
+	|'demorecording'
+	|'collapsecategories'
+	|'dontcollapsecategories'
+	|'implements'
+	|'classgroup'
+	|'autoexpandcategories'
+	|'autocollapsecategories'
+	|'dontautocollapsecategories'
+	|'dontsortcategories'
+	|'inherits'
+	|'forcescriptorder'
+	;
+
+ppHASH: '#' .*?;
+
 program:
-	classDecl (
-		cpptextBlock
+	classDecl
+	(
+		ppHASH
+		| cpptextBlock
 		| constDecl
 		| (enumDecl SEMICOLON?)
 		| (structDecl)
 		| varDecl
-	)* (( functionDecl | stateDecl | replicationBlock)*) defaultpropertiesBlock?;
+		| replicationBlock
+		| defaultpropertiesBlock
+	)*
+	(
+		ppHASH
+		| functionDecl
+		| stateDecl
+		| replicationBlock
+		| defaultpropertiesBlock
+	)*;
 
-//exec
-// : HASHTAG NEWLINE ;
+typeName: identifier;
 
-typeName: ID;
-
-className: ID;
+className: identifier;
 
 stringLiteral: STRING;
 nameLiteral: NAME;
-booleanLiteral: KW_TRUE | KW_FALSE;
+booleanLiteral: kwTRUE | kwFALSE;
 
-noneLiteral: KW_NONE;
+noneLiteral: kwNONE;
 
 // Maybe leave the post DOT parsing to the expression parsing?
 // e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
-classLiteral: ID nameLiteral (DOT (KW_STATIC | KW_DEFAULT | KW_CONST) DOT)?;
+classLiteral: identifier nameLiteral (DOT (kwSTATIC | kwDEFAULT | kwCONST) DOT)?;
 
 literal: (
 		(
@@ -304,7 +423,7 @@ literal: (
 			| nameLiteral
 		)
 		| classLiteral
-		| reference // e.g. a constant or enum name
+		| qualifiedIdentifier // e.g. a constant or enum name
 	);
 
 numeric: INTEGER | FLOAT;
@@ -313,150 +432,150 @@ numeric: INTEGER | FLOAT;
 // Package.Class.Field
 // Class.Field
 // Class / Field
-reference: ID (DOT ID (DOT ID)?)?;
+qualifiedIdentifier: identifier (DOT identifier (DOT identifier)?)?;
 
 classDecl
 	:
-		(kwCLASS | KW_INTERFACE) className
+		(kwCLASS | kwINTERFACE) className
 			(
-				KW_EXTENDS classExtendsReference
+				kwEXTENDS classExtendsReference
 				// UC2+
-				(KW_WITHIN classWithinReference)?
+				(kwWITHIN classWithinReference)?
 			)?
 			classModifier* SEMICOLON
 	;
 
-classReference: reference;
+classReference: qualifiedIdentifier;
 
 classExtendsReference: classReference;
 
 classWithinReference: classReference;
 
-classModifier:
+classModifier: identifier modifierArguments?;
 	// in UC3 a class can have a custom native name.
-	(KW_NATIVE modifierArgument?)
-	| KW_NATIVEREPLICATION
-	| KW_LOCALIZED // UC1
-	| KW_ABSTRACT
-	| KW_PEROBJECTCONFIG
-	| KW_TRANSIENT
-	| KW_EXPORT
-	| KW_NOEXPORT
-	| KW_NOUSERCREATE
-	| KW_SAFEREPLACE
-	| (KW_CONFIG modifierArgument?)
-	// UC2+
-	| KW_PLACEABLE
-	| KW_NOTPLACEABLE
-	| KW_CACHEEXEMPT // UT2004
-	| KW_HIDEDROPDOWN
-	| KW_EXPORTSTRUCTS
-	| KW_INSTANCED
-	| KW_PARSECONFIG
-	| KW_EDITINLINENEW
-	| KW_NOTEDITINLINENEW
-	| (KW_DEPENDSON modifierArguments)
-	| (KW_COLLAPSECATEGORIES modifierArguments)
-	| (KW_DONTCOLLAPSECATEGORIES modifierArguments?)
-	| (KW_SHOWCATEGORIES modifierArguments)
-	| (KW_HIDECATEGORIES modifierArguments)
-	| (kwGUID (LPAREN INTEGER COMMA INTEGER COMMA INTEGER COMMA INTEGER RPAREN))
-	// UC3+
-	| KW_NATIVEONLY
-	| KW_NONTRANSIENT
-	| KW_PEROBJECTLOCALIZED
-	| KW_DEPRECATED
-	| (KW_DLLBIND modifierArgument)
-	| (KW_IMPLEMENTS modifierArgument)
-	| (KW_CLASSGROUP modifierArguments)
-	| (KW_AUTOEXPANDCATEGORIES modifierArguments)
-	| (KW_AUTOCOLLAPSECATEGORIES modifierArguments)
-	| (KW_DONTAUTOCOLLAPSECATEGORIES modifierArguments)
-	| (KW_DONTSORTCATEGORIES modifierArguments)
-	| (KW_INHERITS modifierArguments)
-	// true/false only
-	| (KW_FORCESCRIPTORDER modifierArgument)
-	; //ID (LPARENT ID (COMMA ID)* RPARENT)?
+	// (kwNATIVE modifierArgument?)
+	// | kwNATIVEREPLICATION
+	// | kwLOCALIZED // UC1
+	// | kwABSTRACT
+	// | kwPEROBJECTCONFIG
+	// | kwTRANSIENT
+	// | kwEXPORT
+	// | kwNOEXPORT
+	// | kwNOUSERCREATE
+	// | kwSAFEREPLACE
+	// | (kwCONFIG modifierArgument?)
+	// // UC2+
+	// | kwPLACEABLE
+	// | kwNOTPLACEABLE
+	// | kwCACHEEXEMPT // UT2004
+	// | kwHIDEDROPDOWN
+	// | kwEXPORTSTRUCTS
+	// | kwINSTANCED
+	// | kwPARSECONFIG
+	// | kwEDITINLINENEW
+	// | kwNOTEDITINLINENEW
+	// | (kwDEPENDSON modifierArguments)
+	// | (kwCOLLAPSECATEGORIES modifierArguments)
+	// | (kwDONTCOLLAPSECATEGORIES modifierArguments?)
+	// | (kwSHOWCATEGORIES modifierArguments)
+	// | (kwHIDECATEGORIES modifierArguments)
+	// | (kwGUID (LPAREN INTEGER COMMA INTEGER COMMA INTEGER COMMA INTEGER RPAREN))
+	// // UC3+
+	// | kwNATIVEONLY
+	// | kwNONTRANSIENT
+	// | kwPEROBJECTLOCALIZED
+	// | kwDEPRECATED
+	// | (kwDLLBIND modifierArgument)
+	// | (kwIMPLEMENTS modifierArgument)
+	// | (kwCLASSGROUP modifierArguments)
+	// | (kwAUTOEXPANDCATEGORIES modifierArguments)
+	// | (kwAUTOCOLLAPSECATEGORIES modifierArguments)
+	// | (kwDONTAUTOCOLLAPSECATEGORIES modifierArguments)
+	// | (kwDONTSORTCATEGORIES modifierArguments)
+	// | (kwINHERITS modifierArguments)
+	// // true/false only
+	// | (kwFORCESCRIPTORDER modifierArgument)
+	// ; //ID (LPARENT ID (COMMA ID)* RPARENT)?
 
 // TODO: may be a numeric or typeName!
-modifierValue: ID;
+modifierValue: identifier | numeric;
 
 modifierArgument: LPAREN modifierValue RPAREN;
 
-modifierArguments: LPAREN (modifierValue COMMA?)* RPAREN;
+modifierArguments: LPAREN (modifierValue COMMA?)+ RPAREN;
 
-constDecl: KW_CONST constName EQUALS_SIGN constValue SEMICOLON;
+constDecl: kwCONST constName EQUALS_SIGN constValue SEMICOLON;
 
-constName: ID;
+constName: identifier;
 constValue: literal;
 
 varDecl:
-	KW_VAR
+	kwVAR
 		(LPAREN (categoryName (COMMA categoryName)*)? RPAREN)?
 		variableModifier*
 		variableDeclType
 		variable nativeType? variableMeta? (COMMA variable)*
 	SEMICOLON;
 
-variable: variableName (arraySize)?;
+variable: variableName arrayDim?;
 
 // <UIMin=0.0,UIMax=1.0,Toolip="Hello">
 variableMeta: LARROW .*? RARROW;
 
-variableName: ID;
-categoryName: ID;
+variableName: identifier;
+categoryName: identifier;
 
 // UC3 CPP specifier e.g. {public}
 nativeSpecifier: LBRACE nativeSpecifier RBRACE;
 
 // UC3 CPP type e.g. {QWORD}
-nativeType: LBRACE ID RBRACE;
+nativeType: LBRACE identifier RBRACE;
 
 variableModifier
 	: (
-		KW_PUBLIC
-		| KW_PROTECTED
-		| KW_PROTECTEDWRITE
-		| KW_PRIVATE
-		| KW_PRIVATEWRITE
-		| KW_LOCALIZED
-		| KW_NATIVE
-		| KW_CONST
-		| KW_EDITCONST
-		| KW_CONFIG
-		| KW_GLOBALCONFIG
-		| KW_TRANSIENT
-		| KW_TRAVEL
+		kwPUBLIC
+		| kwPROTECTED
+		| kwPROTECTEDWRITE
+		| kwPRIVATE
+		| kwPRIVATEWRITE
+		| kwLOCALIZED
+		| kwNATIVE
+		| kwCONST
+		| kwEDITCONST
+		| kwCONFIG
+		| kwGLOBALCONFIG
+		| kwTRANSIENT
+		| kwTRAVEL
 		| kwInput
 		// UC2
-		| KW_EXPORT
-		| KW_NOEXPORT
-		| KW_CACHE
-		| KW_AUTOMATED
-		| KW_EDITINLINE
-		| KW_EDITINLINENOTIFY
-		| KW_EDITCONSTARRAY
-		| KW_EDFINDABLE
+		| kwEXPORT
+		| kwNOEXPORT
+		| kwCACHE
+		| kwAUTOMATED
+		| kwEDITINLINE
+		| kwEDITINLINENOTIFY
+		| kwEDITCONSTARRAY
+		| kwEDFINDABLE
 		// UC3
 		| kwINIT
-		| KW_EDITFIXEDSIZE
-		| KW_EDITORONLY
-		| KW_EDITORTEXTBOX
-		| KW_NOCLEAR
-		| KW_NOIMPORT
-		| KW_SERIALIZETEXT
-		| KW_NONTRANSACTIONAL
-		| KW_INSTANCED
-		| KW_DATABINDING
-		| KW_DUPLICATETRANSIENT
-		| KW_REPRETRY
-		| KW_REPNOTIFY
-		| KW_INTERP
-		| KW_DEPRECATED
-		| KW_NOTFORCONSOLE
-		| KW_ARCHETYPE
-		| KW_CROSSLEVELACTIVE
-		| KW_CROSSLEVELPASSIVE
+		| kwEDITFIXEDSIZE
+		| kwEDITORONLY
+		| kwEDITORTEXTBOX
+		| kwNOCLEAR
+		| kwNOIMPORT
+		| kwSERIALIZETEXT
+		| kwNONTRANSACTIONAL
+		| kwINSTANCED
+		| kwDATABINDING
+		| kwDUPLICATETRANSIENT
+		| kwREPRETRY
+		| kwREPNOTIFY
+		| kwINTERP
+		| kwDEPRECATED
+		| kwNOTFORCONSOLE
+		| kwARCHETYPE
+		| kwCROSSLEVELACTIVE
+		| kwCROSSLEVELPASSIVE
 	) nativeSpecifier?
 	;
 
@@ -465,7 +584,7 @@ variableType:
 	| classType
 	| mapType
 	| primitiveType
-	| reference
+	| qualifiedIdentifier
 	;
 
 variableDeclType: (enumDecl | structDecl | variableType);
@@ -476,49 +595,49 @@ primitiveType:
 	| kwFLOAT
 	| kwBOOL
 	| kwSTRING
-	| kwName
+	| kwNAME
 	| kwButton // alias for a string with an input modifier
 	| kwCLASS
 	; // This is actually a reference but this is necessary because it's a "reserved" keyword.
 
 // TODO: May reference a constant in class or an external enum/const
-arraySize: LBRACKET (INTEGER | reference) RBRACKET;
+arrayDim: LBRACKET (INTEGER | qualifiedIdentifier) RBRACKET;
 
 dynArrayType:
-	KW_ARRAY LARROW (
+	kwARRAY LARROW (
 		structDecl
 		| enumDecl
 		| classType?
 		| mapType?
 		| primitiveType
-		| reference
+		| qualifiedIdentifier
 	) RARROW;
 
 classType: kwCLASS LARROW classReference RARROW;
 
 mapType:
 	kwMAP LARROW (
-		reference
+		qualifiedIdentifier
 		| (classType | mapType | dynArrayType)
 		| primitiveType
 	) RARROW;
 
 enumDecl:
-	KW_ENUM enumName
+	kwENUM enumName
 	LBRACE
 		(valueName COMMA?)*
 	RBRACE
 	;
 
-enumName: ID;
+enumName: identifier;
 
-valueName: ID;
+valueName: identifier;
 
-structReference: reference;
+structReference: qualifiedIdentifier;
 
 structDecl:
-	KW_STRUCT nativeType? structModifier* structName (
-		KW_EXTENDS structReference
+	kwSTRUCT nativeType? structModifier* structName (
+		kwEXTENDS structReference
 	)?
 	LBRACE
 		(
@@ -531,39 +650,46 @@ structDecl:
 		defaultpropertiesBlock?
 	RBRACE SEMICOLON?;
 
-structName: ID;
+structName: identifier;
 
 structModifier
 	:
 	(
 		// UC2+
-		KW_NATIVE
-		| KW_TRANSIENT
-		| KW_EXPORT
+		kwNATIVE
+		| kwTRANSIENT
+		| kwEXPORT
 		| kwINIT
 		| kwLONG
 		// UC3+
-		| KW_STRICTCONFIG
-		| KW_ATOMIC
-		| KW_ATOMICWHENCOOKED
-		| KW_IMMUTABLE
-		| KW_IMMUTABLEWHENCOOKED
+		| kwSTRICTCONFIG
+		| kwATOMIC
+		| kwATOMICWHENCOOKED
+		| kwIMMUTABLE
+		| kwIMMUTABLEWHENCOOKED
 	)
 	;
 
-cpptextBlock: (KW_CPPTEXT | (KW_STRUCTCPPTEXT | KW_CPPSTRUCT)) LBRACE .*? RBRACE;
+cpptextBlock:
+	(kwCPPTEXT | kwSTRUCTCPPTEXT | kwCPPSTRUCT)
+	LBRACE
+		.*?
+	RBRACE;
 
 replicationBlock:
-	KW_REPLICATION LBRACE replicationStatement* RBRACE;
+	kwREPLICATION
+	LBRACE
+		replicationStatement*
+	RBRACE;
 
-replicationModifier: (KW_RELIABLE | KW_UNRELIABLE);
+replicationModifier: (kwRELIABLE | kwUNRELIABLE);
 
 replicationStatement:
-	replicationModifier? KW_IF (LPAREN condition RPAREN) (
+	replicationModifier? kwIF (LPAREN condition RPAREN) (
 		replicateVariableName (COMMA replicateVariableName)* SEMICOLON
 	);
 
-replicateVariableName: ID;
+replicateVariableName: identifier;
 
 // public simulated function test(optional int p1, int p2) const; public simulated function
 // test(optional int p1, int p2) const { }
@@ -574,7 +700,7 @@ functionDecl:
 	// TODO: are multiple returnModifiers a thing?
 	((returnModifier? returnType functionName LPAREN)? | (functionName LPAREN))
 		paramDecl*
-	RPAREN (KW_CONST)? (
+	RPAREN (kwCONST)? (
 		(
 			LBRACE
 				constDecl* localDecl*
@@ -584,39 +710,40 @@ functionDecl:
 		| SEMICOLON
 	);
 
-functionModifier:
-	KW_PUBLIC
-	| KW_PROTECTED
-	| KW_PRIVATE
-	| KW_SIMULATED
-	| (KW_NATIVE (LPAREN INTEGER RPAREN)?)
-	| KW_FINAL
-	| KW_LATENT
-	| KW_ITERATOR
-	| KW_SINGULAR
-	| KW_STATIC
-	| KW_EXEC
-	// UC3
-	| KW_CONST
-	| KW_NOEXPORT
-	| KW_NOEXPORTHEADER
-	| KW_VIRTUAL
-	| KW_RELIABLE
-	| KW_UNRELIABLE
-	| KW_SERVER
-	| KW_CLIENT
-	| KW_DLLIMPORT
-	| KW_DEMORECORDING;
+nativeToken: (LPAREN INTEGER RPAREN);
 
-// #$@|&!^*-+/%~<>
-functionName: ID | operatorId;
+functionModifier:
+	kwPUBLIC
+	| kwPROTECTED
+	| kwPRIVATE
+	| kwSIMULATED
+	| (kwNATIVE nativeToken?)
+	| kwFINAL
+	| kwLATENT
+	| kwITERATOR
+	| kwSINGULAR
+	| kwSTATIC
+	| kwEXEC
+	// UC3
+	| kwCONST
+	| kwNOEXPORT
+	| kwNOEXPORTHEADER
+	| kwVIRTUAL
+	| kwRELIABLE
+	| kwUNRELIABLE
+	| kwSERVER
+	| kwCLIENT
+	| kwDLLIMPORT
+	| kwDEMORECORDING;
+
+functionName: identifier | operatorId;
 
 paramDecl:
 	paramModifier* variableType variable (EQUALS_SIGN expression)? COMMA?;
 
-methodReference : ID;
+methodReference : identifier;
 
-returnModifier: KW_COERCE;
+returnModifier: kwCOERCE;
 returnType: (variableType);
 
 operatorId
@@ -656,30 +783,30 @@ operatorId
 
 paramModifier:
 	kwOUT
-	| KW_OPTIONAL
+	| kwOPTIONAL
 	| kwINIT
-	| KW_SKIP
-	| KW_COERCE
-	| KW_CONST;
+	| kwSKIP
+	| kwCOERCE
+	| kwCONST;
 
 localDecl:
-	KW_LOCAL variableType variable (COMMA variable)* SEMICOLON;
+	kwLOCAL variableType variable (COMMA variable)* SEMICOLON;
 
-labelName: ID;
+labelName: identifier;
 
-stateReference: reference;
+stateReference: qualifiedIdentifier;
 
 stateDecl: (stateModifier)* kwSTATE (LPAREN RPAREN)? stateName
-		(KW_EXTENDS stateReference)?
+		(kwEXTENDS stateReference)?
 		LBRACE
-			(KW_IGNORES methodReference (COMMA methodReference)* SEMICOLON)?
+			(kwIGNORES methodReference (COMMA methodReference)* SEMICOLON)?
 			(functionDecl)*
 			(labelName COLON statement*)*
-		RBRACE;
+		RBRACE SEMICOLON?;
 
-stateName: ID;
+stateName: identifier;
 
-stateModifier: KW_AUTO | KW_SIMULATED;
+stateModifier: kwAUTO | kwSIMULATED;
 
 codeBody: (codeBlock | statement*);
 
@@ -694,9 +821,18 @@ statement:
 		| sm_while
 		| sm_do_until
 		| sm_switch
-		| (sm_return SEMICOLON)
+		| (control SEMICOLON)
 		| (expression SEMICOLON)
-	);
+	) SEMICOLON* // Pass trailing semicolons
+	;
+
+control:
+	sm_return
+	// These will require post-parsing validation
+	| sm_break
+	| sm_continue
+	| sm_stop // in states
+	;
 
 // should be EXPR = EXPR but UnrealScript is an exception in that it does - only allow assignments
 // as primary statements. Rule: a.b.c.d = 4+5 Invalid: "00" = "1", "00".Length = 1 FIXME: Only
@@ -712,70 +848,75 @@ expression:
 	| literal
 	| specifier
 	| call arrayElement? expression? // HACK for special operators
-	| ID arrayElement? // FIXME: KW_CONST in literal context.
+	| identifier arrayElement? // FIXME: kwCONST in literal context.
 	| (LPAREN expression RPAREN);
 
-operatorExpression: DOT | QUESTIONMARK | COLON | ID | operatorId;
+operatorExpression: DOT | QUESTIONMARK | COLON | identifier | operatorId;
 
 specifier:
 	kwSELF
-	| KW_STATIC
-	| KW_CONST
-	| KW_DEFAULT
+	| kwSTATIC
+	| kwCONST
+	| kwDEFAULT
 	| kwSUPER;
 
 funcSpecifier: (kwGLOBAL | (kwSUPER (LPAREN classReference RPAREN)?)) DOT;
 
 arrayElement: (LBRACKET expression RBRACKET);
 
-cast: classType | ID;
+cast: classType | identifier;
 
-call: ID LPAREN (COMMA* expression)* RPAREN;
+call: identifier LPAREN (COMMA* expression)* RPAREN;
 
-sm_if: KW_IF (LPAREN condition RPAREN) codeBody;
+sm_if: kwIF (LPAREN condition RPAREN) codeBody;
 
-sm_else: KW_ELSE codeBody;
+sm_else: kwELSE codeBody;
 
-sm_foreach: KW_FOREACH call codeBody;
+sm_foreach: kwFOREACH expression codeBody;
 
 sm_for:
-	KW_FOR (
-		LPAREN assignment SEMICOLON condition SEMICOLON expression RPAREN
+	kwFOR (
+		LPAREN assignment? SEMICOLON condition? SEMICOLON expression? RPAREN
 	) codeBody;
 
-sm_while: KW_WHILE (LPAREN condition RPAREN) codeBody;
+sm_while: kwWHILE (LPAREN condition RPAREN) codeBody;
 
 sm_do_until:
-	KW_DO codeBody KW_UNTIL (LPAREN condition RPAREN);
+	kwDO codeBody kwUNTIL (LPAREN condition RPAREN);
 
 sm_switch:
 	kwSWITCH (LPAREN expression RPAREN)
 	LBRACE?
-		((kwCASE | KW_DEFAULT) literal COLON codeBody)*
+		((kwCASE | kwDEFAULT) literal COLON codeBody)*
 	RBRACE?;
 
-sm_return: KW_RETURN expression?;
+sm_return: kwRETURN expression?;
+sm_break: kwBREAK;
+sm_continue: kwCONTINUE;
+sm_stop: kwSTOP;
 
 defaultpropertiesBlock
 	:
-		(KW_DEFAULTPROPERTIES | KW_STRUCTDEFAULTPROPERTIES)
+		kwDEFAULTPROPERTIES
 		LBRACE
 			defaultProperty*
 		RBRACE
 	;
 
 defaultProperty: (
-		ID (
+		identifier (
 			(LPAREN INTEGER RPAREN)
 			| (LBRACKET INTEGER RBRACKET)
 		)?
 	) EQUALS_SIGN (.*? (SEMICOLON)?);
 
+operatorPrecedence: (LPAREN INTEGER RPAREN);
+
 functionKind: (
 		kwEVENT
-		| KW_FUNCTION
-		| KW_DELEGATE
-		| (KW_OPERATOR (LPAREN INTEGER RPAREN))
-		| (KW_PREOPERATOR)
-		| (KW_POSTOPERATOR)
+		| kwFUNCTION
+		| kwDELEGATE
+		| (kwOPERATOR operatorPrecedence)
+		| (kwPREOPERATOR)
+		| (kwPOSTOPERATOR)
 	);
