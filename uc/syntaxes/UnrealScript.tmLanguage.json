@@ -222,19 +222,21 @@
         },
         "const-declaration": {
             "name": "meta.constant",
-            "begin": "(?i)(?=\\bconst\\b)",
+            "begin": "\\b(?i)(const)\\b",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.other.constant.uc"
+                }
+            },
             "end": "(?<=;)",
             "patterns": [
                 {
-                    "begin": "((?i)const)\\s+([_[:alpha:]][_[:alnum:]]*)\\s*(\\=)\\s*",
+                    "begin": "\\s+([_[:alpha:]][_[:alnum:]]*)\\s*(\\=)\\s*",
                     "captures": {
                         "1": {
-                            "name": "keyword.other.constant.uc"
-                        },
-                        "2": {
                             "name": "entity.name.constant.uc"
                         },
-                        "3": {
+                        "2": {
                             "name": "keyword.operator.assignment.uc"
                         }
                     },
