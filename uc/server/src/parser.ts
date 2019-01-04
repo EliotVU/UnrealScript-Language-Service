@@ -13,7 +13,7 @@ import * as UCParser from './antlr/UCGrammarParser';
 import { SemanticErrorNode, SyntaxErrorNode, IDiagnosticNode } from './diagnostics';
 import { CaseInsensitiveStream } from './CaseInsensitiveStream';
 import { ISimpleSymbol } from './ISimpleSymbol';
-import { ITraversable } from './ITraversable';
+import { ISymbolContainer } from './ISymbolContainer';
 
 function rangeFromToken(token: Token): Range {
 	return {
@@ -117,7 +117,7 @@ export abstract class UCSymbol implements ISimpleSymbol {
 		return isInRange;
 	}
 
-	getSymbol(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.isIdWithinPosition(position)) {
 			return this;
 		}
@@ -177,7 +177,7 @@ export class UCSymbolRef extends UCSymbol {
 		this.hasBeenLinked = true;
 
 		// TODO: verify type, and parse classes that are not within scope!
-		this.reference = document.class.findTypeSymbol(this.getName(), true);
+		this.reference = document.class.findSuperTypeSymbol(this.getName(), true);
 		if (!this.reference) {
 			// TODO: only check for existance first
 			let classDoc = document.getDocument(this.getName());
@@ -239,6 +239,8 @@ export class UCClassRef extends UCStructRef {
 }
 
 export class UCFieldSymbol extends UCSymbol {
+	public next?: UCFieldSymbol;
+
 	constructor(id: ISymbolId, private offset: ISymbolOffset) {
 		super(id);
 	}
@@ -297,13 +299,13 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return this.typeRef.getFullName();
 	}
 
-	getSymbol(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.isWithinPosition(position)) {
 			if (this.isIdWithinPosition(position)) {
 				return this;
 			}
 
-			if (this.typeRef && this.typeRef.getSymbol(position)) {
+			if (this.typeRef && this.typeRef.getSymbolAtPos(position)) {
 				return this.typeRef;
 			}
 		}
@@ -347,10 +349,10 @@ export class UCEnumMemberSymbol extends UCSymbol {
 	}
 }
 
-export class UCStructSymbol extends UCFieldSymbol implements ITraversable {
+export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISimpleSymbol> {
 	public extendsRef?: UCStructRef;
-	public extends?: UCStructSymbol;
-	public symbols: Map<string, UCFieldSymbol> = new Map();
+	public super?: UCStructSymbol;
+	public children?: UCFieldSymbol;
 
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
@@ -364,35 +366,50 @@ export class UCStructSymbol extends UCFieldSymbol implements ITraversable {
 		return `struct ${this.getName()}`;
 	}
 
-	addSymbol(symbol: UCFieldSymbol) {
+	add(symbol: UCFieldSymbol) {
 		symbol.outer = this;
-		this.symbols.set(symbol.getName().toLowerCase(), symbol);
+		symbol.next = this.children;
+		this.children = symbol;
 	}
 
-	getSymbol(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.isWithinPosition(position)) {
 			if (this.isIdWithinPosition(position)) {
 				return this;
 			}
 
-			if (this.extendsRef && this.extendsRef.getSymbol(position)) {
+			if (this.extendsRef && this.extendsRef.getSymbolAtPos(position)) {
 				return this.extendsRef;
 			}
 
-			for (let subSymbol of this.symbols.values()) {
-				let innerSymbol = subSymbol.getSymbol(position);
-				if (innerSymbol) {
-					return innerSymbol;
-				}
+			return this.getChildSymbolAtPos(position);
+		}
+		return undefined;
+	}
+
+	getChildSymbolAtPos(position: Position): UCSymbol | undefined {
+		for (var child = this.children; child; child = child.next) {
+			let innerSymbol = child.getSymbolAtPos(position);
+			if (innerSymbol) {
+				return innerSymbol;
 			}
 		}
 		return undefined;
 	}
 
-	findInheritedSymbol(name: string, deepSearch?: boolean) {
-		name = name.toLowerCase();
-		for (let superSymbol: UCStructSymbol = this; superSymbol; superSymbol = superSymbol.extends) {
-			let symbol = superSymbol.symbols.get(name);
+	findChildSymbol(id: string): UCSymbol | undefined {
+		id = id.toLowerCase();
+		for (var child = this.children; child; child = child.next) {
+			if (child.getName().toLowerCase() === id) {
+				return child;
+			}
+		}
+		return undefined;
+	}
+
+	findSuperSymbol(id: string, deepSearch?: boolean): UCSymbol | undefined {
+		for (let superSymbol: UCStructSymbol = this; superSymbol; superSymbol = superSymbol.super) {
+			let symbol = superSymbol.findChildSymbol(id);
 			if (symbol) {
 				return symbol;
 			}
@@ -401,17 +418,18 @@ export class UCStructSymbol extends UCFieldSymbol implements ITraversable {
 				break;
 			}
 		}
+		return undefined;
 	}
 
 	link(document: UCDocument) {
 		if (this.extendsRef) {
 			this.extendsRef.link(document);
 			// Temp hack
-			this.extends = this.extendsRef.getReference() as UCStructSymbol;
+			this.super = this.extendsRef.getReference() as UCStructSymbol;
 		}
 
-		for (let symbol of this.symbols.values()) {
-			symbol.link(document);
+		for (var child = this.children; child; child = child.next) {
+			child.link(document);
 		}
 	}
 }
@@ -453,22 +471,17 @@ export class UCFunctionSymbol extends UCStructSymbol {
 		return '(method) ' + this.getName() + this.buildArguments() + this.buildReturnType();
 	}
 
-	getSymbol(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.isWithinPosition(position)) {
 			if (this.isIdWithinPosition(position)) {
 				return this;
 			}
 
-			if (this.returnTypeRef && this.returnTypeRef.getSymbol(position)) {
+			if (this.returnTypeRef && this.returnTypeRef.getSymbolAtPos(position)) {
 				return this.returnTypeRef;
 			}
 
-			for (var subSymbol of this.symbols.values()) {
-				let innerSymbol = subSymbol.getSymbol(position);
-				if (innerSymbol) {
-					return innerSymbol;
-				}
-			}
+			return this.getChildSymbolAtPos(position);
 		}
 		return undefined;
 	}
@@ -554,44 +567,30 @@ export class UCClassSymbol extends UCStructSymbol {
 		return this.document.uri;
 	}
 
-	getSymbol(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.isWithinPosition(position)) {
 			if (this.isIdWithinPosition(position)) {
 				return this;
 			}
-			if (this.withinRef && this.withinRef.getSymbol(position)) {
+			if (this.withinRef && this.withinRef.getSymbolAtPos(position)) {
 				return this.withinRef;
 			}
 		} else {
-			for (var subSymbol of this.symbols.values()) {
-				let innerSymbol = subSymbol.getSymbol(position);
-				if (innerSymbol) {
-					return innerSymbol;
-				}
-			}
+			return this.getChildSymbolAtPos(position);
 		}
 		return undefined;
 	}
 
-	findTypeSymbol(name: string, deepSearch: boolean): ISimpleSymbol | undefined {
-		name = name.toLowerCase();
-		var typeSymbol = this.document.classPackage.symbols.get(name)
+	findSuperTypeSymbol(id: string, deepSearch: boolean): ISimpleSymbol | undefined {
+		id = id.toLowerCase();
+		var typeSymbol = this.document.classPackage.symbols.get(id);
 		if (typeSymbol) {
 			return typeSymbol;
 		}
 
-		for (var outer: UCStructSymbol = this; outer && outer instanceof UCStructSymbol; outer = outer.extends) {
-			for (var symbol of outer.symbols.values()) {
-				if (symbol instanceof UCScriptStructSymbol || symbol instanceof UCEnumSymbol) {
-					if (symbol.getName().toLowerCase() === name) {
-						return symbol;
-					}
-				}
-			}
-
-			if (!deepSearch) {
-				break;
-			}
+		typeSymbol = this.findSuperSymbol(id, deepSearch);
+		if (typeSymbol instanceof UCScriptStructSymbol || typeSymbol instanceof UCEnumSymbol) {
+			return typeSymbol;
 		}
 		return undefined;
 	}
@@ -625,7 +624,8 @@ export class UCClassSymbol extends UCStructSymbol {
 			for (let nameToken of this.replicatedNameTokens) {
 				let nameSymbol = new UCSymbolRef({ name: nameToken.text, range: rangeFromToken(nameToken) });
 
-				let symbol = this.findInheritedSymbol(nameToken.text);
+				// Only child symbols are replicated thus we can safely skip any super children.
+				let symbol = this.findChildSymbol(nameToken.text);
 				if (symbol) {
 					symbol.linkLocation(Location.create(document.uri, rangeFromToken(nameToken)));
 					this.replicatedSymbols.push(symbol);
@@ -691,7 +691,7 @@ export const NATIVE_SYMBOLS = [
 ];
 
 // Holds class symbols, solely used for traversing symbols in a package.
-export class UCPackage implements ITraversable {
+export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
 	public outer = null;
 	public symbols = new Map<string, ISimpleSymbol>();
 
@@ -721,12 +721,12 @@ export class UCPackage implements ITraversable {
 		return this.getName();
 	}
 
-	addSymbol(symbol: ISimpleSymbol) {
+	add(symbol: ISimpleSymbol) {
 		symbol.outer = this;
 		this.symbols.set(symbol.getName().toLowerCase(), symbol);
 	}
 
-	public findInheritedSymbol(name: string, deepSearch?: boolean): ISimpleSymbol {
+	public findSuperSymbol(name: string, deepSearch?: boolean): ISimpleSymbol {
 		name = name.toLowerCase();
 		return this.symbols.get(name);
 	}
@@ -735,9 +735,8 @@ export class UCPackage implements ITraversable {
 export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {
 	public getDocument: (className: string) => UCDocument;
 
-	public class: UCClassSymbol;
+	public class?: UCClassSymbol;
 	public nodes: IDiagnosticNode[] = [];
-
 	private context: UCStructSymbol[] = []; // FIXME: Type
 
 	constructor(public classPackage: UCPackage, public uri: string) {
@@ -752,7 +751,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.context.pop();
 	}
 
-	get(): ITraversable {
+	get(): ISymbolContainer<ISimpleSymbol> {
 		return this.context.length > 0
 			? this.context[this.context.length - 1]
 			: this.classPackage;
@@ -760,15 +759,15 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	declare(symbol: UCSymbol) {
 		const context = this.get();
-		context.addSymbol(symbol);
+		context.add(symbol);
 	}
 
 	getSymbolAtPosition(position: Position): UCSymbol {
-		return this.class.getSymbol(position);
+		return this.class.getSymbolAtPos(position);
 	}
 
-	syntaxError(recognizer: Recognizer<Token, any>, offendingSymbol: Token | undefined, line: number, charPositionInLine: number, msg: string, e: RecognitionException | undefined) {
-		this.nodes.push(new SyntaxErrorNode(rangeFromToken(offendingSymbol), 'ANTLR Error | ' + msg));
+	syntaxError(_recognizer: Recognizer<Token, any>, offendingSymbol: Token | undefined, _line: number, _charPositionInLine: number, msg: string, _e: RecognitionException | undefined) {
+		this.nodes.push(new SyntaxErrorNode(rangeFromToken(offendingSymbol), '(ANTLR Error) ' + msg));
 	}
 
 	visitErrorNode(errNode: ErrorNode) {

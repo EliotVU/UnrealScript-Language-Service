@@ -168,7 +168,7 @@ function invalidateDocument(uri: string) {
 }
 
 var WorkspacePackage = new UCPackage('Workspace');
-NATIVE_SYMBOLS.forEach(symbol => WorkspacePackage.addSymbol(symbol));
+NATIVE_SYMBOLS.forEach(symbol => WorkspacePackage.add(symbol));
 
 function parseClassDocument(className: string): UCDocument {
 	// connection.console.log('Looking for external document ' + className);
@@ -246,13 +246,9 @@ function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	diagnoseDocument(document);
 
 	documentItems = []; // reset, never show any items from previous documents.
-	for (let fieldStruct: UCStructSymbol = document.class; fieldStruct && fieldStruct instanceof UCStructSymbol; fieldStruct = fieldStruct.extends) {
-		if (!fieldStruct.symbols) {
-			continue;
-		}
-
-		for (const symbol of fieldStruct.symbols.values()) {
-			documentItems.push(symbol.toCompletionItem());
+	for (let container: UCStructSymbol = document.class; container; container = container.super) {
+		for (let child = container.children; child; child = child.next) {
+			documentItems.push(child.toCompletionItem());
 		}
 	}
 }
@@ -322,10 +318,10 @@ connection.onDocumentSymbol((e: DocumentSymbolParams): SymbolInformation[] => {
 
 	var contextSymbols = [];
 	var buildSymbolsList = (container: UCStructSymbol) => {
-		for (let symbol of container.symbols.values()) {
-			contextSymbols.push(symbol.toSymbolInfo());
-			if (symbol instanceof UCStructSymbol) {
-				buildSymbolsList(symbol as UCStructSymbol);
+		for (let child = container.children; child; child = child.next) {
+			contextSymbols.push(child.toSymbolInfo());
+			if (child instanceof UCStructSymbol) {
+				buildSymbolsList(child as UCStructSymbol);
 			}
 		}
 	};
