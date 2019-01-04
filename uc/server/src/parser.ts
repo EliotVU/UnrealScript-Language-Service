@@ -255,8 +255,16 @@ export class UCFieldSymbol extends UCSymbol {
 
 	isWithinPosition(position: Position) {
 		var range = this.getRange();
-		var isInRange = position.line >= range.start.line && position.line <= range.end.line
-				&& position.character >= range.start.character && position.character <= range.end.character;
+		var isInRange = position.line >= range.start.line && position.line <= range.end.line;
+		if (isInRange) {
+			if (position.line == range.start.line) {
+				return position.character >= range.start.character;
+			}
+
+			if (position.line == range.end.line) {
+				return position.character <= range.end.character;
+			}
+		}
 		return isInRange;
 	}
 }
@@ -687,7 +695,8 @@ export const NATIVE_SYMBOLS = [
 	new UCNativeSymbol('pointer'),
 	new UCNativeSymbol('class'),
 	new UCNativeSymbol('map'),
-	new UCNativeSymbol('array')
+	new UCNativeSymbol('array'),
+	new UCNativeSymbol('delegate')
 ];
 
 // Holds class symbols, solely used for traversing symbols in a package.

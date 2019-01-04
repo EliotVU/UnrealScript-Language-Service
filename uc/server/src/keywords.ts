@@ -23,7 +23,8 @@ export const STRUCT_MODIFIERS = [
 
 export const PRIMITIVE_TYPE_NAMES = [
 	'int', 'float', 'byte', 'name', 'string',
-	'bool', 'array', 'map', 'class', 'pointer'
+	'bool', 'array', 'map', 'class', 'pointer',
+	'delegate'
 ];
 
 export const COMMON_MODIFIERS = ['public', 'protected', 'private', 'const', 'native'];
