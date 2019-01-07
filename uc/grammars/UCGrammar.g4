@@ -222,6 +222,9 @@ kwDONTSORTCATEGORIES: 'dontsortcategories';
 kwINHERITS: 'inherits';
 kwFORCESCRIPTORDER: 'forcescriptorder';
 
+kwBEGIN: 'begin';
+kwEND: 'end';
+
 identifier: ID
 	|'default'
 	|'self'
@@ -375,6 +378,8 @@ identifier: ID
 	|'dontsortcategories'
 	|'inherits'
 	|'forcescriptorder'
+	|'begin'
+	|'end'
 	;
 
 program:
@@ -896,8 +901,15 @@ defaultpropertiesBlock
 	:
 		kwDEFAULTPROPERTIES
 		LBRACE
-			defaultProperty*
+			(objectDecl | defaultProperty)*
 		RBRACE
+	;
+
+objectDecl
+	:
+		kwBEGIN ID
+			defaultProperty*
+		kwEND ID
 	;
 
 defaultProperty: (
