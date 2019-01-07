@@ -11,13 +11,16 @@ LINE_COMMENT: '//' ~[\n]+ -> channel(HIDDEN);
 
 BLOCK_COMMENT: '/*' .*? '*/' -> channel(HIDDEN);
 
-// PP_HASH: '#' .*? ~[\n]+ -> channel(HIDDEN);
-PP_TICK: '`' ~[\n] -> skip;
+DIRECTIVE: '#' ('exec'|'include'|'error'|'call'|'linenumber') .*? ~[\n]+ -> skip;
+// PP_TICK: '`' ~[\n] -> skip;
 
 WS: [ \t\r\n]+ -> skip;
 
-// ID:	[a-zA-Z_][a-zA-Z0-9_]*;
-ID:	[a-z_][a-z0-9_]*;
+STRING: '"' (~["\\] | ESC_SEQ)* '"';
+NAME: '\'' (~['\\] | ESC_SEQ)* '\'';
+
+ID:	[a-zA-Z_][a-zA-Z0-9_]*;
+// ID:	[a-z_][a-z0-9_]*;
 
 LPAREN: '(';
 RPAREN: ')';
@@ -46,10 +49,6 @@ FLOAT:
 	| DIGIT+ EXPONENT;
 
 DOT: '.';
-
-STRING: '"' (~["\\] | ESC_SEQ)* '"';
-
-NAME: '\'' (~['\\] | ESC_SEQ)* '\'';
 
 ATSIGN: '@';
 DOLLARSIGN: '$';
@@ -378,13 +377,10 @@ identifier: ID
 	|'forcescriptorder'
 	;
 
-ppHASH: '#' .*?;
-
 program:
 	classDecl
 	(
-		ppHASH
-		| cpptextBlock
+		cpptextBlock
 		| constDecl
 		| (enumDecl SEMICOLON?)
 		| (structDecl)
@@ -393,7 +389,7 @@ program:
 		| defaultpropertiesBlock
 	)*
 	(
-		ppHASH
+		constDecl
 		| functionDecl
 		| stateDecl
 		| replicationBlock
@@ -414,17 +410,15 @@ noneLiteral: kwNONE;
 // e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
 classLiteral: identifier nameLiteral (DOT (kwSTATIC | kwDEFAULT | kwCONST) DOT)?;
 
-literal: (
-		(
-			noneLiteral
-			| booleanLiteral
-			| numeric
-			| stringLiteral
-			| nameLiteral
-		)
-		| classLiteral
-		| qualifiedIdentifier // e.g. a constant or enum name
-	);
+literal:
+	noneLiteral
+	| booleanLiteral
+	| numeric
+	| stringLiteral
+	| nameLiteral
+	| classLiteral
+	| qualifiedIdentifier // e.g. a constant or enum name
+	;
 
 numeric: INTEGER | FLOAT;
 
@@ -514,13 +508,16 @@ varDecl:
 		(LPAREN (categoryName (COMMA categoryName)*)? RPAREN)?
 		variableModifier*
 		variableDeclType
-		variable nativeType? variableMeta? (COMMA variable)*
+		variable (COMMA variable)*
 	SEMICOLON;
 
-variable: variableName arrayDim?;
+variable: variableName arrayDim? nativeType? variableMeta?;
 
-// <UIMin=0.0,UIMax=1.0,Toolip="Hello">
-variableMeta: LARROW .*? RARROW;
+// UC3 <UIMin=0.0,UIMax=1.0,Toolip="Hello">
+variableMeta: LARROW (metaProperty (COMMA metaProperty)?) RARROW;
+metaProperty: metaName EQUALS_SIGN metaValue;
+metaName: ID;
+metaValue: literal;
 
 variableName: identifier;
 categoryName: identifier;
@@ -580,9 +577,9 @@ variableModifier
 	;
 
 variableType:
-	dynArrayType
-	| classType
-	| mapType
+	arrayGeneric
+	| classGeneric
+	| mapGeneric
 	| primitiveType
 	| qualifiedIdentifier
 	;
@@ -603,22 +600,22 @@ primitiveType:
 // TODO: May reference a constant in class or an external enum/const
 arrayDim: LBRACKET (INTEGER | qualifiedIdentifier) RBRACKET;
 
-dynArrayType:
+arrayGeneric:
 	kwARRAY LARROW (
-		structDecl
-		| enumDecl
-		| classType?
-		| mapType?
+		classGeneric
 		| primitiveType
+		| structDecl
+		| enumDecl
+		| mapGeneric
 		| qualifiedIdentifier
 	) RARROW;
 
-classType: kwCLASS LARROW classReference RARROW;
+classGeneric: kwCLASS LARROW classReference RARROW;
 
-mapType:
+mapGeneric:
 	kwMAP LARROW (
 		qualifiedIdentifier
-		| (classType | mapType | dynArrayType)
+		| (classGeneric | mapGeneric | arrayGeneric)
 		| primitiveType
 	) RARROW;
 
@@ -703,7 +700,7 @@ functionDecl:
 	RPAREN (kwCONST)? (
 		(
 			LBRACE
-				constDecl* localDecl*
+				(constDecl | localDecl)*
 				statement*
 			RBRACE
 		)
@@ -864,7 +861,7 @@ funcSpecifier: (kwGLOBAL | (kwSUPER (LPAREN classReference RPAREN)?)) DOT;
 
 arrayElement: (LBRACKET expression RBRACKET);
 
-cast: classType | identifier;
+cast: classGeneric | identifier;
 
 call: identifier LPAREN (COMMA* expression)* RPAREN;
 
