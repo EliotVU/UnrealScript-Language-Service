@@ -170,30 +170,6 @@ export class UCSymbolRef extends UCSymbol {
 		return this.reference.getTooltip();
 	}
 
-	link(document: UCDocument) {
-		if (this.hasBeenLinked) {
-			return;
-		}
-		this.hasBeenLinked = true;
-
-		// TODO: verify type, and parse classes that are not within scope!
-		this.reference = document.class.findSuperTypeSymbol(this.getName(), true);
-		if (!this.reference) {
-			// TODO: only check for existance first
-			let classDoc = document.getDocument(this.getName());
-			if (classDoc) {
-				this.setReference(classDoc.class);
-				classDoc.class.linkLocation(Location.create(document.uri, this.getIdRange()));
-				// classDoc.class.link(classDoc);
-			} else {
-				document.nodes.push(new SemanticErrorNode(this, `Type '${this.getName()}' not found!`));
-			}
-		}
-		else if (this.reference instanceof UCSymbol) {
-			this.reference.linkLocation(Location.create(document.uri, this.getIdRange()));
-		}
-	}
-
 	getLinks(): Location[] | undefined {
 		var ref = this.getReference();
 		return ref instanceof UCSymbol ? ref.getLinks() : super.getLinks();
@@ -208,11 +184,66 @@ export class UCSymbolRef extends UCSymbol {
 	}
 }
 
-export class UCStructRef extends UCSymbolRef {
+export class UCTypeRef extends UCSymbolRef {
+	public InnerTypeRef?: UCTypeRef;
+
+	getTooltip(): string {
+		var tooltip = super.getTooltip();
+		if (this.InnerTypeRef) {
+			tooltip = tooltip + `<${this.InnerTypeRef.getTooltip()}>`;
+		}
+		return tooltip;
+	}
+
+	getSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (this.isIdWithinPosition(position)) {
+			if (this.InnerTypeRef) {
+				return this.InnerTypeRef.getSymbolAtPos(position) || this;
+			}
+			return this;
+		}
+		return undefined;
+	}
+
+	link(document: UCDocument) {
+		if (this.hasBeenLinked) {
+			return;
+		}
+		this.hasBeenLinked = true;
+
+		if (!this.getName()) {
+			return;
+		}
+
+		// TODO: verify type, and parse classes that are not within scope!
+		this.reference = document.class.findSuperTypeSymbol(this.getName(), true);
+		if (!this.reference) {
+			// TODO: only check for existance first
+			let classDoc = document.getDocument(this.getName());
+			if (classDoc) {
+				this.setReference(classDoc.class);
+				classDoc.class.linkLocation(Location.create(document.uri, this.getIdRange()));
+				classDoc.class.document = classDoc; // temp hack
+				// classDoc.class.link(classDoc);
+			} else {
+				document.nodes.push(new SemanticErrorNode(this, `Type '${this.getName()}' not found!`));
+			}
+		}
+		else if (this.reference instanceof UCSymbol) {
+			this.reference.linkLocation(Location.create(document.uri, this.getIdRange()));
+		}
+
+		if (this.InnerTypeRef) {
+			this.InnerTypeRef.link(document);
+		}
+	}
+}
+
+export class UCStructRef extends UCTypeRef {
 
 }
 
-export class UCStateRef extends UCSymbolRef {
+export class UCStateRef extends UCTypeRef {
 
 }
 
@@ -227,6 +258,7 @@ export class UCClassRef extends UCStructRef {
 		if (classDoc) {
 			this.setReference(classDoc.class);
 			classDoc.class.linkLocation(Location.create(document.uri, this.getIdRange()));
+			classDoc.class.document = classDoc; // temp hack
 			// classDoc.class.link(classDoc);
 		} else {
 			const errorNode = new SemanticErrorNode(
@@ -286,7 +318,7 @@ export class UCConstSymbol extends UCFieldSymbol {
 }
 
 export class UCPropertySymbol extends UCFieldSymbol {
-	public typeRef?: UCSymbolRef;
+	public typeRef?: UCTypeRef;
 
 	getKind(): SymbolKind {
 		return SymbolKind.Variable;
@@ -304,7 +336,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	getTypeText(): string {
-		return this.typeRef.getFullName();
+		return this.typeRef.getTooltip();
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -368,10 +400,6 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 
 	getCompletionItemKind(): CompletionItemKind {
 		return CompletionItemKind.Module;
-	}
-
-	getTooltip(): string {
-		return `struct ${this.getName()}`;
 	}
 
 	add(symbol: UCFieldSymbol) {
@@ -449,6 +477,10 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 
 	getCompletionItemKind(): CompletionItemKind {
 		return CompletionItemKind.Struct;
+	}
+
+	getTooltip(): string {
+		return `struct ${this.getName()}`;
 	}
 }
 
@@ -580,6 +612,11 @@ export class UCClassSymbol extends UCStructSymbol {
 			if (this.isIdWithinPosition(position)) {
 				return this;
 			}
+
+			if (this.extendsRef && this.extendsRef.getSymbolAtPos(position)) {
+				return this.extendsRef;
+			}
+
 			if (this.withinRef && this.withinRef.getSymbolAtPos(position)) {
 				return this.withinRef;
 			}
@@ -680,7 +717,7 @@ export class UCNativeSymbol implements ISimpleSymbol {
 	}
 
 	getTooltip(): string {
-		return `(alias) ${this.getName()}`;
+		return this.getName();
 	}
 }
 
@@ -860,16 +897,80 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.pop();
 	}
 
+	parseVariableType(varTypeCtx: UCParser.VariableTypeContext | UCParser.ArrayGenericContext) {
+		var parseClassGeneric = (classGenericCtx: UCParser.ClassGenericContext) => {
+			const className = classGenericCtx.classReference();
+			return new UCTypeRef(
+				{ name: className.text, range: rangeFromTokens(classGenericCtx.start, classGenericCtx.stop) },
+			);
+		};
+
+		var typeName: string;
+		const primitiveType = varTypeCtx.primitiveType();
+		if (primitiveType) {
+			typeName = primitiveType.text;
+		} else {
+			typeName = varTypeCtx.text;
+		}
+
+		let innerTypeRef: UCTypeRef;
+		const classGenericCtx = varTypeCtx.classGeneric();
+		if (classGenericCtx) {
+			typeName = 'class';
+			innerTypeRef = parseClassGeneric(classGenericCtx);
+		} else if (varTypeCtx instanceof UCParser.VariableTypeContext) {
+			const arrayGenericCtx = varTypeCtx.arrayGeneric();
+			if (arrayGenericCtx) {
+				typeName = 'array';
+				innerTypeRef = this.parseInlinedDecl(arrayGenericCtx);
+				if (!innerTypeRef) {
+					innerTypeRef = this.parseVariableType(arrayGenericCtx);
+				}
+			}
+		}
+
+		const typeRef = new UCTypeRef(
+			{ name: typeName, range: rangeFromTokens(varTypeCtx.start, varTypeCtx.stop) }
+		);
+		typeRef.InnerTypeRef = innerTypeRef;
+		return typeRef;
+	}
+
+	parseInlinedDecl(propDeclType: UCParser.VariableDeclTypeContext | UCParser.ArrayGenericContext) {
+		const inlinedStruct = propDeclType.structDecl();
+		if (inlinedStruct) {
+			const structName = inlinedStruct.structName();
+			return new UCStructRef(
+				{ name: structName.text, range: rangeFromTokens(structName.start, structName.stop) }
+			);
+		} else {
+			const inlinedEnum = propDeclType.enumDecl();
+			if (inlinedEnum) {
+				const enumName = inlinedEnum.enumName();
+				return new UCTypeRef(
+					{ name: enumName.text, range: rangeFromTokens(enumName.start, enumName.stop) }
+				);
+			}
+		}
+		return undefined;
+	}
+
 	enterVarDecl(ctx: UCParser.VarDeclContext) {
 		const propDeclType = ctx.variableDeclType();
-		const typeRef = new UCSymbolRef(
-			{ name: propDeclType.text, range: rangeFromTokens(propDeclType.start, propDeclType.stop) }
-		);
+		if (!propDeclType) {
+			return;
+		}
+
+		const varType = propDeclType.variableType();
+		const typeRef = varType
+			? this.parseVariableType(varType)
+			: this.parseInlinedDecl(propDeclType);
+
 		for (const varCtx of ctx.variable()) {
 			const varName = varCtx.variableName();
 
 			const symbol = new UCPropertySymbol(
-				{ name: varName.text, range: rangeFromToken(varName.start) },
+				{ name: varName.start.text, range: rangeFromToken(varName.start) },
 
 				// Stop at varCtx instead of ctx for mulitiple variable declarations.
 				{ range: rangeFromTokens(ctx.start, varCtx.stop) }
@@ -908,7 +1009,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		);
 		const returnTypeCtx = ctx.returnType();
 		if (returnTypeCtx) {
-			symbol.returnTypeRef = new UCSymbolRef({
+			symbol.returnTypeRef = new UCTypeRef({
 				name: returnTypeCtx.text,
 				range: rangeFromTokens(returnTypeCtx.start, returnTypeCtx.stop)
 			});
@@ -932,10 +1033,10 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			const propSymbol = new UCPropertySymbol(
 				{ name: propName.text, range: rangeFromToken(propName.start) },
 				{ range: rangeFromTokens(paramCtx.start, paramCtx.stop) }
-				);
+			);
 
 			const propTypeCtx = paramCtx.variableType();
-			propSymbol.typeRef = new UCSymbolRef({
+			propSymbol.typeRef = new UCTypeRef({
 				name: propTypeCtx.text,
 				range: rangeFromTokens(propTypeCtx.start, propTypeCtx.stop)
 			});
@@ -949,7 +1050,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			}
 
 			const propTypeCtx = localCtx.variableType();
-			const propTypeRef = new UCSymbolRef({
+			const propTypeRef = new UCTypeRef({
 				name: propTypeCtx.text,
 				range: rangeFromTokens(propTypeCtx.start, propTypeCtx.stop)
 			});
