@@ -1,6 +1,7 @@
 grammar UCGrammar;
 
-fragment DIGIT: [0-9]('f' | 'F')?;
+fragment DIGIT: [0-9];
+fragment DIGITF: [0-9fF];
 fragment EXPONENT: ('e' | 'E') ('+' | '-')? DIGIT+;
 fragment HEX_DIGIT: (DIGIT | 'a' ..'f' | 'A' ..'F');
 fragment ESC_SEQ:
@@ -41,12 +42,11 @@ SQUOT: '\'';
 MINUS: '-';
 PLUS: '+';
 
-INTEGER: (DIGIT 'x' HEX_DIGIT+) | DIGIT+;
+INTEGER: (DIGIT 'x' HEX_DIGIT+) | (DIGIT+ ('f'| 'F')*);
 
-FLOAT:
-	DIGIT+ DOT DIGIT* EXPONENT?
-	| DOT DIGIT+ EXPONENT?
-	| DIGIT+ EXPONENT;
+FLOAT: (DIGIT+ DOT DIGITF* EXPONENT?)
+	| (DOT DIGITF+ EXPONENT?)
+	| (DIGIT+ EXPONENT);
 
 DOT: '.';
 
@@ -418,14 +418,14 @@ classLiteral: identifier nameLiteral (DOT (kwSTATIC | kwDEFAULT | kwCONST) DOT)?
 literal:
 	noneLiteral
 	| booleanLiteral
-	| numeric
+	| numberLiteral
 	| stringLiteral
 	| nameLiteral
 	| classLiteral
 	| qualifiedIdentifier // e.g. a constant or enum name
 	;
 
-numeric: INTEGER | FLOAT;
+numberLiteral: (MINUS | PLUS)? (FLOAT | INTEGER);
 
 // Parses the following possiblities.
 // Package.Class.Field
@@ -497,7 +497,7 @@ classModifier: identifier modifierArguments?;
 	// ; //ID (LPARENT ID (COMMA ID)* RPARENT)?
 
 // TODO: may be a numeric or typeName!
-modifierValue: identifier | numeric;
+modifierValue: identifier | numberLiteral;
 
 modifierArgument: LPAREN modifierValue RPAREN;
 
@@ -648,9 +648,10 @@ structDecl:
 			| (enumDecl SEMICOLON?)
 			| (structDecl)
 			| varDecl
+			// Unfortunately these can appear in any order.
+			| cpptextBlock
+			| defaultpropertiesBlock
 		)*
-		cpptextBlock?
-		defaultpropertiesBlock?
 	RBRACE SEMICOLON?;
 
 structName: identifier;
@@ -689,10 +690,10 @@ replicationModifier: (kwRELIABLE | kwUNRELIABLE);
 
 replicationStatement:
 	replicationModifier? kwIF (LPAREN condition RPAREN) (
-		replicateVariableName (COMMA replicateVariableName)* SEMICOLON
+		replicateId (COMMA replicateId)* SEMICOLON
 	);
 
-replicateVariableName: identifier;
+replicateId: identifier;
 
 // public simulated function test(optional int p1, int p2) const; public simulated function
 // test(optional int p1, int p2) const { }
@@ -703,15 +704,12 @@ functionDecl:
 	// TODO: are multiple returnModifiers a thing?
 	((returnModifier? returnType functionName LPAREN)? | (functionName LPAREN))
 		paramDecl*
-	RPAREN (kwCONST)? (
-		(
-			LBRACE
-				(constDecl | localDecl)*
-				statement*
-			RBRACE
-		)
-		| SEMICOLON
-	);
+	RPAREN (kwCONST)? (SEMICOLON | (
+		LBRACE
+			(constDecl | localDecl)*
+			statement*
+		RBRACE SEMICOLON?
+	));
 
 nativeToken: (LPAREN INTEGER RPAREN);
 
@@ -913,12 +911,33 @@ objectDecl
 		kwEND ID
 	;
 
-defaultProperty: (
-		identifier (
-			(LPAREN INTEGER RPAREN)
-			| (LBRACKET INTEGER RBRACKET)
-		)?
-	) EQUALS_SIGN (.*? (SEMICOLON)?);
+defaultProperty
+	: defaultId (
+		(LPAREN INTEGER RPAREN)
+		| (LBRACKET INTEGER RBRACKET)
+	)?
+	(EQUALS_SIGN defaultValue | DOT identifier LPAREN defaultValue RPAREN) SEMICOLON?;
+
+defaultId: identifier;
+
+structLiteral
+	: LPAREN (defaultProperty)* RPAREN
+	;
+
+defaultLiteral
+	: structLiteral
+	| noneLiteral
+	| booleanLiteral
+	| numberLiteral
+	| stringLiteral
+	| classLiteral
+	| qualifiedIdentifier
+	;
+
+defaultValue
+	: defaultLiteral
+	| identifier
+	;
 
 operatorPrecedence: (LPAREN INTEGER RPAREN);
 
