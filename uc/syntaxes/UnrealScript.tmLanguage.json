@@ -359,6 +359,10 @@
                 }
             }
         },
+        "return-modifier": {
+            "name": "storage.modifier.uc",
+            "match": "\\b((?i)coerce)\\b"
+        },
         "method-declaration": {
             "name": "meta.method.declaration",
             "begin": "(?i)\\b((function|event|delegate|preoperator|postoperator)|((operator))((\\s*\\(\\s*([0-9]*)\\s*\\))))",
@@ -376,11 +380,20 @@
             },
             "patterns": [
                 {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#return-modifier"
+                },
+                {
+                    "include": "#type-declaration"
+                },
+                {
                     "name": "punctuation.parenthese.uc",
                     "begin": "\\(",
                     "patterns": [
                         {
-                            "include": "method-arguments"
+                            "include": "#method-arguments"
                         }
                     ],
                     "end": "\\)"
@@ -412,11 +425,21 @@
                 }
             ]
         },
+        "param-modifier": {
+            "name": "storage.modifier.uc",
+            "match": "\\b((?i)optional|out|coerce|const|init|skip)\\b"
+        },
         "method-arguments": {
             "patterns": [
                 {
+                    "include": "#param-modifier"
+                },
+                {
+                    "include": "#type-declaration"
+                },
+                {
                     "match": "[_[:alpha:]][_[:alnum:]]*",
-                    "name": "entity.name.type.uc"
+                    "name": "entity.name.variable.uc"
                 }
             ]
         },
