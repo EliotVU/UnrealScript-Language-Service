@@ -51,7 +51,7 @@ export interface ISymbolOffset {
 }
 
 /**
- * A symbol that resides in a document, holding a name, start and stop token.
+ * A symbol that resides in a document, holding an id and range.
  */
 export abstract class UCSymbol implements ISimpleSymbol {
 	public outer?: ISimpleSymbol;
@@ -128,14 +128,14 @@ export abstract class UCSymbol implements ISimpleSymbol {
 
 	}
 
-	linkLocation(location: Location) {
+	addReference(location: Location) {
 		if (!this.links) {
 			this.links = [];
 		}
 		this.links.push(location);
 	}
 
-	getLinks(): Location[] | undefined {
+	getReferences(): Location[] | undefined {
 		return this.links;
 	}
 
@@ -164,15 +164,14 @@ export class UCSymbolRef extends UCSymbol {
 	protected reference?: ISimpleSymbol;
 
 	getTooltip(): string {
-		if (!this.reference) {
-			return this.getName();
-		}
-		return this.reference.getTooltip();
+		return this.reference
+			? this.reference.getTooltip()
+			: this.getName();
 	}
 
-	getLinks(): Location[] | undefined {
+	getReferences(): Location[] | undefined {
 		var ref = this.getReference();
-		return ref instanceof UCSymbol ? ref.getLinks() : super.getLinks();
+		return ref instanceof UCSymbol ? ref.getReferences() : super.getReferences();
 	}
 
 	setReference(symbol: ISimpleSymbol) {
@@ -222,7 +221,7 @@ export class UCTypeRef extends UCSymbolRef {
 			let classDoc = document.getDocument(this.getName());
 			if (classDoc) {
 				this.setReference(classDoc.class);
-				classDoc.class.linkLocation(Location.create(document.uri, this.getIdRange()));
+				classDoc.class.addReference(Location.create(document.uri, this.getIdRange()));
 				classDoc.class.document = classDoc; // temp hack
 				// classDoc.class.link(classDoc);
 			} else {
@@ -230,7 +229,7 @@ export class UCTypeRef extends UCSymbolRef {
 			}
 		}
 		else if (this.reference instanceof UCSymbol) {
-			this.reference.linkLocation(Location.create(document.uri, this.getIdRange()));
+			this.reference.addReference(Location.create(document.uri, this.getIdRange()));
 		}
 
 		if (this.InnerTypeRef) {
@@ -257,7 +256,7 @@ export class UCClassRef extends UCStructRef {
 		let classDoc = document.getDocument(this.getName());
 		if (classDoc) {
 			this.setReference(classDoc.class);
-			classDoc.class.linkLocation(Location.create(document.uri, this.getIdRange()));
+			classDoc.class.addReference(Location.create(document.uri, this.getIdRange()));
 			classDoc.class.document = classDoc; // temp hack
 			// classDoc.class.link(classDoc);
 		} else {
@@ -484,19 +483,74 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 	}
 }
 
-export class UCDefaultPropertySymbol extends UCPropertySymbol {
+export class UCDefaultVariableSymbol extends UCFieldSymbol {
+	public varRef?: UCSymbolRef;
+
 	getKind(): SymbolKind {
 		return SymbolKind.Property;
 	}
+
+	getTooltip(): string {
+		return '(default) ' + this.getName();
+	}
+
+	getSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (this.isWithinPosition(position)) {
+			if (this.varRef) {
+				let symbol = this.varRef.getSymbolAtPos(position);
+				if (symbol) {
+					return symbol;
+				}
+			}
+
+			if (this.isIdWithinPosition(position)) {
+				return this;
+			}
+
+			// TODO check for sub defaults (e.g. in a struct literal)
+		}
+		return undefined;
+	}
+
+	public link(document: UCDocument) {
+		if (this.varRef) {
+			// HACK: We don't want to look up a symbol in our own container as that would return ourselves.
+			var outer: UCStructSymbol = this.outer.outer as UCStructSymbol;
+			if (!outer) {
+				return;
+			}
+
+			var symbol = outer.findSuperSymbol(this.getName(), true);
+			if (!symbol) {
+				document.nodes.push(new SemanticErrorNode(this, `Variable '${this.getName()}' not found!`));
+				return;
+			}
+
+			if (!(symbol instanceof UCPropertySymbol)) {
+				const errorNode = new SemanticErrorNode(
+					this,
+					`Type of '${symbol.getName()}' cannot be assigned a default value!`,
+				);
+				document.nodes.push(errorNode);
+			}
+
+			this.varRef.setReference(symbol);
+			symbol.addReference(Location.create(document.uri, this.getIdRange()));
+		}
+	}
 }
 
-export class UCDefaultsSymbol extends UCStructSymbol {
-
+/**
+ * Can represent either a subobject aka archetype, or an instance of a defaultproperties declaration.
+ */
+export class UCObjectSymbol extends UCStructSymbol {
+	getTooltip(): string {
+		return this.getName();
+	}
 }
 
 export class UCFunctionSymbol extends UCStructSymbol {
 	public returnTypeRef?: UCSymbolRef;
-	public returnTypeSymbol?: UCSymbol;
 	public params: UCPropertySymbol[] = [];
 
 	getKind(): SymbolKind {
@@ -560,7 +614,6 @@ export class UCClassSymbol extends UCStructSymbol {
 	public withinRef?: UCSymbol;
 
 	public replicatedNameTokens: Token[] = [];
-	public replicatedSymbols?: UCSymbol[];
 
 	public static visit(ctx: UCParser.ClassDeclContext): UCClassSymbol {
 		var className = ctx.className();
@@ -665,15 +718,13 @@ export class UCClassSymbol extends UCStructSymbol {
 		}
 
 		if (this.replicatedNameTokens) {
-			this.replicatedSymbols = [];
 			for (let nameToken of this.replicatedNameTokens) {
 				let nameSymbol = new UCSymbolRef({ name: nameToken.text, range: rangeFromToken(nameToken) });
 
 				// Only child symbols are replicated thus we can safely skip any super children.
 				let symbol = this.findChildSymbol(nameToken.text);
 				if (symbol) {
-					symbol.linkLocation(Location.create(document.uri, rangeFromToken(nameToken)));
-					this.replicatedSymbols.push(symbol);
+					symbol.addReference(Location.create(document.uri, rangeFromToken(nameToken)));
 					if (symbol instanceof UCPropertySymbol || symbol instanceof UCFunctionSymbol) {
 						continue;
 					} else {
@@ -1101,7 +1152,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	enterDefaultpropertiesBlock(ctx: UCParser.DefaultpropertiesBlockContext) {
 		const nameCtx = ctx.kwDEFAULTPROPERTIES();
-		const symbol = new UCDefaultsSymbol(
+		const symbol = new UCObjectSymbol(
 			{ name: nameCtx.text, range: rangeFromToken(nameCtx.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
@@ -1109,13 +1160,48 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.push(symbol);
 	}
 
-	enterDefaultProperty(ctx: UCParser.DefaultPropertyContext) {
-		const idCtx = ctx.defaultId();
-		const symbol = new UCDefaultPropertySymbol(
+	enterObjectDecl(ctx: UCParser.ObjectDeclContext) {
+		const idCtx = ctx.objectName();
+		const symbol = new UCObjectSymbol(
 			{ name: idCtx.text, range: rangeFromToken(ctx.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 		this.declare(symbol);
+		this.push(symbol);
+	}
+
+	enterDefaultVariable(ctx: UCParser.DefaultVariableContext) {
+		const idCtx = ctx.defaultId();
+		const symbol = new UCDefaultVariableSymbol(
+			{ name: idCtx.text, range: rangeFromToken(ctx.start) },
+			{ range: rangeFromTokens(ctx.start, ctx.stop) }
+		);
+		symbol.varRef = new UCSymbolRef(
+			{ name: idCtx.text, range: symbol.getIdRange() },
+		);
+
+		const valCtx = ctx.defaultValue();
+		if (valCtx && valCtx.defaultLiteral().structLiteral()) {
+			const structCtx = valCtx.defaultLiteral().structLiteral();
+			const symbol = new UCObjectSymbol(
+				// Use the same name as the assigned var's name.
+				{ name: idCtx.text, range: rangeFromToken(structCtx.start) },
+				{ range: rangeFromTokens(structCtx.start, structCtx.stop) }
+			);
+			this.push(symbol);
+		}
+		this.declare(symbol);
+	}
+
+	exitDefaultVariable(ctx: UCParser.DefaultVariableContext) {
+		const valCtx = ctx.defaultValue();
+		if (valCtx && valCtx.defaultLiteral().structLiteral()) {
+			this.pop();
+		}
+	}
+
+	exitObjectDecl(ctx: UCParser.ObjectDeclContext) {
+		this.pop();
 	}
 
 	exitDefaultpropertiesBlock(ctx: UCParser.DefaultpropertiesBlockContext) {

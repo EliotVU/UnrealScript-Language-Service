@@ -19,17 +19,13 @@ import {
 	DocumentSymbolParams,
 	SymbolInformation,
 	ReferenceParams,
-	SymbolKind,
-	WorkspaceSymbolParams,
 	DiagnosticSeverity,
-	DocumentSymbolRequest,
-	Position,
-	TextDocumentPositionParams} from 'vscode-languageserver';
+	TextDocumentPositionParams,
+	Range} from 'vscode-languageserver';
 
 import {
 	DocumentParser, UCDocument, UCSymbol, UCPropertySymbol, UCStructSymbol, UCClassSymbol,
-	UCFunctionSymbol, UCScriptStructSymbol, UCPackage, UCSymbolRef, NATIVE_SYMBOLS, UCFieldSymbol
-} from './parser';
+	UCFunctionSymbol, UCScriptStructSymbol, UCPackage, UCTypeRef, NATIVE_SYMBOLS, UCSymbolRef} from './parser';
 import { FUNCTION_MODIFIERS, CLASS_DECLARATIONS, PRIMITIVE_TYPE_NAMES, VARIABLE_MODIFIERS, FUNCTION_DECLARATIONS, STRUCT_DECLARATIONS, STRUCT_MODIFIERS } from "./keywords";
 
 let connection = createConnection(ProposedFeatures.all);
@@ -163,19 +159,16 @@ documents.onDidClose(e => {
 	documentSettings.delete(e.document.uri);
 });
 
-function invalidateDocument(uri: string) {
-	projectDocuments.delete(uri);
-}
-
 var WorkspacePackage = new UCPackage('Workspace');
 NATIVE_SYMBOLS.forEach(symbol => WorkspacePackage.add(symbol));
 
 function parseClassDocument(className: string): UCDocument {
+	className = className.toLowerCase();
 	// connection.console.log('Looking for external document ' + className);
 
 	// Try the shorter route first before we scan the entire workspace!
 	if (WorkspacePackage) {
-		let classSymbol = WorkspacePackage.symbols.get(className.toLowerCase());
+		let classSymbol = WorkspacePackage.symbols.get(className);
 		if (classSymbol && classSymbol instanceof UCClassSymbol) {
 			return classSymbol.document;
 		}
@@ -183,21 +176,20 @@ function parseClassDocument(className: string): UCDocument {
 
 	let filePaths = workspaceUCFiles;
 	let filePath = filePaths.find((value => {
-		return path.basename(value, '.uc') === className;
+		return path.basename(value, '.uc').toLowerCase() === className;
 	}));
 
 	if (!filePath) {
 		return undefined;
 	}
 
-	const document = projectDocuments.get(filePath);
-	if (document) {
-		// connection.console.log('Cached doc found for ' + className);
-		return document;
+	// FIXME: may not exist
+	if (!fs.existsSync(filePath)) {
+		return undefined;
 	}
 
-	// FIXME: may not exist
 	let text = fs.readFileSync(filePath).toString();
+	filePath = URI.file(filePath).toString();
 	return parseDocument(filePath, text);
 }
 
@@ -217,23 +209,23 @@ function parseDocument(uri: string, text: string): UCDocument {
 }
 
 function validateTextDocument(textDocument: TextDocument): Promise<void> {
-	invalidateDocument(textDocument.uri);
+	projectDocuments.delete(textDocument.uri);
 
 	let document: UCDocument;
 	try {
 		document = parseDocument(textDocument.uri, textDocument.getText());
 	} catch (err) {
 		connection.sendDiagnostics({
-			uri: document.uri,
-			diagnostics: [Diagnostic.create(undefined, err, DiagnosticSeverity.Warning)]
+			uri: textDocument.uri,
+			diagnostics: [Diagnostic.create(Range.create(0, 0, 0, 0), "Something went wrong while parsing this document! " + err, DiagnosticSeverity.Warning)]
 		});
 		return;
 	}
 
 	if (!document) {
 		connection.sendDiagnostics({
-			uri: document.uri,
-			diagnostics: [Diagnostic.create(undefined, "Couldn't validate document!", DiagnosticSeverity.Warning)]
+			uri: textDocument.uri,
+			diagnostics: [Diagnostic.create(Range.create(0, 0, 0, 0), "Couldn't validate document!", DiagnosticSeverity.Warning)]
 		});
 		return;
 	}
@@ -295,21 +287,6 @@ connection.onHover((e): Hover => {
 	};
 });
 
-// Bare implementation to support "go-to-defintion" for variable declarations type references.
-connection.onDefinition((e): Definition => {
-	const symbol = getDocumentPositionSymbol(e);
-	if (!symbol) {
-		return undefined;
-	}
-
-	if (symbol instanceof UCSymbolRef) {
-		let reference = symbol.getReference() as UCSymbol;
-		if (reference instanceof UCSymbol) {
-			return Location.create(reference.getUri() , reference.getIdRange());
-		}
-	}
-});
-
 connection.onDocumentSymbol((e: DocumentSymbolParams): SymbolInformation[] => {
 	let document = projectDocuments.get(e.textDocument.uri);
 	if (!document || !document.class) {
@@ -330,12 +307,27 @@ connection.onDocumentSymbol((e: DocumentSymbolParams): SymbolInformation[] => {
 	return contextSymbols;
 });
 
+// Bare implementation to support "go-to-defintion" for variable declarations type references.
+connection.onDefinition((e): Definition => {
+	const symbol = getDocumentPositionSymbol(e);
+	if (!symbol) {
+		return undefined;
+	}
+
+	if (symbol instanceof UCSymbolRef) {
+		let reference = symbol.getReference();
+		if (reference instanceof UCSymbol) {
+			return Location.create(reference.getUri() , reference.getIdRange());
+		}
+	}
+});
+
 connection.onReferences((e: ReferenceParams): Location[] => {
 	const symbol = getDocumentPositionSymbol(e);
 	if (!symbol) {
 		return undefined;
 	}
-	return symbol.getLinks();
+	return symbol.getReferences();
 });
 
 connection.onCompletion((e): CompletionItem[] => {
