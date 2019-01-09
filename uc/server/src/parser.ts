@@ -990,7 +990,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	enterReplicationStatement(ctx: UCParser.ReplicationStatementContext) {
-		for (const varCtx of ctx.replicateVariableName()) {
+		for (const varCtx of ctx.replicateId()) {
 			let nameToken = varCtx.start;
 			this.class.replicatedNameTokens.push(nameToken);
 		}
@@ -1110,7 +1110,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	enterDefaultProperty(ctx: UCParser.DefaultPropertyContext) {
-		const idCtx = ctx.identifier();
+		const idCtx = ctx.defaultId();
 		const symbol = new UCDefaultPropertySymbol(
 			{ name: idCtx.text, range: rangeFromToken(ctx.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
