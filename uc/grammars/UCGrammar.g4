@@ -901,18 +901,22 @@ defaultpropertiesBlock
 	:
 		kwDEFAULTPROPERTIES
 		LBRACE
-			(objectDecl | defaultProperty)*
+			propertiesBlock
 		RBRACE
 	;
 
 objectDecl
 	:
-		kwBEGIN ID
-			defaultProperty*
+		kwBEGIN ID kwNAME EQUALS_SIGN objectName
+			propertiesBlock
 		kwEND ID
 	;
 
-defaultProperty
+propertiesBlock: (objectDecl | defaultVariable)*;
+
+objectName: identifier;
+
+defaultVariable
 	: defaultId (
 		(LPAREN INTEGER RPAREN)
 		| (LBRACKET INTEGER RBRACKET)
@@ -922,7 +926,7 @@ defaultProperty
 defaultId: identifier;
 
 structLiteral
-	: LPAREN (defaultProperty)* RPAREN
+	: LPAREN (defaultVariable (COMMA defaultVariable)*)? RPAREN
 	;
 
 defaultLiteral
