@@ -560,6 +560,7 @@ variableModifier
 		| kwEDFINDABLE
 		// UC3
 		| kwINIT
+		| kwEDITHIDE
 		| kwEDITFIXEDSIZE
 		| kwEDITORONLY
 		| kwEDITORTEXTBOX
@@ -619,9 +620,9 @@ classGeneric: kwCLASS LARROW classReference RARROW;
 
 mapGeneric:
 	kwMAP LARROW (
-		qualifiedIdentifier
-		| (classGeneric | mapGeneric | arrayGeneric)
+		(classGeneric | mapGeneric | arrayGeneric)
 		| primitiveType
+		| qualifiedIdentifier
 	) RARROW;
 
 enumDecl:
