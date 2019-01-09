@@ -514,7 +514,7 @@
                             "include": "#comment"
                         },
                         {
-                            "begin": "(?i)(unreliable|reliable)\\s*(if)?",
+                            "begin": "(?i)(unreliable|reliable)?\\s*(if)?",
                             "beginCaptures": {
                                 "1": {
                                     "name": "keyword.other.modifier.uc"
