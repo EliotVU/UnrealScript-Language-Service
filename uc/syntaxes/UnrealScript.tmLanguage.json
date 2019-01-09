@@ -280,7 +280,7 @@
         },
         "struct-declaration": {
             "name": "meta.struct.declaration.uc",
-            "begin": "\\b((?i)struct)\\s*(\\b((?i)native|intrinsic|init|long)\\b\\s*)*([_[:alpha:]][_[:alnum:]]*)(\\s*((?i)extends)\\s*([_[:alpha:]][_[:alnum:]]*))?",
+            "begin": "\\b((?i)struct)\\b\\s*(\\b((?i)native|intrinsic|init|long)\\b\\s*)*([_[:alpha:]][_[:alnum:]]*)(\\s*((?i)extends)\\s*([_[:alpha:]][_[:alnum:]]*))?",
             "beginCaptures": {
                 "1": {
                     "name": "storage.type.struct.uc"
@@ -308,6 +308,9 @@
                         },
                         {
                             "include": "#type-declarations"
+                        },
+                        {
+                            "include": "#structdefaultproperties"
                         },
                         {
                             "include": "#cppblock"
@@ -652,12 +655,34 @@
             ]
         },
         "defaultproperties": {
-            "begin": "(?i)(?=\\b(defaultproperties))",
+            "begin": "\\b((?i)defaultproperties)\\b",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.other.defaultproperties.uc"
+                }
+            },
             "patterns": [
                 {
-                    "name": "keyword.other.method.uc",
-                    "match": "((?i)defaultproperties)"
-                },
+                    "name": "meta.block",
+                    "begin": "\\{",
+                    "patterns": [
+                        {
+                            "include": "#expression"
+                        }
+                    ],
+                    "end": "\\}"
+                }
+            ],
+            "end": "(?<=\\})"
+        },
+        "structdefaultproperties": {
+            "begin": "\\b((?i)structdefaultproperties)\\b",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.other.structdefaultproperties.uc"
+                }
+            },
+            "patterns": [
                 {
                     "name": "meta.block",
                     "begin": "\\{",
