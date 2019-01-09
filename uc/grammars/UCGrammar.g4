@@ -801,6 +801,7 @@ stateDecl: (stateModifier)* kwSTATE (LPAREN RPAREN)? stateName
 		(kwEXTENDS stateReference)?
 		LBRACE
 			(kwIGNORES methodReference (COMMA methodReference)* SEMICOLON)?
+			(localDecl)*
 			(functionDecl)*
 			(labelName COLON statement*)*
 		RBRACE SEMICOLON?;
