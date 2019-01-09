@@ -280,7 +280,7 @@
         },
         "struct-declaration": {
             "name": "meta.struct.declaration.uc",
-            "begin": "\\b((?i)struct)\\b\\s*(\\b((?i)native|intrinsic|init|long)\\b\\s*)*([_[:alpha:]][_[:alnum:]]*)(\\s*((?i)extends)\\s*([_[:alpha:]][_[:alnum:]]*))?",
+            "begin": "\\b((?i)struct)\\b\\s*(\\b((?i)native|intrinsic|transient|export|strictconfig|atomic|atomicwhencooked|immutable|immutablewhencooked|init|long)\\b\\s*)*([_[:alpha:]][_[:alnum:]]*)(\\s*((?i)extends)\\s*([_[:alpha:]][_[:alnum:]]*))?",
             "beginCaptures": {
                 "1": {
                     "name": "storage.type.struct.uc"
@@ -291,10 +291,10 @@
                 "4": {
                     "name": "entity.name.type.struct.uc"
                 },
-                "5": {
+                "6": {
                     "name": "storage.modifier.uc"
                 },
-                "6": {
+                "7": {
                     "name": "entity.other.inherited-class.uc"
                 }
             },
