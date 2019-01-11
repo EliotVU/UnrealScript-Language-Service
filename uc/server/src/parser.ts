@@ -223,7 +223,7 @@ export class UCTypeRef extends UCSymbolRef {
 				this.setReference(classDoc.class);
 				classDoc.class.addReference(Location.create(document.uri, this.getIdRange()));
 				classDoc.class.document = classDoc; // temp hack
-				// classDoc.class.link(classDoc);
+				classDoc.class.link(classDoc);
 			} else {
 				document.nodes.push(new SemanticErrorNode(this, `Type '${this.getName()}' not found!`));
 			}
@@ -258,7 +258,7 @@ export class UCClassRef extends UCStructRef {
 			this.setReference(classDoc.class);
 			classDoc.class.addReference(Location.create(document.uri, this.getIdRange()));
 			classDoc.class.document = classDoc; // temp hack
-			// classDoc.class.link(classDoc);
+			classDoc.class.link(classDoc);
 		} else {
 			const errorNode = new SemanticErrorNode(
 				this,
@@ -1162,8 +1162,12 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	enterObjectDecl(ctx: UCParser.ObjectDeclContext) {
 		const idCtx = ctx.objectName();
+		if (!idCtx[0]) {
+			// TODO: throw error missing object name!
+			return;
+		}
 		const symbol = new UCObjectSymbol(
-			{ name: idCtx.text, range: rangeFromToken(ctx.start) },
+			{ name: idCtx[0].text, range: rangeFromToken(idCtx[0].start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 		this.declare(symbol);
