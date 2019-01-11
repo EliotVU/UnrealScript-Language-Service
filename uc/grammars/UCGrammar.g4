@@ -890,12 +890,10 @@ contextSpecifiers
 arguments: (COMMA* argument)*;
 argument: expression;
 
-ifStatement
-	:
+ifStatement:
 	kwIF (LPAREN expression RPAREN)
 		codeBlockOptional
-	kwELSE?
-	;
+	(kwELSE codeBlockOptional)?;
 
 elseStatement: kwELSE codeBlockOptional;
 foreachStatement: kwFOREACH primaryExpression codeBlockOptional;
