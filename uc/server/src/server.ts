@@ -152,6 +152,8 @@ documents.onDidChangeContent(async e => {
 		workspaceUCFiles = await scanWorkspaceForClasses(connection.workspace);
 		initializeClassTypes(workspaceUCFiles);
 	}
+
+	projectDocuments.delete(e.document.uri);
 	validateTextDocument(e.document);
 });
 
@@ -209,8 +211,6 @@ function parseDocument(uri: string, text: string): UCDocument {
 }
 
 function validateTextDocument(textDocument: TextDocument): Promise<void> {
-	projectDocuments.delete(textDocument.uri);
-
 	let document: UCDocument;
 	try {
 		document = parseDocument(textDocument.uri, textDocument.getText());
