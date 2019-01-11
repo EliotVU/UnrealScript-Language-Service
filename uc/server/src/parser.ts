@@ -65,7 +65,7 @@ export abstract class UCSymbol implements ISimpleSymbol {
 	}
 
 	getTooltip(): string | undefined {
-		return undefined;
+		return this.getName();
 	}
 
 	getDocumentation(): string | undefined {
@@ -86,12 +86,11 @@ export abstract class UCSymbol implements ISimpleSymbol {
 		return this.id.name;
 	}
 
-	getFullName(): string {
-		var fullName = this.getName();
-		for (var outer = this.outer; outer; outer = outer.outer) {
-			fullName = outer.getName() + '.' + fullName;
+	getQualifiedName(): string {
+		if (this.outer) {
+			return this.outer.getQualifiedName() + '.' + this.getName();
 		}
-		return fullName;
+		return this.getName();
 	}
 
 	getKind(): SymbolKind {
@@ -164,9 +163,10 @@ export class UCSymbolRef extends UCSymbol {
 	protected reference?: ISimpleSymbol;
 
 	getTooltip(): string {
-		return this.reference
-			? this.reference.getTooltip()
-			: this.getName();
+		if (this.reference) {
+			return this.reference.getQualifiedName();
+		}
+		return super.getTooltip();
 	}
 
 	getReferences(): Location[] | undefined {
@@ -187,11 +187,12 @@ export class UCTypeRef extends UCSymbolRef {
 	public InnerTypeRef?: UCTypeRef;
 
 	getTooltip(): string {
-		var tooltip = super.getTooltip();
-		if (this.InnerTypeRef) {
-			tooltip = tooltip + `<${this.InnerTypeRef.getTooltip()}>`;
+		if (this.reference) {
+			return this.InnerTypeRef
+				? (this.reference.getQualifiedName() + `<${this.InnerTypeRef.getTooltip()}>`)
+				: this.reference.getQualifiedName();
 		}
-		return tooltip;
+		return this.getName();
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -277,7 +278,7 @@ export class UCFieldSymbol extends UCSymbol {
 	}
 
 	getTooltip(): string {
-		return this.getFullName();
+		return this.getQualifiedName();
 	}
 
 	getRange(): Range {
@@ -312,7 +313,7 @@ export class UCConstSymbol extends UCFieldSymbol {
 	}
 
 	getTooltip(): string {
-		return '(const) ' + this.getName() + ' : ' + this.valueToken.text;
+		return '(const) ' + this.getQualifiedName() + ' : ' + this.valueToken.text;
 	}
 }
 
@@ -329,13 +330,13 @@ export class UCPropertySymbol extends UCFieldSymbol {
 
 	getTooltip(): string {
 		if (this.typeRef) {
-			return '(variable) ' + this.getName() + ': ' + this.getTypeText();
+			return `(variable) ${this.getTypeText()} ${this.getQualifiedName()}`;
 		}
-		return '(variable) ' + this.getName();
+		return '(variable) ' + this.getQualifiedName();
 	}
 
 	getTypeText(): string {
-		return this.typeRef.getTooltip();
+		return this.typeRef.getName();
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -370,7 +371,7 @@ export class UCEnumSymbol extends UCFieldSymbol {
 	}
 
 	getTooltip(): string {
-		return `enum ${this.getName()}`;
+		return `enum ${this.getQualifiedName()}`;
 	}
 }
 
@@ -384,7 +385,7 @@ export class UCEnumMemberSymbol extends UCSymbol {
 	}
 
 	getTooltip(): string {
-		return `(enum member) ${this.outer.getName()}.${this.getName()}`;
+		return `(enum member) ${this.getQualifiedName()}`;
 	}
 }
 
@@ -479,7 +480,7 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 	}
 
 	getTooltip(): string {
-		return `struct ${this.getName()}`;
+		return `struct ${this.getQualifiedName()}`;
 	}
 }
 
@@ -562,7 +563,7 @@ export class UCFunctionSymbol extends UCStructSymbol {
 	}
 
 	getTooltip(): string {
-		return '(method) ' + this.getName() + this.buildArguments() + this.buildReturnType();
+		return '(method) ' + this.buildReturnType() + this.getQualifiedName() + this.buildArguments();
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -589,7 +590,7 @@ export class UCFunctionSymbol extends UCStructSymbol {
 	}
 
 	private buildReturnType(): string {
-		return this.returnTypeRef ? ': ' + this.returnTypeRef.getName() : '';
+		return this.returnTypeRef ? this.returnTypeRef.getName() + ' ' : '';
 	}
 
 	private buildArguments(): string {
@@ -603,7 +604,7 @@ export class UCStateSymbol extends UCStructSymbol {
 	}
 
 	getTooltip(): string {
-		return `state ${this.getName()}`;
+		return `state ${this.getQualifiedName()}`;
 	}
 }
 
@@ -650,10 +651,7 @@ export class UCClassSymbol extends UCStructSymbol {
 	}
 
 	getTooltip(): string {
-		if (!this.extendsRef) {
-			return `class ${this.getName()}`;
-		}
-		return `class ${this.getName()}: ${this.extendsRef.getFullName()}`;
+		return `class ${this.getQualifiedName()}`;
 	}
 
 	getUri(): string {
@@ -681,7 +679,7 @@ export class UCClassSymbol extends UCStructSymbol {
 
 	findSuperTypeSymbol(id: string, deepSearch: boolean): ISimpleSymbol | undefined {
 		id = id.toLowerCase();
-		var typeSymbol = this.document.classPackage.symbols.get(id);
+		var typeSymbol = this.document.classPackage.findSuperSymbol(id, deepSearch);
 		if (typeSymbol) {
 			return typeSymbol;
 		}
@@ -746,47 +744,6 @@ export class UCClassSymbol extends UCStructSymbol {
 	}
 }
 
-export class UCNativeSymbol implements ISimpleSymbol {
-	constructor(private name: string) {
-
-	}
-
-	getName(): string {
-		return this.name;
-	}
-
-	getKind(): SymbolKind {
-		return SymbolKind.TypeParameter;
-	}
-
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Reference;
-	}
-
-	getUri(): string | undefined {
-		return undefined;
-	}
-
-	getTooltip(): string {
-		return this.getName();
-	}
-}
-
-export const NATIVE_SYMBOLS = [
-	new UCNativeSymbol('byte'),
-	new UCNativeSymbol('float'),
-	new UCNativeSymbol('int'),
-	new UCNativeSymbol('string'),
-	new UCNativeSymbol('name'),
-	new UCNativeSymbol('bool'),
-	new UCNativeSymbol('button'),
-	new UCNativeSymbol('pointer'),
-	new UCNativeSymbol('class'),
-	new UCNativeSymbol('map'),
-	new UCNativeSymbol('array'),
-	new UCNativeSymbol('delegate')
-];
-
 // Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
 	public outer = null;
@@ -800,6 +757,10 @@ export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
 
 	getName(): string {
 		return this.name;
+	}
+
+	getQualifiedName(): string {
+		return this.getName();
 	}
 
 	getKind(): SymbolKind {
@@ -824,8 +785,19 @@ export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
 	}
 
 	public findSuperSymbol(name: string, deepSearch?: boolean): ISimpleSymbol {
-		name = name.toLowerCase();
-		return this.symbols.get(name);
+		var symbol = this.symbols.get(name);
+		if (symbol || !deepSearch) {
+			return symbol;
+		}
+
+		for (symbol of this.symbols.values()) {
+			if (symbol instanceof UCPackage) {
+				symbol = symbol.findSuperSymbol(name);
+				if (symbol) {
+					return symbol;
+				}
+			}
+		}
 	}
 }
 

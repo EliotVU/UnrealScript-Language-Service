@@ -25,7 +25,8 @@ import {
 
 import {
 	DocumentParser, UCDocument, UCSymbol, UCPropertySymbol, UCStructSymbol, UCClassSymbol,
-	UCFunctionSymbol, UCScriptStructSymbol, UCPackage, UCTypeRef, NATIVE_SYMBOLS, UCSymbolRef} from './parser';
+	UCFunctionSymbol, UCScriptStructSymbol, UCPackage, UCSymbolRef} from './parser';
+import { NATIVE_SYMBOLS, CORE_PACKAGE } from "./NativeSymbols";
 import { FUNCTION_MODIFIERS, CLASS_DECLARATIONS, PRIMITIVE_TYPE_NAMES, VARIABLE_MODIFIERS, FUNCTION_DECLARATIONS, STRUCT_DECLARATIONS, STRUCT_MODIFIERS } from "./keywords";
 
 let connection = createConnection(ProposedFeatures.all);
@@ -162,7 +163,7 @@ documents.onDidClose(e => {
 });
 
 var WorkspacePackage = new UCPackage('Workspace');
-NATIVE_SYMBOLS.forEach(symbol => WorkspacePackage.add(symbol));
+WorkspacePackage.add(CORE_PACKAGE);
 
 function parseClassDocument(className: string): UCDocument {
 	className = className.toLowerCase();
@@ -170,7 +171,7 @@ function parseClassDocument(className: string): UCDocument {
 
 	// Try the shorter route first before we scan the entire workspace!
 	if (WorkspacePackage) {
-		let classSymbol = WorkspacePackage.symbols.get(className);
+		let classSymbol = WorkspacePackage.findSuperSymbol(className, true);
 		if (classSymbol && classSymbol instanceof UCClassSymbol) {
 			return classSymbol.document;
 		}
