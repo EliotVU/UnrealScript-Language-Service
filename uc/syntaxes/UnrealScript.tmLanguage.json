@@ -1,6 +1,8 @@
 {
     "name": "UnrealScript",
     "scopeName": "source.uc",
+    "foldingStartMarker": "\\{\\s*$",
+    "foldingStopMarker": "^\\s*\\}",
     "patterns": [
         {
             "include": "#comment"
@@ -128,29 +130,122 @@
                     "include": "#type-modifier"
                 },
                 {
-                    "begin": "[_[:alpha:]][_[:alnum:]]*",
+                    "begin": "(([_[:alpha:]][_[:alnum:]]*)(\\.([_[:alpha:]][_[:alnum:]]*))*)\\s*([_[:alpha:]][_[:alnum:]]*)",
                     "beginCaptures": {
-                        "0": {
-                            "name": "entity.name.type.uc"
-                        }
-                    },
-                    "patterns": [
-                        {
-                            "begin": "\\<",
+                        "1": {
                             "patterns": [
                                 {
-                                    "include": "#enum-declaration"
+                                    "include": "#comment"
                                 },
                                 {
-                                    "include": "#struct-declaration"
+                                    "begin": "((?i)float|int|byte|bool|button|name|string|pointer|array|class|delegate|map)",
+                                    "beginCaptures": {
+                                        "0": {
+                                            "name": "keyword.type.uc"
+                                        }
+                                    },
+                                    "end": "\\s*"
                                 },
                                 {
-                                    "include": "#type-declaration"
+                                    "begin": "([_[:alpha:]][_[:alnum:]]*)(\\.([_[:alpha:]][_[:alnum:]]*))*",
+                                    "beginCaptures": {
+                                        "1": {
+                                            "name": "entity.name.type.uc"
+                                        },
+                                        "3": {
+                                            "name": "entity.name.type.uc"
+                                        }
+                                    },
+                                    "end": "\\s*"
+                                },
+                                {
+                                    "begin": "\\<",
+                                    "beginCaptures": {
+                                        "0": {
+                                            "name": "punctuation.definition.typeparameters.begin.uc"
+                                        }
+                                    },
+                                    "patterns": [
+                                        {
+                                            "include": "#inlined-declaration"
+                                        }
+                                    ],
+                                    "end": "\\>",
+                                    "endCaptures": {
+                                        "0": {
+                                            "name": "punctuation.definition.typeparameters.end.uc"
+                                        }
+                                    }
                                 }
-                            ],
-                            "end": "\\>"
+                            ]
+                        },
+                        "5": {
+                            "name": "entity.name.variable.uc"
                         }
-                    ],
+                    },
+                    "end": "\\s*"
+                }
+            ]
+        },
+        "inlined-declaration": {
+            "patterns": [
+                {
+                    "include": "#comment"
+                },
+                {
+                    "include": "#type-modifier"
+                },
+                {
+                    "begin": "([_[:alpha:]][_[:alnum:]]*)(\\.([_[:alpha:]][_[:alnum:]]*))*",
+                    "beginCaptures": {
+                        "0": {
+                            "patterns": [
+                                {
+                                    "include": "#comment"
+                                },
+                                {
+                                    "begin": "((?i)float|int|byte|bool|button|name|string|pointer|class|delegate)",
+                                    "beginCaptures": {
+                                        "0": {
+                                            "name": "keyword.type.uc"
+                                        }
+                                    },
+                                    "end": "\\s*"
+                                },
+                                {
+                                    "begin": "([_[:alpha:]][_[:alnum:]]*)(\\.([_[:alpha:]][_[:alnum:]]*))*",
+                                    "beginCaptures": {
+                                        "1": {
+                                            "name": "entity.name.type.uc"
+                                        },
+                                        "3": {
+                                            "name": "entity.name.type.uc"
+                                        }
+                                    },
+                                    "end": "\\s*"
+                                },
+                                {
+                                    "begin": "\\<",
+                                    "beginCaptures": {
+                                        "0": {
+                                            "name": "punctuation.definition.typeparameters.begin.uc"
+                                        }
+                                    },
+                                    "patterns": [
+                                        {
+                                            "include": "#inlined-declaration"
+                                        }
+                                    ],
+                                    "end": "\\>",
+                                    "endCaptures": {
+                                        "0": {
+                                            "name": "punctuation.definition.typeparameters.end.uc"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
                     "end": "\\s*"
                 }
             ]
@@ -222,17 +317,19 @@
         },
         "const-declaration": {
             "name": "meta.constant",
-            "begin": "\\b(?i)(const)\\b",
+            "begin": "\\b((?i)const)\\b",
             "beginCaptures": {
                 "1": {
                     "name": "keyword.other.constant.uc"
                 }
             },
-            "end": "(?<=;)",
             "patterns": [
                 {
+                    "include": "#comment"
+                },
+                {
                     "begin": "\\s+([_[:alpha:]][_[:alnum:]]*)\\s*(\\=)\\s*",
-                    "captures": {
+                    "beginCaptures": {
                         "1": {
                             "name": "entity.name.constant.uc"
                         },
@@ -240,14 +337,18 @@
                             "name": "keyword.operator.assignment.uc"
                         }
                     },
-                    "end": ";",
                     "patterns": [
+                        {
+                            "include": "#comment"
+                        },
                         {
                             "include": "#literal"
                         }
-                    ]
+                    ],
+                    "end": ";"
                 }
-            ]
+            ],
+            "end": "(?<=;)"
         },
         "enum-declaration": {
             "name": "meta.enum.declaration.uc",
@@ -264,6 +365,11 @@
                 {
                     "name": "meta.block.uc",
                     "begin": "{",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.open.uc"
+                        }
+                    },
                     "patterns": [
                         {
                             "include": "#comment"
@@ -273,7 +379,12 @@
                             "name": "variable.other.enummember.uc"
                         }
                     ],
-                    "end": "}"
+                    "end": "}",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.close.uc"
+                        }
+                    }
                 }
             ],
             "end": "(?<=\\}|\\;)"
@@ -302,6 +413,11 @@
                 {
                     "name": "meta.block.uc",
                     "begin": "{",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.open.uc"
+                        }
+                    },
                     "patterns": [
                         {
                             "include": "#comment"
@@ -316,17 +432,21 @@
                             "include": "#cppblock"
                         }
                     ],
-                    "end": "}"
+                    "end": "}",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.close.uc"
+                        }
+                    }
                 }
             ],
             "end": "(?<=\\}|\\;)"
         },
         "var-declaration": {
-            "name": "meta.variable",
             "begin": "((?i)\\bvar\\b)(\\s*\\(\\s*([_[:alpha:]][_[:alnum:]]*)\\s*\\))?",
             "beginCaptures": {
                 "1": {
-                    "name": "keyword.other.variable.uc"
+                    "name": "storage.type.variable.uc"
                 },
                 "3": {
                     "name": "string.quoted.single.uc"
@@ -389,18 +509,45 @@
                     "include": "#type-declaration"
                 },
                 {
+                    "begin": "\\b([_[:alpha:]][_[:alnum:]]*)|((\\$|\\@|\\%|\\#|\\<|\\>|\\=|\\-|\\+|\\*|\\/)+)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "entity.name.function.uc"
+                        },
+                        "2": {
+                            "name": "entity.name.operator.uc"
+                        }
+                    },
+                    "end": "\\b"
+                },
+                {
                     "name": "punctuation.parenthese.uc",
                     "begin": "\\(",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.parenthesis.open.uc"
+                        }
+                    },
                     "patterns": [
                         {
                             "include": "#method-arguments"
                         }
                     ],
-                    "end": "\\)"
+                    "end": "\\)",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.parenthesis.close.uc"
+                        }
+                    }
                 },
                 {
-                    "begin": "\\{",
                     "name": "meta.block.uc",
+                    "begin": "{",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.open.uc"
+                        }
+                    },
                     "patterns": [
                         {
                             "include": "#local-declaration"
@@ -409,19 +556,12 @@
                             "include": "#statement"
                         }
                     ],
-                    "end": "\\}"
-                },
-                {
-                    "begin": "\\b([_[:alpha:]][_[:alnum:]]*)|((\\$|\\@|\\%\\#)+)",
-                    "beginCaptures": {
-                        "1": {
-                            "name": "entity.name.method.name.uc"
-                        },
-                        "2": {
-                            "name": "entity.name.operator.name.uc"
+                    "end": "}",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.close.uc"
                         }
-                    },
-                    "end": "\\b"
+                    }
                 }
             ]
         },
@@ -439,13 +579,13 @@
                 },
                 {
                     "match": "[_[:alpha:]][_[:alnum:]]*",
-                    "name": "entity.name.variable.uc"
+                    "name": "entity.name.variable.parameter.uc"
                 }
             ]
         },
         "local-declaration": {
             "name": "meta.variable",
-            "begin": "(?i)\\b(local)\\b",
+            "begin": "\\b((?i)local)\\b",
             "beginCaptures": {
                 "1": {
                     "name": "keyword.other.variable.uc"
@@ -462,7 +602,7 @@
             "end": "(?<=\\;)"
         },
         "state-modifier": {
-            "match": "(?i)(\\b(auto|simulated)\\b)",
+            "match": "(\\b((?i)auto|simulated)\\b)",
             "captures": {
                 "2": {
                     "name": "storage.modifier.uc"
@@ -490,6 +630,11 @@
                 {
                     "name": "meta.block.uc",
                     "begin": "{",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.open.uc"
+                        }
+                    },
                     "patterns": [
                         {
                             "include": "#comment"
@@ -504,22 +649,37 @@
                             "include": "#method-declaration"
                         }
                     ],
-                    "end": "}"
+                    "end": "}",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.close.uc"
+                        }
+                    }
                 }
             ],
             "end": "(?<=\\}|\\;)"
         },
         "cppblock": {
-            "begin": "(?i)(?=\\b(cpptext|structcpptext))",
+            "begin": "(?=\\b((?i)cpptext|structcpptext))",
             "patterns": [
                 {
                     "name": "keyword.other.method.uc",
-                    "match": "(?i)(cpptext|structcpptext)"
+                    "match": "((?i)cpptext|structcpptext)"
                 },
                 {
-                    "begin": "\\{",
+                    "begin": "{",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.open.uc"
+                        }
+                    },
                     "include": "source.cpp",
-                    "end": "\\}"
+                    "end": "}",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.close.uc"
+                        }
+                    }
                 }
             ],
             "end": "(?<=\\})"
@@ -534,7 +694,12 @@
             "patterns": [
                 {
                     "name": "meta.block",
-                    "begin": "\\{",
+                    "begin": "{",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.open.uc"
+                        }
+                    },
                     "patterns": [
                         {
                             "include": "#comment"
@@ -580,7 +745,12 @@
                             "end": ";"
                         }
                     ],
-                    "end": "\\}"
+                    "end": "}",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.close.uc"
+                        }
+                    }
                 }
             ],
             "end": "(?<=\\})"
@@ -657,7 +827,7 @@
                     "begin": "{",
                     "beginCaptures": {
                         "0": {
-                            "name": "punctuation.definition.block.uc"
+                            "name": "punctuation.curlybrace.open.uc"
                         }
                     },
                     "patterns": [
@@ -671,7 +841,7 @@
                     "end": "}",
                     "endCaptures": {
                         "0": {
-                            "name": "punctuation.definition.block.uc"
+                            "name": "punctuation.curlybrace.close.uc"
                         }
                     }
                 }
@@ -687,16 +857,26 @@
             "patterns": [
                 {
                     "name": "meta.block",
-                    "begin": "\\{",
+                    "begin": "{",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.open.uc"
+                        }
+                    },
                     "patterns": [
                         {
                             "include": "#expression"
                         }
                     ],
-                    "end": "\\}"
+                    "end": "}",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.close.uc"
+                        }
+                    }
                 }
             ],
-            "end": "(?<=\\})"
+            "end": "(?<=})"
         },
         "structdefaultproperties": {
             "begin": "\\b((?i)structdefaultproperties)\\b",
@@ -708,16 +888,26 @@
             "patterns": [
                 {
                     "name": "meta.block",
-                    "begin": "\\{",
+                    "begin": "{",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.open.uc"
+                        }
+                    },
                     "patterns": [
                         {
                             "include": "#expression"
                         }
                     ],
-                    "end": "\\}"
+                    "end": "}",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.curlybrace.close.uc"
+                        }
+                    }
                 }
             ],
-            "end": "(?<=\\})"
+            "end": "(?<=})"
         }
     }
 }
