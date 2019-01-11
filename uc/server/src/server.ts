@@ -21,16 +21,18 @@ import {
 	ReferenceParams,
 	DiagnosticSeverity,
 	TextDocumentPositionParams,
-	Range} from 'vscode-languageserver';
+	Range
+} from 'vscode-languageserver';
 
 import {
 	UCPropertySymbol, UCStructSymbol, UCClassSymbol,
-	UCFunctionSymbol, UCScriptStructSymbol, UCSymbolRef} from './UC/symbols/symbols';
+	UCFunctionSymbol, UCScriptStructSymbol, UCSymbolRef
+} from './UC/symbols/symbols';
 import { UCPackage } from "./UC/symbols/UCPackage";
 import { DocumentParser } from "./UC/DocumentParser";
 import { UCDocument } from "./UC/UCDocument";
 import { UCSymbol } from "./UC/symbols/UCSymbol";
-import { NATIVE_SYMBOLS, CORE_PACKAGE } from "./UC/symbols/NativeSymbols";
+import { CORE_PACKAGE } from "./UC/symbols/NativeSymbols";
 import { FUNCTION_MODIFIERS, CLASS_DECLARATIONS, PRIMITIVE_TYPE_NAMES, VARIABLE_MODIFIERS, FUNCTION_DECLARATIONS, STRUCT_DECLARATIONS, STRUCT_MODIFIERS } from "./UC/keywords";
 
 let connection = createConnection(ProposedFeatures.all);
@@ -322,7 +324,7 @@ connection.onDefinition((e): Definition => {
 	if (symbol instanceof UCSymbolRef) {
 		let reference = symbol.getReference();
 		if (reference instanceof UCSymbol) {
-			return Location.create(reference.getUri() , reference.getIdRange());
+			return Location.create(reference.getUri(), reference.getIdRange());
 		}
 	}
 });
@@ -351,7 +353,7 @@ connection.onCompletion((e): CompletionItem[] => {
 					kind: CompletionItemKind.Keyword
 				} as CompletionItem;
 			});
-	} else if(symbol instanceof UCPropertySymbol) {
+	} else if (symbol instanceof UCPropertySymbol) {
 		// document.class.symbols.forEach((symbol) => {
 		// 	if (symbol.getKind() !== SymbolKind.Struct && symbol.getKind() !== SymbolKind.Enum) {
 		// 		return;
@@ -366,10 +368,10 @@ connection.onCompletion((e): CompletionItem[] => {
 		return []
 			.concat(VARIABLE_MODIFIERS, PRIMITIVE_TYPE_NAMES)
 			.map(type => {
-					return {
-						label: type,
-						kind: CompletionItemKind.Keyword
-					} as CompletionItem;
+				return {
+					label: type,
+					kind: CompletionItemKind.Keyword
+				} as CompletionItem;
 			})
 			.concat(projectClassTypes, items);
 	}
@@ -388,10 +390,10 @@ connection.onCompletion((e): CompletionItem[] => {
 		return []
 			.concat(FUNCTION_DECLARATIONS, FUNCTION_MODIFIERS, PRIMITIVE_TYPE_NAMES)
 			.map(type => {
-					return {
-						label: type,
-						kind: CompletionItemKind.Keyword
-					} as CompletionItem;
+				return {
+					label: type,
+					kind: CompletionItemKind.Keyword
+				} as CompletionItem;
 			})
 			.concat(projectClassTypes, items);
 	}
@@ -399,10 +401,10 @@ connection.onCompletion((e): CompletionItem[] => {
 		return []
 			.concat(STRUCT_DECLARATIONS, STRUCT_MODIFIERS)
 			.map(type => {
-					return {
-						label: type,
-						kind: CompletionItemKind.Keyword
-					} as CompletionItem;
+				return {
+					label: type,
+					kind: CompletionItemKind.Keyword
+				} as CompletionItem;
 			});
 	}
 

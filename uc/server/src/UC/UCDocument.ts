@@ -6,7 +6,7 @@ import { SyntaxErrorNode, IDiagnosticNode } from './diagnostics/diagnostics';
 import { ISimpleSymbol } from './symbols/ISimpleSymbol';
 import { ISymbolContainer } from './symbols/ISymbolContainer';
 import { UCSymbol } from './symbols/UCSymbol';
-import { UCClassSymbol, UCStructSymbol, UCConstSymbol, UCEnumSymbol, UCEnumMemberSymbol, UCScriptStructSymbol, UCStructRef, UCTypeRef, UCPropertySymbol, UCFunctionSymbol, UCStateSymbol, UCStateRef, UCObjectSymbol, UCDefaultVariableSymbol, UCSymbolRef } from './symbols/symbols';
+import { UCClassSymbol, UCStructSymbol, UCConstSymbol, UCEnumSymbol, UCEnumMemberSymbol, UCScriptStructSymbol, UCTypeRef, UCPropertySymbol, UCFunctionSymbol, UCStateSymbol, UCObjectSymbol, UCDefaultVariableSymbol, UCSymbolRef, UCType } from './symbols/symbols';
 import { UCPackage } from "./symbols/UCPackage";
 import * as UCParser from '../antlr/UCGrammarParser';
 
@@ -141,10 +141,10 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 		const extendsCtx = ctx.structReference();
 		if (extendsCtx) {
-			symbol.extendsRef = new UCStructRef({
+			symbol.extendsRef = new UCTypeRef({
 				name: extendsCtx.text,
 				range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
-			});
+			}, UCType.Struct);
 		}
 
 		this.declare(symbol);
@@ -198,8 +198,9 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		const inlinedStruct = propDeclType.structDecl();
 		if (inlinedStruct) {
 			const structName = inlinedStruct.structName();
-			return new UCStructRef(
-				{ name: structName.text, range: rangeFromTokens(structName.start, structName.stop) }
+			return new UCTypeRef(
+				{ name: structName.text, range: rangeFromTokens(structName.start, structName.stop) },
+				UCType.Struct
 			);
 		} else {
 			const inlinedEnum = propDeclType.enumDecl();
@@ -343,10 +344,10 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		const extendsCtx = ctx.stateReference();
 		if (extendsCtx) {
 			// FIXME: UCStateRef?
-			symbol.extendsRef = new UCStateRef({
+			symbol.extendsRef = new UCTypeRef({
 				name: extendsCtx.text,
 				range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
-			});
+			}, UCType.State);
 		}
 
 		this.declare(symbol);

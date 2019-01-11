@@ -49,8 +49,20 @@ export class UCSymbolRef extends UCSymbol {
 	}
 }
 
+export enum UCType {
+	Class,
+	Enum,
+	Struct,
+	State,
+	Function
+}
+
 export class UCTypeRef extends UCSymbolRef {
 	public InnerTypeRef?: UCTypeRef;
+
+	constructor(id: ISymbolId, private _expectingType?: UCType) {
+		super(id);
+	}
 
 	getTooltip(): string {
 		if (this.reference) {
@@ -101,37 +113,6 @@ export class UCTypeRef extends UCSymbolRef {
 
 		if (this.InnerTypeRef) {
 			this.InnerTypeRef.link(document);
-		}
-	}
-}
-
-export class UCStructRef extends UCTypeRef {
-
-}
-
-export class UCStateRef extends UCTypeRef {
-
-}
-
-export class UCClassRef extends UCStructRef {
-	public link(document: UCDocument) {
-		if (this.hasBeenLinked) {
-			return;
-		}
-		this.hasBeenLinked = true;
-
-		let classDoc = document.getDocument(this.getName());
-		if (classDoc) {
-			this.setReference(classDoc.class);
-			classDoc.class.addReference(Location.create(document.uri, this.getIdRange()));
-			classDoc.class.document = classDoc; // temp hack
-			classDoc.class.link(classDoc);
-		} else {
-			const errorNode = new SemanticErrorNode(
-				this,
-				`Class '${this.getName()}' does not exist in the Workspace!`,
-			);
-			document.nodes.push(errorNode);
 		}
 	}
 }
@@ -256,7 +237,7 @@ export class UCEnumMemberSymbol extends UCSymbol {
 }
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISimpleSymbol> {
-	public extendsRef?: UCStructRef;
+	public extendsRef?: UCTypeRef;
 	public super?: UCStructSymbol;
 	public children?: UCFieldSymbol;
 
@@ -491,18 +472,18 @@ export class UCClassSymbol extends UCStructSymbol {
 
 		var extendsCtx = ctx.classExtendsReference();
 		if (extendsCtx) {
-			symbol.extendsRef = new UCClassRef({
+			symbol.extendsRef = new UCTypeRef({
 				name: extendsCtx.text,
 				range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
-			});
+			}, UCType.Class);
 		}
 
 		var withinCtx = ctx.classWithinReference();
 		if (withinCtx) {
-			symbol.withinRef = new UCClassRef({
+			symbol.withinRef = new UCTypeRef({
 				name: withinCtx.text,
 				range: rangeFromTokens(withinCtx.start, withinCtx.stop)
-			});
+			}, UCType.Class);
 		}
 
 		return symbol;
