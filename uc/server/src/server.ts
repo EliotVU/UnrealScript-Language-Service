@@ -24,10 +24,14 @@ import {
 	Range} from 'vscode-languageserver';
 
 import {
-	DocumentParser, UCDocument, UCSymbol, UCPropertySymbol, UCStructSymbol, UCClassSymbol,
-	UCFunctionSymbol, UCScriptStructSymbol, UCPackage, UCSymbolRef} from './parser';
-import { NATIVE_SYMBOLS, CORE_PACKAGE } from "./NativeSymbols";
-import { FUNCTION_MODIFIERS, CLASS_DECLARATIONS, PRIMITIVE_TYPE_NAMES, VARIABLE_MODIFIERS, FUNCTION_DECLARATIONS, STRUCT_DECLARATIONS, STRUCT_MODIFIERS } from "./keywords";
+	UCPropertySymbol, UCStructSymbol, UCClassSymbol,
+	UCFunctionSymbol, UCScriptStructSymbol, UCSymbolRef} from './UC/symbols/symbols';
+import { UCPackage } from "./UC/symbols/UCPackage";
+import { DocumentParser } from "./UC/DocumentParser";
+import { UCDocument } from "./UC/UCDocument";
+import { UCSymbol } from "./UC/symbols/UCSymbol";
+import { NATIVE_SYMBOLS, CORE_PACKAGE } from "./UC/symbols/NativeSymbols";
+import { FUNCTION_MODIFIERS, CLASS_DECLARATIONS, PRIMITIVE_TYPE_NAMES, VARIABLE_MODIFIERS, FUNCTION_DECLARATIONS, STRUCT_DECLARATIONS, STRUCT_MODIFIERS } from "./UC/keywords";
 
 let connection = createConnection(ProposedFeatures.all);
 

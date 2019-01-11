@@ -1,4 +1,4 @@
-import { UCPackage } from './parser';
+import { UCPackage } from "./UCPackage";
 import { UCNativeSymbol } from "./UCNativeSymbol";
 
 export const CORE_PACKAGE = new UCPackage('Core');
