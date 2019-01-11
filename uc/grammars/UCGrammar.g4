@@ -222,6 +222,9 @@ kwDONTSORTCATEGORIES: 'dontsortcategories';
 kwINHERITS: 'inherits';
 kwFORCESCRIPTORDER: 'forcescriptorder';
 
+kwNEW: 'new';
+kwGOTO: 'goto';
+
 kwBEGIN: 'begin';
 kwEND: 'end';
 
@@ -380,6 +383,8 @@ identifier: ID
 	|'forcescriptorder'
 	|'begin'
 	|'end'
+	|'new'
+	|'goto'
 	;
 
 program:
@@ -413,7 +418,7 @@ noneLiteral: kwNONE;
 
 // Maybe leave the post DOT parsing to the expression parsing?
 // e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
-classLiteral: identifier nameLiteral (DOT (kwSTATIC | kwDEFAULT | kwCONST) DOT)?;
+classLiteral: identifier nameLiteral;
 
 literal:
 	noneLiteral
@@ -422,7 +427,6 @@ literal:
 	| stringLiteral
 	| nameLiteral
 	| classLiteral
-	| qualifiedIdentifier // e.g. a constant or enum name
 	;
 
 numberLiteral: (MINUS | PLUS)? (FLOAT | INTEGER);
@@ -431,7 +435,7 @@ numberLiteral: (MINUS | PLUS)? (FLOAT | INTEGER);
 // Package.Class.Field
 // Class.Field
 // Class / Field
-qualifiedIdentifier: identifier (DOT identifier (DOT identifier)?)?;
+qualifiedIdentifier: identifier (DOT identifier)*;
 
 classDecl
 	:
@@ -506,7 +510,7 @@ modifierArguments: LPAREN (modifierValue COMMA?)+ RPAREN;
 constDecl: kwCONST constName EQUALS_SIGN constValue SEMICOLON;
 
 constName: identifier;
-constValue: literal;
+constValue: literal | qualifiedIdentifier;
 
 varDecl:
 	kwVAR
@@ -522,7 +526,7 @@ variable: variableName arrayDim? nativeType? variableMeta?;
 variableMeta: LARROW (metaProperty (COMMA metaProperty)?) RARROW;
 metaProperty: metaName EQUALS_SIGN metaValue;
 metaName: ID;
-metaValue: literal;
+metaValue: literal | qualifiedIdentifier;
 
 variableName: identifier;
 categoryName: identifier;
@@ -689,7 +693,7 @@ replicationBlock:
 replicationModifier: (kwRELIABLE | kwUNRELIABLE);
 
 replicationStatement:
-	replicationModifier? kwIF (LPAREN condition RPAREN) (
+	replicationModifier? kwIF (LPAREN expression RPAREN) (
 		replicateId (COMMA replicateId)* SEMICOLON
 	);
 
@@ -796,44 +800,45 @@ localDecl:
 labelName: identifier;
 
 stateReference: qualifiedIdentifier;
-
 stateDecl: (stateModifier)* kwSTATE (LPAREN RPAREN)? stateName
 		(kwEXTENDS stateReference)?
 		LBRACE
 			(kwIGNORES methodReference (COMMA methodReference)* SEMICOLON)?
 			(localDecl)*
 			(functionDecl)*
-			(labelName COLON statement*)*
+			(labeledStatement statement*)*
 		RBRACE SEMICOLON?;
 
 stateName: identifier;
-
 stateModifier: kwAUTO | kwSIMULATED;
 
-codeBody: (codeBlock | statement*);
-
 codeBlock: (LBRACE statement* RBRACE);
+codeBlockOptional: (codeBlock | statement*);
 
 statement:
 	(
-		sm_if
-		| sm_else
-		| sm_for
-		| sm_foreach
-		| sm_while
-		| sm_do_until
-		| sm_switch
-		| (control SEMICOLON)
+		ifStatement
+		| forStatement
+		| foreachStatement
+		| whileStatement
+		| doStatement
+		| switchStatement
+		| controlStatement
+		| labeledStatement
 		| (expression SEMICOLON)
 	) SEMICOLON* // Pass trailing semicolons
 	;
 
-control:
-	sm_return
+labeledStatement: labelName COLON;
+gotoStatement: kwGOTO labelName SEMICOLON;
+
+controlStatement
+	: returnStatement
+	| gotoStatement
 	// These will require post-parsing validation
-	| sm_break
-	| sm_continue
-	| sm_stop // in states
+	| breakStatement
+	| continueStatement
+	| stopStatement // in states
 	;
 
 // should be EXPR = EXPR but UnrealScript is an exception in that it does - only allow assignments
@@ -841,61 +846,88 @@ control:
 // supports ID = expression
 assignment: expression EQUALS_SIGN expression;
 
-condition: expression;
+expression
+	: expression QUESTIONMARK expression COLON expression
+	| expression functionName expression
+	| unaryExpression
+	;
 
-expression:
-	expression operatorExpression expression
-	| operatorExpression expression
-	| expression operatorExpression
+unaryExpression
+	: primaryExpression functionName primaryExpression // HACK: FIXME shouldn't be neccessary but since UC supports id for pre and post operators we kinda have to!
+	| unaryExpression functionName // (id ++) etc
+	| functionName unaryExpression // (++ id)
+	| primaryExpression
+	;
+
+primaryExpression
+	: (kwSUPER | kwGLOBAL) DOT identifier LPAREN arguments RPAREN
+	| (kwSUPER | kwGLOBAL) LPAREN identifier RPAREN DOT identifier arguments
+	| kwNEW (LPAREN arguments RPAREN)? expression (LPAREN expression RPAREN)?
 	| literal
-	| specifier
-	| call arrayElement? expression? // HACK for special operators
-	| identifier arrayElement? // FIXME: kwCONST in literal context.
-	| (LPAREN expression RPAREN);
+	| kwDEFAULT | kwSELF
+	| identifier
+	| (LPAREN expression RPAREN)
+	| primaryExpression DOT contextSpecifiers
+	| primaryExpression DOT identifier
+	| builtInObjects DOT primaryExpression
+	| primaryExpression LPAREN arguments RPAREN
+	| primaryExpression LBRACKET expression RBRACKET
+	// nameof, arraycount?
+	;
 
-operatorExpression: DOT | QUESTIONMARK | COLON | identifier | operatorId;
+builtInObjects
+	: kwSTATIC
+	| kwDEFAULT
+	| kwSELF
+	;
 
-specifier:
-	kwSELF
+contextSpecifiers
+	: kwDEFAULT
 	| kwSTATIC
 	| kwCONST
-	| kwDEFAULT
-	| kwSUPER;
+	;
 
-funcSpecifier: (kwGLOBAL | (kwSUPER (LPAREN classReference RPAREN)?)) DOT;
+arguments: (COMMA* argument)*;
+argument: expression;
 
-arrayElement: (LBRACKET expression RBRACKET);
+ifStatement
+	:
+	kwIF (LPAREN expression RPAREN)
+		codeBlockOptional
+	kwELSE?
+	;
 
-cast: classGeneric | identifier;
+elseStatement: kwELSE codeBlockOptional;
+foreachStatement: kwFOREACH primaryExpression codeBlockOptional;
 
-call: identifier LPAREN (COMMA* expression)* RPAREN;
-
-sm_if: kwIF (LPAREN condition RPAREN) codeBody;
-
-sm_else: kwELSE codeBody;
-
-sm_foreach: kwFOREACH expression codeBody;
-
-sm_for:
+forStatement:
 	kwFOR (
-		LPAREN assignment? SEMICOLON condition? SEMICOLON expression? RPAREN
-	) codeBody;
+		LPAREN assignment? SEMICOLON expression? SEMICOLON expression? RPAREN
+	) codeBlockOptional;
 
-sm_while: kwWHILE (LPAREN condition RPAREN) codeBody;
+whileStatement
+	: kwWHILE (LPAREN expression RPAREN)
+		codeBlockOptional
+	;
 
-sm_do_until:
-	kwDO codeBody kwUNTIL (LPAREN condition RPAREN);
+doStatement
+	: kwDO
+		codeBlockOptional
+	  kwUNTIL (LPAREN expression RPAREN)
+	;
 
-sm_switch:
+switchStatement:
 	kwSWITCH (LPAREN expression RPAREN)
-	LBRACE?
-		((kwCASE | kwDEFAULT) literal COLON codeBody)*
+	LBRACE? (
+		(kwCASE | kwDEFAULT) expression COLON
+			codeBlockOptional
+	)*
 	RBRACE?;
 
-sm_return: kwRETURN expression?;
-sm_break: kwBREAK;
-sm_continue: kwCONTINUE;
-sm_stop: kwSTOP;
+returnStatement: kwRETURN expression? SEMICOLON;
+breakStatement: kwBREAK SEMICOLON;
+continueStatement: kwCONTINUE SEMICOLON;
+stopStatement: kwSTOP SEMICOLON;
 
 defaultpropertiesBlock
 	:
@@ -907,7 +939,8 @@ defaultpropertiesBlock
 
 objectDecl
 	:
-		kwBEGIN ID kwNAME EQUALS_SIGN objectName
+		kwBEGIN ID
+			(kwNAME EQUALS_SIGN objectName | kwCLASS EQUALS_SIGN className)+
 			propertiesBlock
 		kwEND ID
 	;
