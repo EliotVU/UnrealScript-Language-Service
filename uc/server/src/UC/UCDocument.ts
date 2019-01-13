@@ -6,7 +6,7 @@ import { SyntaxErrorNode, IDiagnosticNode } from './diagnostics/diagnostics';
 import { ISimpleSymbol } from './symbols/ISimpleSymbol';
 import { ISymbolContainer } from './symbols/ISymbolContainer';
 import { UCSymbol } from './symbols/UCSymbol';
-import { UCClassSymbol, UCStructSymbol, UCConstSymbol, UCEnumSymbol, UCEnumMemberSymbol, UCScriptStructSymbol, UCTypeRef, UCPropertySymbol, UCFunctionSymbol, UCStateSymbol, UCObjectSymbol, UCDefaultVariableSymbol, UCSymbolRef, UCType } from './symbols/symbols';
+import { UCClassSymbol, UCStructSymbol, UCConstSymbol, UCEnumSymbol, UCEnumMemberSymbol, UCScriptStructSymbol, UCTypeRef, UCPropertySymbol, UCFunctionSymbol, UCStateSymbol, UCObjectSymbol, UCDefaultVariableSymbol, UCSymbolRef, UCType, UCParamSymbol, UCLocalSymbol } from './symbols/symbols';
 import { UCPackage } from "./symbols/UCPackage";
 import * as UCParser from '../antlr/UCGrammarParser';
 
@@ -293,7 +293,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			if (!propName) {
 				continue;
 			}
-			const propSymbol = new UCPropertySymbol(
+			const propSymbol = new UCParamSymbol(
 				{ name: propName.text, range: rangeFromToken(propName.start) },
 				{ range: rangeFromTokens(paramCtx.start, paramCtx.stop) }
 			);
@@ -323,7 +323,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 					continue;
 				}
 
-				const propSymbol = new UCPropertySymbol(
+				const propSymbol = new UCLocalSymbol(
 					{ name: propName.text, range: rangeFromToken(propName.start) },
 					// Stop at varCtx instead of localCtx for mulitiple variable declarations.
 					{ range: rangeFromTokens(localCtx.start, varCtx.stop) }

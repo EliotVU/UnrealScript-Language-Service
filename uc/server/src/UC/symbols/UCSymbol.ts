@@ -18,6 +18,10 @@ export abstract class UCSymbol implements ISimpleSymbol {
 	constructor(private id: ISymbolId) {
 	}
 
+	getTypeTooltip(): string {
+		return undefined;
+	}
+
 	getTooltip(): string | undefined {
 		return this.getName();
 	}

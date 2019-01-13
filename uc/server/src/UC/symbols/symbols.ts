@@ -175,11 +175,15 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return CompletionItemKind.Property;
 	}
 
+	getTypeTooltip(): string {
+		return '(variable)';
+	}
+
 	getTooltip(): string {
 		if (this.typeRef) {
-			return `(variable) ${this.getTypeText()} ${this.getQualifiedName()}`;
+			return `${this.getTypeTooltip()} ${this.getTypeText()} ${this.getQualifiedName()}`;
 		}
-		return '(variable) ' + this.getQualifiedName();
+		return this.getTypeTooltip() + ' ' + this.getQualifiedName();
 	}
 
 	getTypeText(): string {
@@ -208,6 +212,34 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 }
 
+export class UCParamSymbol extends UCPropertySymbol {
+	getKind(): SymbolKind {
+		return SymbolKind.TypeParameter;
+	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.TypeParameter;
+	}
+
+	getTypeTooltip(): string {
+		return '(parameter)';
+	}
+}
+
+export class UCLocalSymbol extends UCPropertySymbol {
+	getKind(): SymbolKind {
+		return SymbolKind.TypeParameter;
+	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.TypeParameter;
+	}
+
+	getTypeTooltip(): string {
+		return '(local)';
+	}
+}
+
 export class UCEnumSymbol extends UCFieldSymbol {
 	getKind(): SymbolKind {
 		return SymbolKind.Enum;
@@ -231,8 +263,12 @@ export class UCEnumMemberSymbol extends UCSymbol {
 		return CompletionItemKind.EnumMember;
 	}
 
+	getTypeTooltip(): string {
+		return '(enum member)';
+	}
+
 	getTooltip(): string {
-		return `(enum member) ${this.getQualifiedName()}`;
+		return `${this.getTypeTooltip()} ${this.getQualifiedName()}`;
 	}
 }
 
@@ -338,8 +374,12 @@ export class UCDefaultVariableSymbol extends UCFieldSymbol {
 		return SymbolKind.Property;
 	}
 
+	getTypeTooltip(): string {
+		return '(default)';
+	}
+
 	getTooltip(): string {
-		return '(default) ' + this.getName();
+		return this.getTypeTooltip() + ' ' + this.getName();
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -409,8 +449,12 @@ export class UCFunctionSymbol extends UCStructSymbol {
 		return CompletionItemKind.Function;
 	}
 
+	getTypeTooltip(): string {
+		return '(method)';
+	}
+
 	getTooltip(): string {
-		return '(method) ' + this.buildReturnType() + this.getQualifiedName() + this.buildArguments();
+		return this.getTypeTooltip() + ' ' + this.buildReturnType() + this.getQualifiedName() + this.buildArguments();
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -457,11 +501,11 @@ export class UCStateSymbol extends UCStructSymbol {
 
 export class UCClassSymbol extends UCStructSymbol {
 	public isLinked: boolean = false;
-	public document: UCDocument;
+
+	public document?: UCDocument;
 
 	public withinRef?: UCSymbol;
-
-	public replicatedFieldRefs: UCSymbolRef[];
+	public replicatedFieldRefs?: UCSymbolRef[];
 
 	public static visit(ctx: UCParser.ClassDeclContext): UCClassSymbol {
 		var className = ctx.className();
