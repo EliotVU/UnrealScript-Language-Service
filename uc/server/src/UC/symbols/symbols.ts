@@ -461,7 +461,7 @@ export class UCClassSymbol extends UCStructSymbol {
 
 	public withinRef?: UCSymbol;
 
-	public replicatedNameTokens: Token[] = [];
+	public replicatedFieldRefs: UCSymbolRef[];
 
 	public static visit(ctx: UCParser.ClassDeclContext): UCClassSymbol {
 		var className = ctx.className();
@@ -519,6 +519,14 @@ export class UCClassSymbol extends UCStructSymbol {
 				return this.withinRef;
 			}
 		} else {
+			// TODO: Optimize
+			if (this.replicatedFieldRefs) {
+				for (let ref of this.replicatedFieldRefs) {
+					if (ref.getSymbolAtPos(position)) {
+						return ref;
+					}
+				}
+			}
 			return this.getChildSymbolAtPos(position);
 		}
 		return undefined;
@@ -562,27 +570,27 @@ export class UCClassSymbol extends UCStructSymbol {
 			document.nodes.push(errorNode);
 		}
 
-		if (this.replicatedNameTokens) {
-			for (let nameToken of this.replicatedNameTokens) {
-				let nameSymbol = new UCSymbolRef({ name: nameToken.text, range: rangeFromToken(nameToken) });
+		if (this.replicatedFieldRefs) {
+			for (let symbolRef of this.replicatedFieldRefs) {
+				// ref.link(document);
+				let symbol = this.findChildSymbol(symbolRef.getName());
+				if (!symbol) {
+					const errorNode = new SemanticErrorNode(
+						symbolRef,
+						`Variable '${symbolRef.getName()}' does not exist in class '${document.class.getName()}'.`
+					);
+					document.nodes.push(errorNode);
+					continue;
+				}
 
-				// Only child symbols are replicated thus we can safely skip any super children.
-				let symbol = this.findChildSymbol(nameToken.text);
-				if (symbol) {
-					symbol.addReference(Location.create(document.uri, rangeFromToken(nameToken)));
-					if (symbol instanceof UCPropertySymbol || symbol instanceof UCFunctionSymbol) {
-						continue;
-					} else {
-						const errorNode = new SemanticErrorNode(
-							nameSymbol,
-							`Type of field '${symbol.getName()}' is not replicatable!`
-						);
-						document.nodes.push(errorNode);
-					}
+				symbolRef.setReference(symbol);
+				symbol.addReference(Location.create(document.uri, symbolRef.getIdRange()));
+				if (symbol instanceof UCPropertySymbol || symbol instanceof UCFunctionSymbol) {
+					continue;
 				} else {
 					const errorNode = new SemanticErrorNode(
-						nameSymbol,
-						`Variable '${nameToken.text}' does not exist in class '${document.class.getName()}'.`
+						symbolRef,
+						`Type of field '${symbol.getName()}' is not replicatable!`
 					);
 					document.nodes.push(errorNode);
 				}

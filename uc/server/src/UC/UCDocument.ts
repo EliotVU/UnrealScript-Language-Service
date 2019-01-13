@@ -245,13 +245,17 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			{ name: nameCtx.text, range: rangeFromToken(nameCtx.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
+		this.class.replicatedFieldRefs = [];
 		this.declare(symbol);
 	}
 
 	enterReplicationStatement(ctx: UCParser.ReplicationStatementContext) {
 		for (const varCtx of ctx.replicateId()) {
-			let nameToken = varCtx.start;
-			this.class.replicatedNameTokens.push(nameToken);
+			const symbol = new UCSymbolRef({
+				name: varCtx.text, range: rangeFromToken(varCtx.start)
+			});
+
+			this.class.replicatedFieldRefs.push(symbol);
 		}
 	}
 
