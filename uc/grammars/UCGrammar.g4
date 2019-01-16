@@ -60,6 +60,8 @@ DIVIDESIGN: '/';
 MODULUSSIGN: '%';
 TILTSIGN: '~';
 
+// NOTE: all class exclusive modifiers are commented out because we don't have to capture them.
+
 kwDEFAULT: 'default';
 kwSELF: 'self';
 kwSUPER: 'super';
@@ -160,23 +162,23 @@ kwSERIALIZETEXT: 'serializetext';
 kwCONFIG: 'config';
 kwGLOBALCONFIG: 'globalconfig';
 kwNATIVE: 'native' | 'intrinsic';
-kwNATIVEREPLICATION: 'nativereplication';
-kwNATIVEONLY: 'nativeonly';
+// kwNATIVEREPLICATION: 'nativereplication';
+// kwNATIVEONLY: 'nativeonly';
 kwEXPORT: 'export';
-kwABSTRACT: 'abstract';
-kwPEROBJECTCONFIG: 'perobjectconfig';
-kwPEROBJECTLOCALIZED: 'perobjectlocalized';
-kwPLACEABLE: 'placeable';
-kwNOUSERCREATE: 'nousercreate';
-kwNOTPLACEABLE: 'notplaceable';
-kwSAFEREPLACE: 'safereplace';
-kwDEPENDSON: 'dependson';
-kwSHOWCATEGORIES: 'showcategories';
-kwHIDECATEGORIES: 'hidecategories';
-kwGUID: 'guid';
+// kwABSTRACT: 'abstract';
+// kwPEROBJECTCONFIG: 'perobjectconfig';
+// kwPEROBJECTLOCALIZED: 'perobjectlocalized';
+// kwPLACEABLE: 'placeable';
+// kwNOUSERCREATE: 'nousercreate';
+// kwNOTPLACEABLE: 'notplaceable';
+// kwSAFEREPLACE: 'safereplace';
+// kwDEPENDSON: 'dependson';
+// kwSHOWCATEGORIES: 'showcategories';
+// kwHIDECATEGORIES: 'hidecategories';
+// kwGUID: 'guid';
 kwLONG: 'long';
 kwTRANSIENT: 'transient';
-kwNONTRANSIENT: 'nontransient';
+// kwNONTRANSIENT: 'nontransient';
 kwCACHE: 'cache';
 kwINTERP: 'interp';
 kwREPRETRY: 'repretry';
@@ -188,16 +190,16 @@ kwCROSSLEVELPASSIVE: 'crosslevelpassive';
 kwAUTOMATED: 'automated';
 kwTRAVEL: 'travel';
 kwInput: 'input';
-kwCACHEEXEMPT: 'cacheexempt';
-kwHIDEDROPDOWN: 'hidedropdown';
+// kwCACHEEXEMPT: 'cacheexempt';
+// kwHIDEDROPDOWN: 'hidedropdown';
 kwINSTANCED: 'instanced';
 kwDATABINDING: 'databinding';
 kwDUPLICATETRANSIENT: 'duplicatetransient';
 kwPARSECONFIG: 'parseconfig';
-kwEDITINLINENEW: 'editinlinenew';
-kwNOTEDITINLINENEW: 'noteditinlinenew';
-kwEXPORTSTRUCTS: 'exportstructs';
-kwDLLBIND: 'dllbind';
+// kwEDITINLINENEW: 'editinlinenew';
+// kwNOTEDITINLINENEW: 'noteditinlinenew';
+// kwEXPORTSTRUCTS: 'exportstructs';
+// kwDLLBIND: 'dllbind';
 kwDEPRECATED: 'deprecated';
 kwSTRICTCONFIG: 'strictconfig';
 kwATOMIC: 'atomic';
@@ -210,16 +212,16 @@ kwCLIENT: 'client';
 kwDLLIMPORT: 'dllimport';
 kwDEMORECORDING: 'demorecording';
 
-kwCOLLAPSECATEGORIES: 'collapsecategories';
-kwDONTCOLLAPSECATEGORIES: 'dontcollapsecategories';
-kwIMPLEMENTS: 'implements';
-kwCLASSGROUP: 'classgroup';
-kwAUTOEXPANDCATEGORIES: 'autoexpandcategories';
-kwAUTOCOLLAPSECATEGORIES: 'autocollapsecategories';
-kwDONTAUTOCOLLAPSECATEGORIES: 'dontautocollapsecategories';
-kwDONTSORTCATEGORIES: 'dontsortcategories';
-kwINHERITS: 'inherits';
-kwFORCESCRIPTORDER: 'forcescriptorder';
+// kwCOLLAPSECATEGORIES: 'collapsecategories';
+// kwDONTCOLLAPSECATEGORIES: 'dontcollapsecategories';
+// kwIMPLEMENTS: 'implements';
+// kwCLASSGROUP: 'classgroup';
+// kwAUTOEXPANDCATEGORIES: 'autoexpandcategories';
+// kwAUTOCOLLAPSECATEGORIES: 'autocollapsecategories';
+// kwDONTAUTOCOLLAPSECATEGORIES: 'dontautocollapsecategories';
+// kwDONTSORTCATEGORIES: 'dontsortcategories';
+// kwINHERITS: 'inherits';
+// kwFORCESCRIPTORDER: 'forcescriptorder';
 
 kwNEW: 'new';
 kwGOTO: 'goto';
@@ -227,7 +229,8 @@ kwGOTO: 'goto';
 kwBEGIN: 'begin';
 kwEND: 'end';
 
-identifier: ID
+identifier
+	: ID
 	|'default'
 	|'self'
 	|'super'
@@ -321,23 +324,23 @@ identifier: ID
 	|'globalconfig'
 	|'intrinsic'
 	|'native'
-	|'nativereplication'
-	|'nativeonly'
+	// |'nativereplication'
+	// |'nativeonly'
 	|'export'
-	|'abstract'
-	|'perobjectconfig'
-	|'perobjectlocalized'
-	|'placeable'
-	|'nousercreate'
-	|'notplaceable'
-	|'safereplace'
-	|'dependson'
-	|'showcategories'
-	|'hidecategories'
-	|'guid'
+	// |'abstract'
+	// |'perobjectconfig'
+	// |'perobjectlocalized'
+	// |'placeable'
+	// |'nousercreate'
+	// |'notplaceable'
+	// |'safereplace'
+	// |'dependson'
+	// |'showcategories'
+	// |'hidecategories'
+	// |'guid'
 	|'long'
 	|'transient'
-	|'nontransient'
+	// |'nontransient'
 	|'cache'
 	|'interp'
 	|'repretry'
@@ -349,16 +352,16 @@ identifier: ID
 	|'automated'
 	|'travel'
 	|'input'
-	|'cacheexempt'
-	|'hidedropdown'
+	// |'cacheexempt'
+	// |'hidedropdown'
 	|'instanced'
 	|'databinding'
 	|'duplicatetransient'
-	|'parseconfig'
-	|'editinlinenew'
-	|'noteditinlinenew'
-	|'exportstructs'
-	|'dllbind'
+	// |'parseconfig'
+	// |'editinlinenew'
+	// |'noteditinlinenew'
+	// |'exportstructs'
+	// |'dllbind'
 	|'deprecated'
 	|'strictconfig'
 	|'atomic'
@@ -370,16 +373,16 @@ identifier: ID
 	|'client'
 	|'dllimport'
 	|'demorecording'
-	|'collapsecategories'
-	|'dontcollapsecategories'
-	|'implements'
-	|'classgroup'
-	|'autoexpandcategories'
-	|'autocollapsecategories'
-	|'dontautocollapsecategories'
-	|'dontsortcategories'
-	|'inherits'
-	|'forcescriptorder'
+	// |'collapsecategories'
+	// |'dontcollapsecategories'
+	// |'implements'
+	// |'classgroup'
+	// |'autoexpandcategories'
+	// |'autocollapsecategories'
+	// |'dontautocollapsecategories'
+	// |'dontsortcategories'
+	// |'inherits'
+	// |'forcescriptorder'
 	|'begin'
 	|'end'
 	|'new'
@@ -415,12 +418,11 @@ booleanLiteral: kwTRUE | kwFALSE;
 
 noneLiteral: kwNONE;
 
-// Maybe leave the post DOT parsing to the expression parsing?
 // e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
 classLiteral: identifier nameLiteral;
 
-literal:
-	noneLiteral
+literal
+	: noneLiteral
 	| booleanLiteral
 	| numberLiteral
 	| stringLiteral
@@ -440,18 +442,15 @@ classDecl
 	:
 		(kwCLASS | kwINTERFACE) className
 			(
-				kwEXTENDS classExtendsReference
+				extendsClause
 				// UC2+
-				(kwWITHIN classWithinReference)?
+				withinClause?
 			)?
 			classModifier* SEMICOLON
 	;
 
-classReference: qualifiedIdentifier;
-
-classExtendsReference: classReference;
-
-classWithinReference: classReference;
+extendsClause: kwEXTENDS qualifiedIdentifier;
+withinClause: kwWITHIN qualifiedIdentifier;
 
 classModifier: identifier modifierArguments?;
 	// in UC3 a class can have a custom native name.
@@ -500,7 +499,10 @@ classModifier: identifier modifierArguments?;
 	// ; //ID (LPARENT ID (COMMA ID)* RPARENT)?
 
 // TODO: may be a numeric or typeName!
-modifierValue: identifier | numberLiteral;
+modifierValue
+	: identifier
+	| numberLiteral
+	;
 
 modifierArgument: LPAREN modifierValue RPAREN;
 
@@ -513,22 +515,24 @@ constValue: literal | qualifiedIdentifier;
 
 varDecl:
 	kwVAR
-		(LPAREN (categoryName (COMMA categoryName)*)? RPAREN)?
+		(LPAREN categoryList? RPAREN)?
 		variableModifier*
-		variableDeclType
+		varDeclTypes
 		variable (COMMA variable)*
 	SEMICOLON;
 
 variable: variableName arrayDim? nativeType? variableMeta?;
 
 // UC3 <UIMin=0.0,UIMax=1.0,Toolip="Hello">
-variableMeta: LARROW (metaProperty (COMMA metaProperty)?) RARROW;
+variableMeta: LARROW (metaList) RARROW;
 metaProperty: metaName EQUALS_SIGN metaValue;
 metaName: ID;
 metaValue: literal | qualifiedIdentifier;
+metaList: metaProperty (COMMA metaProperty)*;
 
 variableName: identifier;
 categoryName: identifier;
+categoryList: categoryName (COMMA categoryName)*;
 
 // UC3 CPP specifier e.g. {public}
 nativeSpecifier: LBRACE nativeSpecifier RBRACE;
@@ -585,18 +589,22 @@ variableModifier
 	) nativeSpecifier?
 	;
 
-variableType:
-	arrayGeneric
+typeDecl
+	: arrayGeneric
 	| classGeneric
 	| mapGeneric
 	| primitiveType
 	| qualifiedIdentifier
 	;
 
-variableDeclType: (enumDecl | structDecl | variableType);
+varDeclTypes
+	: enumDecl
+	| structDecl
+	| typeDecl
+	;
 
-primitiveType:
-	kwBYTE
+primitiveType
+	: kwBYTE
 	| kwINT
 	| kwFLOAT
 	| kwBOOL
@@ -619,7 +627,7 @@ arrayGeneric:
 		| qualifiedIdentifier
 	) RARROW;
 
-classGeneric: kwCLASS LARROW classReference RARROW;
+classGeneric: kwCLASS LARROW qualifiedIdentifier RARROW;
 
 mapGeneric:
 	kwMAP LARROW (
@@ -636,14 +644,11 @@ enumDecl:
 	;
 
 enumName: identifier;
-
 valueName: identifier;
-
-structReference: qualifiedIdentifier;
 
 structDecl:
 	kwSTRUCT nativeType? structModifier* structName (
-		kwEXTENDS structReference
+		extendsClause
 	)?
 	LBRACE
 		(
@@ -698,26 +703,31 @@ replicationStatement:
 
 replicateId: identifier;
 
-// public simulated function test(optional int p1, int p2) const; public simulated function
-// test(optional int p1, int p2) const { }
+/* Parses:
+ * public simulated function coerce class<Actor> test(optional int p1, int p2) const;
+ */
 functionDecl:
 	functionModifier* functionKind
 	// We have to identify LPARENT in each, - to prevent a false positive 'operatorName'
-	// identification.
 	// TODO: are multiple returnModifiers a thing?
-	((returnModifier? returnType functionName LPAREN)? | (functionName LPAREN))
-		paramDecl*
-	RPAREN (kwCONST)? (SEMICOLON | (
-		LBRACE
-			(constDecl | localDecl)*
-			statement*
-		RBRACE SEMICOLON?
+	((returnTypeModifier? returnType functionName LPAREN)? | functionName LPAREN) parameters? RPAREN kwCONST? (SEMICOLON | (
+		functionBody
+		SEMICOLON?
 	));
+
+/* Parses:
+ * { local Actor test, test2; return test.Class; }
+ */
+functionBody:
+	LBRACE
+		(constDecl | localDecl)*
+		statement*
+	RBRACE;
 
 nativeToken: (LPAREN INTEGER RPAREN);
 
-functionModifier:
-	kwPUBLIC
+functionModifier
+	: kwPUBLIC
 	| kwPROTECTED
 	| kwPRIVATE
 	| kwSIMULATED
@@ -738,17 +748,18 @@ functionModifier:
 	| kwSERVER
 	| kwCLIENT
 	| kwDLLIMPORT
-	| kwDEMORECORDING;
+	| kwDEMORECORDING
+	;
 
 functionName: identifier | operatorId;
 
+parameters: paramDecl (COMMA paramDecl)*;
+
 paramDecl:
-	paramModifier* variableType variable (EQUALS_SIGN expression)? COMMA?;
+	paramModifier* typeDecl variable (EQUALS_SIGN expression)?;
 
-methodReference : identifier;
-
-returnModifier: kwCOERCE;
-returnType: (variableType);
+returnTypeModifier: kwCOERCE;
+returnType: typeDecl;
 
 operatorId
 	:
@@ -794,15 +805,16 @@ paramModifier:
 	| kwCONST;
 
 localDecl:
-	kwLOCAL variableType variable (COMMA variable)* SEMICOLON;
+	kwLOCAL typeDecl variable (COMMA variable)* SEMICOLON;
 
 labelName: identifier;
 
-stateReference: qualifiedIdentifier;
+ignoresList: identifier (COMMA identifier)*;
+
 stateDecl: (stateModifier)* kwSTATE (LPAREN RPAREN)? stateName
-		(kwEXTENDS stateReference)?
+		extendsClause?
 		LBRACE
-			(kwIGNORES methodReference (COMMA methodReference)* SEMICOLON)?
+			(kwIGNORES ignoresList SEMICOLON)?
 			(localDecl)*
 			(functionDecl)*
 			(labeledStatement statement*)*
@@ -946,17 +958,22 @@ propertiesBlock: (objectDecl | defaultVariable)*;
 
 objectName: identifier;
 
-defaultVariable
-	: defaultId (
-		(LPAREN INTEGER RPAREN)
-		| (LBRACKET INTEGER RBRACKET)
-	)?
-	(EQUALS_SIGN defaultValue | DOT identifier LPAREN defaultValue RPAREN) SEMICOLON?;
+defaultVariable:
+	defaultId ((LPAREN INTEGER RPAREN) | (LBRACKET INTEGER RBRACKET))?
+	(EQUALS_SIGN defaultValue | DOT identifier LPAREN defaultValue RPAREN) SEMICOLON?
+	;
 
 defaultId: identifier;
 
+// (variableList)
 structLiteral
-	: LPAREN (defaultVariable (COMMA defaultVariable)*)? RPAREN
+	: LPAREN variablesList? RPAREN
+	;
+
+// id=literal,* or literal,*
+variablesList
+	: (defaultLiteral (COMMA defaultLiteral)*)
+	| (defaultVariable (COMMA defaultVariable)*)
 	;
 
 defaultLiteral
@@ -980,7 +997,7 @@ functionKind: (
 		kwEVENT
 		| kwFUNCTION
 		| kwDELEGATE
-		| (kwOPERATOR operatorPrecedence)
-		| (kwPREOPERATOR)
-		| (kwPOSTOPERATOR)
+		| kwOPERATOR operatorPrecedence
+		| kwPREOPERATOR
+		| kwPOSTOPERATOR
 	);

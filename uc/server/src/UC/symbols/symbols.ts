@@ -8,7 +8,7 @@ import { SemanticErrorNode } from '../diagnostics/diagnostics';
 import { ISimpleSymbol } from './ISimpleSymbol';
 import { ISymbolContainer } from './ISymbolContainer';
 import { UCSymbol } from './UCSymbol';
-import { UCDocument, rangeFromToken, rangeFromTokens } from '../UCDocument';
+import { UCDocument, rangeFromToken, rangeFromTokens, visitExtendsClause } from '../UCDocument';
 
 export interface ISymbolId {
 	text: string;
@@ -565,20 +565,14 @@ export class UCClassSymbol extends UCStructSymbol {
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 
-		var extendsCtx = ctx.classExtendsReference();
+		var extendsCtx = ctx.extendsClause();
 		if (extendsCtx) {
-			symbol.extendsRef = new UCTypeRef({
-				text: extendsCtx.text,
-				range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
-			}, symbol, UCType.Class);
+			symbol.extendsRef = visitExtendsClause(extendsCtx, UCType.Class);
 		}
 
-		var withinCtx = ctx.classWithinReference();
+		var withinCtx = ctx.withinClause();
 		if (withinCtx) {
-			symbol.withinRef = new UCTypeRef({
-				text: withinCtx.text,
-				range: rangeFromTokens(withinCtx.start, withinCtx.stop)
-			}, symbol, UCType.Class);
+			symbol.withinRef = visitExtendsClause(withinCtx, UCType.Class);
 		}
 
 		return symbol;

@@ -38,6 +38,13 @@ export function rangeFromTokens(startToken: Token, stopToken: Token): Range {
 	};
 }
 
+export function visitExtendsClause(extendsCtx: UCParser.ExtendsClauseContext | UCParser.WithinClauseContext, type: UCType): UCTypeRef {
+	return new UCTypeRef({
+		text: extendsCtx.qualifiedIdentifier().text,
+		range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
+	}, undefined, type);
+}
+
 export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {
 	public getDocument: (className: string, cb: (document: UCDocument) => void) => void;
 
@@ -153,12 +160,9 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 
-		const extendsCtx = ctx.structReference();
+		const extendsCtx = ctx.extendsClause();
 		if (extendsCtx) {
-			symbol.extendsRef = new UCTypeRef({
-				text: extendsCtx.text,
-				range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
-			}, symbol, UCType.Struct);
+			symbol.extendsRef = visitExtendsClause(extendsCtx, UCType.Struct);
 		}
 
 		this.declare(symbol);
@@ -169,15 +173,15 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.pop();
 	}
 
-	parseVariableType(varTypeCtx: UCParser.VariableTypeContext | UCParser.ArrayGenericContext) {
-		var parseClassGeneric = (classGenericCtx: UCParser.ClassGenericContext) => {
-			const className = classGenericCtx.classReference();
-			return new UCTypeRef(
-				{ text: className.text, range: rangeFromTokens(classGenericCtx.start, classGenericCtx.stop) },
-				undefined
-			);
-		};
+	private visitClassGeneric(classGenericCtx: UCParser.ClassGenericContext) {
+		const className: string = classGenericCtx.qualifiedIdentifier().text;
+		return new UCTypeRef(
+			{ text: className, range: rangeFromTokens(classGenericCtx.start, classGenericCtx.stop) },
+			undefined
+		);
+	}
 
+	private visitTypeDecl(varTypeCtx: UCParser.TypeDeclContext | UCParser.ArrayGenericContext) {
 		var typeName: string;
 		const primitiveType = varTypeCtx.primitiveType();
 		if (primitiveType) {
@@ -190,14 +194,14 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		const classGenericCtx = varTypeCtx.classGeneric();
 		if (classGenericCtx) {
 			typeName = 'class';
-			innerTypeRef = parseClassGeneric(classGenericCtx);
-		} else if (varTypeCtx instanceof UCParser.VariableTypeContext) {
+			innerTypeRef = this.visitClassGeneric(classGenericCtx);
+		} else if (varTypeCtx instanceof UCParser.TypeDeclContext) {
 			const arrayGenericCtx = varTypeCtx.arrayGeneric();
 			if (arrayGenericCtx) {
 				typeName = 'array';
-				innerTypeRef = this.parseInlinedDecl(arrayGenericCtx);
+				innerTypeRef = this.visitDeclTypes(arrayGenericCtx);
 				if (!innerTypeRef) {
-					innerTypeRef = this.parseVariableType(arrayGenericCtx);
+					innerTypeRef = this.visitTypeDecl(arrayGenericCtx);
 				}
 			}
 		}
@@ -213,7 +217,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		return typeRef;
 	}
 
-	parseInlinedDecl(propDeclType: UCParser.VariableDeclTypeContext | UCParser.ArrayGenericContext) {
+	private visitDeclTypes(propDeclType: UCParser.VarDeclTypesContext | UCParser.ArrayGenericContext) {
 		const inlinedStruct = propDeclType.structDecl();
 		if (inlinedStruct) {
 			const structName = inlinedStruct.structName();
@@ -235,15 +239,15 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	enterVarDecl(ctx: UCParser.VarDeclContext) {
-		const propDeclType = ctx.variableDeclType();
+		const propDeclType = ctx.varDeclTypes();
 		if (!propDeclType) {
 			return;
 		}
 
-		const varType = propDeclType.variableType();
+		const varType = propDeclType.typeDecl();
 		const typeRef = varType
-			? this.parseVariableType(varType)
-			: this.parseInlinedDecl(propDeclType);
+			? this.visitTypeDecl(varType)
+			: this.visitDeclTypes(propDeclType);
 
 		for (const varCtx of ctx.variable()) {
 			const varName = varCtx.variableName();
@@ -304,56 +308,58 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.declare(symbol);
 		this.push(symbol);
 
-		if (!ctx.paramDecl()) {
-			console.log('no params');
-		}
-
-		for (const paramCtx of ctx.paramDecl()) {
-			if (!paramCtx) {
-				break;
-			}
-			const varCtx = paramCtx.variable();
-			const propName = varCtx.variableName();
-			if (!propName) {
-				continue;
-			}
-			const propSymbol = new UCParamSymbol(
-				{ text: propName.text, range: rangeFromToken(propName.start) },
-				{ range: rangeFromTokens(paramCtx.start, paramCtx.stop) }
-			);
-
-			const propTypeCtx = paramCtx.variableType();
-			propSymbol.typeRef = new UCTypeRef({
-				text: propTypeCtx.text,
-				range: rangeFromTokens(propTypeCtx.start, propTypeCtx.stop)
-			}, symbol);
-			symbol.params.push(propSymbol);
-			this.declare(propSymbol);
-		}
-
-		for (const localCtx of ctx.localDecl()) {
-			if (!localCtx) {
-				break;
-			}
-
-			const propTypeCtx = localCtx.variableType();
-			const propTypeRef = new UCTypeRef({
-				text: propTypeCtx.text,
-				range: rangeFromTokens(propTypeCtx.start, propTypeCtx.stop)
-			}, symbol);
-			for (const varCtx of localCtx.variable()) {
+		var params = ctx.parameters();
+		if (params) {
+			for (const paramCtx of params.paramDecl()) {
+				if (!paramCtx) {
+					break;
+				}
+				const varCtx = paramCtx.variable();
 				const propName = varCtx.variableName();
 				if (!propName) {
 					continue;
 				}
-
-				const propSymbol = new UCLocalSymbol(
+				const propSymbol = new UCParamSymbol(
 					{ text: propName.text, range: rangeFromToken(propName.start) },
-					// Stop at varCtx instead of localCtx for mulitiple variable declarations.
-					{ range: rangeFromTokens(localCtx.start, varCtx.stop) }
+					{ range: rangeFromTokens(paramCtx.start, paramCtx.stop) }
 				);
-				propSymbol.typeRef = propTypeRef;
+
+				const propTypeCtx = paramCtx.typeDecl();
+				propSymbol.typeRef = new UCTypeRef({
+					text: propTypeCtx.text,
+					range: rangeFromTokens(propTypeCtx.start, propTypeCtx.stop)
+				}, symbol);
+				symbol.params.push(propSymbol);
 				this.declare(propSymbol);
+			}
+		}
+
+		var body = ctx.functionBody();
+		if (body) {
+			for (const localCtx of body.localDecl()) {
+				if (!localCtx) {
+					break;
+				}
+
+				const propTypeCtx = localCtx.typeDecl();
+				const propTypeRef = new UCTypeRef({
+					text: propTypeCtx.text,
+					range: rangeFromTokens(propTypeCtx.start, propTypeCtx.stop)
+				}, symbol);
+				for (const varCtx of localCtx.variable()) {
+					const propName = varCtx.variableName();
+					if (!propName) {
+						continue;
+					}
+
+					const propSymbol = new UCLocalSymbol(
+						{ text: propName.text, range: rangeFromToken(propName.start) },
+						// Stop at varCtx instead of localCtx for mulitiple variable declarations.
+						{ range: rangeFromTokens(localCtx.start, varCtx.stop) }
+					);
+					propSymbol.typeRef = propTypeRef;
+					this.declare(propSymbol);
+				}
 			}
 		}
 		this.pop();
@@ -369,13 +375,9 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			{ text: stateName.text, range: rangeFromToken(stateName.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
-		const extendsCtx = ctx.stateReference();
+		const extendsCtx = ctx.extendsClause();
 		if (extendsCtx) {
-			// FIXME: UCStateRef?
-			symbol.extendsRef = new UCTypeRef({
-				text: extendsCtx.text,
-				range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
-			}, symbol, UCType.State);
+			symbol.extendsRef = visitExtendsClause(extendsCtx, UCType.State);
 		}
 
 		this.declare(symbol);
@@ -421,17 +423,21 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			symbol
 		);
 
-		const valCtx = ctx.defaultValue();
-		if (valCtx && valCtx.defaultLiteral().structLiteral()) {
-			const structCtx = valCtx.defaultLiteral().structLiteral();
-			const symbol = new UCObjectSymbol(
-				// Use the same name as the assigned var's name.
-				{ text: idCtx.text, range: rangeFromToken(structCtx.start) },
-				{ range: rangeFromTokens(structCtx.start, structCtx.stop) }
-			);
-			this.push(symbol);
-		}
 		this.declare(symbol);
+
+		const valCtx = ctx.defaultValue();
+		if (valCtx) {
+			const literal = valCtx.defaultLiteral();
+			const structCtx = literal.structLiteral();
+			if (structCtx) {
+				const subSymbol = new UCObjectSymbol(
+					// Use the same name as the assigned var's name.
+					{ text: idCtx.text, range: rangeFromToken(structCtx.start) },
+					{ range: rangeFromTokens(structCtx.start, structCtx.stop) }
+				);
+				this.push(subSymbol);
+			}
+		}
 	}
 
 	exitDefaultVariable(ctx: UCParser.DefaultVariableContext) {
