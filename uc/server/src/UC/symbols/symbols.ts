@@ -1,5 +1,3 @@
-import * as path from 'path';
-
 import { Range, SymbolKind, CompletionItemKind, Location, Position } from 'vscode-languageserver-types';
 
 import { Token } from 'antlr4ts';
@@ -13,20 +11,26 @@ import { UCSymbol } from './UCSymbol';
 import { UCDocument, rangeFromToken, rangeFromTokens } from '../UCDocument';
 
 export interface ISymbolId {
-	name: string;
+	text: string;
 	range: Range;
 }
 
-export interface ISymbolOffset {
+export interface ISymbolSpan {
 	range: Range;
+
+	// TODO: Add offset? For high-performance cursor position tracking.
 }
 
 /**
  * For general symbol references, like a function's return type which cannot yet be identified.
  */
 export class UCSymbolRef extends UCSymbol {
-	protected hasBeenLinked?: boolean;
 	protected reference?: ISimpleSymbol;
+
+	constructor(id: ISymbolId, outer: ISimpleSymbol) {
+		super(id);
+		this.outer = outer;
+	}
 
 	getTooltip(): string {
 		if (this.reference) {
@@ -60,8 +64,8 @@ export enum UCType {
 export class UCTypeRef extends UCSymbolRef {
 	public InnerTypeRef?: UCTypeRef;
 
-	constructor(id: ISymbolId, private _expectingType?: UCType) {
-		super(id);
+	constructor(id: ISymbolId, outer: ISimpleSymbol, private _expectingType?: UCType) {
+		super(id, outer);
 	}
 
 	getTooltip(): string {
@@ -83,44 +87,51 @@ export class UCTypeRef extends UCSymbolRef {
 		return undefined;
 	}
 
-	link(document: UCDocument) {
-		if (this.hasBeenLinked) {
-			return;
-		}
-		this.hasBeenLinked = true;
-
+	link(document: UCDocument, context: UCStructSymbol) {
 		if (!this.getName()) {
 			return;
 		}
 
-		// TODO: verify type, and parse classes that are not within scope!
-		this.reference = document.class.findSuperTypeSymbol(this.getName(), true);
-		if (!this.reference) {
-			// TODO: only check for existance first
-			let classDoc = document.getDocument(this.getName());
-			if (classDoc) {
-				this.setReference(classDoc.class);
-				classDoc.class.addReference(Location.create(document.uri, this.getIdRange()));
-				classDoc.class.document = classDoc; // temp hack
-				classDoc.class.link(classDoc);
-			} else {
-				document.nodes.push(new SemanticErrorNode(this, `Type '${this.getName()}' not found!`));
-			}
+		switch (this._expectingType) {
+			case UCType.Class:
+				this.linkToClass(document);
+				break;
+
+			default:
+				this.reference = context.findSuperTypeSymbol(this.getName().toLowerCase(), true);
+				if (!this.reference) {
+					this.linkToClass(document);
+				}
+				break;
 		}
-		else if (this.reference instanceof UCSymbol) {
+
+		if (this.reference instanceof UCSymbol) {
 			this.reference.addReference(Location.create(document.uri, this.getIdRange()));
 		}
 
 		if (this.InnerTypeRef) {
-			this.InnerTypeRef.link(document);
+			this.InnerTypeRef.link(document, context);
 		}
+	}
+
+	private linkToClass(document: UCDocument) {
+		document.getDocument(this.getName(), (classDocument => {
+			if (classDocument) {
+				this.setReference(classDocument.class);
+				classDocument.class.addReference(Location.create(document.uri, this.getIdRange()));
+				classDocument.class.document = classDocument; // temp hack
+				classDocument.link(classDocument);
+			} else {
+				document.nodes.push(new SemanticErrorNode(this, `Type '${this.getName()}' not found!`));
+			}
+		}));
 	}
 }
 
 export class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;
 
-	constructor(id: ISymbolId, private offset: ISymbolOffset) {
+	constructor(id: ISymbolId, private span: ISymbolSpan) {
 		super(id);
 	}
 
@@ -128,12 +139,12 @@ export class UCFieldSymbol extends UCSymbol {
 		return this.getQualifiedName();
 	}
 
-	getRange(): Range {
-		return this.offset.range;
+	getSpanRange(): Range {
+		return this.span.range;
 	}
 
 	isWithinPosition(position: Position) {
-		var range = this.getRange();
+		var range = this.getSpanRange();
 		var isInRange = position.line >= range.start.line && position.line <= range.end.line;
 		if (isInRange) {
 			if (position.line == range.start.line) {
@@ -203,11 +214,11 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return undefined;
 	}
 
-	public link(document: UCDocument) {
+	public link(document: UCDocument, context: UCStructSymbol) {
 		super.link(document);
 
 		if (this.typeRef) {
-			this.typeRef.link(document);
+			this.typeRef.link(document, context);
 		}
 	}
 }
@@ -277,6 +288,8 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	public super?: UCStructSymbol;
 	public children?: UCFieldSymbol;
 
+	public types?: Map<string, UCFieldSymbol>;
+
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
 	}
@@ -289,6 +302,13 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		symbol.outer = this;
 		symbol.next = this.children;
 		this.children = symbol;
+
+		if (symbol instanceof UCScriptStructSymbol || symbol instanceof UCEnumSymbol) {
+			if (!this.types) {
+				this.types = new Map();
+			}
+			this.types.set(symbol.getName().toLowerCase(), symbol);
+		}
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -340,15 +360,46 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	link(document: UCDocument) {
+	findSuperTypeSymbol(idLowerCase: string, deepSearch: boolean): ISimpleSymbol | undefined {
+		if (this.types) {
+			var typeSymbol = this.types.get(idLowerCase);
+			if (typeSymbol) {
+				return typeSymbol;
+			}
+		}
+
+		if (!deepSearch) {
+			return undefined;
+		}
+
+		if (this.super) {
+			return this.super.findSuperTypeSymbol(idLowerCase, deepSearch);
+		}
+
+		return super.findSuperTypeSymbol(idLowerCase, deepSearch);
+	}
+
+	link(document: UCDocument, context: UCStructSymbol) {
 		if (this.extendsRef) {
-			this.extendsRef.link(document);
-			// Temp hack
-			this.super = this.extendsRef.getReference() as UCStructSymbol;
+			this.extendsRef.link(document, context);
+			// Ensure that we don't overwrite super assignment from our descendant class.
+			if (!this.super) {
+				this.super = this.extendsRef.getReference() as UCStructSymbol;
+			}
+		}
+
+		if (this.types) {
+			for (var type of this.types.values()) {
+				type.link(document, context);
+			}
 		}
 
 		for (var child = this.children; child; child = child.next) {
-			child.link(document);
+			if (child instanceof UCScriptStructSymbol || child instanceof UCEnumSymbol) {
+				continue;
+			}
+
+			child.link(document, context);
 		}
 	}
 }
@@ -472,11 +523,11 @@ export class UCFunctionSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
-	public link(document: UCDocument) {
-		super.link(document);
+	public link(document: UCDocument, context: UCStructSymbol) {
+		super.link(document, context);
 
 		if (this.returnTypeRef) {
-			this.returnTypeRef.link(document);
+			this.returnTypeRef.link(document, context);
 		}
 	}
 
@@ -500,34 +551,34 @@ export class UCStateSymbol extends UCStructSymbol {
 }
 
 export class UCClassSymbol extends UCStructSymbol {
-	public isLinked: boolean = false;
-
 	public document?: UCDocument;
 
-	public withinRef?: UCSymbol;
+	public withinRef?: UCTypeRef;
 	public replicatedFieldRefs?: UCSymbolRef[];
+
+	public within?: UCClassSymbol;
 
 	public static visit(ctx: UCParser.ClassDeclContext): UCClassSymbol {
 		var className = ctx.className();
 		var symbol = new UCClassSymbol(
-			{ name: className.text, range: rangeFromToken(className.start)},
+			{ text: className.text, range: rangeFromToken(className.start)},
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 
 		var extendsCtx = ctx.classExtendsReference();
 		if (extendsCtx) {
 			symbol.extendsRef = new UCTypeRef({
-				name: extendsCtx.text,
+				text: extendsCtx.text,
 				range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
-			}, UCType.Class);
+			}, symbol, UCType.Class);
 		}
 
 		var withinCtx = ctx.classWithinReference();
 		if (withinCtx) {
 			symbol.withinRef = new UCTypeRef({
-				name: withinCtx.text,
+				text: withinCtx.text,
 				range: rangeFromTokens(withinCtx.start, withinCtx.stop)
-			}, UCType.Class);
+			}, symbol, UCType.Class);
 		}
 
 		return symbol;
@@ -576,40 +627,21 @@ export class UCClassSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
-	findSuperTypeSymbol(id: string, deepSearch: boolean): ISimpleSymbol | undefined {
-		id = id.toLowerCase();
-		var typeSymbol = this.document.classPackage.findSuperSymbol(id, deepSearch);
-		if (typeSymbol) {
-			return typeSymbol;
-		}
-
-		typeSymbol = this.findSuperSymbol(id, deepSearch);
-		if (typeSymbol instanceof UCScriptStructSymbol || typeSymbol instanceof UCEnumSymbol) {
-			return typeSymbol;
-		}
-		return undefined;
-	}
-
-	link(document: UCDocument) {
+	link(document: UCDocument, context: UCClassSymbol = document.class) {
 		this.document = document;
-		// To prevent infinite recursive loops where a class is extending itself.
-		if (this.isLinked) {
-			return;
-		}
-		this.isLinked = true;
-
 		if (this.withinRef) {
-			this.withinRef.link(document);
-		}
+			this.withinRef.link(document, context);
 
-		super.link(document);
+			// Overwrite extendsRef super, we inherit from the within class instead.
+			this.super = this.withinRef.getReference() as UCClassSymbol;
+		}
+		super.link(document, context);
 
 		const className = this.getName();
-		const documentName = path.basename(document.uri, '.uc');
-		if (className.toLowerCase() != documentName.toLowerCase()) {
+		if (className.toLowerCase() != document.name.toLowerCase()) {
 			const errorNode = new SemanticErrorNode(
 				this,
-				`Class name '${className}' must be equal to its file name ${documentName}!`,
+				`Class name '${className}' must be equal to its file name ${document.name}!`,
 			);
 			document.nodes.push(errorNode);
 		}
@@ -621,7 +653,7 @@ export class UCClassSymbol extends UCStructSymbol {
 				if (!symbol) {
 					const errorNode = new SemanticErrorNode(
 						symbolRef,
-						`Variable '${symbolRef.getName()}' does not exist in class '${document.class.getName()}'.`
+						`Variable '${symbolRef.getName()}' does not exist in class '${className}'.`
 					);
 					document.nodes.push(errorNode);
 					continue;

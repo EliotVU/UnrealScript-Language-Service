@@ -1,8 +1,9 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Location, Position } from 'vscode-languageserver-types';
 import { Token } from 'antlr4ts';
 import { ISimpleSymbol } from './ISimpleSymbol';
-import { ISymbolId } from './symbols';
+import { ISymbolId, UCStructSymbol } from './symbols';
 import { UCDocument } from "../UCDocument";
+import { UCPackage } from './UCPackage';
 
 /**
  * A symbol that resides in a document, holding an id and range.
@@ -41,7 +42,7 @@ export abstract class UCSymbol implements ISimpleSymbol {
 	// }
 
 	getName(): string {
-		return this.id.name;
+		return this.id.text;
 	}
 
 	getQualifiedName(): string {
@@ -59,7 +60,7 @@ export abstract class UCSymbol implements ISimpleSymbol {
 		return CompletionItemKind.Text;
 	}
 
-	getRange(): Range {
+	getSpanRange(): Range {
 		return this.getIdRange();
 	}
 
@@ -81,7 +82,7 @@ export abstract class UCSymbol implements ISimpleSymbol {
 		return undefined;
 	}
 
-	link(_document: UCDocument) {
+	link(_document: UCDocument, context: UCStructSymbol = _document.class) {
 	}
 
 	addReference(location: Location) {
@@ -100,7 +101,7 @@ export abstract class UCSymbol implements ISimpleSymbol {
 	}
 
 	toSymbolInfo(): SymbolInformation {
-		return SymbolInformation.create(this.getName(), this.getKind(), this.getRange(), undefined, this.outer.getName());
+		return SymbolInformation.create(this.getName(), this.getKind(), this.getSpanRange(), undefined, this.outer.getName());
 	}
 
 	toCompletionItem(): CompletionItem {
@@ -109,5 +110,14 @@ export abstract class UCSymbol implements ISimpleSymbol {
 		item.documentation = this.getDocumentation();
 		item.kind = this.getCompletionItemKind();
 		return item;
+	}
+
+	findSuperTypeSymbol(idLowerCase: string, deepSearch: boolean): ISimpleSymbol | undefined {
+		if (this.outer instanceof UCSymbol) {
+			return this.outer.findSuperTypeSymbol(idLowerCase, deepSearch);
+		} else if (this.outer instanceof UCPackage) {
+			return this.outer.findSuperSymbol(idLowerCase, deepSearch);
+		}
+		return undefined;
 	}
 }

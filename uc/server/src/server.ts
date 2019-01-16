@@ -140,11 +140,8 @@ let documentSettings: Map<string, Thenable<UCSettings>> = new Map();
 connection.onDidChangeConfiguration(() => {
 	if (hasConfigurationCapability) {
 		documentSettings.clear();
-	} else {
 	}
-	documents.all().forEach(validateTextDocument);
 });
-
 
 documents.onDidOpen(async e => {
 	if (workspaceUCFiles.length === 0) {
@@ -171,7 +168,22 @@ documents.onDidClose(e => {
 var WorkspacePackage = new UCPackage('Workspace');
 WorkspacePackage.add(CORE_PACKAGE);
 
-function parseClassDocument(className: string): UCDocument {
+var pendingDocuments = [];
+
+function parsePending() {
+	var pending = pendingDocuments.shift();
+	if (!pending) {
+		return;
+	}
+
+	let text = fs.readFileSync(pending.filePath).toString();
+	var uri = URI.file(pending.filePath).toString();
+	pending.cb(parseDocument(uri, text));
+
+	// setTimeout(parsePending, 400);
+}
+
+function parseClassDocument(className: string, cb: (document: UCDocument) => void) {
 	className = className.toLowerCase();
 	// connection.console.log('Looking for external document ' + className);
 
@@ -179,7 +191,8 @@ function parseClassDocument(className: string): UCDocument {
 	if (WorkspacePackage) {
 		let classSymbol = WorkspacePackage.findSuperSymbol(className, true);
 		if (classSymbol && classSymbol instanceof UCClassSymbol) {
-			return classSymbol.document;
+			cb(classSymbol.document);
+			return;
 		}
 	}
 
@@ -189,17 +202,19 @@ function parseClassDocument(className: string): UCDocument {
 	}));
 
 	if (!filePath) {
-		return undefined;
+		cb(undefined);
+		return;
 	}
 
 	// FIXME: may not exist
 	if (!fs.existsSync(filePath)) {
-		return undefined;
+		cb(undefined);
+		return;
 	}
 
-	let text = fs.readFileSync(filePath).toString();
-	filePath = URI.file(filePath).toString();
-	return parseDocument(filePath, text);
+	pendingDocuments.push({ filePath, cb });
+	parsePending();
+	// setTimeout(parsePending, 50);
 }
 
 function parseDocument(uri: string, text: string): UCDocument {
@@ -229,7 +244,7 @@ function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		return;
 	}
 
-	if (!document) {
+	if (!document || document.class === null) {
 		connection.sendDiagnostics({
 			uri: textDocument.uri,
 			diagnostics: [Diagnostic.create(Range.create(0, 0, 0, 0), "Couldn't validate document!", DiagnosticSeverity.Warning)]
@@ -237,11 +252,7 @@ function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		return;
 	}
 
-	if (document.class === null) {
-		return;
-	}
-
-	document.class.link(document);
+	document.link(document);
 	diagnoseDocument(document);
 
 	documentItems = []; // reset, never show any items from previous documents.

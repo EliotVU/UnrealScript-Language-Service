@@ -44,15 +44,15 @@ export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
 		this.symbols.set(symbol.getName().toLowerCase(), symbol);
 	}
 
-	public findSuperSymbol(name: string, deepSearch?: boolean): ISimpleSymbol {
-		var symbol = this.symbols.get(name);
+	public findSuperSymbol(idLowerCase: string, deepSearch?: boolean): ISimpleSymbol {
+		var symbol = this.symbols.get(idLowerCase);
 		if (symbol || !deepSearch) {
 			return symbol;
 		}
 
 		for (symbol of this.symbols.values()) {
 			if (symbol instanceof UCPackage) {
-				symbol = symbol.findSuperSymbol(name);
+				symbol = symbol.findSuperSymbol(idLowerCase);
 				if (symbol) {
 					return symbol;
 				}

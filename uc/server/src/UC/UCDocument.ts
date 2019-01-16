@@ -1,3 +1,5 @@
+import * as path from 'path';
+
 import { Position, Range } from 'vscode-languageserver-types';
 import { Token, ANTLRErrorListener, RecognitionException, Recognizer } from 'antlr4ts';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
@@ -37,14 +39,18 @@ export function rangeFromTokens(startToken: Token, stopToken: Token): Range {
 }
 
 export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {
-	public getDocument: (className: string) => UCDocument;
+	public getDocument: (className: string, cb: (document: UCDocument) => void) => void;
+
+	public name: string;
 
 	public class?: UCClassSymbol;
-	public nodes: IDiagnosticNode[] = [];
 	private context: UCStructSymbol[] = []; // FIXME: Type
 
-	constructor(public classPackage: UCPackage, public uri: string) {
+	public hasBeenLinked: boolean = false;
+	public nodes: IDiagnosticNode[] = [];
 
+	constructor(public classPackage: UCPackage, public uri: string) {
+		this.name = path.basename(uri, '.uc');
 	}
 
 	push(newContext: UCStructSymbol) {
@@ -68,6 +74,14 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	getSymbolAtPosition(position: Position): UCSymbol {
 		return this.class.getSymbolAtPos(position);
+	}
+
+	link(classDocument: UCDocument): any {
+		if (this.hasBeenLinked) {
+			return;
+		}
+
+		this.class.link(classDocument);
 	}
 
 	syntaxError(_recognizer: Recognizer<Token, any>, offendingSymbol: Token | undefined, _line: number, _charPositionInLine: number, msg: string, _e: RecognitionException | undefined) {
@@ -94,7 +108,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		}
 
 		const symbol = new UCConstSymbol(
-			{ name: nameCtx.text, range: rangeFromToken(nameCtx.start) },
+			{ text: nameCtx.text, range: rangeFromToken(nameCtx.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 		this.declare(symbol);
@@ -113,12 +127,12 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 		const { text: name, start: nameToken } = nameCtx;
 		const symbol = new UCEnumSymbol(
-			{ name, range: rangeFromToken(nameToken) },
+			{ text: name, range: rangeFromToken(nameToken) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 		for (const valueCtx of ctx.valueName()) {
 			const member = new UCEnumMemberSymbol({
-				name: valueCtx.text,
+				text: valueCtx.text,
 				range: rangeFromToken(valueCtx.start)
 			});
 			this.declare(member);
@@ -135,16 +149,16 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		}
 
 		const symbol = new UCScriptStructSymbol(
-			{ name: nameCtx.text, range: rangeFromToken(nameCtx.start) },
+			{ text: nameCtx.text, range: rangeFromToken(nameCtx.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 
 		const extendsCtx = ctx.structReference();
 		if (extendsCtx) {
 			symbol.extendsRef = new UCTypeRef({
-				name: extendsCtx.text,
+				text: extendsCtx.text,
 				range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
-			}, UCType.Struct);
+			}, symbol, UCType.Struct);
 		}
 
 		this.declare(symbol);
@@ -159,7 +173,8 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		var parseClassGeneric = (classGenericCtx: UCParser.ClassGenericContext) => {
 			const className = classGenericCtx.classReference();
 			return new UCTypeRef(
-				{ name: className.text, range: rangeFromTokens(classGenericCtx.start, classGenericCtx.stop) },
+				{ text: className.text, range: rangeFromTokens(classGenericCtx.start, classGenericCtx.stop) },
+				undefined
 			);
 		};
 
@@ -188,9 +203,13 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		}
 
 		const typeRef = new UCTypeRef(
-			{ name: typeName, range: rangeFromTokens(varTypeCtx.start, varTypeCtx.stop) }
+			{ text: typeName, range: rangeFromTokens(varTypeCtx.start, varTypeCtx.stop) },
+			undefined
 		);
 		typeRef.InnerTypeRef = innerTypeRef;
+		if (innerTypeRef) {
+			innerTypeRef.outer = typeRef;
+		}
 		return typeRef;
 	}
 
@@ -199,15 +218,16 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		if (inlinedStruct) {
 			const structName = inlinedStruct.structName();
 			return new UCTypeRef(
-				{ name: structName.text, range: rangeFromTokens(structName.start, structName.stop) },
-				UCType.Struct
+				{ text: structName.text, range: rangeFromTokens(structName.start, structName.stop) },
+				undefined, UCType.Struct
 			);
 		} else {
 			const inlinedEnum = propDeclType.enumDecl();
 			if (inlinedEnum) {
 				const enumName = inlinedEnum.enumName();
 				return new UCTypeRef(
-					{ name: enumName.text, range: rangeFromTokens(enumName.start, enumName.stop) }
+					{ text: enumName.text, range: rangeFromTokens(enumName.start, enumName.stop) },
+					undefined
 				);
 			}
 		}
@@ -229,20 +249,24 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			const varName = varCtx.variableName();
 
 			const symbol = new UCPropertySymbol(
-				{ name: varName.start.text, range: rangeFromToken(varName.start) },
+				{ text: varName.start.text, range: rangeFromToken(varName.start) },
 
 				// Stop at varCtx instead of ctx for mulitiple variable declarations.
 				{ range: rangeFromTokens(ctx.start, varCtx.stop) }
 			);
 			symbol.typeRef = typeRef;
 			this.declare(symbol);
+
+			if (typeRef) {
+				typeRef.outer = symbol.outer; // FIXME: Assign to current context instead.
+			}
 		}
 	}
 
 	enterReplicationBlock(ctx: UCParser.ReplicationBlockContext) {
 		const nameCtx = ctx.kwREPLICATION();
 		const symbol = new UCStructSymbol(
-			{ name: nameCtx.text, range: rangeFromToken(nameCtx.start) },
+			{ text: nameCtx.text, range: rangeFromToken(nameCtx.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 		this.class.replicatedFieldRefs = [];
@@ -251,10 +275,10 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	enterReplicationStatement(ctx: UCParser.ReplicationStatementContext) {
 		for (const varCtx of ctx.replicateId()) {
-			const symbol = new UCSymbolRef({
-				name: varCtx.text, range: rangeFromToken(varCtx.start)
-			});
-
+			const symbol = new UCSymbolRef(
+				{text: varCtx.text, range: rangeFromToken(varCtx.start)},
+				this.class
+			);
 			this.class.replicatedFieldRefs.push(symbol);
 		}
 	}
@@ -267,15 +291,15 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 		const symbol = new UCFunctionSymbol(
 			// We need start and stop for functions with special symbols (which are made of multiple tokens)
-			{ name: nameCtx.text, range: rangeFromTokens(nameCtx.start, nameCtx.stop) },
+			{ text: nameCtx.text, range: rangeFromTokens(nameCtx.start, nameCtx.stop) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 		const returnTypeCtx = ctx.returnType();
 		if (returnTypeCtx) {
 			symbol.returnTypeRef = new UCTypeRef({
-				name: returnTypeCtx.text,
+				text: returnTypeCtx.text,
 				range: rangeFromTokens(returnTypeCtx.start, returnTypeCtx.stop)
-			});
+			}, symbol);
 		}
 		this.declare(symbol);
 		this.push(symbol);
@@ -294,15 +318,15 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 				continue;
 			}
 			const propSymbol = new UCParamSymbol(
-				{ name: propName.text, range: rangeFromToken(propName.start) },
+				{ text: propName.text, range: rangeFromToken(propName.start) },
 				{ range: rangeFromTokens(paramCtx.start, paramCtx.stop) }
 			);
 
 			const propTypeCtx = paramCtx.variableType();
 			propSymbol.typeRef = new UCTypeRef({
-				name: propTypeCtx.text,
+				text: propTypeCtx.text,
 				range: rangeFromTokens(propTypeCtx.start, propTypeCtx.stop)
-			});
+			}, symbol);
 			symbol.params.push(propSymbol);
 			this.declare(propSymbol);
 		}
@@ -314,9 +338,9 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 			const propTypeCtx = localCtx.variableType();
 			const propTypeRef = new UCTypeRef({
-				name: propTypeCtx.text,
+				text: propTypeCtx.text,
 				range: rangeFromTokens(propTypeCtx.start, propTypeCtx.stop)
-			});
+			}, symbol);
 			for (const varCtx of localCtx.variable()) {
 				const propName = varCtx.variableName();
 				if (!propName) {
@@ -324,7 +348,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 				}
 
 				const propSymbol = new UCLocalSymbol(
-					{ name: propName.text, range: rangeFromToken(propName.start) },
+					{ text: propName.text, range: rangeFromToken(propName.start) },
 					// Stop at varCtx instead of localCtx for mulitiple variable declarations.
 					{ range: rangeFromTokens(localCtx.start, varCtx.stop) }
 				);
@@ -342,16 +366,16 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		}
 
 		const symbol = new UCStateSymbol(
-			{ name: stateName.text, range: rangeFromToken(stateName.start) },
+			{ text: stateName.text, range: rangeFromToken(stateName.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 		const extendsCtx = ctx.stateReference();
 		if (extendsCtx) {
 			// FIXME: UCStateRef?
 			symbol.extendsRef = new UCTypeRef({
-				name: extendsCtx.text,
+				text: extendsCtx.text,
 				range: rangeFromTokens(extendsCtx.start, extendsCtx.stop)
-			}, UCType.State);
+			}, symbol, UCType.State);
 		}
 
 		this.declare(symbol);
@@ -365,7 +389,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	enterDefaultpropertiesBlock(ctx: UCParser.DefaultpropertiesBlockContext) {
 		const nameCtx = ctx.kwDEFAULTPROPERTIES();
 		const symbol = new UCObjectSymbol(
-			{ name: nameCtx.text, range: rangeFromToken(nameCtx.start) },
+			{ text: nameCtx.text, range: rangeFromToken(nameCtx.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 		this.declare(symbol);
@@ -379,7 +403,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			return;
 		}
 		const symbol = new UCObjectSymbol(
-			{ name: idCtx[0].text, range: rangeFromToken(idCtx[0].start) },
+			{ text: idCtx[0].text, range: rangeFromToken(idCtx[0].start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 		this.declare(symbol);
@@ -389,11 +413,12 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	enterDefaultVariable(ctx: UCParser.DefaultVariableContext) {
 		const idCtx = ctx.defaultId();
 		const symbol = new UCDefaultVariableSymbol(
-			{ name: idCtx.text, range: rangeFromToken(ctx.start) },
+			{ text: idCtx.text, range: rangeFromToken(ctx.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 		symbol.varRef = new UCSymbolRef(
-			{ name: idCtx.text, range: symbol.getIdRange() },
+			{ text: idCtx.text, range: symbol.getIdRange() },
+			symbol
 		);
 
 		const valCtx = ctx.defaultValue();
@@ -401,7 +426,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			const structCtx = valCtx.defaultLiteral().structLiteral();
 			const symbol = new UCObjectSymbol(
 				// Use the same name as the assigned var's name.
-				{ name: idCtx.text, range: rangeFromToken(structCtx.start) },
+				{ text: idCtx.text, range: rangeFromToken(structCtx.start) },
 				{ range: rangeFromTokens(structCtx.start, structCtx.stop) }
 			);
 			this.push(symbol);
