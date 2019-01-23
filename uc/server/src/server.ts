@@ -234,7 +234,7 @@ function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	} catch (err) {
 		connection.sendDiagnostics({
 			uri: textDocument.uri,
-			diagnostics: [Diagnostic.create(Range.create(0, 0, 0, 0), "Something went wrong while parsing this document! " + err, DiagnosticSeverity.Warning)]
+			diagnostics: [Diagnostic.create(Range.create(0, 0, 0, 0), "Something went wrong while parsing this document! " + err, DiagnosticSeverity.Warning, undefined, 'unrealscript')]
 		});
 		return;
 	}
@@ -242,7 +242,7 @@ function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	if (!document || document.class === null) {
 		connection.sendDiagnostics({
 			uri: textDocument.uri,
-			diagnostics: [Diagnostic.create(Range.create(0, 0, 0, 0), "Couldn't validate document!", DiagnosticSeverity.Warning)]
+			diagnostics: [Diagnostic.create(Range.create(0, 0, 0, 0), "Couldn't validate document!", DiagnosticSeverity.Warning, undefined, 'unrealscript')]
 		});
 		return;
 	}
@@ -265,7 +265,10 @@ function diagnoseDocument(document: UCDocument) {
 			.map(node => {
 				return Diagnostic.create(
 					node.getRange(),
-					node.toString()
+					node.toString(),
+					undefined,
+					undefined,
+					'unrealscript'
 				);
 			});
 
