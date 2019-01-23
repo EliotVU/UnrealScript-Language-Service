@@ -37,7 +37,7 @@ import { FUNCTION_MODIFIERS, CLASS_DECLARATIONS, PRIMITIVE_TYPE_NAMES, VARIABLE_
 
 let connection = createConnection(ProposedFeatures.all);
 
-let workspaceUCFiles: string[] = [];
+let UCFilePaths = new Map<string, string>();
 
 let documents: TextDocuments = new TextDocuments();
 let projectDocuments: Map<string, UCDocument> = new Map<string, UCDocument>();
@@ -68,7 +68,7 @@ connection.onInitialize((params: InitializeParams) => {
 	};
 });
 
-async function scanWorkspaceForClasses(workspace: RemoteWorkspace) {
+async function scanWorkspaceForClasses(workspace: RemoteWorkspace): Promise<Map<string, string>> {
 	function scanPath(filePath: string, cb: (filePath: string) => void): Promise<boolean> {
 		let promise = new Promise<boolean>((resolve) => {
 			if (!fs.existsSync(filePath)) {
@@ -94,26 +94,25 @@ async function scanWorkspaceForClasses(workspace: RemoteWorkspace) {
 		return promise;
 	}
 
-	let filePaths = [];
+	let filePaths = new Map<string, string>();
 	let folders = await workspace.getWorkspaceFolders();
 	for (let folder of folders) {
 		let folderPath = URI.parse(folder.uri).fsPath;
 		await scanPath(folderPath, (filePath => {
-			filePaths.push(filePath);
+			filePaths.set(path.basename(filePath, '.uc').toLowerCase(), filePath);
 		}));
 	}
 	return filePaths;
 }
 
-function initializeClassTypes(classFilePaths: string[]) {
-	projectClassTypes = classFilePaths
-		.map((document => {
+function initializeClassTypes() {
+	projectClassTypes = Array.from(UCFilePaths.values())
+		.map(value => {
 			return {
-				label: path.basename(document, '.uc'),
-				kind: CompletionItemKind.Class,
-				data: document
+				label: path.basename(value, '.uc'),
+				kind: CompletionItemKind.Class
 			};
-		}));
+		});
 }
 
 connection.onInitialized(async () => {
@@ -125,8 +124,8 @@ connection.onInitialized(async () => {
 	}
 	if (hasWorkspaceFolderCapability) {
 		connection.workspace.onDidChangeWorkspaceFolders(async _event => {
-			workspaceUCFiles = await scanWorkspaceForClasses(connection.workspace);
-			initializeClassTypes(workspaceUCFiles);
+			UCFilePaths = await scanWorkspaceForClasses(connection.workspace);
+			initializeClassTypes();
 		});
 	}
 });
@@ -144,17 +143,17 @@ connection.onDidChangeConfiguration(() => {
 });
 
 documents.onDidOpen(async e => {
-	if (workspaceUCFiles.length === 0) {
-		workspaceUCFiles = await scanWorkspaceForClasses(connection.workspace);
-		initializeClassTypes(workspaceUCFiles);
+	if (UCFilePaths.size === 0) {
+		UCFilePaths = await scanWorkspaceForClasses(connection.workspace);
+		initializeClassTypes();
 	}
 	validateTextDocument(e.document);
 });
 
 documents.onDidChangeContent(async e => {
-	if (workspaceUCFiles.length === 0) {
-		workspaceUCFiles = await scanWorkspaceForClasses(connection.workspace);
-		initializeClassTypes(workspaceUCFiles);
+	if (UCFilePaths.size === 0) {
+		UCFilePaths = await scanWorkspaceForClasses(connection.workspace);
+		initializeClassTypes();
 	}
 
 	projectDocuments.delete(e.document.uri);
@@ -196,11 +195,7 @@ function parseClassDocument(className: string, cb: (document: UCDocument) => voi
 		}
 	}
 
-	let filePaths = workspaceUCFiles;
-	let filePath = filePaths.find((value => {
-		return path.basename(value, '.uc').toLowerCase() === className;
-	}));
-
+	let filePath = UCFilePaths.get(className);
 	if (!filePath) {
 		cb(undefined);
 		return;
