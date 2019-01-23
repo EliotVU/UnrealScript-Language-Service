@@ -6,16 +6,14 @@ fragment EXPONENT: ('e' | 'E') ('+' | '-')? DIGIT+;
 fragment HEX_DIGIT: (DIGIT | 'a' ..'f' | 'A' ..'F');
 fragment ESC_SEQ:
 	'\\' ('b' | 't' | 'n' | 'r' | '"' | '\'' | '\\');
-fragment NEWLINE: [\r\n];
 
-LINE_COMMENT: '//' ~[\n]+ -> channel(HIDDEN);
-
+LINE_COMMENT: '//' .*? ~[\r\n]+ -> channel(HIDDEN);
 BLOCK_COMMENT: '/*' .*? '*/' -> channel(HIDDEN);
 
-DIRECTIVE: '#' ('exec'|'include'|'error'|'call'|'linenumber') .*? ~[\n]+ -> skip;
+DIRECTIVE: '#' ('exec'|'include'|'error'|'call'|'linenumber') .*? ~[\r\n]+ -> skip;
 // PP_TICK: '`' ~[\n] -> skip;
 
-WS: [ \t\r\n]+ -> skip;
+WS: [ \t\r\n\u000C]+ -> skip;
 
 STRING: '"' (~["\\] | ESC_SEQ)* '"';
 NAME: '\'' (~['\\] | ESC_SEQ)* '\'';
@@ -23,45 +21,46 @@ NAME: '\'' (~['\\] | ESC_SEQ)* '\'';
 ID:	[a-zA-Z_][a-zA-Z0-9_]*;
 // ID:	[a-z_][a-z0-9_]*;
 
-LPAREN: '(';
-RPAREN: ')';
-LBRACE: '{';
-RBRACE: '}';
-LBRACKET: '[';
-RBRACKET: ']';
-LARROW: '<';
-RARROW: '>';
+OPEN_PARENS: '(';
+CLOSE_PARENS: ')';
 
-EQUALS_SIGN: '=';
+OPEN_BRACE: '{';
+CLOSE_BRACE: '}';
+
+OPEN_BRACKET: '[';
+CLOSE_BRACKET: ']';
+
+LT: '<';
+GT: '>';
+
+ASSIGNMENT: '=';
 COLON: ':';
-HASHTAG: '#';
-QUESTIONMARK: '?';
+SHARP: '#';
+INTERR: '?';
 SEMICOLON: ';';
 COMMA: ',';
 SQUOT: '\'';
 MINUS: '-';
 PLUS: '+';
+DOT: '.';
+AT: '@';
+DOLLAR: '$';
+BANG: '!';
+AMP: '&';
+BITWISE_OR: '|';
+STAR: '*';
+CARET: '^';
+DIV: '/';
+PERCENT: '%';
+TILDE: '~';
 
 INTEGER: (DIGIT 'x' HEX_DIGIT+) | (DIGIT+ ('f'| 'F')*);
 
 FLOAT: (DIGIT+ DOT DIGITF* EXPONENT?)
 	| (DIGIT+ DIGITF* EXPONENT);
 
-DOT: '.';
-
-ATSIGN: '@';
-DOLLARSIGN: '$';
-NOTSIGN: '!';
-ANDSIGN: '&';
-ORSIGN: '|';
-MULTIPLYSIGN: '*';
-ARROWUPSIGN: '^';
-DIVIDESIGN: '/';
-MODULUSSIGN: '%';
-TILTSIGN: '~';
 
 // NOTE: all class exclusive modifiers are commented out because we don't have to capture them.
-
 kwDEFAULT: 'default';
 kwSELF: 'self';
 kwSUPER: 'super';
@@ -116,7 +115,7 @@ kwBYTE: 'byte';
 kwINT: 'int';
 kwFLOAT: 'float';
 kwSTRING: 'string';
-kwButton: 'button';
+kwBUTTON: 'button';
 kwBOOL: 'bool';
 kwNAME: 'name';
 kwTRUE: 'true';
@@ -389,13 +388,19 @@ identifier
 	|'goto'
 	;
 
+// Parses the following possiblities.
+// Package.Class.Field
+// Class.Field
+// Class / Field
+qualifiedIdentifier: identifier (DOT identifier)*;
+
 program:
 	classDecl
 	(
 		cpptextBlock
 		| constDecl
 		| (enumDecl SEMICOLON?)
-		| (structDecl)
+		| structDecl
 		| varDecl
 		| replicationBlock
 		| defaultpropertiesBlock
@@ -408,19 +413,6 @@ program:
 		| defaultpropertiesBlock
 	)*;
 
-typeName: identifier;
-
-className: identifier;
-
-stringLiteral: STRING;
-nameLiteral: NAME;
-booleanLiteral: kwTRUE | kwFALSE;
-
-noneLiteral: kwNONE;
-
-// e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
-classLiteral: identifier nameLiteral;
-
 literal
 	: noneLiteral
 	| booleanLiteral
@@ -431,16 +423,17 @@ literal
 	;
 
 numberLiteral: (MINUS | PLUS)? (FLOAT | INTEGER);
+stringLiteral: STRING;
+nameLiteral: NAME;
+booleanLiteral: kwTRUE | kwFALSE;
+noneLiteral: kwNONE;
 
-// Parses the following possiblities.
-// Package.Class.Field
-// Class.Field
-// Class / Field
-qualifiedIdentifier: identifier (DOT identifier)*;
+// e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
+classLiteral: identifier nameLiteral;
 
 classDecl
 	:
-		(kwCLASS | kwINTERFACE) className
+		(kwCLASS | kwINTERFACE) identifier
 			(
 				extendsClause
 				// UC2+
@@ -498,47 +491,93 @@ classModifier: identifier modifierArguments?;
 	// | (kwFORCESCRIPTORDER modifierArgument)
 	// ; //ID (LPARENT ID (COMMA ID)* RPARENT)?
 
-// TODO: may be a numeric or typeName!
 modifierValue
-	: identifier
+	: qualifiedIdentifier
 	| numberLiteral
 	;
+modifierArgument: OPEN_PARENS modifierValue CLOSE_PARENS;
+modifierArguments: OPEN_PARENS (modifierValue COMMA?)+ CLOSE_PARENS;
 
-modifierArgument: LPAREN modifierValue RPAREN;
-
-modifierArguments: LPAREN (modifierValue COMMA?)+ RPAREN;
-
-constDecl: kwCONST constName EQUALS_SIGN constValue SEMICOLON;
-
-constName: identifier;
+constDecl: kwCONST identifier ASSIGNMENT constValue SEMICOLON;
 constValue: literal | qualifiedIdentifier;
 
-varDecl:
-	kwVAR
-		(LPAREN categoryList? RPAREN)?
-		variableModifier*
-		varDeclTypes
-		variable (COMMA variable)*
-	SEMICOLON;
+enumDecl:
+	kwENUM identifier
+	OPEN_BRACE
+		enumMember*
+	CLOSE_BRACE
+	;
 
-variable: variableName arrayDim? nativeType? variableMeta?;
+enumMember: (identifier COMMA?);
 
-// UC3 <UIMin=0.0,UIMax=1.0,Toolip="Hello">
-variableMeta: LARROW (metaList) RARROW;
-metaProperty: metaName EQUALS_SIGN metaValue;
-metaName: ID;
-metaValue: literal | qualifiedIdentifier;
-metaList: metaProperty (COMMA metaProperty)*;
+structDecl
+	:	kwSTRUCT nativeTypeDecl? structModifier* identifier extendsClause?
+		OPEN_BRACE
+		(
+			constDecl
+			| (enumDecl SEMICOLON?)
+			| structDecl
+			| varDecl
+			// Unfortunately these can appear in any order.
+			| cpptextBlock
+			| defaultpropertiesBlock
+		)*
+		CLOSE_BRACE SEMICOLON?
+	;
 
-variableName: identifier;
-categoryName: identifier;
-categoryList: categoryName (COMMA categoryName)*;
+structModifier
+	// UC2+
+	: kwNATIVE
+	| kwTRANSIENT
+	| kwEXPORT
+	| kwINIT
+	| kwLONG
+	// UC3+
+	| kwSTRICTCONFIG
+	| kwATOMIC
+	| kwATOMICWHENCOOKED
+	| kwIMMUTABLE
+	| kwIMMUTABLEWHENCOOKED
+	;
+
+arrayDim
+	: OPEN_BRACKET (INTEGER | qualifiedIdentifier) CLOSE_BRACKET
+	;
+
+// var (GROUP)
+// MODIFIER TYPE
+// VARIABLE, VARIABLE...;
+varDecl: kwVAR (OPEN_PARENS categoryList? CLOSE_PARENS)?
+	variableModifier* inlinedDeclTypes
+	variable (COMMA variable)* SEMICOLON;
+
+// id[5] {DWORD} <Order=1>
+variable:
+	identifier
+	arrayDim?
+	// FIXME: matches invalid code
+	// nativeTypeDecl?
+	variableMeta?
+	;
+
+// UC3 <UIMin=0.0|UIMax=1.0|Toolip=Hello world!>
+variableMeta: LT metaList GT;
+
+metaProperty: identifier ASSIGNMENT metaValue;
+// FIXME: This is incorrect, any value is allowed.
+metaValue: literal;
+metaList: metaProperty (BITWISE_OR metaProperty)*;
+
+categoryList: identifier (COMMA identifier)*;
 
 // UC3 CPP specifier e.g. {public}
-nativeSpecifier: LBRACE nativeSpecifier RBRACE;
+nativeModifierDecl: OPEN_BRACE identifier CLOSE_BRACE;
 
 // UC3 CPP type e.g. {QWORD}
-nativeType: LBRACE identifier RBRACE;
+nativeTypeDecl: OPEN_BRACE .*? CLOSE_BRACE;
+
+// UC3 CPP map e.g. map{FName, FLOAT}
+nativeMapTypeDecl: OPEN_BRACE .*? COMMA .*? CLOSE_BRACE;
 
 variableModifier
 	: (
@@ -586,118 +625,62 @@ variableModifier
 		| kwARCHETYPE
 		| kwCROSSLEVELACTIVE
 		| kwCROSSLEVELPASSIVE
-	) nativeSpecifier?
+	) nativeModifierDecl?
 	;
 
 typeDecl
-	: arrayGeneric
-	| classGeneric
-	| mapGeneric
-	| primitiveType
-	| qualifiedIdentifier
+	: arrayType
+	| classType
+	| delegateType
+	| mapType
+	| type
 	;
 
-varDeclTypes
+inlinedDeclTypes
 	: enumDecl
 	| structDecl
 	| typeDecl
 	;
 
-primitiveType
+predefinedType
 	: kwBYTE
 	| kwINT
 	| kwFLOAT
 	| kwBOOL
 	| kwSTRING
 	| kwNAME
-	| kwButton // alias for a string with an input modifier
+	| kwBUTTON // alias for a string with an input modifier
 	| kwCLASS
+	| kwDELEGATE
 	; // This is actually a reference but this is necessary because it's a "reserved" keyword.
 
-// TODO: May reference a constant in class or an external enum/const
-arrayDim: LBRACKET (INTEGER | qualifiedIdentifier) RBRACKET;
-
-arrayGeneric:
-	kwARRAY LARROW (
-		classGeneric
-		| primitiveType
-		| structDecl
-		| enumDecl
-		| mapGeneric
-		| qualifiedIdentifier
-	) RARROW;
-
-classGeneric: kwCLASS LARROW qualifiedIdentifier RARROW;
-
-mapGeneric:
-	kwMAP LARROW (
-		(classGeneric | mapGeneric | arrayGeneric)
-		| primitiveType
-		| qualifiedIdentifier
-	) RARROW;
-
-enumDecl:
-	kwENUM enumName
-	LBRACE
-		(valueName COMMA?)*
-	RBRACE
+type
+	: predefinedType
+	| qualifiedIdentifier
 	;
 
-enumName: identifier;
-valueName: identifier;
-
-structDecl:
-	kwSTRUCT nativeType? structModifier* structName (
-		extendsClause
-	)?
-	LBRACE
-		(
-			constDecl
-			| (enumDecl SEMICOLON?)
-			| (structDecl)
-			| varDecl
-			// Unfortunately these can appear in any order.
-			| cpptextBlock
-			| defaultpropertiesBlock
-		)*
-	RBRACE SEMICOLON?;
-
-structName: identifier;
-
-structModifier
-	:
-	(
-		// UC2+
-		kwNATIVE
-		| kwTRANSIENT
-		| kwEXPORT
-		| kwINIT
-		| kwLONG
-		// UC3+
-		| kwSTRICTCONFIG
-		| kwATOMIC
-		| kwATOMICWHENCOOKED
-		| kwIMMUTABLE
-		| kwIMMUTABLEWHENCOOKED
-	)
-	;
+// Note: inlinedDeclTypes includes another arrayGeneric!
+arrayType: kwARRAY LT inlinedDeclTypes GT;
+classType: kwCLASS LT type GT;
+delegateType: kwDELEGATE LT identifier GT;
+mapType: kwMAP nativeMapTypeDecl;
 
 cpptextBlock:
 	(kwCPPTEXT | kwSTRUCTCPPTEXT | kwCPPSTRUCT)
-	LBRACE
+	OPEN_BRACE
 		.*?
-	RBRACE;
+	CLOSE_BRACE;
 
 replicationBlock:
 	kwREPLICATION
-	LBRACE
+	OPEN_BRACE
 		replicationStatement*
-	RBRACE;
+	CLOSE_BRACE;
 
 replicationModifier: (kwRELIABLE | kwUNRELIABLE);
 
 replicationStatement:
-	replicationModifier? kwIF (LPAREN expression RPAREN) (
+	replicationModifier? kwIF (OPEN_PARENS expression CLOSE_PARENS) (
 		replicateId (COMMA replicateId)* SEMICOLON
 	);
 
@@ -708,9 +691,10 @@ replicateId: identifier;
  */
 functionDecl:
 	functionModifier* functionKind
+	// Found in UT2004/GameProfile.uc, any function modifier can be written post functionKind, this is applied to the function during compilation.
+	functionModifier*
 	// We have to identify LPARENT in each, - to prevent a false positive 'operatorName'
-	// TODO: are multiple returnModifiers a thing?
-	((returnTypeModifier? returnType functionName LPAREN)? | functionName LPAREN) parameters? RPAREN kwCONST? (SEMICOLON | (
+	((returnTypeModifier? returnType functionName OPEN_PARENS)? | functionName OPEN_PARENS) parameters? CLOSE_PARENS kwCONST? (SEMICOLON | (
 		functionBody
 		SEMICOLON?
 	));
@@ -719,12 +703,12 @@ functionDecl:
  * { local Actor test, test2; return test.Class; }
  */
 functionBody:
-	LBRACE
+	OPEN_BRACE
 		(constDecl | localDecl)*
 		statement*
-	RBRACE;
+	CLOSE_BRACE;
 
-nativeToken: (LPAREN INTEGER RPAREN);
+nativeToken: (OPEN_PARENS INTEGER CLOSE_PARENS);
 
 functionModifier
 	: kwPUBLIC
@@ -756,53 +740,58 @@ functionName: identifier | operatorId;
 parameters: paramDecl (COMMA paramDecl)*;
 
 paramDecl:
-	paramModifier* typeDecl variable (EQUALS_SIGN expression)?;
+	paramModifier* typeDecl variable (ASSIGNMENT expression)?;
 
-returnTypeModifier: kwCOERCE;
+// TODO: are multiple returnModifiers a thing?
+returnTypeModifier
+	: kwCOERCE // UC3+
+	;
+
 returnType: typeDecl;
 
 operatorId
 	:
 	(
-		DOLLARSIGN
-		| ATSIGN
-		| HASHTAG
-		| EQUALS_SIGN
-		| NOTSIGN
-		| ANDSIGN
-		| ORSIGN
-		| ARROWUPSIGN
-		| MULTIPLYSIGN
+		DOLLAR
+		| AT
+		| SHARP
+		| ASSIGNMENT
+		| BANG
+		| AMP
+		| BITWISE_OR
+		| CARET
+		| STAR
 		| MINUS
 		| PLUS
-		| DIVIDESIGN
-		| MODULUSSIGN
-		| TILTSIGN
-		| LARROW
-		| RARROW
+		| DIV
+		| PERCENT
+		| TILDE
+		| LT
+		| GT
 	)
 	(
-		EQUALS_SIGN
-		| ANDSIGN
-		| ORSIGN
-		| ARROWUPSIGN
-		| MULTIPLYSIGN
+		ASSIGNMENT
+		| AMP
+		| BITWISE_OR
+		| CARET
+		| STAR
 		| MINUS
 		| PLUS
-		| DIVIDESIGN
-		| LARROW
-		| RARROW
+		| DIV
+		| LT
+		| GT
 	)?
-	(RARROW)?
+	GT?
 	;
 
-paramModifier:
-	kwOUT
+paramModifier
+	: kwOUT
 	| kwOPTIONAL
 	| kwINIT
 	| kwSKIP
 	| kwCOERCE
-	| kwCONST;
+	| kwCONST
+	;
 
 localDecl:
 	kwLOCAL typeDecl variable (COMMA variable)* SEMICOLON;
@@ -811,19 +800,18 @@ labelName: identifier;
 
 ignoresList: identifier (COMMA identifier)*;
 
-stateDecl: (stateModifier)* kwSTATE (LPAREN RPAREN)? stateName
+stateDecl: (stateModifier)* kwSTATE (OPEN_PARENS CLOSE_PARENS)? identifier
 		extendsClause?
-		LBRACE
+		OPEN_BRACE
 			(kwIGNORES ignoresList SEMICOLON)?
-			(localDecl)*
-			(functionDecl)*
+			localDecl*
+			functionDecl*
 			(labeledStatement statement*)*
-		RBRACE SEMICOLON?;
+		CLOSE_BRACE SEMICOLON?;
 
-stateName: identifier;
 stateModifier: kwAUTO | kwSIMULATED;
 
-codeBlock: (LBRACE statement* RBRACE);
+codeBlock: (OPEN_BRACE statement* CLOSE_BRACE);
 codeBlockOptional: (codeBlock | statement*);
 
 statement:
@@ -855,10 +843,10 @@ controlStatement
 // should be EXPR = EXPR but UnrealScript is an exception in that it does - only allow assignments
 // as primary statements. Rule: a.b.c.d = 4+5 Invalid: "00" = "1", "00".Length = 1 FIXME: Only
 // supports ID = expression
-assignment: expression EQUALS_SIGN expression;
+assignment: expression ASSIGNMENT expression;
 
 expression
-	: expression QUESTIONMARK expression COLON expression
+	: expression INTERR expression COLON expression
 	| expression functionName expression
 	| unaryExpression
 	;
@@ -871,22 +859,22 @@ unaryExpression
 	;
 
 primaryExpression
-	: (kwSUPER | kwGLOBAL) DOT identifier LPAREN arguments RPAREN
-	| (kwSUPER | kwGLOBAL) LPAREN identifier RPAREN DOT identifier arguments
-	| kwNEW (LPAREN arguments RPAREN)? expression (LPAREN expression RPAREN)?
+	: (kwSUPER | kwGLOBAL) DOT identifier OPEN_PARENS arguments CLOSE_PARENS
+	| (kwSUPER | kwGLOBAL) OPEN_PARENS identifier CLOSE_PARENS DOT identifier arguments
+	| kwNEW (OPEN_PARENS arguments CLOSE_PARENS)? expression (OPEN_PARENS expression CLOSE_PARENS)?
 	| literal
 	| kwDEFAULT | kwSELF
 	| identifier
-	| (LPAREN expression RPAREN)
+	| (OPEN_PARENS expression CLOSE_PARENS)
 	| primaryExpression DOT contextSpecifiers
 	| primaryExpression DOT identifier
-	| builtInObjects DOT primaryExpression
-	| primaryExpression LPAREN arguments RPAREN
-	| primaryExpression LBRACKET expression RBRACKET
+	| predefinedProps DOT primaryExpression
+	| primaryExpression OPEN_PARENS arguments CLOSE_PARENS
+	| primaryExpression OPEN_BRACKET expression CLOSE_BRACKET
 	// nameof, arraycount?
 	;
 
-builtInObjects
+predefinedProps
 	: kwSTATIC
 	| kwDEFAULT
 	| kwSELF
@@ -902,7 +890,7 @@ arguments: (COMMA* argument)*;
 argument: expression;
 
 ifStatement:
-	kwIF (LPAREN expression RPAREN)
+	kwIF (OPEN_PARENS expression CLOSE_PARENS)
 		codeBlockOptional
 	(kwELSE codeBlockOptional)?;
 
@@ -911,27 +899,27 @@ foreachStatement: kwFOREACH primaryExpression codeBlockOptional;
 
 forStatement:
 	kwFOR (
-		LPAREN assignment? SEMICOLON expression? SEMICOLON expression? RPAREN
+		OPEN_PARENS assignment? SEMICOLON expression? SEMICOLON expression? CLOSE_PARENS
 	) codeBlockOptional;
 
 whileStatement
-	: kwWHILE (LPAREN expression RPAREN)
+	: kwWHILE (OPEN_PARENS expression CLOSE_PARENS)
 		codeBlockOptional
 	;
 
 doStatement
 	: kwDO
 		codeBlockOptional
-	  kwUNTIL (LPAREN expression RPAREN)
+	  kwUNTIL (OPEN_PARENS expression CLOSE_PARENS)
 	;
 
 switchStatement:
-	kwSWITCH (LPAREN expression RPAREN)
-	LBRACE? (
+	kwSWITCH (OPEN_PARENS expression CLOSE_PARENS)
+	OPEN_BRACE? (
 		(kwCASE | kwDEFAULT) expression COLON
 			codeBlockOptional
 	)*
-	RBRACE?;
+	CLOSE_BRACE?;
 
 returnStatement: kwRETURN expression? SEMICOLON;
 breakStatement: kwBREAK SEMICOLON;
@@ -941,15 +929,17 @@ stopStatement: kwSTOP SEMICOLON;
 defaultpropertiesBlock
 	:
 		kwDEFAULTPROPERTIES
-		LBRACE
+		OPEN_BRACE
 			propertiesBlock
-		RBRACE
+		CLOSE_BRACE
 	;
 
 objectDecl
 	:
 		kwBEGIN ID
-			(kwNAME EQUALS_SIGN objectName | kwCLASS EQUALS_SIGN className)+
+			(
+				kwNAME ASSIGNMENT objectName | kwCLASS ASSIGNMENT identifier
+			)+
 			propertiesBlock
 		kwEND ID
 	;
@@ -959,15 +949,19 @@ propertiesBlock: (objectDecl | defaultVariable)*;
 objectName: identifier;
 
 defaultVariable:
-	defaultId ((LPAREN INTEGER RPAREN) | (LBRACKET INTEGER RBRACKET))?
-	(EQUALS_SIGN defaultValue | DOT identifier LPAREN defaultValue RPAREN) SEMICOLON?
+	defaultId ((OPEN_PARENS INTEGER CLOSE_PARENS) | (OPEN_BRACKET INTEGER CLOSE_BRACKET))?
+	(
+		ASSIGNMENT defaultValue
+		// Call parentheses are optional
+		| DOT identifier (OPEN_PARENS defaultValue CLOSE_PARENS)?
+	) SEMICOLON?
 	;
 
 defaultId: identifier;
 
 // (variableList)
 structLiteral
-	: LPAREN variablesList? RPAREN
+	: OPEN_PARENS variablesList? CLOSE_PARENS
 	;
 
 // id=literal,* or literal,*
@@ -991,13 +985,13 @@ defaultValue
 	| identifier
 	;
 
-operatorPrecedence: (LPAREN INTEGER RPAREN);
+operatorPrecedence: (OPEN_PARENS INTEGER CLOSE_PARENS);
 
-functionKind: (
-		kwEVENT
-		| kwFUNCTION
-		| kwDELEGATE
-		| kwOPERATOR operatorPrecedence
-		| kwPREOPERATOR
-		| kwPOSTOPERATOR
-	);
+functionKind
+	: kwEVENT
+	| kwFUNCTION
+	| kwDELEGATE
+	| kwOPERATOR operatorPrecedence
+	| kwPREOPERATOR
+	| kwPOSTOPERATOR
+	;

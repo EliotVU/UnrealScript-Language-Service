@@ -16,10 +16,10 @@ export const NATIVE_SYMBOLS = [
 	new UCNativeSymbol('bool'),
 	new UCNativeSymbol('button'),
 	new UCNativeSymbol('pointer'),
-	new UCNativeSymbol('class'),
 	new UCNativeSymbol('map'),
-	new UCNativeSymbol('array'),
-	new UCNativeSymbol('delegate')
+	new UCNativeSymbol('Class'),
+	new UCNativeSymbol('Array'),
+	new UCNativeSymbol('Delegate')
 ];
 
 NATIVE_SYMBOLS.forEach(symbol => {
