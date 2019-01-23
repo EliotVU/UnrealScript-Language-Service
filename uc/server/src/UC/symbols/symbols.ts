@@ -105,7 +105,7 @@ export class UCTypeRef extends UCSymbolRef {
 				break;
 		}
 
-		if (this.reference instanceof UCSymbol) {
+		if (this.reference && this.reference instanceof UCSymbol) {
 			this.reference.addReference(Location.create(document.uri, this.getIdRange()));
 		}
 
@@ -116,7 +116,7 @@ export class UCTypeRef extends UCSymbolRef {
 
 	private linkToClass(document: UCDocument) {
 		document.getDocument(this.getName(), (classDocument => {
-			if (classDocument) {
+			if (classDocument && classDocument.class) {
 				this.setReference(classDocument.class);
 				classDocument.class.addReference(Location.create(document.uri, this.getIdRange()));
 				classDocument.class.document = classDocument; // temp hack
@@ -557,26 +557,6 @@ export class UCClassSymbol extends UCStructSymbol {
 	public replicatedFieldRefs?: UCSymbolRef[];
 
 	public within?: UCClassSymbol;
-
-	public static visit(ctx: UCParser.ClassDeclContext): UCClassSymbol {
-		var className = ctx.className();
-		var symbol = new UCClassSymbol(
-			{ text: className.text, range: rangeFromToken(className.start)},
-			{ range: rangeFromTokens(ctx.start, ctx.stop) }
-		);
-
-		var extendsCtx = ctx.extendsClause();
-		if (extendsCtx) {
-			symbol.extendsRef = visitExtendsClause(extendsCtx, UCType.Class);
-		}
-
-		var withinCtx = ctx.withinClause();
-		if (withinCtx) {
-			symbol.withinRef = visitExtendsClause(withinCtx, UCType.Class);
-		}
-
-		return symbol;
-	}
 
 	getKind(): SymbolKind {
 		return SymbolKind.Class;
