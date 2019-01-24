@@ -1,0 +1,11 @@
+{
+	"fileExtensions": {
+		"uc": "uc"
+	},
+	"iconDefinitions": {
+		"uc": {
+			"fontCharacter": "UC",
+			"fontColor": "#AA0000"
+		}
+	}
+}
