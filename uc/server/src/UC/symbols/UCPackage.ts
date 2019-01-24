@@ -3,6 +3,7 @@ import * as path from 'path';
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 import { ISimpleSymbol } from './ISimpleSymbol';
 import { ISymbolContainer } from './ISymbolContainer';
+import { UCStructSymbol } from './symbols';
 
 // Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
@@ -39,20 +40,36 @@ export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
 		return this.getName();
 	}
 
-	add(symbol: ISimpleSymbol) {
+	addSymbol(symbol: ISimpleSymbol) {
 		symbol.outer = this;
 		this.symbols.set(symbol.getName().toLowerCase(), symbol);
 	}
 
-	public findSuperSymbol(idLowerCase: string, deepSearch?: boolean): ISimpleSymbol {
-		var symbol = this.symbols.get(idLowerCase);
+	/**
+	 * Looks up a symbol by a qualified identifier in the current package or its subpackages.
+	 * @param qualifiedId any valid qualified id e.g. Engine.Actor.EDrawType in lowercase.
+	 * @param deepSearch
+	 */
+	public findQualifiedSymbol(qualifiedId: string, deepSearch?: boolean): ISimpleSymbol {
+		var ids = qualifiedId.split('.');
+		if (ids.length > 1) {
+			let id = ids.shift();
+			let symbol = this.symbols.get(id);
+			if (symbol && symbol instanceof UCStructSymbol) {
+				return symbol.findSuperSymbol(ids.join('.'), deepSearch);
+			} else {
+				return this.findQualifiedSymbol(ids.join('.'), deepSearch);
+			}
+		}
+
+		var symbol = this.symbols.get(qualifiedId);
 		if (symbol || !deepSearch) {
 			return symbol;
 		}
 
 		for (symbol of this.symbols.values()) {
 			if (symbol instanceof UCPackage) {
-				symbol = symbol.findSuperSymbol(idLowerCase);
+				symbol = symbol.findQualifiedSymbol(qualifiedId, deepSearch);
 				if (symbol) {
 					return symbol;
 				}

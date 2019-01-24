@@ -30,7 +30,7 @@ import {
 } from './UC/symbols/symbols';
 import { UCPackage } from "./UC/symbols/UCPackage";
 import { DocumentParser } from "./UC/DocumentParser";
-import { UCDocument } from "./UC/UCDocument";
+import { UCDocumentListener } from "./UC/DocumentListener";
 import { UCSymbol } from "./UC/symbols/UCSymbol";
 import { CORE_PACKAGE } from "./UC/symbols/NativeSymbols";
 import { FUNCTION_MODIFIERS, CLASS_DECLARATIONS, PRIMITIVE_TYPE_NAMES, VARIABLE_MODIFIERS, FUNCTION_DECLARATIONS, STRUCT_DECLARATIONS, STRUCT_MODIFIERS } from "./UC/keywords";
@@ -40,7 +40,7 @@ let connection = createConnection(ProposedFeatures.all);
 let UCFilePaths = new Map<string, string>();
 
 let documents: TextDocuments = new TextDocuments();
-let projectDocuments: Map<string, UCDocument> = new Map<string, UCDocument>();
+let documentListeners: Map<string, UCDocumentListener> = new Map<string, UCDocumentListener>();
 
 let documentItems: CompletionItem[] = [];
 let projectClassTypes: CompletionItem[] = [];
@@ -156,7 +156,7 @@ documents.onDidChangeContent(async e => {
 		initializeClassTypes();
 	}
 
-	projectDocuments.delete(e.document.uri);
+	documentListeners.delete(e.document.uri);
 	validateTextDocument(e.document);
 });
 
@@ -164,11 +164,8 @@ documents.onDidClose(e => {
 	documentSettings.delete(e.document.uri);
 });
 
-var WorkspacePackage = new UCPackage('Workspace');
-WorkspacePackage.add(CORE_PACKAGE);
 
 var pendingDocuments = [];
-
 function parsePending() {
 	var pending = pendingDocuments.shift();
 	if (!pending) {
@@ -182,20 +179,23 @@ function parsePending() {
 	// setTimeout(parsePending, 400);
 }
 
-function parseClassDocument(className: string, cb: (document: UCDocument) => void) {
-	className = className.toLowerCase();
+var WorkspaceSymbolsTable = new UCPackage('Workspace');
+WorkspaceSymbolsTable.addSymbol(CORE_PACKAGE);
+
+function parseClassDocument(qualifiedClassId: string, cb: (document: UCDocumentListener) => void) {
+	qualifiedClassId = qualifiedClassId.toLowerCase();
 	// connection.console.log('Looking for external document ' + className);
 
 	// Try the shorter route first before we scan the entire workspace!
-	if (WorkspacePackage) {
-		let classSymbol = WorkspacePackage.findSuperSymbol(className, true);
+	if (WorkspaceSymbolsTable) {
+		let classSymbol = WorkspaceSymbolsTable.findQualifiedSymbol(qualifiedClassId, true);
 		if (classSymbol && classSymbol instanceof UCClassSymbol) {
 			cb(classSymbol.document);
 			return;
 		}
 	}
 
-	let filePath = UCFilePaths.get(className);
+	let filePath = UCFilePaths.get(qualifiedClassId);
 	if (!filePath) {
 		cb(undefined);
 		return;
@@ -212,14 +212,13 @@ function parseClassDocument(className: string, cb: (document: UCDocument) => voi
 	// setTimeout(parsePending, 50);
 }
 
-function parseDocument(uri: string, text: string): UCDocument {
-	// TODO: Hash check
-	let document = projectDocuments.get(uri);
+function parseDocument(uri: string, text: string): UCDocumentListener {
+	let document = documentListeners.get(uri);
 	if (!document) {
 		connection.console.log('Parsing document ' + uri);
-		document = new UCDocument(WorkspacePackage, uri);
+		document = new UCDocumentListener(WorkspaceSymbolsTable, uri);
 		document.getDocument = parseClassDocument;
-		projectDocuments.set(uri, document);
+		documentListeners.set(uri, document);
 
 		const parser = new DocumentParser(text);
 		parser.parse(document);
@@ -228,7 +227,7 @@ function parseDocument(uri: string, text: string): UCDocument {
 }
 
 function validateTextDocument(textDocument: TextDocument): Promise<void> {
-	let document: UCDocument;
+	let document: UCDocumentListener;
 	try {
 		document = parseDocument(textDocument.uri, textDocument.getText());
 	} catch (err) {
@@ -258,7 +257,7 @@ function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	}
 }
 
-function diagnoseDocument(document: UCDocument) {
+function diagnoseDocument(document: UCDocumentListener) {
 	const diagnostics: Diagnostic[] = [];
 	if (document.nodes && document.nodes.length > 0) {
 		let errors: Diagnostic[] = document.nodes
@@ -281,16 +280,16 @@ function diagnoseDocument(document: UCDocument) {
 	});
 }
 
-function getDocumentPositionSymbol(e: TextDocumentPositionParams): UCSymbol {
-	let document = projectDocuments.get(e.textDocument.uri);
-	if (!document) {
+function getDocumentSymbolAtPosition(e: TextDocumentPositionParams): UCSymbol {
+	let document = documentListeners.get(e.textDocument.uri);
+	if (!document || !document.class) {
 		return undefined;
 	}
-	return document.getSymbolAtPosition(e.position);
+	return document.class.getSymbolAtPos(e.position);
 }
 
 connection.onHover((e): Hover => {
-	const symbol = getDocumentPositionSymbol(e);
+	const symbol = getDocumentSymbolAtPosition(e);
 	if (!symbol) {
 		return undefined;
 	}
@@ -304,7 +303,7 @@ connection.onHover((e): Hover => {
 });
 
 connection.onDocumentSymbol((e: DocumentSymbolParams): SymbolInformation[] => {
-	let document = projectDocuments.get(e.textDocument.uri);
+	let document = documentListeners.get(e.textDocument.uri);
 	if (!document || !document.class) {
 		return undefined;
 	}
@@ -325,7 +324,7 @@ connection.onDocumentSymbol((e: DocumentSymbolParams): SymbolInformation[] => {
 
 // Bare implementation to support "go-to-defintion" for variable declarations type references.
 connection.onDefinition((e): Definition => {
-	const symbol = getDocumentPositionSymbol(e);
+	const symbol = getDocumentSymbolAtPosition(e);
 	if (!symbol) {
 		return undefined;
 	}
@@ -339,7 +338,7 @@ connection.onDefinition((e): Definition => {
 });
 
 connection.onReferences((e: ReferenceParams): Location[] => {
-	const symbol = getDocumentPositionSymbol(e);
+	const symbol = getDocumentSymbolAtPosition(e);
 	if (!symbol) {
 		return undefined;
 	}
@@ -347,7 +346,7 @@ connection.onReferences((e: ReferenceParams): Location[] => {
 });
 
 connection.onCompletion((e): CompletionItem[] => {
-	const symbol = getDocumentPositionSymbol(e);
+	const symbol = getDocumentSymbolAtPosition(e);
 	if (!symbol) {
 		return undefined;
 	}

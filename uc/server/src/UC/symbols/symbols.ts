@@ -8,7 +8,7 @@ import { SemanticErrorNode } from '../diagnostics/diagnostics';
 import { ISimpleSymbol } from './ISimpleSymbol';
 import { ISymbolContainer } from './ISymbolContainer';
 import { UCSymbol } from './UCSymbol';
-import { UCDocument, rangeFromToken, rangeFromTokens, visitExtendsClause } from '../UCDocument';
+import { UCDocumentListener, rangeFromToken, rangeFromTokens, visitExtendsClause } from '../DocumentListener';
 
 export interface ISymbolId {
 	text: string;
@@ -87,7 +87,7 @@ export class UCTypeRef extends UCSymbolRef {
 		return undefined;
 	}
 
-	link(document: UCDocument, context: UCStructSymbol) {
+	link(document: UCDocumentListener, context: UCStructSymbol) {
 		if (!this.getName()) {
 			return;
 		}
@@ -114,7 +114,7 @@ export class UCTypeRef extends UCSymbolRef {
 		}
 	}
 
-	private linkToClass(document: UCDocument) {
+	private linkToClass(document: UCDocumentListener) {
 		document.getDocument(this.getName(), (classDocument => {
 			if (classDocument && classDocument.class) {
 				this.setReference(classDocument.class);
@@ -214,7 +214,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return undefined;
 	}
 
-	public link(document: UCDocument, context: UCStructSymbol) {
+	public link(document: UCDocumentListener, context: UCStructSymbol) {
 		super.link(document);
 
 		if (this.typeRef) {
@@ -298,7 +298,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return CompletionItemKind.Module;
 	}
 
-	add(symbol: UCFieldSymbol) {
+	addSymbol(symbol: UCFieldSymbol) {
 		symbol.outer = this;
 		symbol.next = this.children;
 		this.children = symbol;
@@ -379,7 +379,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return super.findSuperTypeSymbol(idLowerCase, deepSearch);
 	}
 
-	link(document: UCDocument, context: UCStructSymbol) {
+	link(document: UCDocumentListener, context: UCStructSymbol) {
 		if (this.extendsRef) {
 			this.extendsRef.link(document, context);
 			// Ensure that we don't overwrite super assignment from our descendant class.
@@ -451,7 +451,7 @@ export class UCDefaultVariableSymbol extends UCFieldSymbol {
 		return undefined;
 	}
 
-	public link(document: UCDocument) {
+	public link(document: UCDocumentListener) {
 		if (this.varRef) {
 			// HACK: We don't want to look up a symbol in our own container as that would return ourselves.
 			var outer: UCStructSymbol = this.outer.outer as UCStructSymbol;
@@ -523,7 +523,7 @@ export class UCFunctionSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
-	public link(document: UCDocument, context: UCStructSymbol) {
+	public link(document: UCDocumentListener, context: UCStructSymbol) {
 		super.link(document, context);
 
 		if (this.returnTypeRef) {
@@ -551,7 +551,7 @@ export class UCStateSymbol extends UCStructSymbol {
 }
 
 export class UCClassSymbol extends UCStructSymbol {
-	public document?: UCDocument;
+	public document?: UCDocumentListener;
 
 	public withinRef?: UCTypeRef;
 	public replicatedFieldRefs?: UCSymbolRef[];
@@ -601,7 +601,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
-	link(document: UCDocument, context: UCClassSymbol = document.class) {
+	link(document: UCDocumentListener, context: UCClassSymbol = document.class) {
 		this.document = document;
 		if (this.withinRef) {
 			this.withinRef.link(document, context);

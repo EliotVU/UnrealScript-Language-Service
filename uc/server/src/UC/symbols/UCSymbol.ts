@@ -2,7 +2,7 @@ import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKin
 import { Token } from 'antlr4ts';
 import { ISimpleSymbol } from './ISimpleSymbol';
 import { ISymbolId, UCStructSymbol } from './symbols';
-import { UCDocument } from "../UCDocument";
+import { UCDocumentListener } from "../DocumentListener";
 import { UCPackage } from './UCPackage';
 
 /**
@@ -82,7 +82,7 @@ export abstract class UCSymbol implements ISimpleSymbol {
 		return undefined;
 	}
 
-	link(_document: UCDocument, context: UCStructSymbol = _document.class) {
+	link(_document: UCDocumentListener, context: UCStructSymbol = _document.class) {
 	}
 
 	addReference(location: Location) {
@@ -112,11 +112,11 @@ export abstract class UCSymbol implements ISimpleSymbol {
 		return item;
 	}
 
-	findSuperTypeSymbol(idLowerCase: string, deepSearch: boolean): ISimpleSymbol | undefined {
+	findSuperTypeSymbol(id: string, deepSearch: boolean): ISimpleSymbol | undefined {
 		if (this.outer instanceof UCSymbol) {
-			return this.outer.findSuperTypeSymbol(idLowerCase, deepSearch);
+			return this.outer.findSuperTypeSymbol(id, deepSearch);
 		} else if (this.outer instanceof UCPackage) {
-			return this.outer.findSuperSymbol(idLowerCase, deepSearch);
+			return this.outer.findQualifiedSymbol(id, deepSearch);
 		}
 		return undefined;
 	}

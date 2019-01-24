@@ -23,5 +23,5 @@ export const NATIVE_SYMBOLS = [
 ];
 
 NATIVE_SYMBOLS.forEach(symbol => {
-	CORE_PACKAGE.add(symbol);
+	CORE_PACKAGE.addSymbol(symbol);
 });

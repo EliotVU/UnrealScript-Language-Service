@@ -1,3 +1,3 @@
 export interface ISymbolContainer<T> {
-	add(symbol: T): void;
+	addSymbol(symbol: T): void;
 }

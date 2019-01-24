@@ -45,8 +45,8 @@ export function visitExtendsClause(extendsCtx: UCParser.ExtendsClauseContext | U
 	}, undefined, type);
 }
 
-export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {
-	public getDocument: (className: string, cb: (document: UCDocument) => void) => void;
+export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener<Token> {
+	public getDocument: (className: string, cb: (document: UCDocumentListener) => void) => void;
 
 	public name: string;
 
@@ -76,14 +76,10 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	declare(symbol: UCSymbol) {
 		const context = this.get();
-		context.add(symbol);
+		context.addSymbol(symbol);
 	}
 
-	getSymbolAtPosition(position: Position): UCSymbol {
-		return this.class.getSymbolAtPos(position);
-	}
-
-	link(classDocument: UCDocument): any {
+	link(classDocument: UCDocumentListener): any {
 		if (this.hasBeenLinked) {
 			return;
 		}
