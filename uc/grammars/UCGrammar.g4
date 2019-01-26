@@ -938,7 +938,7 @@ objectDecl
 	:
 		kwBEGIN ID
 			(
-				kwNAME ASSIGNMENT objectName | kwCLASS ASSIGNMENT identifier
+				kwNAME ASSIGNMENT objectId | kwCLASS ASSIGNMENT objectClass
 			)+
 			propertiesBlock
 		kwEND ID
@@ -946,7 +946,8 @@ objectDecl
 
 propertiesBlock: (objectDecl | defaultVariable)*;
 
-objectName: identifier;
+objectId: identifier;
+objectClass: qualifiedIdentifier;
 
 defaultVariable:
 	defaultId ((OPEN_PARENS INTEGER CLOSE_PARENS) | (OPEN_BRACKET INTEGER CLOSE_BRACKET))?

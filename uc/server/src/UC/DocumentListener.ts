@@ -8,7 +8,8 @@ import { SyntaxErrorNode, IDiagnosticNode } from './diagnostics/diagnostics';
 import { ISimpleSymbol } from './symbols/ISimpleSymbol';
 import { ISymbolContainer } from './symbols/ISymbolContainer';
 import { UCSymbol } from './symbols/UCSymbol';
-import { UCClassSymbol, UCStructSymbol, UCConstSymbol, UCEnumSymbol, UCEnumMemberSymbol, UCScriptStructSymbol, UCTypeRef, UCPropertySymbol, UCFunctionSymbol, UCStateSymbol, UCObjectSymbol, UCDefaultVariableSymbol, UCSymbolRef, UCType, UCParamSymbol, UCLocalSymbol } from './symbols/symbols';
+import { UCClassSymbol, UCStructSymbol, UCConstSymbol, UCEnumSymbol, UCEnumMemberSymbol, UCScriptStructSymbol, UCTypeRef, UCPropertySymbol, UCFunctionSymbol, UCStateSymbol, UCObjectSymbol, UCSymbolRef, UCType, UCParamSymbol, UCLocalSymbol } from './symbols/symbols';
+import { UCDefaultPropertiesSymbol } from "./symbols/UCDefaultPropertiesSymbol";
 import { UCPackage } from "./symbols/UCPackage";
 import * as UCParser from '../antlr/UCGrammarParser';
 
@@ -411,7 +412,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 
 	enterDefaultpropertiesBlock(ctx: UCParser.DefaultpropertiesBlockContext) {
 		const nameCtx = ctx.kwDEFAULTPROPERTIES();
-		const symbol = new UCObjectSymbol(
+		const symbol = new UCDefaultPropertiesSymbol(
 			{ text: nameCtx.text, range: rangeFromToken(nameCtx.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
@@ -420,31 +421,46 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	}
 
 	enterObjectDecl(ctx: UCParser.ObjectDeclContext) {
-		const idCtx = ctx.objectName();
-		if (!idCtx[0]) {
+		const objectId = ctx.objectId();
+		if (!objectId[0]) {
 			// TODO: throw error missing object name!
 			return;
 		}
+
 		const symbol = new UCObjectSymbol(
-			{ text: idCtx[0].text, range: rangeFromToken(idCtx[0].start) },
+			{ text: objectId[0].text, range: rangeFromToken(objectId[0].start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 		this.declare(symbol);
 		this.push(symbol);
+
+		// If null then object is an override.
+		let objectClass = ctx.objectClass();
+		if (!objectClass || !objectClass[0]) {
+			return;
+		}
+
+		const classId = objectClass[0];
+		const extendsRef = new UCTypeRef({
+			text: classId.text,
+			range: rangeFromTokens(classId.start, classId.stop)
+		}, this.class, UCType.Class);
+		symbol.extendsRef = extendsRef;
 	}
 
 	enterDefaultVariable(ctx: UCParser.DefaultVariableContext) {
+		const context = this.get() as UCDefaultPropertiesSymbol;
+
 		const idCtx = ctx.defaultId();
-		const symbol = new UCDefaultVariableSymbol(
+		const symbolRef = new UCSymbolRef(
 			{ text: idCtx.text, range: rangeFromToken(ctx.start) },
-			{ range: rangeFromTokens(ctx.start, ctx.stop) }
-		);
-		symbol.varRef = new UCSymbolRef(
-			{ text: idCtx.text, range: symbol.getIdRange() },
-			symbol
+			context
 		);
 
-		this.declare(symbol);
+		if (!context.variableRefs) {
+			context.variableRefs = new Map<string, UCSymbolRef>();
+		}
+		context.variableRefs.set(symbolRef.getName().toLowerCase(), symbolRef);
 
 		const valCtx = ctx.defaultValue();
 		if (valCtx) {

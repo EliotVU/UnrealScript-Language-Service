@@ -428,56 +428,6 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 	}
 }
 
-export class UCDefaultVariableSymbol extends UCFieldSymbol {
-	public varRef?: UCSymbolRef;
-
-	getKind(): SymbolKind {
-		return SymbolKind.Property;
-	}
-
-	getTypeTooltip(): string {
-		return '(default)';
-	}
-
-	getTooltip(): string {
-		if (this.varRef) {
-			return this.varRef.getTooltip();
-		}
-		return 'default.' + this.getName();
-	}
-
-	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.varRef) {
-			const symbol = this.varRef.getSymbolAtPos(position);
-			return symbol;
-		}
-		return undefined;
-	}
-
-	link(_document: UCDocumentListener, context: UCStructSymbol) {
-		if (this.varRef) {
-			const symbol = (<UCStructSymbol>context.outer).findSuperSymbol(this.getName(), true);
-			this.varRef.setReference(symbol);
-		}
-	}
-
-	analyze(document: UCDocumentListener, _context: UCStructSymbol) {
-		const symbol = this.varRef.getReference();
-		if (!symbol) {
-			document.nodes.push(new SemanticErrorNode(this, `Variable '${this.getName()}' not found!`));
-			return;
-		}
-
-		if (!(symbol instanceof UCPropertySymbol)) {
-			const errorNode = new SemanticErrorNode(
-				this,
-				`Type of '${symbol.getName()}' cannot be assigned a default value!`,
-			);
-			document.nodes.push(errorNode);
-		}
-	}
-}
-
 /**
  * Can represent either a subobject aka archetype, or an instance of a defaultproperties declaration.
  */
