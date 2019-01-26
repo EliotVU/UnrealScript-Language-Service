@@ -71,28 +71,37 @@ export abstract class UCSymbol implements ISimpleSymbol {
 	protected isIdWithinPosition(position: Position): boolean {
 		var range = this.id.range;
 		var isInRange = position.line >= range.start.line && position.line <= range.end.line
-			&& position.character >= range.start.character && position.character <= range.end.character;
+			&& position.character >= range.start.character && position.character < range.end.character;
 		return isInRange;
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.isIdWithinPosition(position)) {
-			return this;
+			const symbol = this.getSubSymbolAtPos(position);
+			return symbol || this;
 		}
 		return undefined;
 	}
 
-	link(_document: UCDocumentListener, context: UCStructSymbol = _document.class) {
+	protected getSubSymbolAtPos(_position: Position): UCSymbol |  undefined {
+		return undefined;
 	}
 
-	addReference(location: Location) {
+	link(_document: UCDocumentListener, _context: UCStructSymbol = _document.class) {
+	}
+
+	analyze(_document: UCDocumentListener, _context: UCStructSymbol) {
+
+	}
+
+	registerReference(location: Location) {
 		if (!this.links) {
 			this.links = [];
 		}
 		this.links.push(location);
 	}
 
-	getReferences(): Location[] | undefined {
+	getReferencedLocations(): Location[] | undefined {
 		return this.links;
 	}
 
@@ -112,9 +121,9 @@ export abstract class UCSymbol implements ISimpleSymbol {
 		return item;
 	}
 
-	findSuperTypeSymbol(id: string, deepSearch: boolean): ISimpleSymbol | undefined {
+	findTypeSymbol(id: string, deepSearch: boolean): ISimpleSymbol | undefined {
 		if (this.outer instanceof UCSymbol) {
-			return this.outer.findSuperTypeSymbol(id, deepSearch);
+			return this.outer.findTypeSymbol(id, deepSearch);
 		} else if (this.outer instanceof UCPackage) {
 			return this.outer.findQualifiedSymbol(id, deepSearch);
 		}

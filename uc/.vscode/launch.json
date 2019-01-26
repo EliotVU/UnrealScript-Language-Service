@@ -2,13 +2,11 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-            "name": "antlr4-unrealscript",
-            "type": "antlr-debug",
+			"type": "antlr-debug",
             "request": "launch",
+            "name": "antlr4-unrealscript",
             "input": "grammars/test.uc",
-            "grammar": "grammars/UCGrammar.g4",
             "startRule": "program",
-            "printParseTree": true,
 			"visualParseTree": true
         },
 		{

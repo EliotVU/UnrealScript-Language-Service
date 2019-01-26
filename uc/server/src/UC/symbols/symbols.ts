@@ -2,13 +2,12 @@ import { Range, SymbolKind, CompletionItemKind, Location, Position } from 'vscod
 
 import { Token } from 'antlr4ts';
 
-import * as UCParser from '../../antlr/UCGrammarParser';
-
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 import { ISimpleSymbol } from './ISimpleSymbol';
 import { ISymbolContainer } from './ISymbolContainer';
 import { UCSymbol } from './UCSymbol';
-import { UCDocumentListener, rangeFromToken, rangeFromTokens, visitExtendsClause } from '../DocumentListener';
+import { UCDocumentListener } from '../DocumentListener';
+import { CORE_PACKAGE } from './NativeSymbols';
 
 export interface ISymbolId {
 	text: string;
@@ -34,22 +33,27 @@ export class UCSymbolRef extends UCSymbol {
 
 	getTooltip(): string {
 		if (this.reference) {
-			return this.reference.getQualifiedName();
+			return this.reference.getTooltip();
 		}
 		return super.getTooltip();
 	}
 
-	getReferences(): Location[] | undefined {
-		var ref = this.getReference();
-		return ref instanceof UCSymbol ? ref.getReferences() : super.getReferences();
-	}
-
 	setReference(symbol: ISimpleSymbol) {
 		this.reference = symbol;
+		if (symbol && symbol instanceof UCSymbol) {
+			symbol.registerReference(Location.create(this.getUri(), this.getIdRange()));
+		}
 	}
 
 	getReference(): ISimpleSymbol | undefined {
 		return this.reference;
+	}
+
+	getReferencedLocations(): Location[] | undefined {
+		var ref = this.getReference();
+		return ref instanceof UCSymbol
+			? ref.getReferencedLocations()
+			: super.getReferencedLocations();
 	}
 }
 
@@ -77,20 +81,15 @@ export class UCTypeRef extends UCSymbolRef {
 		return this.getName();
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.isIdWithinPosition(position)) {
-			if (this.InnerTypeRef) {
-				return this.InnerTypeRef.getSymbolAtPos(position) || this;
-			}
-			return this;
+	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (this.InnerTypeRef) {
+			return this.InnerTypeRef.getSymbolAtPos(position);
 		}
 		return undefined;
 	}
 
 	link(document: UCDocumentListener, context: UCStructSymbol) {
-		if (!this.getName()) {
-			return;
-		}
+		console.assert(this.outer, 'No outer for type "' + this.getName() + '"');
 
 		switch (this._expectingType) {
 			case UCType.Class:
@@ -98,15 +97,13 @@ export class UCTypeRef extends UCSymbolRef {
 				break;
 
 			default:
-				this.reference = context.findSuperTypeSymbol(this.getName().toLowerCase(), true);
-				if (!this.reference) {
+				const symbol = context.findTypeSymbol(this.getName().toLowerCase(), true);
+				if (symbol) {
+					this.setReference(symbol);
+				} else {
 					this.linkToClass(document);
 				}
 				break;
-		}
-
-		if (this.reference && this.reference instanceof UCSymbol) {
-			this.reference.addReference(Location.create(document.uri, this.getIdRange()));
 		}
 
 		if (this.InnerTypeRef) {
@@ -115,12 +112,9 @@ export class UCTypeRef extends UCSymbolRef {
 	}
 
 	private linkToClass(document: UCDocumentListener) {
-		document.getDocument(this.getName(), (classDocument => {
+		document.getDocument(this.getName().toLowerCase(), (classDocument => {
 			if (classDocument && classDocument.class) {
 				this.setReference(classDocument.class);
-				classDocument.class.addReference(Location.create(document.uri, this.getIdRange()));
-				classDocument.class.document = classDocument; // temp hack
-				classDocument.link(classDocument);
 			} else {
 				document.nodes.push(new SemanticErrorNode(this, `Type '${this.getName()}' not found!`));
 			}
@@ -157,6 +151,17 @@ export class UCFieldSymbol extends UCSymbol {
 		}
 		return isInRange;
 	}
+
+	getSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (!this.isWithinPosition(position)) {
+			return undefined;
+		}
+
+		if (this.isIdWithinPosition(position)) {
+			return this;
+		}
+		return this.getSubSymbolAtPos(position);
+	}
 }
 
 export class UCConstSymbol extends UCFieldSymbol {
@@ -176,7 +181,7 @@ export class UCConstSymbol extends UCFieldSymbol {
 }
 
 export class UCPropertySymbol extends UCFieldSymbol {
-	public typeRef?: UCTypeRef;
+	public typeRef: UCTypeRef;
 
 	getKind(): SymbolKind {
 		return SymbolKind.Variable;
@@ -191,25 +196,16 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	getTooltip(): string {
-		if (this.typeRef) {
-			return `${this.getTypeTooltip()} ${this.getTypeText()} ${this.getQualifiedName()}`;
-		}
-		return this.getTypeTooltip() + ' ' + this.getQualifiedName();
+		return `${this.getTypeTooltip()} ${this.getTypeText()} ${this.getQualifiedName()}`;
 	}
 
 	getTypeText(): string {
-		return this.typeRef.getName();
+		return this.typeRef!.getName();
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.isWithinPosition(position)) {
-			if (this.isIdWithinPosition(position)) {
-				return this;
-			}
-
-			if (this.typeRef && this.typeRef.getSymbolAtPos(position)) {
-				return this.typeRef;
-			}
+	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (this.typeRef && this.typeRef.getSymbolAtPos(position)) {
+			return this.typeRef;
 		}
 		return undefined;
 	}
@@ -298,6 +294,23 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return CompletionItemKind.Module;
 	}
 
+	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (this.extendsRef && this.extendsRef.getSymbolAtPos(position)) {
+			return this.extendsRef;
+		}
+		return this.getChildSymbolAtPos(position);
+	}
+
+	getChildSymbolAtPos(position: Position): UCSymbol | undefined {
+		for (let child = this.children; child; child = child.next) {
+			const innerSymbol = child.getSymbolAtPos(position);
+			if (innerSymbol) {
+				return innerSymbol;
+			}
+		}
+		return undefined;
+	}
+
 	addSymbol(symbol: UCFieldSymbol) {
 		symbol.outer = this;
 		symbol.next = this.children;
@@ -311,34 +324,9 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		}
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.isWithinPosition(position)) {
-			if (this.isIdWithinPosition(position)) {
-				return this;
-			}
-
-			if (this.extendsRef && this.extendsRef.getSymbolAtPos(position)) {
-				return this.extendsRef;
-			}
-
-			return this.getChildSymbolAtPos(position);
-		}
-		return undefined;
-	}
-
-	getChildSymbolAtPos(position: Position): UCSymbol | undefined {
-		for (var child = this.children; child; child = child.next) {
-			let innerSymbol = child.getSymbolAtPos(position);
-			if (innerSymbol) {
-				return innerSymbol;
-			}
-		}
-		return undefined;
-	}
-
-	findChildSymbol(id: string): UCSymbol | undefined {
+	findSymbol(id: string): UCSymbol | undefined {
 		id = id.toLowerCase();
-		for (var child = this.children; child; child = child.next) {
+		for (let child = this.children; child; child = child.next) {
 			if (child.getName().toLowerCase() === id) {
 				return child;
 			}
@@ -348,7 +336,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 
 	findSuperSymbol(id: string, deepSearch?: boolean): UCSymbol | undefined {
 		for (let superSymbol: UCStructSymbol = this; superSymbol; superSymbol = superSymbol.super) {
-			let symbol = superSymbol.findChildSymbol(id);
+			const symbol = superSymbol.findSymbol(id);
 			if (symbol) {
 				return symbol;
 			}
@@ -360,9 +348,15 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	findSuperTypeSymbol(idLowerCase: string, deepSearch: boolean): ISimpleSymbol | undefined {
+	findTypeSymbol(idLowerCase: string, deepSearch: boolean): ISimpleSymbol | undefined {
+		// Quick shortcut for the most common types.
+		var predefinedType: ISimpleSymbol = CORE_PACKAGE.findQualifiedSymbol(idLowerCase, false);
+		if (predefinedType) {
+			return predefinedType;
+		}
+
 		if (this.types) {
-			var typeSymbol = this.types.get(idLowerCase);
+			const typeSymbol = this.types.get(idLowerCase);
 			if (typeSymbol) {
 				return typeSymbol;
 			}
@@ -373,10 +367,10 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		}
 
 		if (this.super) {
-			return this.super.findSuperTypeSymbol(idLowerCase, deepSearch);
+			return this.super.findTypeSymbol(idLowerCase, deepSearch);
 		}
 
-		return super.findSuperTypeSymbol(idLowerCase, deepSearch);
+		return super.findTypeSymbol(idLowerCase, deepSearch);
 	}
 
 	link(document: UCDocumentListener, context: UCStructSymbol) {
@@ -389,17 +383,33 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		}
 
 		if (this.types) {
-			for (var type of this.types.values()) {
-				type.link(document, context);
+			for (let type of this.types.values()) {
+				type.link(document, this);
 			}
 		}
 
-		for (var child = this.children; child; child = child.next) {
+		for (let child = this.children; child; child = child.next) {
 			if (child instanceof UCScriptStructSymbol || child instanceof UCEnumSymbol) {
 				continue;
 			}
 
-			child.link(document, context);
+			child.link(document, this);
+		}
+	}
+
+	analyze(document: UCDocumentListener, _context: UCStructSymbol) {
+		if (this.types) {
+			for (let type of this.types.values()) {
+				type.analyze(document, this);
+			}
+		}
+
+		for (let child = this.children; child; child = child.next) {
+			if (child instanceof UCScriptStructSymbol || child instanceof UCEnumSymbol) {
+				continue;
+			}
+
+			child.analyze(document, this);
 		}
 	}
 }
@@ -430,51 +440,40 @@ export class UCDefaultVariableSymbol extends UCFieldSymbol {
 	}
 
 	getTooltip(): string {
-		return this.getTypeTooltip() + ' ' + this.getName();
+		if (this.varRef) {
+			return this.varRef.getTooltip();
+		}
+		return 'default.' + this.getName();
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.isWithinPosition(position)) {
-			if (this.varRef) {
-				let symbol = this.varRef.getSymbolAtPos(position);
-				if (symbol) {
-					return symbol;
-				}
-			}
-
-			if (this.isIdWithinPosition(position)) {
-				return this;
-			}
-
-			// TODO check for sub defaults (e.g. in a struct literal)
+	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (this.varRef) {
+			const symbol = this.varRef.getSymbolAtPos(position);
+			return symbol;
 		}
 		return undefined;
 	}
 
-	public link(document: UCDocumentListener) {
+	link(_document: UCDocumentListener, context: UCStructSymbol) {
 		if (this.varRef) {
-			// HACK: We don't want to look up a symbol in our own container as that would return ourselves.
-			var outer: UCStructSymbol = this.outer.outer as UCStructSymbol;
-			if (!outer) {
-				return;
-			}
-
-			var symbol = outer.findSuperSymbol(this.getName(), true);
-			if (!symbol) {
-				document.nodes.push(new SemanticErrorNode(this, `Variable '${this.getName()}' not found!`));
-				return;
-			}
-
-			if (!(symbol instanceof UCPropertySymbol)) {
-				const errorNode = new SemanticErrorNode(
-					this,
-					`Type of '${symbol.getName()}' cannot be assigned a default value!`,
-				);
-				document.nodes.push(errorNode);
-			}
-
+			const symbol = (<UCStructSymbol>context.outer).findSuperSymbol(this.getName(), true);
 			this.varRef.setReference(symbol);
-			symbol.addReference(Location.create(document.uri, this.getIdRange()));
+		}
+	}
+
+	analyze(document: UCDocumentListener, _context: UCStructSymbol) {
+		const symbol = this.varRef.getReference();
+		if (!symbol) {
+			document.nodes.push(new SemanticErrorNode(this, `Variable '${this.getName()}' not found!`));
+			return;
+		}
+
+		if (!(symbol instanceof UCPropertySymbol)) {
+			const errorNode = new SemanticErrorNode(
+				this,
+				`Type of '${symbol.getName()}' cannot be assigned a default value!`,
+			);
+			document.nodes.push(errorNode);
 		}
 	}
 }
@@ -508,19 +507,11 @@ export class UCFunctionSymbol extends UCStructSymbol {
 		return this.getTypeTooltip() + ' ' + this.buildReturnType() + this.getQualifiedName() + this.buildArguments();
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.isWithinPosition(position)) {
-			if (this.isIdWithinPosition(position)) {
-				return this;
-			}
-
-			if (this.returnTypeRef && this.returnTypeRef.getSymbolAtPos(position)) {
-				return this.returnTypeRef;
-			}
-
-			return this.getChildSymbolAtPos(position);
+	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (this.returnTypeRef && this.returnTypeRef.getSymbolAtPos(position)) {
+			return this.returnTypeRef;
 		}
-		return undefined;
+		return super.getSubSymbolAtPos(position);
 	}
 
 	public link(document: UCDocumentListener, context: UCStructSymbol) {
@@ -579,25 +570,30 @@ export class UCClassSymbol extends UCStructSymbol {
 			if (this.isIdWithinPosition(position)) {
 				return this;
 			}
-
-			if (this.extendsRef && this.extendsRef.getSymbolAtPos(position)) {
-				return this.extendsRef;
-			}
-
-			if (this.withinRef && this.withinRef.getSymbolAtPos(position)) {
-				return this.withinRef;
-			}
-		} else {
-			// TODO: Optimize
-			if (this.replicatedFieldRefs) {
-				for (let ref of this.replicatedFieldRefs) {
-					if (ref.getSymbolAtPos(position)) {
-						return ref;
-					}
+			return this.getSubSymbolAtPos(position);
+		}
+		// TODO: Optimize
+		if (this.replicatedFieldRefs) {
+			for (let ref of this.replicatedFieldRefs) {
+				if (ref.getSymbolAtPos(position)) {
+					return ref;
 				}
 			}
-			return this.getChildSymbolAtPos(position);
 		}
+		// HACK: due the fact that a class doesn't enclose its symbols we'll have to check for child symbols regardless if the given position is within the declaration span.
+		return this.getChildSymbolAtPos(position);
+	}
+
+	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (this.extendsRef && this.extendsRef.getSymbolAtPos(position)) {
+			return this.extendsRef;
+		}
+
+		if (this.withinRef && this.withinRef.getSymbolAtPos(position)) {
+			return this.withinRef;
+		}
+
+		// NOTE: Never call super, see HACK above.
 		return undefined;
 	}
 
@@ -610,7 +606,9 @@ export class UCClassSymbol extends UCStructSymbol {
 			this.super = this.withinRef.getReference() as UCClassSymbol;
 		}
 		super.link(document, context);
+	}
 
+	analyze(document: UCDocumentListener, context: UCStructSymbol) {
 		const className = this.getName();
 		if (className.toLowerCase() != document.name.toLowerCase()) {
 			const errorNode = new SemanticErrorNode(
@@ -623,28 +621,28 @@ export class UCClassSymbol extends UCStructSymbol {
 		if (this.replicatedFieldRefs) {
 			for (let symbolRef of this.replicatedFieldRefs) {
 				// ref.link(document);
-				let symbol = this.findChildSymbol(symbolRef.getName());
+				let symbol = this.findSymbol(symbolRef.getName());
 				if (!symbol) {
 					const errorNode = new SemanticErrorNode(
 						symbolRef,
-						`Variable '${symbolRef.getName()}' does not exist in class '${className}'.`
+						`Variable or Function '${symbolRef.getName()}' does not exist in class '${className}'.`
 					);
 					document.nodes.push(errorNode);
 					continue;
 				}
 
 				symbolRef.setReference(symbol);
-				symbol.addReference(Location.create(document.uri, symbolRef.getIdRange()));
 				if (symbol instanceof UCPropertySymbol || symbol instanceof UCFunctionSymbol) {
 					continue;
-				} else {
-					const errorNode = new SemanticErrorNode(
-						symbolRef,
-						`Type of field '${symbol.getName()}' is not replicatable!`
-					);
-					document.nodes.push(errorNode);
 				}
+
+				const errorNode = new SemanticErrorNode(
+					symbolRef,
+					`Type of field '${symbol.getName()}' is not replicatable!`
+				);
+				document.nodes.push(errorNode);
 			}
 		}
+		super.analyze(document, context);
 	}
 }

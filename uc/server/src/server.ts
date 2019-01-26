@@ -147,7 +147,7 @@ documents.onDidOpen(async e => {
 		UCFilePaths = await scanWorkspaceForClasses(connection.workspace);
 		initializeClassTypes();
 	}
-	validateTextDocument(e.document);
+	// validateTextDocument(e.document);
 });
 
 documents.onDidChangeContent(async e => {
@@ -156,14 +156,14 @@ documents.onDidChangeContent(async e => {
 		initializeClassTypes();
 	}
 
+	connection.console.log('Content did change for document ' + e.document.uri);
 	documentListeners.delete(e.document.uri);
 	validateTextDocument(e.document);
 });
 
 documents.onDidClose(e => {
-	documentSettings.delete(e.document.uri);
+	// documentSettings.delete(e.document.uri);
 });
-
 
 var pendingDocuments = [];
 function parsePending() {
@@ -183,7 +183,6 @@ var WorkspaceSymbolsTable = new UCPackage('Workspace');
 WorkspaceSymbolsTable.addSymbol(CORE_PACKAGE);
 
 function parseClassDocument(qualifiedClassId: string, cb: (document: UCDocumentListener) => void) {
-	qualifiedClassId = qualifiedClassId.toLowerCase();
 	// connection.console.log('Looking for external document ' + className);
 
 	// Try the shorter route first before we scan the entire workspace!
@@ -222,6 +221,8 @@ function parseDocument(uri: string, text: string): UCDocumentListener {
 
 		const parser = new DocumentParser(text);
 		parser.parse(document);
+
+		document.link();
 	}
 	return document;
 }
@@ -246,7 +247,7 @@ function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		return;
 	}
 
-	document.link(document);
+	document.analyze();
 	diagnoseDocument(document);
 
 	documentItems = []; // reset, never show any items from previous documents.
@@ -342,7 +343,7 @@ connection.onReferences((e: ReferenceParams): Location[] => {
 	if (!symbol) {
 		return undefined;
 	}
-	return symbol.getReferences();
+	return symbol.getReferencedLocations();
 });
 
 connection.onCompletion((e): CompletionItem[] => {

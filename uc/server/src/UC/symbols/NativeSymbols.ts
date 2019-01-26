@@ -14,12 +14,12 @@ export const NATIVE_SYMBOLS = [
 	new UCNativeSymbol('string'),
 	new UCNativeSymbol('name'),
 	new UCNativeSymbol('bool'),
-	new UCNativeSymbol('button'),
 	new UCNativeSymbol('pointer'),
 	new UCNativeSymbol('map'),
 	new UCNativeSymbol('Class'),
 	new UCNativeSymbol('Array'),
-	new UCNativeSymbol('Delegate')
+	new UCNativeSymbol('Delegate'),
+	new UCNativeSymbol('button')
 ];
 
 NATIVE_SYMBOLS.forEach(symbol => {
