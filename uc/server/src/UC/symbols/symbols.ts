@@ -184,7 +184,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	public typeRef: UCTypeRef;
 
 	getKind(): SymbolKind {
-		return SymbolKind.Variable;
+		return SymbolKind.Property;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
@@ -221,11 +221,11 @@ export class UCPropertySymbol extends UCFieldSymbol {
 
 export class UCParamSymbol extends UCPropertySymbol {
 	getKind(): SymbolKind {
-		return SymbolKind.TypeParameter;
+		return SymbolKind.Variable;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.TypeParameter;
+		return CompletionItemKind.Variable;
 	}
 
 	getTypeTooltip(): string {
@@ -235,11 +235,11 @@ export class UCParamSymbol extends UCPropertySymbol {
 
 export class UCLocalSymbol extends UCPropertySymbol {
 	getKind(): SymbolKind {
-		return SymbolKind.TypeParameter;
+		return SymbolKind.Variable;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.TypeParameter;
+		return CompletionItemKind.Variable;
 	}
 
 	getTypeTooltip(): string {
