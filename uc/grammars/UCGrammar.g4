@@ -7,7 +7,7 @@ fragment HEX_DIGIT: (DIGIT | 'a' ..'f' | 'A' ..'F');
 fragment ESC_SEQ:
 	'\\' ('b' | 't' | 'n' | 'r' | '"' | '\'' | '\\');
 
-LINE_COMMENT: '//' .*? ~[\r\n]+ -> channel(HIDDEN);
+LINE_COMMENT: '//' ~[\r\n]* -> channel(HIDDEN);
 BLOCK_COMMENT: '/*' .*? '*/' -> channel(HIDDEN);
 
 DIRECTIVE: '#' ('exec'|'include'|'error'|'call'|'linenumber') .*? ~[\r\n]+ -> skip;
