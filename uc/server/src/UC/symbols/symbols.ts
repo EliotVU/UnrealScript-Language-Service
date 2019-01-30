@@ -68,7 +68,7 @@ export enum UCType {
 export class UCTypeRef extends UCSymbolRef {
 	public InnerTypeRef?: UCTypeRef;
 
-	constructor(id: ISymbolId, outer: ISimpleSymbol, private _expectingType?: UCType) {
+	constructor(id: ISymbolId, outer: ISimpleSymbol, private _expectingType?: UCType, private span?: ISymbolSpan) {
 		super(id, outer);
 	}
 
@@ -79,6 +79,40 @@ export class UCTypeRef extends UCSymbolRef {
 				: this.reference.getQualifiedName();
 		}
 		return this.getName();
+	}
+
+	getSpanRange(): Range {
+		return this.span!.range;
+	}
+
+	isWithinPosition(position: Position) {
+		const range = this.getSpanRange();
+		if (position.line < range.start.line || position.line > range.end.line) {
+			return false;
+		}
+
+		if (position.line == range.start.line) {
+			return position.character >= range.start.character;
+		}
+
+		if (position.line == range.end.line) {
+			return position.character <= range.end.character;
+		}
+		return false;
+	}
+
+	getSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (!this.span) {
+			return super.getSymbolAtPos(position);
+		}
+
+		if (this.isWithinPosition(position)) {
+			if (this.isIdWithinPosition(position)) {
+				return this;
+			}
+			return this.getSubSymbolAtPos(position);
+		}
+		return undefined;
 	}
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -204,8 +238,8 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.typeRef && this.typeRef.getSymbolAtPos(position)) {
-			return this.typeRef;
+		if (this.typeRef) {
+			return this.typeRef.getSymbolAtPos(position);
 		}
 		return undefined;
 	}

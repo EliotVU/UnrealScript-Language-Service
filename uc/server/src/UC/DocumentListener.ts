@@ -196,7 +196,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 		this.pop();
 	}
 
-	private visitClassType(classTypeCtx: UCParser.ClassTypeContext) {
+	private visitClassType(classTypeCtx: UCParser.ClassTypeContext): UCTypeRef {
 		const typeCtx = classTypeCtx.type();
 		return new UCTypeRef(
 			{ text: typeCtx.text, range: rangeFromTokens(typeCtx.start, typeCtx.stop) },
@@ -204,35 +204,35 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 		);
 	}
 
-	private visitTypeDecl(varTypeCtx: UCParser.TypeDeclContext) {
-		let typeText: string;
-		let typeRange: Range;
-		const type = varTypeCtx.type();
-		if (type) {
-			typeText = type.text;
-			typeRange = rangeFromTokens(type.start, type.stop);
-		} else {
-			typeRange = rangeFromTokens(varTypeCtx.start, varTypeCtx.stop);
-		}
-
+	private visitTypeDecl(varTypeCtx: UCParser.TypeDeclContext): UCTypeRef {
+		let typeIdText: string;
+		let typeIdRange: Range;
 		let innerTypeRef: UCTypeRef;
-		const classTypeCtx = varTypeCtx.classType();
-		if (classTypeCtx) {
-			innerTypeRef = this.visitClassType(classTypeCtx);
-			typeText = 'class';
-			typeRange.end.character = typeRange.start.character + 5;
-		} else if (varTypeCtx instanceof UCParser.TypeDeclContext) {
-			const arrayTypeCtx = varTypeCtx.arrayType();
-			if (arrayTypeCtx) {
-				innerTypeRef = this.visitInlinedDeclTypes(arrayTypeCtx.inlinedDeclTypes());
-				typeText = 'array';
-				typeRange.end.character = typeRange.start.character + 5;
+
+		const typeCtx = varTypeCtx.type();
+		if (typeCtx) {
+			typeIdText = typeCtx.text;
+			typeIdRange = rangeFromTokens(typeCtx.start, typeCtx.stop);
+		} else {
+			const classTypeCtx = varTypeCtx.classType();
+			if (classTypeCtx) {
+				innerTypeRef = this.visitClassType(classTypeCtx);
+				typeIdText = 'Class';
+				typeIdRange = rangeFromToken(classTypeCtx.start);
+			} else if (varTypeCtx instanceof UCParser.TypeDeclContext) {
+				const arrayTypeCtx = varTypeCtx.arrayType();
+				if (arrayTypeCtx) {
+					innerTypeRef = this.visitInlinedDeclTypes(arrayTypeCtx.inlinedDeclTypes());
+					typeIdText = 'Array';
+					typeIdRange = rangeFromToken(arrayTypeCtx.start);
+				}
 			}
 		}
 
 		const typeRef = new UCTypeRef(
-			{ text: typeText, range: typeRange },
-			this.get() as UCStructSymbol
+			{ text: typeIdText, range: typeIdRange },
+			this.get() as UCStructSymbol, undefined,
+			{ range: rangeFromTokens(varTypeCtx.start, varTypeCtx.stop) }
 		);
 
 		typeRef.InnerTypeRef = innerTypeRef;
@@ -242,7 +242,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 		return typeRef;
 	}
 
-	private visitInlinedDeclTypes(inlinedTypeCtx: UCParser.InlinedDeclTypesContext) {
+	private visitInlinedDeclTypes(inlinedTypeCtx: UCParser.InlinedDeclTypesContext): UCTypeRef {
 		const inlinedStruct = inlinedTypeCtx.structDecl();
 		if (inlinedStruct) {
 			const structName = inlinedStruct.identifier();
@@ -320,15 +320,13 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			{ text: nameCtx.text, range: rangeFromTokens(nameCtx.start, nameCtx.stop) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
-		const returnTypeCtx = ctx.returnType();
-		if (returnTypeCtx) {
-			funcSymbol.returnTypeRef = new UCTypeRef({
-				text: returnTypeCtx.text,
-				range: rangeFromTokens(returnTypeCtx.start, returnTypeCtx.stop)
-			}, funcSymbol);
-		}
 		this.declare(funcSymbol);
 		this.push(funcSymbol);
+
+		const returnTypeCtx = ctx.returnType();
+		if (returnTypeCtx) {
+			funcSymbol.returnTypeRef = this.visitTypeDecl(returnTypeCtx.typeDecl());
+		}
 
 		const params = ctx.parameters();
 		if (params) {
@@ -347,10 +345,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 				);
 
 				const propTypeCtx = paramCtx.typeDecl();
-				propSymbol.typeRef = new UCTypeRef({
-					text: propTypeCtx.text,
-					range: rangeFromTokens(propTypeCtx.start, propTypeCtx.stop)
-				}, funcSymbol);
+				propSymbol.typeRef = this.visitTypeDecl(propTypeCtx);
 				funcSymbol.params.push(propSymbol);
 				this.declare(propSymbol);
 			}
@@ -364,10 +359,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 				}
 
 				const propTypeCtx = localCtx.typeDecl();
-				const propTypeRef = new UCTypeRef({
-					text: propTypeCtx.text,
-					range: rangeFromTokens(propTypeCtx.start, propTypeCtx.stop)
-				}, funcSymbol);
+				const propTypeRef = this.visitTypeDecl(propTypeCtx);
 				for (const varCtx of localCtx.variable()) {
 					const propName = varCtx.identifier();
 					if (!propName) {
