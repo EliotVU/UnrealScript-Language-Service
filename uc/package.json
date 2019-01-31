@@ -75,8 +75,8 @@
 		"@types/mocha": "^5.2.0",
 		"@types/node": "^8.0.0",
 		"antlr4ts-cli": "^0.5.0-alpha.1",
-		"tslint": "^5.11.0",
-		"typescript": "^3.2.1"
+		"tslint": "^5.12.1",
+		"typescript": "^3.2.4"
 	},
 	"dependencies": {
 		"antlr4ts": "^0.5.0-alpha.1"
