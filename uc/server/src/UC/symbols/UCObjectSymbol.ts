@@ -1,4 +1,4 @@
-import { UCStructSymbol } from './UCStructSymbol';
+import { UCStructSymbol } from './';
 
 /**
  * Can represent either a subobject aka archetype, or an instance of a defaultproperties declaration.

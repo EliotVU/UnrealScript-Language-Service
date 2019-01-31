@@ -1,26 +1,18 @@
 import { Range, Position } from 'vscode-languageserver-types';
 
-import { UnrecognizedTypeNode } from '../diagnostics/diagnostics';
-import { ISimpleSymbol } from './ISimpleSymbol';
-import { UCSymbol } from './UCSymbol';
-import { UCDocumentListener } from '../DocumentListener';
-import { UCSymbolRef } from "./UCSymbolRef";
 import { ISymbolId } from "./ISymbolId";
 import { ISymbolSpan } from "./ISymbolSpan";
-import { UCStructSymbol } from "./UCStructSymbol";
+import { ISimpleSymbol } from './ISimpleSymbol';
+import { UCSymbol, UCSymbolRef, UCStructSymbol } from './';
 
-export enum UCType {
-	Class,
-	Enum,
-	Struct,
-	State,
-	Function
-}
+import { UCDocumentListener } from '../DocumentListener';
+import { UnrecognizedTypeNode } from '../diagnostics/diagnostics';
+import { UCTypeKind } from './UCTypeKind';
 
 export class UCTypeRef extends UCSymbolRef {
 	public InnerTypeRef?: UCTypeRef;
 
-	constructor(id: ISymbolId, outer: ISimpleSymbol, private _expectingType?: UCType, private span?: ISymbolSpan) {
+	constructor(id: ISymbolId, outer: ISimpleSymbol, private _expectingType?: UCTypeKind, private span?: ISymbolSpan) {
 		super(id, outer);
 	}
 
@@ -78,7 +70,7 @@ export class UCTypeRef extends UCSymbolRef {
 		// console.assert(this.outer, 'No outer for type "' + this.getName() + '"');
 
 		switch (this._expectingType) {
-			case UCType.Class:
+			case UCTypeKind.Class:
 				this.linkToClass(document);
 				break;
 

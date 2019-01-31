@@ -1,7 +1,7 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
 import { Token } from 'antlr4ts';
-import { UCFieldSymbol } from "./UCFieldSymbol";
+import { UCFieldSymbol } from "./";
 
 export class UCConstSymbol extends UCFieldSymbol {
 	public valueToken: Token;

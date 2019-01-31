@@ -1,6 +1,6 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
-import { UCPropertySymbol } from './UCPropertySymbol';
+import { UCPropertySymbol } from './';
 
 export class UCLocalSymbol extends UCPropertySymbol {
 	getKind(): SymbolKind {

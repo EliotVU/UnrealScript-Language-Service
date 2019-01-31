@@ -3,7 +3,7 @@ import * as path from 'path';
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 import { ISimpleSymbol } from './ISimpleSymbol';
 import { ISymbolContainer } from './ISymbolContainer';
-import { UCStructSymbol } from "./UCStructSymbol";
+import { UCStructSymbol } from "./";
 
 // Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
@@ -67,7 +67,7 @@ export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
 			return symbol;
 		}
 
-		for (symbol of this.symbols.values()) {
+		for ([, symbol] of this.symbols) {
 			if (symbol instanceof UCPackage) {
 				symbol = symbol.findQualifiedSymbol(qualifiedId, deepSearch);
 				if (symbol) {

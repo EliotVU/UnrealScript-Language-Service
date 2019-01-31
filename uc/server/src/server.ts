@@ -27,17 +27,9 @@ import {
 	Range
 } from 'vscode-languageserver';
 
-import { UCSymbolRef } from "./UC/symbols/UCSymbolRef";
-import { UCScriptStructSymbol } from "./UC/symbols/UCScriptStructSymbol";
-import { UCStructSymbol } from "./UC/symbols/UCStructSymbol";
-import { UCPropertySymbol } from "./UC/symbols/UCPropertySymbol";
-import { UCFunctionSymbol } from "./UC/symbols/UCFunctionSymbol";
-import { UCClassSymbol } from "./UC/symbols/UCClassSymbol";
-import { UCPackage } from "./UC/symbols/UCPackage";
-import { UCDocumentListener } from "./UC/DocumentListener";
-import { UCSymbol } from "./UC/symbols/UCSymbol";
-import { CORE_PACKAGE } from "./UC/symbols/NativeSymbols";
 import { FUNCTION_MODIFIERS, CLASS_DECLARATIONS, PRIMITIVE_TYPE_NAMES, VARIABLE_MODIFIERS, FUNCTION_DECLARATIONS, STRUCT_DECLARATIONS, STRUCT_MODIFIERS } from "./UC/keywords";
+import { UCSymbol, UCSymbolRef, UCPackage, UCStructSymbol, UCScriptStructSymbol, UCPropertySymbol, UCFunctionSymbol, UCClassSymbol, CORE_PACKAGE } from './UC/symbols';
+import { UCDocumentListener } from "./UC/DocumentListener";
 
 let connection = createConnection(ProposedFeatures.all);
 
@@ -123,6 +115,9 @@ async function initWorkspace() {
 	WorkspaceClassesMap$.next(UCFilePaths);
 }
 
+const WorkspaceSymbolsTable = new UCPackage('Workspace');
+WorkspaceSymbolsTable.addSymbol(CORE_PACKAGE);
+
 connection.onInitialized(async () => {
 	if (hasConfigurationCapability) {
 		connection.client.register(
@@ -157,9 +152,6 @@ documents$
 	});
 
 documents.onDidChangeContent(e => documents$.next(e.document));
-
-const WorkspaceSymbolsTable = new UCPackage('Workspace');
-WorkspaceSymbolsTable.addSymbol(CORE_PACKAGE);
 
 function findQualifiedIdUri(qualifiedClassId: string): string | undefined {
 	const filePath: string = WorkspaceClassesMap$.value.get(qualifiedClassId);

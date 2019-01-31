@@ -1,33 +1,24 @@
-import * as path from 'path';
-import * as fs from 'fs';
-
-import URI from 'vscode-uri';
-import { Position, Range, Diagnostic } from 'vscode-languageserver-types';
-import { Token, ANTLRErrorListener, RecognitionException, Recognizer } from 'antlr4ts';
+import { ANTLRErrorListener, RecognitionException, Recognizer, Token } from 'antlr4ts';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
+import * as fs from 'fs';
+import * as path from 'path';
+import { Diagnostic, Position, Range } from 'vscode-languageserver-types';
+import URI from 'vscode-uri';
 import { UCGrammarListener } from '../antlr/UCGrammarListener';
-import { SyntaxErrorNode, IDiagnosticNode } from './diagnostics/diagnostics';
-import { ISimpleSymbol } from './symbols/ISimpleSymbol';
-import { ISymbolContainer } from './symbols/ISymbolContainer';
-import { UCSymbol } from './symbols/UCSymbol';
-import { UCSymbolRef } from "./symbols/UCSymbolRef";
-import { UCObjectSymbol } from "./symbols/UCObjectSymbol";
-import { UCScriptStructSymbol } from "./symbols/UCScriptStructSymbol";
-import { UCEnumMemberSymbol } from "./symbols/UCEnumMemberSymbol";
-import { UCEnumSymbol } from "./symbols/UCEnumSymbol";
-import { UCStructSymbol } from "./symbols/UCStructSymbol";
-import { UCLocalSymbol } from "./symbols/UCLocalSymbol";
-import { UCParamSymbol } from "./symbols/UCParamSymbol";
-import { UCPropertySymbol } from "./symbols/UCPropertySymbol";
-import { UCConstSymbol } from "./symbols/UCConstSymbol";
-import { UCTypeRef, UCType } from "./symbols/UCTypeRef";
-import { UCFunctionSymbol } from "./symbols/UCFunctionSymbol";
-import { UCStateSymbol } from "./symbols/UCStateSymbol";
-import { UCClassSymbol } from "./symbols/UCClassSymbol";
-import { UCDefaultPropertiesSymbol } from "./symbols/UCDefaultPropertiesSymbol";
-import { UCPackage } from "./symbols/UCPackage";
 import * as UCParser from '../antlr/UCGrammarParser';
 import { DocumentParser } from './DocumentParser';
+import { ISimpleSymbol } from './symbols/ISimpleSymbol';
+import { ISymbolContainer } from './symbols/ISymbolContainer';
+import {
+	UCClassSymbol, UCConstSymbol, UCDefaultPropertiesSymbol,
+	UCEnumMemberSymbol, UCEnumSymbol, UCFunctionSymbol,
+	UCLocalSymbol, UCObjectSymbol, UCPackage, UCParamSymbol,
+	UCPropertySymbol, UCScriptStructSymbol, UCStateSymbol,
+	UCStructSymbol, UCSymbol, UCSymbolRef,
+	UCTypeRef
+} from './symbols';
+import { UCTypeKind } from './symbols/UCTypeKind';
+import { IDiagnosticNode, SyntaxErrorNode } from './diagnostics/diagnostics';
 
 export function rangeFromToken(token: Token): Range {
 	const start: Position = {
@@ -144,7 +135,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 		this.nodes.push(node);
 	}
 
-	visitExtendsClause(extendsCtx: UCParser.ExtendsClauseContext | UCParser.WithinClauseContext, type: UCType): UCTypeRef {
+	visitExtendsClause(extendsCtx: UCParser.ExtendsClauseContext | UCParser.WithinClauseContext, type: UCTypeKind): UCTypeRef {
 		var id = extendsCtx.qualifiedIdentifier();
 		return new UCTypeRef({
 			text: id.text,
@@ -163,19 +154,19 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	enterClassDecl(ctx: UCParser.ClassDeclContext) {
 		var className = ctx.identifier();
 		var classDecl = new UCClassSymbol(
-			{ text: className.text, range: rangeFromToken(className.start)},
+			{ text: className.text, range: rangeFromToken(className.start) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
 		this.class = classDecl; // Important!, must be assigned before further parsing.
 
 		var extendsCtx = ctx.extendsClause();
 		if (extendsCtx) {
-			classDecl.extendsRef = this.visitExtendsClause(extendsCtx, UCType.Class);
+			classDecl.extendsRef = this.visitExtendsClause(extendsCtx, UCTypeKind.Class);
 		}
 
 		var withinCtx = ctx.withinClause();
 		if (withinCtx) {
-			classDecl.withinRef = this.visitExtendsClause(withinCtx, UCType.Class);
+			classDecl.withinRef = this.visitExtendsClause(withinCtx, UCTypeKind.Class);
 		}
 
 		this.declare(classDecl); // push to package
@@ -236,7 +227,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 
 		const extendsCtx = ctx.extendsClause();
 		if (extendsCtx) {
-			symbol.extendsRef = this.visitExtendsClause(extendsCtx, UCType.Struct);
+			symbol.extendsRef = this.visitExtendsClause(extendsCtx, UCTypeKind.Struct);
 		}
 
 		this.declare(symbol);
@@ -251,7 +242,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 		const typeCtx = classTypeCtx.type();
 		return new UCTypeRef(
 			{ text: typeCtx.text, range: rangeFromTokens(typeCtx.start, typeCtx.stop) },
-			undefined, UCType.Class
+			undefined, UCTypeKind.Class
 		);
 	}
 
@@ -299,7 +290,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			const structName = inlinedStruct.identifier();
 			return new UCTypeRef(
 				{ text: structName.text, range: rangeFromTokens(structName.start, structName.stop) },
-				undefined, UCType.Struct
+				undefined, UCTypeKind.Struct
 			);
 		}
 
@@ -308,7 +299,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			const enumName = inlinedEnum.identifier();
 			return new UCTypeRef(
 				{ text: enumName.text, range: rangeFromTokens(enumName.start, enumName.stop) },
-				undefined, UCType.Enum
+				undefined, UCTypeKind.Enum
 			);
 		}
 		return this.visitTypeDecl(inlinedTypeCtx.typeDecl());
@@ -353,7 +344,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	enterReplicationStatement(ctx: UCParser.ReplicationStatementContext) {
 		for (const varCtx of ctx.replicateId()) {
 			const symbol = new UCSymbolRef(
-				{text: varCtx.text, range: rangeFromToken(varCtx.start)},
+				{ text: varCtx.text, range: rangeFromToken(varCtx.start) },
 				this.class
 			);
 			this.class.replicatedFieldRefs.push(symbol);
@@ -442,7 +433,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 		);
 		const extendsCtx = ctx.extendsClause();
 		if (extendsCtx) {
-			symbol.extendsRef = this.visitExtendsClause(extendsCtx, UCType.State);
+			symbol.extendsRef = this.visitExtendsClause(extendsCtx, UCTypeKind.State);
 		}
 
 		this.declare(symbol);
@@ -487,7 +478,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 		const extendsRef = new UCTypeRef({
 			text: classId.text,
 			range: rangeFromTokens(classId.start, classId.stop)
-		}, this.class, UCType.Class);
+		}, this.class, UCTypeKind.Class);
 		symbol.extendsRef = extendsRef;
 	}
 

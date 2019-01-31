@@ -1,14 +1,9 @@
-import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
+import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
 
 import { ISimpleSymbol } from './ISimpleSymbol';
 import { ISymbolContainer } from './ISymbolContainer';
-import { UCSymbol } from './UCSymbol';
+import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeRef, CORE_PACKAGE } from "./";
 import { UCDocumentListener } from '../DocumentListener';
-import { CORE_PACKAGE } from './NativeSymbols';
-import { UCTypeRef } from './UCTypeRef';
-import { UCScriptStructSymbol } from "./UCScriptStructSymbol";
-import { UCEnumSymbol } from "./UCEnumSymbol";
-import { UCFieldSymbol } from "./UCFieldSymbol";
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISimpleSymbol> {
 	public extendsRef?: UCTypeRef;

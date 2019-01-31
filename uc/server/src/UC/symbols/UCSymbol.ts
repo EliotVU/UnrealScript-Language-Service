@@ -1,10 +1,10 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Location, Position } from 'vscode-languageserver-types';
 import { Token } from 'antlr4ts';
+
 import { ISimpleSymbol } from './ISimpleSymbol';
 import { ISymbolId } from "./ISymbolId";
-import { UCStructSymbol } from "./UCStructSymbol";
+import { UCStructSymbol, UCPackage } from "./";
 import { UCDocumentListener } from "../DocumentListener";
-import { UCPackage } from './UCPackage';
 
 /**
  * A symbol that resides in a document, holding an id and range.

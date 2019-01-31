@@ -1,13 +1,8 @@
-import { UCPackage } from "./UCPackage";
-import { UCNativeSymbol } from "./UCNativeSymbol";
+import { UCPackage, UCNativeSymbol } from "./";
 
 export const CORE_PACKAGE = new UCPackage('Core');
 
-export const NATIVE_PACKAGES = [
-	CORE_PACKAGE
-];
-
-export const NATIVE_SYMBOLS = [
+const NATIVE_SYMBOLS = [
 	new UCNativeSymbol('byte'),
 	new UCNativeSymbol('float'),
 	new UCNativeSymbol('int'),

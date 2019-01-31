@@ -1,8 +1,8 @@
 import { Location } from 'vscode-languageserver-types';
 
 import { ISimpleSymbol } from './ISimpleSymbol';
-import { UCSymbol } from './UCSymbol';
 import { ISymbolId } from './ISymbolId';
+import { UCSymbol } from './';
 
 /**
  * For general symbol references, like a function's return type which cannot yet be identified.

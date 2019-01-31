@@ -1,6 +1,6 @@
 import { Range, Position } from 'vscode-languageserver-types';
 
-import { UCSymbol } from './UCSymbol';
+import { UCSymbol } from './';
 import { ISymbolId } from "./ISymbolId";
 import { ISymbolSpan } from "./ISymbolSpan";
 

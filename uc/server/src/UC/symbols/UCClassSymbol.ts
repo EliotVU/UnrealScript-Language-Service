@@ -1,13 +1,8 @@
 import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
-import { SemanticErrorNode } from '../diagnostics/diagnostics';
-import { UCSymbol } from './UCSymbol';
+import { UCSymbol, UCSymbolRef, UCStructSymbol, UCPropertySymbol, UCTypeRef, UCFunctionSymbol } from './';
 import { UCDocumentListener } from '../DocumentListener';
-import { UCSymbolRef } from "./UCSymbolRef";
-import { UCStructSymbol } from "./UCStructSymbol";
-import { UCPropertySymbol } from "./UCPropertySymbol";
-import { UCTypeRef } from "./UCTypeRef";
-import { UCFunctionSymbol } from "./UCFunctionSymbol";
+import { SemanticErrorNode } from '../diagnostics/diagnostics';
 
 export class UCClassSymbol extends UCStructSymbol {
 	public document?: UCDocumentListener;

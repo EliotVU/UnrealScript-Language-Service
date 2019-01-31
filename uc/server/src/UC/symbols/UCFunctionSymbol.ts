@@ -1,10 +1,7 @@
 import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
-import { UCSymbol } from './UCSymbol';
+import { UCSymbol, UCSymbolRef, UCStructSymbol, UCPropertySymbol } from './';
 import { UCDocumentListener } from '../DocumentListener';
-import { UCSymbolRef } from "./UCSymbolRef";
-import { UCStructSymbol } from "./UCStructSymbol";
-import { UCPropertySymbol } from "./UCPropertySymbol";
 
 export class UCFunctionSymbol extends UCStructSymbol {
 	public returnTypeRef?: UCSymbolRef;

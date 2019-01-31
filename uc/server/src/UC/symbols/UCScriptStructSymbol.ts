@@ -1,5 +1,5 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
-import { UCStructSymbol } from './UCStructSymbol';
+import { UCStructSymbol } from './';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
 	getKind(): SymbolKind {

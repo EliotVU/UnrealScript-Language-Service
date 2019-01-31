@@ -1,6 +1,6 @@
 import { SymbolKind } from 'vscode-languageserver-types';
 
-import { UCStructSymbol } from "./UCStructSymbol";
+import { UCStructSymbol } from "./";
 
 export class UCStateSymbol extends UCStructSymbol {
 	getKind(): SymbolKind {
