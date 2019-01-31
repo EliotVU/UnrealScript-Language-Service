@@ -1,5 +1,5 @@
 import { Range } from 'vscode-languageserver-types';
-import { UCSymbolRef } from '../symbols/symbols';
+import { UCSymbolRef } from "../symbols/UCSymbolRef";
 import { UCSymbol } from "../symbols/UCSymbol";
 
 export interface IDiagnosticNode {

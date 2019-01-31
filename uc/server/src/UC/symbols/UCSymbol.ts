@@ -1,7 +1,8 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Location, Position } from 'vscode-languageserver-types';
 import { Token } from 'antlr4ts';
 import { ISimpleSymbol } from './ISimpleSymbol';
-import { ISymbolId, UCStructSymbol } from './symbols';
+import { ISymbolId } from "./ISymbolId";
+import { UCStructSymbol } from "./UCStructSymbol";
 import { UCDocumentListener } from "../DocumentListener";
 import { UCPackage } from './UCPackage';
 

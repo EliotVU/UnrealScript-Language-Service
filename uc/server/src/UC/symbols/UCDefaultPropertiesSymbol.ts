@@ -2,7 +2,9 @@ import { SymbolKind, Position } from 'vscode-languageserver-types';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 import { UCSymbol } from './UCSymbol';
 import { UCDocumentListener } from '../DocumentListener';
-import { UCStructSymbol, UCSymbolRef, UCPropertySymbol } from './symbols';
+import { UCSymbolRef } from "./UCSymbolRef";
+import { UCStructSymbol } from "./UCStructSymbol";
+import { UCPropertySymbol } from "./UCPropertySymbol";
 
 export class UCDefaultPropertiesSymbol extends UCStructSymbol {
 	public variableRefs?: Map<string, UCSymbolRef>;

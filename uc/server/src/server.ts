@@ -27,10 +27,12 @@ import {
 	Range
 } from 'vscode-languageserver';
 
-import {
-	UCPropertySymbol, UCStructSymbol, UCClassSymbol,
-	UCFunctionSymbol, UCScriptStructSymbol, UCSymbolRef
-} from './UC/symbols/symbols';
+import { UCSymbolRef } from "./UC/symbols/UCSymbolRef";
+import { UCScriptStructSymbol } from "./UC/symbols/UCScriptStructSymbol";
+import { UCStructSymbol } from "./UC/symbols/UCStructSymbol";
+import { UCPropertySymbol } from "./UC/symbols/UCPropertySymbol";
+import { UCFunctionSymbol } from "./UC/symbols/UCFunctionSymbol";
+import { UCClassSymbol } from "./UC/symbols/UCClassSymbol";
 import { UCPackage } from "./UC/symbols/UCPackage";
 import { UCDocumentListener } from "./UC/DocumentListener";
 import { UCSymbol } from "./UC/symbols/UCSymbol";

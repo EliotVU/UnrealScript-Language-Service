@@ -3,7 +3,7 @@ import * as path from 'path';
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 import { ISimpleSymbol } from './ISimpleSymbol';
 import { ISymbolContainer } from './ISymbolContainer';
-import { UCStructSymbol } from './symbols';
+import { UCStructSymbol } from "./UCStructSymbol";
 
 // Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
