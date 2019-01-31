@@ -1,6 +1,9 @@
 import * as path from 'path';
 import * as fs from 'fs';
 
+import { interval, Subject, BehaviorSubject } from 'rxjs';
+import { debounce } from 'rxjs/operators';
+
 import URI from 'vscode-uri';
 import {
 	createConnection,
@@ -29,7 +32,6 @@ import {
 	UCFunctionSymbol, UCScriptStructSymbol, UCSymbolRef
 } from './UC/symbols/symbols';
 import { UCPackage } from "./UC/symbols/UCPackage";
-import { DocumentParser } from "./UC/DocumentParser";
 import { UCDocumentListener } from "./UC/DocumentListener";
 import { UCSymbol } from "./UC/symbols/UCSymbol";
 import { CORE_PACKAGE } from "./UC/symbols/NativeSymbols";
@@ -37,16 +39,25 @@ import { FUNCTION_MODIFIERS, CLASS_DECLARATIONS, PRIMITIVE_TYPE_NAMES, VARIABLE_
 
 let connection = createConnection(ProposedFeatures.all);
 
-let UCFilePaths = new Map<string, string>();
-
 let documents: TextDocuments = new TextDocuments();
 let documentListeners: Map<string, UCDocumentListener> = new Map<string, UCDocumentListener>();
 
-let documentItems: CompletionItem[] = [];
 let projectClassTypes: CompletionItem[] = [];
 
 let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
+
+let WorkspaceClassesMap$ = new BehaviorSubject(new Map<string, string>());
+
+WorkspaceClassesMap$.subscribe(classesMap => {
+	projectClassTypes = Array.from(classesMap.values())
+		.map(value => {
+			return {
+				label: path.basename(value, '.uc'),
+				kind: CompletionItemKind.Class
+			};
+		});
+});
 
 connection.onInitialize((params: InitializeParams) => {
 	let capabilities = params.capabilities;
@@ -105,14 +116,9 @@ async function scanWorkspaceForClasses(workspace: RemoteWorkspace): Promise<Map<
 	return filePaths;
 }
 
-function initializeClassTypes() {
-	projectClassTypes = Array.from(UCFilePaths.values())
-		.map(value => {
-			return {
-				label: path.basename(value, '.uc'),
-				kind: CompletionItemKind.Class
-			};
-		});
+async function initWorkspace() {
+	const UCFilePaths = await scanWorkspaceForClasses(connection.workspace);
+	WorkspaceClassesMap$.next(UCFilePaths);
 }
 
 connection.onInitialized(async () => {
@@ -123,10 +129,8 @@ connection.onInitialized(async () => {
 		);
 	}
 	if (hasWorkspaceFolderCapability) {
-		connection.workspace.onDidChangeWorkspaceFolders(async _event => {
-			UCFilePaths = await scanWorkspaceForClasses(connection.workspace);
-			initializeClassTypes();
-		});
+		initWorkspace();
+		connection.workspace.onDidChangeWorkspaceFolders(e => initWorkspace());
 	}
 });
 
@@ -142,95 +146,76 @@ connection.onDidChangeConfiguration(() => {
 	}
 });
 
-documents.onDidOpen(async e => {
-	if (UCFilePaths.size === 0) {
-		UCFilePaths = await scanWorkspaceForClasses(connection.workspace);
-		initializeClassTypes();
-	}
-	// validateTextDocument(e.document);
-});
+const documents$ = new Subject<TextDocument>();
+documents$
+	.pipe(debounce(() => interval(300)))
+	.subscribe(document => {
+		connection.console.log('Content did change for document ' + document.uri);
+		validateTextDocument(document);
+	});
 
-documents.onDidChangeContent(async e => {
-	if (UCFilePaths.size === 0) {
-		UCFilePaths = await scanWorkspaceForClasses(connection.workspace);
-		initializeClassTypes();
-	}
+documents.onDidChangeContent(e => documents$.next(e.document));
 
-	connection.console.log('Content did change for document ' + e.document.uri);
-	documentListeners.delete(e.document.uri);
-	validateTextDocument(e.document);
-});
-
-documents.onDidClose(e => {
-	// documentSettings.delete(e.document.uri);
-});
-
-var pendingDocuments = [];
-function parsePending() {
-	var pending = pendingDocuments.shift();
-	if (!pending) {
-		return;
-	}
-
-	let text = fs.readFileSync(pending.filePath).toString();
-	var uri = URI.file(pending.filePath).toString();
-	pending.cb(parseDocument(uri, text));
-
-	// setTimeout(parsePending, 400);
-}
-
-var WorkspaceSymbolsTable = new UCPackage('Workspace');
+const WorkspaceSymbolsTable = new UCPackage('Workspace');
 WorkspaceSymbolsTable.addSymbol(CORE_PACKAGE);
 
-function parseClassDocument(qualifiedClassId: string, cb: (document: UCDocumentListener) => void) {
-	// connection.console.log('Looking for external document ' + className);
+function findQualifiedIdUri(qualifiedClassId: string): string | undefined {
+	const filePath: string = WorkspaceClassesMap$.value.get(qualifiedClassId);
+	if (!filePath) {
+		return undefined;
+	}
+
+	// FIXME: may not exist
+	if (!fs.existsSync(filePath)) {
+		return undefined;
+	}
+
+	const uriFromFilePath = URI.file(filePath).toString();
+	return uriFromFilePath;
+}
+
+function findDocumentListener(qualifiedClassId: string, callback: (document: UCDocumentListener) => void) {
+	connection.console.log('Looking for external document ' + qualifiedClassId);
 
 	// Try the shorter route first before we scan the entire workspace!
 	if (WorkspaceSymbolsTable) {
 		let classSymbol = WorkspaceSymbolsTable.findQualifiedSymbol(qualifiedClassId, true);
 		if (classSymbol && classSymbol instanceof UCClassSymbol) {
-			cb(classSymbol.document);
+			callback(classSymbol.document);
 			return;
 		}
 	}
 
-	let filePath = UCFilePaths.get(qualifiedClassId);
-	if (!filePath) {
-		cb(undefined);
+	const uri = findQualifiedIdUri(qualifiedClassId);
+	if (!uri) {
+		callback(undefined);
 		return;
 	}
 
-	// FIXME: may not exist
-	if (!fs.existsSync(filePath)) {
-		cb(undefined);
-		return;
-	}
-
-	pendingDocuments.push({ filePath, cb });
-	parsePending();
-	// setTimeout(parsePending, 50);
+	const document: UCDocumentListener = createDocumentListener(uri);
+	// TODO: Parse and link created document.
+	callback(document);
 }
 
-function parseDocument(uri: string, text: string): UCDocumentListener {
-	let document = documentListeners.get(uri);
-	if (!document) {
-		connection.console.log('Parsing document ' + uri);
-		document = new UCDocumentListener(WorkspaceSymbolsTable, uri);
-		document.getDocument = parseClassDocument;
-		documentListeners.set(uri, document);
-
-		const parser = new DocumentParser(text);
-		parser.parse(document);
-
-		document.link();
+function createDocumentListener(uri: string): UCDocumentListener {
+	let document: UCDocumentListener = documentListeners.get(uri);
+	if (document) {
+		return document;
 	}
+
+	document = new UCDocumentListener(WorkspaceSymbolsTable, uri);
+	document.getDocument = findDocumentListener;
+	documentListeners.set(uri, document);
 	return document;
 }
 
 function validateTextDocument(textDocument: TextDocument): Promise<void> {
-	let document: UCDocumentListener;
+	let document = createDocumentListener(textDocument.uri);
+
 	try {
-		document = parseDocument(textDocument.uri, textDocument.getText());
+		document.invalidate();
+		document.parse(textDocument.getText());
+		document.link();
 	} catch (err) {
 		connection.sendDiagnostics({
 			uri: textDocument.uri,
@@ -246,38 +231,15 @@ function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		});
 		return;
 	}
-
-	document.analyze();
 	diagnoseDocument(document);
-
-	documentItems = []; // reset, never show any items from previous documents.
-	for (let container: UCStructSymbol = document.class; container; container = container.super) {
-		for (let child = container.children; child; child = child.next) {
-			documentItems.push(child.toCompletionItem());
-		}
-	}
 }
 
 function diagnoseDocument(document: UCDocumentListener) {
-	const diagnostics: Diagnostic[] = [];
-	if (document.nodes && document.nodes.length > 0) {
-		let errors: Diagnostic[] = document.nodes
-			.map(node => {
-				return Diagnostic.create(
-					node.getRange(),
-					node.toString(),
-					undefined,
-					undefined,
-					'unrealscript'
-				);
-			});
-
-		diagnostics.push(...errors);
-	}
+	const diagnostics = document.analyze();
 
 	connection.sendDiagnostics({
 		uri: document.uri,
-		diagnostics: diagnostics
+		diagnostics
 	});
 }
 
@@ -295,7 +257,7 @@ connection.onHover((e): Hover => {
 		return undefined;
 	}
 
-	connection.console.log('Hovering: ' + symbol.getTooltip() + ' at ' + symbol.getIdRange());
+	connection.console.log('Hovering: ' + symbol.getTooltip() + ' at ' + JSON.stringify(symbol.getIdRange()) + ' ' + symbol.getName());
 
 	return {
 		contents: symbol.getTooltip(),
@@ -347,33 +309,33 @@ connection.onReferences((e: ReferenceParams): Location[] => {
 });
 
 connection.onCompletion((e): CompletionItem[] => {
-	const symbol = getDocumentSymbolAtPosition(e);
+	let document = documentListeners.get(e.textDocument.uri);
+	if (!document || !document.class) {
+		return undefined;
+	}
+
+	const symbol = document.class.getSymbolAtPos(e.position);
 	if (!symbol) {
 		return undefined;
 	}
 
 	const items: CompletionItem[] = [];
+	if (symbol instanceof UCStructSymbol) {
+		for (let child = symbol.children; child; child.next) {
+			items.push(child.toCompletionItem());
+		}
+	}
+
 	if (symbol instanceof UCClassSymbol) {
 		return []
 			.concat(CLASS_DECLARATIONS, FUNCTION_MODIFIERS)
-			.map(kw => {
+			.map(type => {
 				return {
-					label: kw,
+					label: type,
 					kind: CompletionItemKind.Keyword
 				} as CompletionItem;
 			});
 	} else if (symbol instanceof UCPropertySymbol) {
-		// document.class.symbols.forEach((symbol) => {
-		// 	if (symbol.getKind() !== SymbolKind.Struct && symbol.getKind() !== SymbolKind.Enum) {
-		// 		return;
-		// 	}
-		// 	items.push({
-		// 		label: symbol.getName(),
-		// 		detail: symbol.getTooltip(),
-		// 		documentation: symbol.getDocumentation(),
-		// 	});
-		// });
-
 		return []
 			.concat(VARIABLE_MODIFIERS, PRIMITIVE_TYPE_NAMES)
 			.map(type => {
@@ -385,17 +347,6 @@ connection.onCompletion((e): CompletionItem[] => {
 			.concat(projectClassTypes, items);
 	}
 	else if (symbol instanceof UCFunctionSymbol) {
-		// document.class.symbols.forEach((symbol) => {
-		// 	if (symbol.getKind() === SymbolKind.Struct) {
-		// 		return;
-		// 	}
-		// 	items.push({
-		// 		label: symbol.getName(),
-		// 		detail: symbol.getTooltip(),
-		// 		documentation: symbol.getDocumentation(),
-		// 	});
-		// });
-
 		return []
 			.concat(FUNCTION_DECLARATIONS, FUNCTION_MODIFIERS, PRIMITIVE_TYPE_NAMES)
 			.map(type => {
@@ -415,6 +366,13 @@ connection.onCompletion((e): CompletionItem[] => {
 					kind: CompletionItemKind.Keyword
 				} as CompletionItem;
 			});
+	}
+
+	const documentItems = [];
+	for (let container: UCStructSymbol = document.class; container; container = container.super) {
+		for (let child = container.children; child; child = child.next) {
+			documentItems.push(child.toCompletionItem());
+		}
 	}
 
 	return []
