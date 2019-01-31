@@ -1,8 +1,8 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
-import { ISimpleSymbol } from './ISimpleSymbol';
+import { ISymbol } from './ISymbol';
 
-export class UCNativeSymbol implements ISimpleSymbol {
-	public outer: ISimpleSymbol;
+export class UCNativeSymbol implements ISymbol {
+	public outer: ISymbol;
 
 	constructor(private name: string, private uri?: string) {
 	}

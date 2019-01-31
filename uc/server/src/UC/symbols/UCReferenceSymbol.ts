@@ -1,18 +1,17 @@
 import { Location } from 'vscode-languageserver-types';
 
-import { ISimpleSymbol } from './ISimpleSymbol';
+import { ISymbol } from './ISymbol';
 import { ISymbolId } from './ISymbolId';
-import { UCSymbol } from './';
+import { UCSymbol } from '.';
 
 /**
  * For general symbol references, like a function's return type which cannot yet be identified.
  */
-export class UCSymbolRef extends UCSymbol {
-	protected reference?: ISimpleSymbol;
+export class UCReferenceSymbol extends UCSymbol {
+	protected reference?: ISymbol;
 
-	constructor(id: ISymbolId, outer: ISimpleSymbol) {
+	constructor(id: ISymbolId) {
 		super(id);
-		this.outer = outer;
 	}
 
 	getTooltip(): string {
@@ -22,14 +21,14 @@ export class UCSymbolRef extends UCSymbol {
 		return super.getTooltip();
 	}
 
-	setReference(symbol: ISimpleSymbol) {
+	setReference(symbol: ISymbol) {
 		this.reference = symbol;
 		if (symbol && symbol instanceof UCSymbol) {
 			symbol.registerReference(Location.create(this.getUri(), this.getIdRange()));
 		}
 	}
 
-	getReference(): ISimpleSymbol | undefined {
+	getReference(): ISymbol | undefined {
 		return this.reference;
 	}
 

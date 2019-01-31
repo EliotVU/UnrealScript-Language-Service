@@ -1,14 +1,14 @@
 import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
-import { UCSymbol, UCSymbolRef, UCStructSymbol, UCPropertySymbol, UCTypeRef, UCFunctionSymbol } from './';
+import { UCSymbol, UCReferenceSymbol, UCStructSymbol, UCPropertySymbol, UCTypeSymbol, UCMethodSymbol } from './';
 import { UCDocumentListener } from '../DocumentListener';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 
 export class UCClassSymbol extends UCStructSymbol {
 	public document?: UCDocumentListener;
 
-	public withinRef?: UCTypeRef;
-	public replicatedFieldRefs?: UCSymbolRef[];
+	public withinType?: UCTypeSymbol;
+	public repFieldRefs?: UCReferenceSymbol[];
 
 	public within?: UCClassSymbol;
 
@@ -36,8 +36,8 @@ export class UCClassSymbol extends UCStructSymbol {
 			return this.getSubSymbolAtPos(position);
 		}
 		// TODO: Optimize
-		if (this.replicatedFieldRefs) {
-			for (let ref of this.replicatedFieldRefs) {
+		if (this.repFieldRefs) {
+			for (let ref of this.repFieldRefs) {
 				if (ref.getSymbolAtPos(position)) {
 					return ref;
 				}
@@ -48,12 +48,12 @@ export class UCClassSymbol extends UCStructSymbol {
 	}
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.extendsRef && this.extendsRef.getSymbolAtPos(position)) {
-			return this.extendsRef;
+		if (this.extendsType && this.extendsType.getSymbolAtPos(position)) {
+			return this.extendsType;
 		}
 
-		if (this.withinRef && this.withinRef.getSymbolAtPos(position)) {
-			return this.withinRef;
+		if (this.withinType && this.withinType.getSymbolAtPos(position)) {
+			return this.withinType;
 		}
 
 		// NOTE: Never call super, see HACK above.
@@ -62,11 +62,11 @@ export class UCClassSymbol extends UCStructSymbol {
 
 	link(document: UCDocumentListener, context: UCClassSymbol = document.class) {
 		this.document = document;
-		if (this.withinRef) {
-			this.withinRef.link(document, context);
+		if (this.withinType) {
+			this.withinType.link(document, context);
 
 			// Overwrite extendsRef super, we inherit from the within class instead.
-			this.super = this.withinRef.getReference() as UCClassSymbol;
+			this.super = this.withinType.getReference() as UCClassSymbol;
 		}
 		super.link(document, context);
 	}
@@ -81,8 +81,8 @@ export class UCClassSymbol extends UCStructSymbol {
 			document.nodes.push(errorNode);
 		}
 
-		if (this.replicatedFieldRefs) {
-			for (let symbolRef of this.replicatedFieldRefs) {
+		if (this.repFieldRefs) {
+			for (let symbolRef of this.repFieldRefs) {
 				// ref.link(document);
 				let symbol = this.findSymbol(symbolRef.getName());
 				if (!symbol) {
@@ -95,7 +95,7 @@ export class UCClassSymbol extends UCStructSymbol {
 				}
 
 				symbolRef.setReference(symbol);
-				if (symbol instanceof UCPropertySymbol || symbol instanceof UCFunctionSymbol) {
+				if (symbol instanceof UCPropertySymbol || symbol instanceof UCMethodSymbol) {
 					continue;
 				}
 

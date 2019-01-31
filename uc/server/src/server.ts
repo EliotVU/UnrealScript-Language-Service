@@ -28,7 +28,7 @@ import {
 } from 'vscode-languageserver';
 
 import { FUNCTION_MODIFIERS, CLASS_DECLARATIONS, PRIMITIVE_TYPE_NAMES, VARIABLE_MODIFIERS, FUNCTION_DECLARATIONS, STRUCT_DECLARATIONS, STRUCT_MODIFIERS } from "./UC/keywords";
-import { UCSymbol, UCSymbolRef, UCPackage, UCStructSymbol, UCScriptStructSymbol, UCPropertySymbol, UCFunctionSymbol, UCClassSymbol, CORE_PACKAGE } from './UC/symbols';
+import { UCSymbol, UCReferenceSymbol, UCPackage, UCStructSymbol, UCScriptStructSymbol, UCPropertySymbol, UCMethodSymbol, UCClassSymbol, CORE_PACKAGE } from './UC/symbols';
 import { UCDocumentListener } from "./UC/DocumentListener";
 
 let connection = createConnection(ProposedFeatures.all);
@@ -286,7 +286,7 @@ connection.onDefinition((e): Definition => {
 		return undefined;
 	}
 
-	if (symbol instanceof UCSymbolRef) {
+	if (symbol instanceof UCReferenceSymbol) {
 		let reference = symbol.getReference();
 		if (reference instanceof UCSymbol) {
 			return Location.create(reference.getUri(), reference.getIdRange());
@@ -340,7 +340,7 @@ connection.onCompletion((e): CompletionItem[] => {
 			})
 			.concat(projectClassTypes, items);
 	}
-	else if (symbol instanceof UCFunctionSymbol) {
+	else if (symbol instanceof UCMethodSymbol) {
 		return []
 			.concat(FUNCTION_DECLARATIONS, FUNCTION_MODIFIERS, PRIMITIVE_TYPE_NAMES)
 			.map(type => {

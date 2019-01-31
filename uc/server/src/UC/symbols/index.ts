@@ -1,6 +1,6 @@
 export { UCSymbol } from "./UCSymbol";
-export { UCSymbolRef } from './UCSymbolRef';
-export { UCTypeRef } from './UCTypeRef';
+export { UCReferenceSymbol } from './UCReferenceSymbol';
+export { UCTypeSymbol } from './UCTypeSymbol';
 export { UCPackage } from './UCPackage';
 export { UCFieldSymbol } from './UCFieldSymbol';
 export { UCEnumSymbol } from './UCEnumSymbol';
@@ -8,7 +8,7 @@ export { UCEnumMemberSymbol } from './UCEnumMemberSymbol';
 export { UCStructSymbol } from './UCStructSymbol';
 export { UCScriptStructSymbol } from './UCScriptStructSymbol';
 export { UCObjectSymbol } from './UCObjectSymbol';
-export { UCFunctionSymbol } from './UCFunctionSymbol';
+export { UCMethodSymbol } from './UCMethodSymbol';
 export { UCPropertySymbol } from './UCPropertySymbol';
 export { UCParamSymbol } from './UCParamSymbol';
 export { UCConstSymbol } from './UCConstSymbol';

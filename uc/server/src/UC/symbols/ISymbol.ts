@@ -1,7 +1,7 @@
 import { SymbolKind } from 'vscode-languageserver-types';
 
-export interface ISimpleSymbol {
-	outer?: ISimpleSymbol;
+export interface ISymbol {
+	outer?: ISymbol;
 	getName(): string;
 	getQualifiedName(): string;
 	getKind(): SymbolKind;

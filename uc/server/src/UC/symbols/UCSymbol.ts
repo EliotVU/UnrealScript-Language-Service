@@ -1,7 +1,6 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Location, Position } from 'vscode-languageserver-types';
-import { Token } from 'antlr4ts';
 
-import { ISimpleSymbol } from './ISimpleSymbol';
+import { ISymbol } from './ISymbol';
 import { ISymbolId } from "./ISymbolId";
 import { UCStructSymbol, UCPackage } from "./";
 import { UCDocumentListener } from "../DocumentListener";
@@ -9,13 +8,11 @@ import { UCDocumentListener } from "../DocumentListener";
 /**
  * A symbol that resides in a document, holding an id and range.
  */
-export abstract class UCSymbol implements ISimpleSymbol {
-	public outer?: ISimpleSymbol;
+export abstract class UCSymbol implements ISymbol {
+	public outer?: ISymbol;
 
 	/** Locations that reference this symbol. */
 	private links?: Location[];
-
-	private commentToken?: Token;
 
 	constructor(private id: ISymbolId) {
 	}
@@ -29,7 +26,7 @@ export abstract class UCSymbol implements ISimpleSymbol {
 	}
 
 	getDocumentation(): string | undefined {
-		return this.commentToken ? this.commentToken.text : undefined;
+		return undefined;
 	}
 
 	// tryAddComment() {
@@ -122,7 +119,7 @@ export abstract class UCSymbol implements ISimpleSymbol {
 		return item;
 	}
 
-	findTypeSymbol(id: string, deepSearch: boolean): ISimpleSymbol | undefined {
+	findTypeSymbol(id: string, deepSearch: boolean): ISymbol | undefined {
 		if (this.outer instanceof UCSymbol) {
 			return this.outer.findTypeSymbol(id, deepSearch);
 		} else if (this.outer instanceof UCPackage) {

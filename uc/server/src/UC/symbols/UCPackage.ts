@@ -1,14 +1,14 @@
 import * as path from 'path';
 
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
-import { ISimpleSymbol } from './ISimpleSymbol';
+import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
 import { UCStructSymbol } from "./";
 
 // Holds class symbols, solely used for traversing symbols in a package.
-export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
+export class UCPackage implements ISymbolContainer<ISymbol> {
 	public outer = null;
-	public symbols = new Map<string, ISimpleSymbol>();
+	public symbols = new Map<string, ISymbol>();
 
 	private name: string;
 
@@ -40,7 +40,7 @@ export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
 		return this.getName();
 	}
 
-	addSymbol(symbol: ISimpleSymbol) {
+	addSymbol(symbol: ISymbol) {
 		symbol.outer = this;
 		this.symbols.set(symbol.getName().toLowerCase(), symbol);
 	}
@@ -50,7 +50,7 @@ export class UCPackage implements ISymbolContainer<ISimpleSymbol> {
 	 * @param qualifiedId any valid qualified id e.g. Engine.Actor.EDrawType in lowercase.
 	 * @param deepSearch
 	 */
-	public findQualifiedSymbol(qualifiedId: string, deepSearch?: boolean): ISimpleSymbol {
+	public findQualifiedSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol {
 		var ids = qualifiedId.split('.');
 		if (ids.length > 1) {
 			let id = ids.shift();

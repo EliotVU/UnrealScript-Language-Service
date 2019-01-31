@@ -2,24 +2,23 @@ import { Range, Position } from 'vscode-languageserver-types';
 
 import { ISymbolId } from "./ISymbolId";
 import { ISymbolSpan } from "./ISymbolSpan";
-import { ISimpleSymbol } from './ISimpleSymbol';
-import { UCSymbol, UCSymbolRef, UCStructSymbol } from './';
+import { UCSymbol, UCReferenceSymbol, UCStructSymbol } from '.';
+import { UCTypeKind } from './UCTypeKind';
 
 import { UCDocumentListener } from '../DocumentListener';
 import { UnrecognizedTypeNode } from '../diagnostics/diagnostics';
-import { UCTypeKind } from './UCTypeKind';
 
-export class UCTypeRef extends UCSymbolRef {
-	public InnerTypeRef?: UCTypeRef;
+export class UCTypeSymbol extends UCReferenceSymbol {
+	public innerType?: UCTypeSymbol;
 
-	constructor(id: ISymbolId, outer: ISimpleSymbol, private _expectingType?: UCTypeKind, private span?: ISymbolSpan) {
-		super(id, outer);
+	constructor(id: ISymbolId, private _typeKind?: UCTypeKind, private span?: ISymbolSpan) {
+		super(id);
 	}
 
 	getTooltip(): string {
 		if (this.reference) {
-			return this.InnerTypeRef
-				? (this.reference.getQualifiedName() + `<${this.InnerTypeRef.getTooltip()}>`)
+			return this.innerType
+				? (this.reference.getQualifiedName() + `<${this.innerType.getTooltip()}>`)
 				: this.reference.getQualifiedName();
 		}
 		return this.getName();
@@ -60,8 +59,8 @@ export class UCTypeRef extends UCSymbolRef {
 	}
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.InnerTypeRef) {
-			return this.InnerTypeRef.getSymbolAtPos(position);
+		if (this.innerType) {
+			return this.innerType.getSymbolAtPos(position);
 		}
 		return undefined;
 	}
@@ -69,7 +68,7 @@ export class UCTypeRef extends UCSymbolRef {
 	link(document: UCDocumentListener, context: UCStructSymbol) {
 		// console.assert(this.outer, 'No outer for type "' + this.getName() + '"');
 
-		switch (this._expectingType) {
+		switch (this._typeKind) {
 			case UCTypeKind.Class:
 				this.linkToClass(document);
 				break;
@@ -84,8 +83,8 @@ export class UCTypeRef extends UCSymbolRef {
 				break;
 		}
 
-		if (this.InnerTypeRef) {
-			this.InnerTypeRef.link(document, context);
+		if (this.innerType) {
+			this.innerType.link(document, context);
 		}
 	}
 

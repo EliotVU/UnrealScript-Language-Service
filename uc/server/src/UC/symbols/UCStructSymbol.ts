@@ -1,12 +1,12 @@
 import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
 
-import { ISimpleSymbol } from './ISimpleSymbol';
+import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
-import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeRef, CORE_PACKAGE } from "./";
+import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE } from "./";
 import { UCDocumentListener } from '../DocumentListener';
 
-export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISimpleSymbol> {
-	public extendsRef?: UCTypeRef;
+export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
+	public extendsType?: UCTypeSymbol;
 	public super?: UCStructSymbol;
 	public children?: UCFieldSymbol;
 
@@ -21,8 +21,8 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	}
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.extendsRef && this.extendsRef.getSymbolAtPos(position)) {
-			return this.extendsRef;
+		if (this.extendsType && this.extendsType.getSymbolAtPos(position)) {
+			return this.extendsType;
 		}
 		return this.getChildSymbolAtPos(position);
 	}
@@ -74,9 +74,9 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	findTypeSymbol(idLowerCase: string, deepSearch: boolean): ISimpleSymbol | undefined {
+	findTypeSymbol(idLowerCase: string, deepSearch: boolean): ISymbol | undefined {
 		// Quick shortcut for the most common types.
-		var predefinedType: ISimpleSymbol = CORE_PACKAGE.findQualifiedSymbol(idLowerCase, false);
+		var predefinedType: ISymbol = CORE_PACKAGE.findQualifiedSymbol(idLowerCase, false);
 		if (predefinedType) {
 			return predefinedType;
 		}
@@ -100,11 +100,11 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	}
 
 	link(document: UCDocumentListener, context: UCStructSymbol) {
-		if (this.extendsRef) {
-			this.extendsRef.link(document, context);
+		if (this.extendsType) {
+			this.extendsType.link(document, context);
 			// Ensure that we don't overwrite super assignment from our descendant class.
 			if (!this.super) {
-				this.super = this.extendsRef.getReference() as UCStructSymbol;
+				this.super = this.extendsType.getReference() as UCStructSymbol;
 			}
 		}
 

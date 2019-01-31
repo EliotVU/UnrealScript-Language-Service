@@ -1,5 +1,5 @@
 import { Range } from 'vscode-languageserver-types';
-import { UCSymbol, UCSymbolRef } from "../symbols";
+import { UCSymbol, UCReferenceSymbol } from "../symbols";
 
 export interface IDiagnosticNode {
 	getRange(): Range;
@@ -19,7 +19,7 @@ export class SyntaxErrorNode implements IDiagnosticNode {
 }
 
 export class SemanticErrorNode implements IDiagnosticNode {
-	constructor(private symbol: UCSymbol | UCSymbolRef, private error: string) {
+	constructor(private symbol: UCSymbol | UCReferenceSymbol, private error: string) {
 	}
 
 	getRange(): Range {
@@ -32,7 +32,7 @@ export class SemanticErrorNode implements IDiagnosticNode {
 }
 
 export class UnrecognizedTypeNode implements IDiagnosticNode {
-	constructor(private symbol: UCSymbolRef) {
+	constructor(private symbol: UCReferenceSymbol) {
 	}
 
 	getRange(): Range {

@@ -1,10 +1,10 @@
 import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
-import { UCSymbol, UCTypeRef, UCFieldSymbol, UCStructSymbol } from './';
+import { UCSymbol, UCTypeSymbol, UCFieldSymbol, UCStructSymbol } from './';
 import { UCDocumentListener } from '../DocumentListener';
 
 export class UCPropertySymbol extends UCFieldSymbol {
-	public typeRef: UCTypeRef;
+	public type: UCTypeSymbol;
 
 	getKind(): SymbolKind {
 		return SymbolKind.Property;
@@ -23,12 +23,12 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	getTypeText(): string {
-		return this.typeRef!.getName();
+		return this.type!.getName();
 	}
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.typeRef) {
-			return this.typeRef.getSymbolAtPos(position);
+		if (this.type) {
+			return this.type.getSymbolAtPos(position);
 		}
 		return undefined;
 	}
@@ -36,8 +36,8 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	public link(document: UCDocumentListener, context: UCStructSymbol) {
 		super.link(document);
 
-		if (this.typeRef) {
-			this.typeRef.link(document, context);
+		if (this.type) {
+			this.type.link(document, context);
 		}
 	}
 }
