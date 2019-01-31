@@ -84,7 +84,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		if (this.repFieldRefs) {
 			for (let symbolRef of this.repFieldRefs) {
 				// ref.link(document);
-				let symbol = this.findSymbol(symbolRef.getName());
+				let symbol = this.findSymbol(symbolRef.getName().toLowerCase());
 				if (!symbol) {
 					const errorNode = new SemanticErrorNode(
 						symbolRef,

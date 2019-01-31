@@ -1,4 +1,4 @@
-import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
+import { SymbolKind, CompletionItemKind, Position, Location } from 'vscode-languageserver-types';
 
 import { UCSymbol, UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
 import { UCDocumentListener } from '../DocumentListener';
@@ -6,6 +6,7 @@ import { UCDocumentListener } from '../DocumentListener';
 export class UCMethodSymbol extends UCStructSymbol {
 	public returnType?: UCTypeSymbol;
 	public params: UCParamSymbol[] = [];
+	public overridenMethod?: UCMethodSymbol;
 
 	getKind(): SymbolKind {
 		return SymbolKind.Function;
@@ -16,7 +17,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getTypeTooltip(): string {
-		return '(method)';
+		return this.overridenMethod ? '(method override)' : '(method)';
 	}
 
 	getTooltip(): string {
@@ -24,8 +25,11 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.returnType && this.returnType.getSymbolAtPos(position)) {
-			return this.returnType;
+		if (this.returnType) {
+			const returnSymbol = this.returnType.getSymbolAtPos(position);
+			if (returnSymbol) {
+				return returnSymbol;
+			}
 		}
 		return super.getSubSymbolAtPos(position);
 	}
@@ -35,6 +39,14 @@ export class UCMethodSymbol extends UCStructSymbol {
 
 		if (this.returnType) {
 			this.returnType.link(document, context);
+		}
+
+		if (context.super) {
+			const method = context.super.findSuperSymbol(this.getName().toLowerCase()) as UCMethodSymbol;
+			if (method) {
+				method.registerReference(Location.create(document.uri, this.getIdRange()));
+			}
+			this.overridenMethod = method;
 		}
 	}
 

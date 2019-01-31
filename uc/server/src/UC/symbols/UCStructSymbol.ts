@@ -51,7 +51,6 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	}
 
 	findSymbol(id: string): UCSymbol | undefined {
-		id = id.toLowerCase();
 		for (let child = this.children; child; child = child.next) {
 			if (child.getName().toLowerCase() === id) {
 				return child;
@@ -60,22 +59,18 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	findSuperSymbol(id: string, deepSearch?: boolean): UCSymbol | undefined {
+	findSuperSymbol(id: string): UCSymbol | undefined {
 		for (let superSymbol: UCStructSymbol = this; superSymbol; superSymbol = superSymbol.super) {
 			const symbol = superSymbol.findSymbol(id);
 			if (symbol) {
 				return symbol;
-			}
-
-			if (!deepSearch) {
-				break;
 			}
 		}
 		return undefined;
 	}
 
 	findTypeSymbol(idLowerCase: string, deepSearch: boolean): ISymbol | undefined {
-		// Quick shortcut for the most common types.
+		// Quick shortcut for the most common types or top level symbols.
 		var predefinedType: ISymbol = CORE_PACKAGE.findQualifiedSymbol(idLowerCase, false);
 		if (predefinedType) {
 			return predefinedType;
@@ -95,8 +90,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		if (this.super) {
 			return this.super.findTypeSymbol(idLowerCase, deepSearch);
 		}
-
-		return super.findTypeSymbol(idLowerCase, deepSearch);
+		return undefined;
 	}
 
 	link(document: UCDocumentListener, context: UCStructSymbol) {

@@ -56,7 +56,7 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 			let id = ids.shift();
 			let symbol = this.symbols.get(id);
 			if (symbol && symbol instanceof UCStructSymbol) {
-				return symbol.findSuperSymbol(ids.join('.'), deepSearch);
+				return symbol.findSuperSymbol(ids.join('.'));
 			} else {
 				return this.findQualifiedSymbol(ids.join('.'), deepSearch);
 			}

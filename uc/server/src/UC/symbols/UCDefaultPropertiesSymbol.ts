@@ -35,7 +35,7 @@ export class UCDefaultPropertiesSymbol extends UCStructSymbol {
 		}
 
 		for (let ref of this.varRefs.values()) {
-			const symbol = context.findSuperSymbol(ref.getName(), true);
+			const symbol = context.findSuperSymbol(ref.getName().toLowerCase());
 			if (!symbol) {
 				continue;
 			}
