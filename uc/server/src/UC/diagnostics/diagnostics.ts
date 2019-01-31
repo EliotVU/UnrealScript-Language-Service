@@ -31,3 +31,16 @@ export class SemanticErrorNode implements IDiagnosticNode {
 		return this.error;
 	}
 }
+
+export class UnrecognizedTypeNode implements IDiagnosticNode {
+	constructor(private symbol: UCSymbolRef) {
+	}
+
+	getRange(): Range {
+		return this.symbol.getIdRange();
+	}
+
+	toString(): string {
+		return `Type '${this.symbol.getName()}' not found!`;
+	}
+}

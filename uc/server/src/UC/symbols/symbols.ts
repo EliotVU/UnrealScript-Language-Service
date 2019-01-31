@@ -2,7 +2,7 @@ import { Range, SymbolKind, CompletionItemKind, Location, Position } from 'vscod
 
 import { Token } from 'antlr4ts';
 
-import { SemanticErrorNode } from '../diagnostics/diagnostics';
+import { SemanticErrorNode, UnrecognizedTypeNode } from '../diagnostics/diagnostics';
 import { ISimpleSymbol } from './ISimpleSymbol';
 import { ISymbolContainer } from './ISymbolContainer';
 import { UCSymbol } from './UCSymbol';
@@ -123,7 +123,7 @@ export class UCTypeRef extends UCSymbolRef {
 	}
 
 	link(document: UCDocumentListener, context: UCStructSymbol) {
-		console.assert(this.outer, 'No outer for type "' + this.getName() + '"');
+		// console.assert(this.outer, 'No outer for type "' + this.getName() + '"');
 
 		switch (this._expectingType) {
 			case UCType.Class:
@@ -150,7 +150,7 @@ export class UCTypeRef extends UCSymbolRef {
 			if (classDocument && classDocument.class) {
 				this.setReference(classDocument.class);
 			} else {
-				document.nodes.push(new SemanticErrorNode(this, `Type '${this.getName()}' not found!`));
+				document.nodes.push(new UnrecognizedTypeNode(this));
 			}
 		}));
 	}
