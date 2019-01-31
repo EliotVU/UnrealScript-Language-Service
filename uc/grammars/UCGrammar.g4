@@ -426,10 +426,11 @@ numberLiteral: (MINUS | PLUS)? (FLOAT | INTEGER);
 stringLiteral: STRING;
 nameLiteral: NAME;
 booleanLiteral: kwTRUE | kwFALSE;
+objectLiteral: NAME;
 noneLiteral: kwNONE;
 
 // e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
-classLiteral: identifier nameLiteral;
+classLiteral: identifier objectLiteral;
 
 classDecl
 	:
