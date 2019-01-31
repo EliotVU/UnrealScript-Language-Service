@@ -1,6 +1,8 @@
 import * as path from 'path';
+import * as fs from 'fs';
 
-import { Position, Range } from 'vscode-languageserver-types';
+import URI from 'vscode-uri';
+import { Position, Range, Diagnostic } from 'vscode-languageserver-types';
 import { Token, ANTLRErrorListener, RecognitionException, Recognizer } from 'antlr4ts';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 import { UCGrammarListener } from '../antlr/UCGrammarListener';
@@ -12,6 +14,7 @@ import { UCClassSymbol, UCStructSymbol, UCConstSymbol, UCEnumSymbol, UCEnumMembe
 import { UCDefaultPropertiesSymbol } from "./symbols/UCDefaultPropertiesSymbol";
 import { UCPackage } from "./symbols/UCPackage";
 import * as UCParser from '../antlr/UCGrammarParser';
+import { DocumentParser } from './DocumentParser';
 
 export function rangeFromToken(token: Token): Range {
 	const start: Position = {
@@ -45,7 +48,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	public name: string;
 
 	public class?: UCClassSymbol;
-	private context: UCStructSymbol[] = []; // FIXME: Type
+	private context?: UCStructSymbol[]; // FIXME: Type
 
 	public nodes: IDiagnosticNode[] = [];
 
@@ -72,12 +75,39 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 		context.addSymbol(symbol);
 	}
 
+	parse(text: string) {
+		const parser = new DocumentParser(text);
+		parser.parse(this);
+	}
+
+	readText(): string {
+		const filePath = URI.parse(this.uri).fsPath;
+		const text = fs.readFileSync(filePath).toString();
+		return text;
+	}
+
 	link() {
 		this.class!.link(this, this.class);
 	}
 
-	analyze() {
+	invalidate() {
+		this.class = undefined;
+	}
+
+	analyze(): Diagnostic[] {
+		this.nodes = []; // clear
 		this.class!.analyze(this, this.class);
+
+		return this.nodes
+			.map(node => {
+				return Diagnostic.create(
+					node.getRange(),
+					node.toString(),
+					undefined,
+					undefined,
+					'unrealscript'
+				);
+			});
 	}
 
 	syntaxError(_recognizer: Recognizer<Token, any>,
@@ -97,8 +127,8 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	}
 
 	visitErrorNode(errNode: ErrorNode) {
-		// const node = new CodeErrorNode(errNode.symbol, errNode.text);
-		// this.nodes.push(node);
+		const node = new SyntaxErrorNode(rangeFromToken(errNode.symbol), '(ANTLR Error) ' + errNode.text);
+		this.nodes.push(node);
 	}
 
 	visitExtendsClause(extendsCtx: UCParser.ExtendsClauseContext | UCParser.WithinClauseContext, type: UCType): UCTypeRef {
@@ -107,6 +137,14 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			text: id.text,
 			range: rangeFromTokens(id.start, id.stop)
 		}, this.class, type);
+	}
+
+	enterProgram(ctx: UCParser.ProgramContext) {
+		this.context = [];
+	}
+
+	exitProgram(ctx: UCParser.ProgramContext) {
+		this.context = undefined;
 	}
 
 	enterClassDecl(ctx: UCParser.ClassDeclContext) {
