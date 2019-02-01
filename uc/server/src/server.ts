@@ -143,15 +143,16 @@ connection.onDidChangeConfiguration(() => {
 	}
 });
 
-const documents$ = new Subject<TextDocument>();
-documents$
+const pendingDocuments$ = new Subject<TextDocument>();
+pendingDocuments$
 	.pipe(debounce(() => interval(300)))
 	.subscribe(document => {
 		connection.console.log('Content did change for document ' + document.uri);
 		validateTextDocument(document);
 	});
 
-documents.onDidChangeContent(e => documents$.next(e.document));
+documents.onDidOpen(e => pendingDocuments$.next(e.document));
+documents.onDidChangeContent(e => pendingDocuments$.next(e.document));
 
 function findQualifiedIdUri(qualifiedClassId: string): string | undefined {
 	const filePath: string = WorkspaceClassesMap$.value.get(qualifiedClassId);
