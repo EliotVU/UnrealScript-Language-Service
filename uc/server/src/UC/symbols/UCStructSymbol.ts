@@ -20,6 +20,27 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return CompletionItemKind.Module;
 	}
 
+	getContextSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (this.isWithinPosition(position)) {
+			return this;
+		}
+
+		for (let symbol = this.children; symbol; symbol = symbol.next) {
+			if (symbol instanceof UCStructSymbol) {
+				const subSymbol = symbol.getContextSymbolAtPos(position);
+				if (subSymbol) {
+					return subSymbol;
+				}
+				continue;
+			}
+
+			if (symbol.isWithinPosition(position)) {
+				return symbol;
+			}
+		}
+		return undefined;
+	}
+
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.extendsType && this.extendsType.getSymbolAtPos(position)) {
 			return this.extendsType;
