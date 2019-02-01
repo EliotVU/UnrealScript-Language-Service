@@ -118,27 +118,6 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			});
 	}
 
-	getSymbolsAtPos(position: Position): UCSymbol[] {
-		const context = this.class.getContextSymbolAtPos(position);
-		if (!context) {
-			return [];
-		}
-
-		const symbols: UCSymbol[] = [];
-		if (context instanceof UCStructSymbol) {
-			for (let parent = context.super; parent; parent = parent.super) {
-				for (let child = parent.children; child; child = child.next) {
-					symbols.push(child);
-				}
-			}
-
-			for (let child = context.children; child; child = child.next) {
-				symbols.push(child);
-			}
-		}
-		return symbols;
-	}
-
 	syntaxError(_recognizer: Recognizer<Token, any>,
 		offendingSymbol: Token | undefined,
 		_line: number,

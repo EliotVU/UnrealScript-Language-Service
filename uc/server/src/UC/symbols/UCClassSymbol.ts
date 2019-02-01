@@ -28,6 +28,26 @@ export class UCClassSymbol extends UCStructSymbol {
 		return this.document.uri;
 	}
 
+	getContextSymbolsAtPos(position: Position): UCSymbol[] {
+		const context = this.getContextSymbolAtPos(position) || this;
+		if (!(context instanceof UCStructSymbol)) {
+			return [];
+		}
+
+		const symbols: UCSymbol[] = [];
+		for (let child = context.children; child; child = child.next) {
+			symbols.push(child);
+		}
+
+		let parent = context.super || context.outer as UCStructSymbol;
+		for (; parent; parent = parent.super || parent.outer as UCStructSymbol) {
+			for (let child = parent.children; child; child = child.next) {
+				symbols.push(child);
+			}
+		}
+		return symbols;
+	}
+
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.isWithinPosition(position)) {
 			if (this.isIdWithinPosition(position)) {
