@@ -193,7 +193,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 
 		const valueCtx = ctx.constValue();
 		if (valueCtx) {
-			symbol.valueToken = valueCtx.start;
+			symbol.value = valueCtx.text;
 		}
 	}
 
@@ -208,16 +208,24 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			{ text: name, range: rangeFromToken(nameToken) },
 			{ range: rangeFromTokens(ctx.start, ctx.stop) }
 		);
+		this.declare(symbol);
+		this.push(symbol);
+
+		var count = 0;
 		for (const memberCtx of ctx.enumMember()) {
 			const member = new UCEnumMemberSymbol({
 				text: memberCtx.identifier().text,
 				range: rangeFromToken(memberCtx.start)
-			});
+			}, { range: rangeFromToken(memberCtx.start) });
 			this.declare(member);
 			// HACK: overwrite define() outer let.
 			member.outer = symbol;
+			member.value = count ++;
 		}
-		this.declare(symbol);
+	}
+
+	exitEnumDecl(ctx: UCParser.EnumDeclContext) {
+		this.pop();
 	}
 
 	enterStructDecl(ctx: UCParser.StructDeclContext) {

@@ -1,8 +1,11 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
-import { UCSymbol } from './';
+import { UCFieldSymbol } from './';
 
-export class UCEnumMemberSymbol extends UCSymbol {
+export class UCEnumMemberSymbol extends UCFieldSymbol {
+	// Unrealscript only supports (automatic) byte values.
+	public value: number;
+
 	getKind(): SymbolKind {
 		return SymbolKind.EnumMember;
 	}
@@ -16,6 +19,6 @@ export class UCEnumMemberSymbol extends UCSymbol {
 	}
 
 	getTooltip(): string {
-		return `${this.getTypeTooltip()} ${this.getQualifiedName()}`;
+		return `${this.getTypeTooltip()} ${this.getQualifiedName()} = ${this.value}`;
 	}
 }

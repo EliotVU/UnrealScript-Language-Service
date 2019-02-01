@@ -1,8 +1,8 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
-import { UCFieldSymbol } from './';
+import { UCStructSymbol } from './';
 
-export class UCEnumSymbol extends UCFieldSymbol {
+export class UCEnumSymbol extends UCStructSymbol {
 	getKind(): SymbolKind {
 		return SymbolKind.Enum;
 	}

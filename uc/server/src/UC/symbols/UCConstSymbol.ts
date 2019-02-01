@@ -1,10 +1,9 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
-import { Token } from 'antlr4ts';
 import { UCFieldSymbol } from "./";
 
 export class UCConstSymbol extends UCFieldSymbol {
-	public valueToken: Token;
+	public value: string;
 
 	getKind(): SymbolKind {
 		return SymbolKind.Constant;
@@ -15,6 +14,6 @@ export class UCConstSymbol extends UCFieldSymbol {
 	}
 
 	getTooltip(): string {
-		return '(const) ' + this.getQualifiedName() + ' : ' + this.valueToken.text;
+		return '(const) ' + this.getQualifiedName() + ' : ' + this.value;
 	}
 }
