@@ -1,8 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
 
-import { BehaviorSubject } from 'rxjs';
-
 import URI from 'vscode-uri';
 import {
 	CompletionItem,
@@ -16,8 +14,8 @@ import {
 	Position
 } from 'vscode-languageserver';
 
-import { UCSymbol, UCReferenceSymbol, UCPackage, UCStructSymbol, UCClassSymbol, CORE_PACKAGE } from './symbols';
-import { UCDocumentListener } from "./DocumentListener";
+import { UCSymbol, UCReferenceSymbol, UCStructSymbol } from './symbols';
+import { getDocumentListenerByUri, ClassesMap$ } from "./DocumentListener";
 
 async function buildClassesFilePathsMap(workspace: RemoteWorkspace): Promise<Map<string, string>> {
 	function scanPath(filePath: string, cb: (filePath: string) => void): Promise<boolean> {
@@ -56,10 +54,9 @@ async function buildClassesFilePathsMap(workspace: RemoteWorkspace): Promise<Map
 	return filePaths;
 }
 
-const WorkspaceClassesMap$ = new BehaviorSubject(new Map<string, string>());
 let ClassCompletionItems: CompletionItem[] = [];
 
-WorkspaceClassesMap$.subscribe(classesMap => {
+ClassesMap$.subscribe(classesMap => {
 	ClassCompletionItems = Array.from(classesMap.values())
 		.map(value => {
 			return {
@@ -70,63 +67,8 @@ WorkspaceClassesMap$.subscribe(classesMap => {
 });
 
 export async function initWorkspace(connection: Connection) {
-	const UCFilePaths = await buildClassesFilePathsMap(connection.workspace);
-	WorkspaceClassesMap$.next(UCFilePaths);
-}
-
-const SymbolsTable = new UCPackage('Workspace');
-SymbolsTable.addSymbol(CORE_PACKAGE);
-
-function findUriForQualifiedId(qualifiedClassId: string): string | undefined {
-	const filePath: string = WorkspaceClassesMap$.value.get(qualifiedClassId);
-	if (!filePath) {
-		return undefined;
-	}
-
-	// FIXME: may not exist
-	if (!fs.existsSync(filePath)) {
-		return undefined;
-	}
-
-	const uriFromFilePath = URI.file(filePath).toString();
-	return uriFromFilePath;
-}
-
-const Documents: Map<string, UCDocumentListener> = new Map<string, UCDocumentListener>();
-
-export function getDocumentListenerById(qualifiedClassId: string, callback: (document: UCDocumentListener) => void) {
-	console.log('Looking for external document ' + qualifiedClassId);
-
-	// Try the shorter route first before we scan the entire workspace!
-	if (SymbolsTable) {
-		let classSymbol = SymbolsTable.findQualifiedSymbol(qualifiedClassId, true);
-		if (classSymbol && classSymbol instanceof UCClassSymbol) {
-			callback(classSymbol.document);
-			return;
-		}
-	}
-
-	const uri = findUriForQualifiedId(qualifiedClassId);
-	if (!uri) {
-		callback(undefined);
-		return;
-	}
-
-	const document: UCDocumentListener = getDocumentListenerByUri(uri);
-	// TODO: Parse and link created document.
-	callback(document);
-}
-
-export function getDocumentListenerByUri(uri: string): UCDocumentListener {
-	let document: UCDocumentListener = Documents.get(uri);
-	if (document) {
-		return document;
-	}
-
-	document = new UCDocumentListener(SymbolsTable, uri);
-	document.getDocument = getDocumentListenerById;
-	Documents.set(uri, document);
-	return document;
+	const filePathMap = await buildClassesFilePathsMap(connection.workspace);
+	ClassesMap$.next(filePathMap);
 }
 
 export async function getHover(uri: string, position: Position): Promise<Hover> {
@@ -142,7 +84,7 @@ export async function getHover(uri: string, position: Position): Promise<Hover> 
 
 	return {
 		contents: symbol.getTooltip(),
-		range: symbol.getIdRange()
+		range: symbol.getRange()
 	};
 }
 
@@ -161,7 +103,7 @@ export async function getDefinition(uri: string, position: Position): Promise<De
 	if (!(reference instanceof UCSymbol)) {
 		return undefined;
 	}
-	return Location.create(reference.getUri(), reference.getIdRange());
+	return Location.create(reference.getUri(), reference.getRange());
 }
 
 export async function getSymbols(uri: string): Promise<SymbolInformation[]> {

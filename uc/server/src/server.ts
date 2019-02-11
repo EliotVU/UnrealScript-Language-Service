@@ -1,5 +1,5 @@
-import { interval, Subject } from 'rxjs';
-import { debounce } from 'rxjs/operators';
+import { interval, Subject, of, AsyncSubject } from 'rxjs';
+import { debounce, map, delay } from 'rxjs/operators';
 
 import {
 	createConnection,
@@ -18,7 +18,9 @@ import {
 	Range
 } from 'vscode-languageserver';
 
-import { initWorkspace, getDocumentListenerByUri, getCompletionItems, getReferences, getDefinition, getSymbols, getHover } from './UC/helpers';
+import { initWorkspace, getCompletionItems, getReferences, getDefinition, getSymbols, getHover } from './UC/helpers';
+import URI from 'vscode-uri';
+import { UCDocumentListener, ClassesMap$, getDocumentListenerByUri } from './UC/DocumentListener';
 
 let documents: TextDocuments = new TextDocuments();
 let hasConfigurationCapability: boolean = false;
@@ -70,25 +72,61 @@ connection.onDidChangeConfiguration(() => {
 	}
 });
 
-const pendingDocuments$ = new Subject<TextDocument>();
-pendingDocuments$
+const pendingTextDocuments$ = new Subject<TextDocument>();
+pendingTextDocuments$
 	.pipe(debounce(() => interval(300)))
 	.subscribe(document => {
-		validateTextDocument(document);
+		validateDocument(document.uri, document.getText());
 	});
 
-function validateTextDocument(textDocument: TextDocument): Promise<void> {
-	connection.console.log('Validating' + textDocument.uri);
+const pendingDocuments$ = new AsyncSubject<UCDocumentListener>();
+pendingDocuments$
+	.pipe(delay(100))
+	.subscribe(document => {
+		connection.console.log('linking' + document.name);
+		// document.link();
+	});
 
-	let document = getDocumentListenerByUri(textDocument.uri);
+ClassesMap$
+	.pipe(
+		map(classesMap => {
+			return Array
+				.from(classesMap.values())
+				.map(filePath => {
+					const uri = URI.file(filePath).toString();
+					return of(uri);
+				});
+		})
+	)
+	.subscribe((classes => {
+		classes.map(classesFilePath$ => {
+			classesFilePath$
+				.pipe(delay(100))
+				.subscribe(uri => {
+					let document = getDocumentListenerByUri(uri);
+					if (!document) {
+						console.error('no document found for uri', uri);
+						return;
+					}
+					connection.console.log('parsing' + document.name);
+					document.parse(document.readText());
+					pendingDocuments$.next(document);
+				});
+		});
+	}));
 
+
+function validateDocument(uri: string, text: string = undefined): Promise<void> {
+	connection.console.log('Validating' + uri);
+
+	let document = getDocumentListenerByUri(uri);
 	try {
 		document.invalidate();
-		document.parse(textDocument.getText());
+		document.parse(text || document.readText());
 		document.link();
 	} catch (err) {
 		connection.sendDiagnostics({
-			uri: textDocument.uri,
+			uri: uri,
 			diagnostics: [Diagnostic.create(Range.create(0, 0, 0, 0), "Something went wrong while parsing this document! " + err, DiagnosticSeverity.Warning, undefined, 'unrealscript')]
 		});
 		return;
@@ -96,7 +134,7 @@ function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
 	if (!document || document.class === null) {
 		connection.sendDiagnostics({
-			uri: textDocument.uri,
+			uri: uri,
 			diagnostics: [Diagnostic.create(Range.create(0, 0, 0, 0), "Couldn't validate document!", DiagnosticSeverity.Warning, undefined, 'unrealscript')]
 		});
 		return;
@@ -109,8 +147,8 @@ function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	});
 }
 
-documents.onDidOpen(e => pendingDocuments$.next(e.document));
-documents.onDidChangeContent(e => pendingDocuments$.next(e.document));
+documents.onDidOpen(e => pendingTextDocuments$.next(e.document));
+documents.onDidSave(e => pendingTextDocuments$.next(e.document));
 documents.listen(connection);
 
 connection.onDocumentSymbol((e): Promise<SymbolInformation[]> => getSymbols(e.textDocument.uri));

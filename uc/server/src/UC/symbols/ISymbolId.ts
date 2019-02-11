@@ -1,6 +1,6 @@
 import { Range } from 'vscode-languageserver-types';
 
 export interface ISymbolId {
-	text: string;
+	name: string;
 	range: Range;
 }

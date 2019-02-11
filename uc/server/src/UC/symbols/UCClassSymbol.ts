@@ -49,7 +49,7 @@ export class UCClassSymbol extends UCStructSymbol {
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.isWithinPosition(position)) {
+		if (this.intersectsWith(position)) {
 			if (this.isIdWithinPosition(position)) {
 				return this;
 			}

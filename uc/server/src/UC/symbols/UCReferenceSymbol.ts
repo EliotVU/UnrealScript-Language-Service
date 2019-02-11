@@ -24,7 +24,7 @@ export class UCReferenceSymbol extends UCSymbol {
 	setReference(symbol: ISymbol) {
 		this.reference = symbol;
 		if (symbol && symbol instanceof UCSymbol) {
-			symbol.registerReference(Location.create(this.getUri(), this.getIdRange()));
+			symbol.registerReference(Location.create(this.getUri(), this.getRange()));
 		}
 	}
 

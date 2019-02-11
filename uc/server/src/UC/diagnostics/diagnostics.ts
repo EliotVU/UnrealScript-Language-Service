@@ -23,7 +23,7 @@ export class SemanticErrorNode implements IDiagnosticNode {
 	}
 
 	getRange(): Range {
-		return this.symbol.getIdRange();
+		return this.symbol.getRange();
 	}
 
 	toString(): string {
@@ -36,7 +36,7 @@ export class UnrecognizedTypeNode implements IDiagnosticNode {
 	}
 
 	getRange(): Range {
-		return this.symbol.getIdRange();
+		return this.symbol.getRange();
 	}
 
 	toString(): string {

@@ -40,7 +40,7 @@ export abstract class UCSymbol implements ISymbol {
 	// }
 
 	getName(): string {
-		return this.id.text;
+		return this.id.name || '';
 	}
 
 	getQualifiedName(): string {
@@ -59,10 +59,10 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getSpanRange(): Range {
-		return this.getIdRange();
+		return this.id.range;
 	}
 
-	getIdRange(): Range {
+	getRange(): Range {
 		return this.id.range;
 	}
 

@@ -44,7 +44,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 		if (context.super) {
 			const method = context.super.findSuperSymbol(this.getName().toLowerCase()) as UCMethodSymbol;
 			if (method) {
-				method.registerReference(Location.create(document.uri, this.getIdRange()));
+				method.registerReference(Location.create(document.uri, this.getRange()));
 			}
 			this.overridenMethod = method;
 		}

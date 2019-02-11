@@ -21,7 +21,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	}
 
 	getContextSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.isWithinPosition(position)) {
+		if (this.intersectsWith(position)) {
 			return this;
 		}
 
@@ -34,7 +34,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 				continue;
 			}
 
-			if (symbol.isWithinPosition(position)) {
+			if (symbol.intersectsWith(position)) {
 				return symbol;
 			}
 		}
