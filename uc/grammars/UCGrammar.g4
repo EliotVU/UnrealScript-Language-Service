@@ -186,6 +186,7 @@ kwNOTFORCONSOLE: 'notforconsole';
 kwARCHETYPE: 'archetype';
 kwCROSSLEVELACTIVE: 'crosslevelactive';
 kwCROSSLEVELPASSIVE: 'crosslevelpassive';
+kwALLOWABSTRACT: 'allowabstract';
 kwAUTOMATED: 'automated';
 kwTRAVEL: 'travel';
 kwInput: 'input';
@@ -348,6 +349,7 @@ identifier
 	|'archetype'
 	|'crosslevelactive'
 	|'crosslevelpassive'
+	|'allowabstract'
 	|'automated'
 	|'travel'
 	|'input'
@@ -418,8 +420,8 @@ literal
 	| booleanLiteral
 	| numberLiteral
 	| stringLiteral
-	| nameLiteral
 	| classLiteral
+	| nameLiteral
 	;
 
 numberLiteral: (MINUS | PLUS)? (FLOAT | INTEGER);
@@ -626,6 +628,7 @@ variableModifier
 		| kwARCHETYPE
 		| kwCROSSLEVELACTIVE
 		| kwCROSSLEVELPASSIVE
+		| kwALLOWABSTRACT
 	) nativeModifierDecl?
 	;
 
@@ -825,6 +828,7 @@ statement:
 		| switchStatement
 		| controlStatement
 		| labeledStatement
+		| (assignmentExpression SEMICOLON)
 		| (expression SEMICOLON)
 	) SEMICOLON* // Pass trailing semicolons
 	;
@@ -841,47 +845,44 @@ controlStatement
 	| stopStatement // in states
 	;
 
-// should be EXPR = EXPR but UnrealScript is an exception in that it does - only allow assignments
-// as primary statements. Rule: a.b.c.d = 4+5 Invalid: "00" = "1", "00".Length = 1 FIXME: Only
-// supports ID = expression
-assignment: expression ASSIGNMENT expression;
+assignmentExpression: primaryExpression ASSIGNMENT expression;
 
 expression
 	: expression INTERR expression COLON expression
 	| expression functionName expression
+	| primaryExpression
 	| unaryExpression
 	;
 
 unaryExpression
-	: primaryExpression functionName primaryExpression // HACK: FIXME shouldn't be neccessary but since UC supports id for pre and post operators we kinda have to!
-	| unaryExpression functionName // (id ++) etc
-	| functionName unaryExpression // (++ id)
-	| primaryExpression
+	// : primaryExpression operatorId primaryExpression // HACK: FIXME shouldn't be neccessary but since UC supports id for pre and post operators we kinda have to!
+	: primaryExpression operatorId // (id ++) etc
+	| operatorId primaryExpression // (++ id)
 	;
 
+newExpression: kwNEW (OPEN_PARENS arguments CLOSE_PARENS)? classArgument;
+
+classArgument: primaryExpression; // Inclusive template argument (will be parsed as a function call)
+
 primaryExpression
-	: (kwSUPER | kwGLOBAL) DOT identifier OPEN_PARENS arguments CLOSE_PARENS
-	| (kwSUPER | kwGLOBAL) OPEN_PARENS identifier CLOSE_PARENS DOT identifier arguments
-	| kwNEW (OPEN_PARENS arguments CLOSE_PARENS)? expression (OPEN_PARENS expression CLOSE_PARENS)?
+	// : (kwSUPER | kwGLOBAL) DOT identifier OPEN_PARENS arguments CLOSE_PARENS
+	// | (kwSUPER | kwGLOBAL) OPEN_PARENS identifier CLOSE_PARENS DOT identifier arguments
+	: newExpression
+	| castClassLimiter primaryExpression
 	| literal
-	| kwDEFAULT | kwSELF
+	| kwDEFAULT | kwSELF | kwSUPER | kwGLOBAL | kwSTATIC
 	| identifier
 	| (OPEN_PARENS expression CLOSE_PARENS)
-	| primaryExpression DOT contextSpecifiers
+	| primaryExpression DOT classLiteralSpecifier
 	| primaryExpression DOT identifier
-	| predefinedProps DOT primaryExpression
 	| primaryExpression OPEN_PARENS arguments CLOSE_PARENS
 	| primaryExpression OPEN_BRACKET expression CLOSE_BRACKET
 	// nameof, arraycount?
 	;
 
-predefinedProps
-	: kwSTATIC
-	| kwDEFAULT
-	| kwSELF
-	;
+castClassLimiter: kwCLASS LT qualifiedIdentifier GT;
 
-contextSpecifiers
+classLiteralSpecifier
 	: kwDEFAULT
 	| kwSTATIC
 	| kwCONST
@@ -900,7 +901,7 @@ foreachStatement: kwFOREACH primaryExpression codeBlockOptional;
 
 forStatement:
 	kwFOR (
-		OPEN_PARENS assignment? SEMICOLON expression? SEMICOLON expression? CLOSE_PARENS
+		OPEN_PARENS assignmentExpression? SEMICOLON expression? SEMICOLON expression? CLOSE_PARENS
 	) codeBlockOptional;
 
 whileStatement

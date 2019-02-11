@@ -82,59 +82,63 @@ native(121) static final operator(24) bool >= ( string A, string B );
 native(122) static final preoperator Color # ( string A );
 
 event ReplicatedFunction();
-function ForEachFunction(LevelInfo Level)
+
+function TestForEach()
 {
-    local Actor A;
+    local Object obj;
 
-    foreach AllActors(class'Actor', A)
+    foreach self.AllObjects(class'Object', obj)
     {
-
-    }
-
-    foreach Level.AllActors(class'Actor', A)
-    {
+        if (obj.Name == 'Test') {
+            continue;
+        }
         break;
     }
 }
 
-static function CodeMethod()
+function int TestReturn()
 {
-    local int Integer;
+    return ++ 1;
+}
+
+function TestAssignment()
+{
+    local class<Actor> myClass;
+
+    local Color C;
+    local int exec;
+
+    myClass = class<Actor>(DynamicLoadObject("path", class'Class'));
+
+    exec = !0xFFFFFFFF;
+    C = #exec;
+
+    // Should be an error: "const variables cannot be modified!"
+    class'Actor'.default.Name = 'Test';
+
+    // Replication is not a class, but test ambigious case with replication block.
+    replication'TestObject'.Name = 'Test';
+}
+
+static function TestNew()
+{
     local Object obj;
 
-    test = NextItem(, Integer,, test);
     obj = new(, "test") default.Class;
     obj = new(, "test") default.Class (default);
-
-    // If statements can end with multiple semicolons
-    if (replication(Obj) == none);;
 }
 
 function string Param(float float1, float float2)
 {
-    local Color C;
-    local int exec;
+
     local string s;
     local vector v;
     local array<string> ss;
     local Object obj;
 
-    exec = !0xFFFFFFFF;
-    C = #exec;
-
-    ++ exec;
-    exec ++;
-
     v = (vect(4,4,4) Dot vect(0,0,0));
 
     self.static.CodeMethod();
-
-    // Should be an error: "const variables cannot be modified!"
-    class'Actor'.default.Name = 'Test';
-
-    replication'TestObject'.Name = 'Test2';
-
-    default.test = exec;
 
     obj = default;
     default = obj;
