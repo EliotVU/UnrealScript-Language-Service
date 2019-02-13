@@ -10,8 +10,6 @@ export class UCClassSymbol extends UCStructSymbol {
 	public withinType?: UCTypeSymbol;
 	public repFieldRefs?: UCReferenceSymbol[];
 
-	public within?: UCClassSymbol;
-
 	getKind(): SymbolKind {
 		return SymbolKind.Class;
 	}
@@ -130,6 +128,11 @@ export class UCClassSymbol extends UCStructSymbol {
 				document.nodes.push(errorNode);
 			}
 		}
+
+		if (this.withinType) {
+			this.withinType.analyze(document, context);
+		}
+
 		super.analyze(document, context);
 	}
 }

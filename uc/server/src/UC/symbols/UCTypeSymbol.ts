@@ -77,8 +77,6 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 				const symbol = context.findTypeSymbol(this.getName().toLowerCase(), true);
 				if (symbol) {
 					this.setReference(symbol, document);
-				} else {
-					this.linkToClass(document);
 				}
 				break;
 		}
@@ -88,12 +86,21 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 		}
 	}
 
+	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+		if (this.getReference()) {
+			if (this.innerType) {
+				this.innerType.analyze(document, context);
+			}
+			return;
+		}
+
+		document.nodes.push(new UnrecognizedTypeNode(this));
+	}
+
 	private linkToClass(document: UCDocumentListener) {
 		document.getDocument(this.getName().toLowerCase(), (classDocument => {
 			if (classDocument && classDocument.class) {
 				this.setReference(classDocument.class, document);
-			} else {
-				document.nodes.push(new UnrecognizedTypeNode(this));
 			}
 		}));
 	}

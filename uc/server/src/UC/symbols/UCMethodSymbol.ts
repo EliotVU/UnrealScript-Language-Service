@@ -34,7 +34,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return super.getSubSymbolAtPos(position);
 	}
 
-	public link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocumentListener, context: UCStructSymbol) {
 		super.link(document, context);
 
 		if (this.returnType) {
@@ -47,6 +47,17 @@ export class UCMethodSymbol extends UCStructSymbol {
 				method.registerReference(Location.create(document.uri, this.getRange()));
 			}
 			this.overridenMethod = method;
+		}
+	}
+
+	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+		super.analyze(document, context);
+		if (this.returnType) {
+			this.returnType.analyze(document, context);
+		}
+
+		if (this.overridenMethod) {
+			// TODO: check difference
 		}
 	}
 
