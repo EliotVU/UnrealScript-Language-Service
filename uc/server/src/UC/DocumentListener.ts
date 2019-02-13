@@ -467,45 +467,37 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	}
 
 	enterObjectDecl(ctx: UCParser.ObjectDeclContext) {
-		const objectId = ctx.objectId();
-		if (!objectId[0]) {
-			// TODO: throw error missing object name!
-			return;
-		}
-
 		const symbol = new UCObjectSymbol(
-			{ name: objectId[0].text, range: rangeFromBound(objectId[0].start) },
+			{ name: null, range: rangeFromBound(ctx.start) },
 			{ range: rangeFromBounds(ctx.start, ctx.stop) }
 		);
 		this.declare(symbol);
 		this.push(symbol);
-
-		// If null then object is an override.
-		let objectClass = ctx.objectClass();
-		if (!objectClass || !objectClass[0]) {
-			return;
-		}
-
-		const classId = objectClass[0];
-		const typeSymbol = new UCTypeSymbol({
-			name: classId.text,
-			range: rangeFromBounds(classId.start, classId.stop)
-		}, UCTypeKind.Class);
-		typeSymbol.outer = this.class;
-		symbol.extendsType = typeSymbol;
 	}
 
 	enterDefaultVariable(ctx: UCParser.DefaultVariableContext) {
-		const context = this.get() as UCDefaultPropertiesSymbol;
-
 		const idCtx = ctx.defaultId();
 		const refSymbol = new UCReferenceSymbol({ name: idCtx.text, range: rangeFromBound(ctx.start) });
+
+		const context = this.get() as UCObjectSymbol;
 		refSymbol.outer = context;
 
-		if (!context.varRefs) {
-			context.varRefs = new Map<string, UCReferenceSymbol>();
+		const propNameLC = idCtx.text.toLowerCase();
+		switch (propNameLC) {
+			case 'name': {
+				// TODO: change name
+			}
+
+			case 'class': {
+				const typeSymbol = new UCTypeSymbol({
+					name: refSymbol.getName(),
+					range: rangeFromBounds(idCtx.start, idCtx.stop)
+				}, UCTypeKind.Class);
+				typeSymbol.outer = context;
+				context.extendsType = typeSymbol;
+			}
 		}
-		context.varRefs.set(refSymbol.getName().toLowerCase(), refSymbol);
+		context.varRefs.set(propNameLC, refSymbol);
 
 		const valCtx = ctx.defaultValue();
 		if (valCtx) {

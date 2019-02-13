@@ -227,6 +227,7 @@ kwNEW: 'new';
 kwGOTO: 'goto';
 
 kwBEGIN: 'begin';
+kwOBJECT: 'object';
 kwEND: 'end';
 
 identifier
@@ -385,6 +386,7 @@ identifier
 	// |'inherits'
 	// |'forcescriptorder'
 	|'begin'
+	|'object'
 	|'end'
 	|'new'
 	|'goto'
@@ -397,23 +399,26 @@ identifier
 qualifiedIdentifier: identifier (DOT identifier)*;
 
 program:
-	classDecl
+	defaultpropertiesBlock | classDecl
+
 	(
-		cpptextBlock
-		| constDecl
+		constDecl
 		| (enumDecl SEMICOLON?)
 		| structDecl
 		| varDecl
 		| replicationBlock
 		| defaultpropertiesBlock
+		| cpptextBlock
 	)*
+
 	(
 		constDecl
 		| functionDecl
 		| stateDecl
 		| replicationBlock
 		| defaultpropertiesBlock
-	)*;
+	)*
+;
 
 literal
 	: noneLiteral
@@ -932,27 +937,20 @@ defaultpropertiesBlock
 	:
 		kwDEFAULTPROPERTIES
 		OPEN_BRACE
-			propertiesBlock
+			(objectDecl | defaultVariable)*
 		CLOSE_BRACE
 	;
 
 objectDecl
 	:
-		kwBEGIN ID
-			(
-				kwNAME ASSIGNMENT objectId | kwCLASS ASSIGNMENT objectClass
-			)+
-			propertiesBlock
-		kwEND ID
+		kwBEGIN kwOBJECT
+			(objectDecl | defaultVariable)*
+		kwEND kwOBJECT
 	;
 
-propertiesBlock: (objectDecl | defaultVariable)*;
-
-objectId: identifier;
-objectClass: qualifiedIdentifier;
-
 defaultVariable:
-	defaultId ((OPEN_PARENS INTEGER CLOSE_PARENS) | (OPEN_BRACKET INTEGER CLOSE_BRACKET))?
+	defaultId
+	((OPEN_PARENS INTEGER CLOSE_PARENS) | (OPEN_BRACKET INTEGER CLOSE_BRACKET))?
 	(
 		ASSIGNMENT defaultValue
 		// Call parentheses are optional
@@ -960,15 +958,15 @@ defaultVariable:
 	) SEMICOLON?
 	;
 
-defaultId: identifier;
+defaultId: qualifiedIdentifier;
 
 // (variableList)
 structLiteral
-	: OPEN_PARENS variablesList? CLOSE_PARENS
+	: OPEN_PARENS defaultArguments? CLOSE_PARENS
 	;
 
 // id=literal,* or literal,*
-variablesList
+defaultArguments
 	: (defaultLiteral (COMMA defaultLiteral)*)
 	| (defaultVariable (COMMA defaultVariable)*)
 	;
