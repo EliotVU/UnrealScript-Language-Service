@@ -19,7 +19,6 @@ export class DocumentParser {
 		this.tokenStream = new CommonTokenStream(this.lexer);
 
 		var parser = new UCParser.UCGrammarParser(this.tokenStream);
-		parser.buildParseTree = true;
 
 		parser.addErrorListener(document);
 		var programCtx = parser.program();

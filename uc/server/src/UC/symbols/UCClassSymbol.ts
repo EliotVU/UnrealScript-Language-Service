@@ -81,6 +81,10 @@ export class UCClassSymbol extends UCStructSymbol {
 	}
 
 	link(document: UCDocumentListener, context: UCClassSymbol = document.class) {
+		if (this.document) { // already linked
+			return;
+		}
+
 		this.document = document;
 		if (this.withinType) {
 			this.withinType.link(document, context);
@@ -114,7 +118,7 @@ export class UCClassSymbol extends UCStructSymbol {
 					continue;
 				}
 
-				symbolRef.setReference(symbol);
+				symbolRef.setReference(symbol, document);
 				if (symbol instanceof UCPropertySymbol || symbol instanceof UCMethodSymbol) {
 					continue;
 				}

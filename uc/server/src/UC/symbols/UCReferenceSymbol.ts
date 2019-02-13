@@ -3,6 +3,7 @@ import { Location } from 'vscode-languageserver-types';
 import { ISymbol } from './ISymbol';
 import { ISymbolId } from './ISymbolId';
 import { UCSymbol } from '.';
+import { UCDocumentListener } from '../DocumentListener';
 
 /**
  * For general symbol references, like a function's return type which cannot yet be identified.
@@ -21,10 +22,10 @@ export class UCReferenceSymbol extends UCSymbol {
 		return super.getTooltip();
 	}
 
-	setReference(symbol: ISymbol) {
+	setReference(symbol: ISymbol, document: UCDocumentListener) {
 		this.reference = symbol;
 		if (symbol && symbol instanceof UCSymbol) {
-			symbol.registerReference(Location.create(this.getUri(), this.getRange()));
+			symbol.registerReference(Location.create(document.uri, this.getRange()));
 		}
 	}
 

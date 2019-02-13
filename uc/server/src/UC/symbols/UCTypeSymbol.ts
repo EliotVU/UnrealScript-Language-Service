@@ -76,7 +76,7 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 			default:
 				const symbol = context.findTypeSymbol(this.getName().toLowerCase(), true);
 				if (symbol) {
-					this.setReference(symbol);
+					this.setReference(symbol, document);
 				} else {
 					this.linkToClass(document);
 				}
@@ -91,7 +91,7 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 	private linkToClass(document: UCDocumentListener) {
 		document.getDocument(this.getName().toLowerCase(), (classDocument => {
 			if (classDocument && classDocument.class) {
-				this.setReference(classDocument.class);
+				this.setReference(classDocument.class, document);
 			} else {
 				document.nodes.push(new UnrecognizedTypeNode(this));
 			}
