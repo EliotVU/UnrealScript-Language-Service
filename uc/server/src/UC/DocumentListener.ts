@@ -530,8 +530,38 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	}
 }
 
-export const SymbolsTable = new UCPackage('Workspace');
+const SymbolsTable = new UCPackage('Workspace');
 SymbolsTable.addSymbol(CORE_PACKAGE);
+
+const PathPackageMap = new Map<string, UCPackage>();
+
+function getPackageFor(uri: string): UCPackage {
+	const dir = path.parse(uri).dir;
+	let packageSymbol: UCPackage = PathPackageMap.get(dir);
+	if (packageSymbol) {
+		return packageSymbol;
+	}
+
+	const dirs = dir.split('/');
+	for (let i = dirs.length - 1; i >= 0; -- i) {
+		if (i > 0 && dirs[i].toLowerCase() === 'classes') {
+			const packageName = dirs[i - 1];
+
+			packageSymbol = SymbolsTable.symbols.get(packageName) as UCPackage;
+			if (packageSymbol) {
+				return packageSymbol;
+			}
+
+			packageSymbol = new UCPackage(packageName);
+			SymbolsTable.addSymbol(packageSymbol);
+
+			PathPackageMap.set(dir, packageSymbol);
+
+			return packageSymbol;
+		}
+	}
+	return SymbolsTable;
+}
 
 export function getDocumentListenerByUri(uri: string): UCDocumentListener {
 	let document: UCDocumentListener = Documents.get(uri);
@@ -539,7 +569,9 @@ export function getDocumentListenerByUri(uri: string): UCDocumentListener {
 		return document;
 	}
 
-	document = new UCDocumentListener(SymbolsTable, uri);
+	const packageTable = getPackageFor(uri);
+
+	document = new UCDocumentListener(packageTable, uri);
 	document.getDocument = getDocumentListenerById;
 	Documents.set(uri, document);
 	return document;
