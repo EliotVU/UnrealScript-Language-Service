@@ -51,29 +51,36 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 	 * @param deepSearch
 	 */
 	public findQualifiedSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol {
-		var ids = qualifiedId.split('.');
-		if (ids.length > 1) {
-			let id = ids.shift();
-			let symbol = this.symbols.get(id);
-			if (symbol && symbol instanceof UCStructSymbol) {
-				return symbol.findSuperSymbol(ids.join('.'));
-			} else {
-				return this.findQualifiedSymbol(ids.join('.'), deepSearch);
-			}
-		}
-
-		var symbol = this.symbols.get(qualifiedId);
-		if (symbol || !deepSearch) {
-			return symbol;
-		}
-
-		for ([, symbol] of this.symbols) {
-			if (symbol instanceof UCPackage) {
-				symbol = symbol.findQualifiedSymbol(qualifiedId, deepSearch);
+		if (this.getName() === 'Workspace') {
+			for (let packageSymbol of (this.symbols as Map<string, UCPackage>).values()) {
+				const symbol = packageSymbol.findQualifiedSymbol(qualifiedId, deepSearch);
 				if (symbol) {
 					return symbol;
 				}
 			}
+			return undefined;
 		}
+
+		if (qualifiedId.indexOf('.') === -1) {
+			return this.symbols.get(qualifiedId);
+		}
+
+		const ids = qualifiedId.split('.');
+		const id = ids.shift();
+
+		let symbol = this.symbols.get(id);
+		if (!symbol) {
+			return undefined;
+		}
+
+		if (ids.length == 0) {
+			return symbol;
+		}
+
+		const nextQualifiedId = ids.join('.');
+		if (symbol instanceof UCStructSymbol) {
+			return symbol.findTypeSymbol(nextQualifiedId, deepSearch);
+		}
+		return this.findQualifiedSymbol(nextQualifiedId, deepSearch);
 	}
 }

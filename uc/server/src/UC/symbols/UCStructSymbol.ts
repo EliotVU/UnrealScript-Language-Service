@@ -2,7 +2,7 @@ import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-
 
 import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
-import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE } from "./";
+import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE, UCMethodSymbol } from "./";
 import { UCDocumentListener } from '../DocumentListener';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
@@ -90,15 +90,19 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	findTypeSymbol(idLowerCase: string, deepSearch: boolean): ISymbol | undefined {
+	findTypeSymbol(qualifiedId: string, deepSearch: boolean): ISymbol | undefined {
+		if (qualifiedId === this.getName().toLowerCase()) {
+			return this;
+		}
+
 		// Quick shortcut for the most common types or top level symbols.
-		var predefinedType: ISymbol = CORE_PACKAGE.findQualifiedSymbol(idLowerCase, false);
+		const predefinedType: ISymbol = CORE_PACKAGE.findQualifiedSymbol(qualifiedId, false);
 		if (predefinedType) {
 			return predefinedType;
 		}
 
 		if (this.types) {
-			const typeSymbol = this.types.get(idLowerCase);
+			const typeSymbol = this.types.get(qualifiedId);
 			if (typeSymbol) {
 				return typeSymbol;
 			}
@@ -109,9 +113,11 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		}
 
 		if (this.super) {
-			return this.super.findTypeSymbol(idLowerCase, deepSearch);
+			return this.super.findTypeSymbol(qualifiedId, deepSearch);
 		}
-		return undefined;
+		return this.outer && this.outer instanceof UCStructSymbol
+			? this.outer.findTypeSymbol(qualifiedId, deepSearch)
+			: undefined;
 	}
 
 	link(document: UCDocumentListener, context: UCStructSymbol) {
@@ -123,6 +129,11 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			}
 		}
 
+		if (!this.children) {
+			return;
+		}
+
+		// Link types before any child so that a child that referes one of our types can be linked properly!
 		if (this.types) {
 			for (let type of this.types.values()) {
 				type.link(document, this);
@@ -138,18 +149,12 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		}
 	}
 
-	analyze(document: UCDocumentListener, _context: UCStructSymbol) {
-		if (this.types) {
-			for (let type of this.types.values()) {
-				type.analyze(document, this);
-			}
+	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+		if (this.extendsType) {
+			this.extendsType.analyze(document, context);
 		}
 
 		for (let child = this.children; child; child = child.next) {
-			if (child instanceof UCScriptStructSymbol || child instanceof UCEnumSymbol) {
-				continue;
-			}
-
 			child.analyze(document, this);
 		}
 	}
