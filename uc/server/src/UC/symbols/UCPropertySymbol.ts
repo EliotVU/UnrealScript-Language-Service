@@ -19,11 +19,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	getTooltip(): string {
-		return `${this.getTypeTooltip()} ${this.getTypeText()} ${this.getQualifiedName()}`;
-	}
-
-	getTypeText(): string {
-		return this.type!.getName();
+		return `${this.getTypeTooltip()} ${this.type!.getTypeText()} ${this.getQualifiedName()}`;
 	}
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {

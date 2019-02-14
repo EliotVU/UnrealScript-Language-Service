@@ -66,6 +66,6 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	private buildArguments(): string {
-		return `(${this.params.map(f => f.getTypeText() + ' ' + f.getName()).join(', ')})`;
+		return `(${this.params.map(f => f.type.getTypeText() + ' ' + f.getName()).join(', ')})`;
 	}
 }

@@ -17,9 +17,23 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 
 	getTooltip(): string {
 		if (this.reference) {
-			return this.innerType
-				? (this.reference.getQualifiedName() + `<${this.innerType.getTooltip()}>`)
-				: this.reference.getQualifiedName();
+			let text = this.reference.getQualifiedName();
+			if (this.innerType) {
+				return text + `<${this.innerType.getTooltip()}>`;
+			}
+			return text;
+		}
+		return this.getQualifiedName();
+	}
+
+	getTypeText(): string {
+		if (this.reference) {
+			// use reference getName over innerType so that we can display the resolved name.
+			let text = this.reference.getName();
+			if (this.innerType) {
+				return text + `<${this.innerType.getTypeText()}>`;
+			}
+			return text;
 		}
 		return this.getName();
 	}
