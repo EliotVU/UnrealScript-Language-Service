@@ -10,6 +10,9 @@ export class UCClassSymbol extends UCStructSymbol {
 	public withinType?: UCTypeSymbol;
 	public repFieldRefs?: UCReferenceSymbol[];
 
+	public dependsOnTypes?: UCTypeSymbol[];
+	public implementsTypes?: UCTypeSymbol[];
+
 	getKind(): SymbolKind {
 		return SymbolKind.Class;
 	}
@@ -74,6 +77,24 @@ export class UCClassSymbol extends UCStructSymbol {
 			return this.withinType;
 		}
 
+		if (this.dependsOnTypes) {
+			for (let depType of this.dependsOnTypes) {
+				const symbol = depType.getSymbolAtPos(position);
+				if (symbol) {
+					return symbol;
+				}
+			}
+		}
+
+		if (this.implementsTypes) {
+			for (let depType of this.implementsTypes) {
+				const symbol = depType.getSymbolAtPos(position);
+				if (symbol) {
+					return symbol;
+				}
+			}
+		}
+
 		// NOTE: Never call super, see HACK above.
 		return undefined;
 	}
@@ -90,6 +111,19 @@ export class UCClassSymbol extends UCStructSymbol {
 			// Overwrite extendsRef super, we inherit from the within class instead.
 			this.super = this.withinType.getReference() as UCClassSymbol;
 		}
+
+		if (this.dependsOnTypes) {
+			for (let depType of this.dependsOnTypes) {
+				depType.link(document, context);
+			}
+		}
+
+		if (this.implementsTypes) {
+			for (let depType of this.implementsTypes) {
+				depType.link(document, context);
+			}
+		}
+
 		super.link(document, context);
 	}
 
@@ -133,6 +167,17 @@ export class UCClassSymbol extends UCStructSymbol {
 			this.withinType.analyze(document, context);
 		}
 
+		if (this.dependsOnTypes) {
+			for (let depType of this.dependsOnTypes) {
+				depType.analyze(document, context);
+			}
+		}
+
+		if (this.implementsTypes) {
+			for (let depType of this.implementsTypes) {
+				depType.analyze(document, context);
+			}
+		}
 		super.analyze(document, context);
 	}
 }

@@ -143,7 +143,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	}
 
 	visitExtendsClause(extendsCtx: UCParser.ExtendsClauseContext | UCParser.WithinClauseContext, type: UCTypeKind): UCTypeSymbol {
-		var id = extendsCtx.qualifiedIdentifier();
+		const id = extendsCtx.qualifiedIdentifier();
 		return new UCTypeSymbol({
 			name: id.text,
 			range: rangeFromBounds(id.start, id.stop)
@@ -159,23 +159,57 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	}
 
 	enterClassDecl(ctx: UCParser.ClassDeclContext) {
-		var className = ctx.identifier();
-		var classDecl = new UCClassSymbol(
+		const className = ctx.identifier();
+		const classDecl = new UCClassSymbol(
 			{ name: className.text, range: rangeFromBound(className.start) },
 			{ range: rangeFromBounds(ctx.start, ctx.stop) }
 		);
 		this.class = classDecl; // Important!, must be assigned before further parsing.
 
-		var extendsCtx = ctx.extendsClause();
+		const extendsCtx = ctx.extendsClause();
 		if (extendsCtx) {
 			classDecl.extendsType = this.visitExtendsClause(extendsCtx, UCTypeKind.Class);
 			classDecl.extendsType.outer = classDecl;
 		}
 
-		var withinCtx = ctx.withinClause();
+		const withinCtx = ctx.withinClause();
 		if (withinCtx) {
 			classDecl.withinType = this.visitExtendsClause(withinCtx, UCTypeKind.Class);
 			classDecl.withinType.outer = classDecl;
+		}
+
+		const modifiers = ctx.classModifier();
+		for (let modifier of modifiers) {
+			const name = modifier.identifier();
+			const modifierArguments = modifier.modifierArguments();
+			switch (name.text.toLowerCase()) {
+				case 'dependson': {
+					if (modifierArguments) {
+						if (!classDecl.dependsOnTypes) {
+							classDecl.dependsOnTypes = [];
+						}
+						for (let type of modifierArguments.modifierValue()) {
+							classDecl.dependsOnTypes.push(new UCTypeSymbol(
+								{ name: type.text, range: rangeFromBounds(type.start, type.stop) },
+								UCTypeKind.Class
+							));
+						}
+					}
+				}
+				case 'implements': {
+					if (modifierArguments) {
+						if (!classDecl.implementsTypes) {
+							classDecl.implementsTypes = [];
+						}
+						for (let type of modifierArguments.modifierValue()) {
+							classDecl.implementsTypes.push(new UCTypeSymbol(
+								{ name: type.text, range: rangeFromBounds(type.start, type.stop) },
+								UCTypeKind.Class
+							));
+						}
+					}
+				}
+			}
 		}
 
 		this.declare(classDecl); // push to package
