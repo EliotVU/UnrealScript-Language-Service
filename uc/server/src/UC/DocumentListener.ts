@@ -6,7 +6,7 @@ import URI from 'vscode-uri';
 
 import { BehaviorSubject } from 'rxjs';
 
-import { ANTLRErrorListener, RecognitionException, Recognizer, Token } from 'antlr4ts';
+import { ANTLRErrorListener, RecognitionException, Recognizer, Token, CommonTokenStream } from 'antlr4ts';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 
 import { UCGrammarListener } from '../antlr/UCGrammarListener';
@@ -62,6 +62,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	private context?: UCStructSymbol[]; // FIXME: Type
 
 	public nodes: IDiagnosticNode[] = [];
+	public tokenStream: CommonTokenStream;
 
 	constructor(public classPackage: UCPackage, public readonly uri: string) {
 		this.name = path.basename(uri, '.uc');
@@ -89,6 +90,8 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	parse(text: string) {
 		const parser = new DocumentParser(text);
 		parser.parse(this);
+
+		this.tokenStream = parser.tokenStream;
 	}
 
 	readText(): string {
@@ -164,6 +167,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			{ name: className.text, range: rangeFromBound(className.start) },
 			{ range: rangeFromBounds(ctx.start, ctx.stop) }
 		);
+		classDecl.context = ctx;
 		this.class = classDecl; // Important!, must be assigned before further parsing.
 
 		const extendsCtx = ctx.extendsClause();
@@ -226,6 +230,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			{ name: nameCtx.text, range: rangeFromBound(nameCtx.start) },
 			{ range: rangeFromBounds(ctx.start, ctx.stop) }
 		);
+		symbol.context = ctx;
 		this.declare(symbol);
 
 		const valueCtx = ctx.constValue();
@@ -245,6 +250,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			{ name: name, range: rangeFromBound(nameToken) },
 			{ range: rangeFromBounds(ctx.start, ctx.stop) }
 		);
+		symbol.context = ctx;
 		this.declare(symbol);
 		this.push(symbol);
 
@@ -275,6 +281,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			{ name: nameCtx.text, range: rangeFromBound(nameCtx.start) },
 			{ range: rangeFromBounds(ctx.start, ctx.stop) }
 		);
+		symbol.context = ctx;
 
 		const extendsCtx = ctx.extendsClause();
 		if (extendsCtx) {
@@ -371,6 +378,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 				{ range: rangeFromBounds(ctx.start, varCtx.stop) }
 			);
 			symbol.type = typeSymbol;
+			symbol.context = varCtx;
 			this.declare(symbol);
 
 			if (typeSymbol) {
@@ -385,6 +393,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			{ name: nameCtx.text, range: rangeFromBound(nameCtx.start) },
 			{ range: rangeFromBounds(ctx.start, ctx.stop) }
 		);
+		symbol.context = ctx;
 		this.class.repFieldRefs = [];
 		this.declare(symbol);
 	}
@@ -408,6 +417,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			{ name: nameCtx.text, range: rangeFromBounds(nameCtx.start, nameCtx.stop) },
 			{ range: rangeFromBounds(ctx.start, ctx.stop) }
 		);
+		funcSymbol.context = ctx;
 		this.declare(funcSymbol);
 		this.push(funcSymbol);
 
@@ -477,6 +487,8 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			{ name: stateName.text, range: rangeFromBound(stateName.start) },
 			{ range: rangeFromBounds(ctx.start, ctx.stop) }
 		);
+		symbol.context = ctx;
+
 		const extendsCtx = ctx.extendsClause();
 		if (extendsCtx) {
 			symbol.extendsType = this.visitExtendsClause(extendsCtx, UCTypeKind.State);
@@ -496,6 +508,8 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			{ name: nameCtx.text, range: rangeFromBound(nameCtx.start) },
 			{ range: rangeFromBounds(ctx.start, ctx.stop) }
 		);
+		symbol.context = ctx;
+
 		this.declare(symbol);
 		this.push(symbol);
 	}
@@ -505,6 +519,8 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			{ name: null, range: rangeFromBound(ctx.start) },
 			{ range: rangeFromBounds(ctx.start, ctx.stop) }
 		);
+		symbol.context = ctx;
+
 		this.declare(symbol);
 		this.push(symbol);
 	}

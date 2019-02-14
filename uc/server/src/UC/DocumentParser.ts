@@ -8,16 +8,15 @@ import { CaseInsensitiveStream } from './CaseInsensitiveStream';
 import { UCDocumentListener } from './DocumentListener';
 
 export class DocumentParser {
-	private lexer: UCGrammarLexer;
-	private tokenStream: CommonTokenStream;
+	private readonly lexer: UCGrammarLexer;
+	public readonly tokenStream: CommonTokenStream;
 
 	constructor(text: string) {
 		this.lexer = new UCGrammarLexer(new CaseInsensitiveStream(text));
+		this.tokenStream = new CommonTokenStream(this.lexer);
 	}
 
 	parse(document: UCDocumentListener) {
-		this.tokenStream = new CommonTokenStream(this.lexer);
-
 		var parser = new UCParser.UCGrammarParser(this.tokenStream);
 
 		parser.addErrorListener(document);

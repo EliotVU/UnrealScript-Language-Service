@@ -4,6 +4,10 @@ import { ISymbol } from './ISymbol';
 import { ISymbolId } from "./ISymbolId";
 import { UCStructSymbol, UCPackage } from "./";
 import { UCDocumentListener } from "../DocumentListener";
+import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
+import { UCGrammarParser } from '../../antlr/UCGrammarParser';
+
+export const COMMENT_TYPES = new Set([UCGrammarParser.LINE_COMMENT, UCGrammarParser.BLOCK_COMMENT]);
 
 /**
  * A symbol that resides in a document, holding an id and range.
@@ -13,6 +17,8 @@ export abstract class UCSymbol implements ISymbol {
 
 	/** Locations that reference this symbol. */
 	private links?: Location[];
+
+	public context?: ParserRuleContext;
 
 	constructor(private id: ISymbolId) {
 	}
@@ -25,19 +31,28 @@ export abstract class UCSymbol implements ISymbol {
 		return this.getName();
 	}
 
-	getDocumentation(): string | undefined {
+	getDocumentation(tokenStream: CommonTokenStream): string | undefined {
+		if (!this.context) {
+			return undefined;
+		}
+
+		const leadingComment = tokenStream
+			.getHiddenTokensToRight(this.context.stop.tokenIndex)
+			.filter(token => COMMENT_TYPES.has(token.type) && token.charPositionInLine !== 0);
+
+		if (leadingComment && leadingComment.length > 0) {
+			return leadingComment.shift().text;
+		}
+
+		const headerComment = tokenStream
+			.getHiddenTokensToLeft(this.context.start.tokenIndex)
+			.filter(token => COMMENT_TYPES.has(token.type) && token.charPositionInLine === 0);
+
+		if (headerComment && headerComment.length > 0) {
+			return headerComment.map(comment => comment.text).join('\n');
+		}
 		return undefined;
 	}
-
-	// tryAddComment() {
-	// 	const tokens = stream.getHiddenTokensToLeft(this.offset, UCGrammarLexer.HIDDEN);
-	// 	if (tokens) {
-	// 		const lastToken = tokens.pop();
-	// 		if (lastToken) {
-	// 			this.commentToken = lastToken;
-	// 		}
-	// 	}
-	// }
 
 	getName(): string {
 		return this.id.name || '';
@@ -111,10 +126,10 @@ export abstract class UCSymbol implements ISymbol {
 		return SymbolInformation.create(this.getName(), this.getKind(), this.getSpanRange(), undefined, this.outer.getName());
 	}
 
-	toCompletionItem(): CompletionItem {
+	toCompletionItem(document: UCDocumentListener): CompletionItem {
 		const item = CompletionItem.create(this.getName());
 		item.detail = this.getTooltip();
-		item.documentation = this.getDocumentation();
+		item.documentation = this.getDocumentation(document.tokenStream);
 		item.kind = this.getCompletionItemKind();
 		return item;
 	}

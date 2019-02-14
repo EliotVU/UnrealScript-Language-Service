@@ -82,8 +82,15 @@ export async function getHover(uri: string, position: Position): Promise<Hover> 
 		return undefined;
 	}
 
+	let contents = symbol.getTooltip();
+
+	const documentation = symbol.getDocumentation(document.tokenStream);
+	if (documentation) {
+		contents += '\n\n' + documentation;
+	}
+
 	return {
-		contents: symbol.getTooltip(),
+		contents: '```unrealscript\n' + contents + '\n```',
 		range: symbol.getRange()
 	};
 }
@@ -149,5 +156,5 @@ export async function getCompletionItems(uri: string, position: Position): Promi
 	if (!symbols) {
 		return undefined;
 	}
-	return [].concat(symbols.map(symbol => symbol.toCompletionItem()), ClassCompletionItems);
+	return [].concat(symbols.map(symbol => symbol.toCompletionItem(document)), ClassCompletionItems);
 }

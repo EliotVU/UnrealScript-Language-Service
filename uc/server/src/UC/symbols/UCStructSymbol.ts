@@ -2,8 +2,10 @@ import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-
 
 import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
-import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE, UCMethodSymbol } from "./";
+import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE } from "./";
 import { UCDocumentListener } from '../DocumentListener';
+import { CommonTokenStream } from 'antlr4ts';
+import { COMMENT_TYPES } from './UCSymbol';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: UCTypeSymbol;
