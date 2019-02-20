@@ -14,6 +14,6 @@ export class UCConstSymbol extends UCFieldSymbol {
 	}
 
 	getTooltip(): string {
-		return '(const) ' + this.getQualifiedName() + ' : ' + this.value;
+		return 'const ' + this.getQualifiedName() + ' = ' + this.value;
 	}
 }
