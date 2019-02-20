@@ -129,7 +129,13 @@ export abstract class UCSymbol implements ISymbol {
 	toCompletionItem(document: UCDocumentListener): CompletionItem {
 		const item = CompletionItem.create(this.getName());
 		item.detail = this.getTooltip();
-		item.documentation = this.getDocumentation(document.tokenStream);
+		if (document.tokenStream) {
+			try {
+				item.documentation = this.getDocumentation(document.tokenStream);
+			} catch (err) {
+				// do nothing
+			}
+		}
 		item.kind = this.getCompletionItemKind();
 		return item;
 	}
