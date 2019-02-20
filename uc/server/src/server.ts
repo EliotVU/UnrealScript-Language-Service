@@ -1,5 +1,5 @@
 import { interval, Subject, of, AsyncSubject } from 'rxjs';
-import { debounce, map, delay } from 'rxjs/operators';
+import { debounce, map, delay, switchMapTo } from 'rxjs/operators';
 
 import {
 	createConnection,
@@ -73,10 +73,50 @@ connection.onDidChangeConfiguration(() => {
 });
 
 const pendingTextDocuments$ = new Subject<TextDocument>();
-pendingTextDocuments$
-	.pipe(debounce(() => interval(300)))
-	.subscribe(document => {
-		validateDocument(document.uri, document.getText());
+
+ClassesMap$
+	.pipe(switchMapTo(pendingTextDocuments$), debounce(() => interval(300)))
+	.subscribe((textDocument) => {
+		connection.console.log('Validating' + textDocument.uri);
+
+		let document = getDocumentListenerByUri(textDocument.uri);
+		try {
+			document.invalidate();
+			document.parse(textDocument.getText());
+			document.link();
+		} catch (err) {
+			connection.sendDiagnostics({
+				uri: textDocument.uri,
+				diagnostics: [
+					Diagnostic.create(Range.create(0, 0, 0, 0),
+					"Something went wrong while parsing this document! " + err,
+					DiagnosticSeverity.Warning,
+					undefined,
+					'unrealscript')
+				]
+			});
+			return;
+		}
+
+		if (!document || document.class === null) {
+			connection.sendDiagnostics({
+				uri: textDocument.uri,
+				diagnostics: [
+					Diagnostic.create(Range.create(0, 0, 0, 0),
+					"Couldn't validate document!",
+					DiagnosticSeverity.Warning,
+					undefined,
+					'unrealscript')
+				]
+			});
+			return;
+		}
+
+		const diagnostics = document.analyze();
+		connection.sendDiagnostics({
+			uri: document.uri,
+			diagnostics
+		});
 	});
 
 const pendingDocuments$ = new AsyncSubject<UCDocumentListener>();
@@ -108,44 +148,12 @@ ClassesMap$
 						console.error('no document found for uri', uri);
 						return;
 					}
-					connection.console.log('parsing' + document.name);
-					document.parse(document.readText());
+					// connection.console.log('parsing' + document.name);
+					// document.parse(document.readText());
 					pendingDocuments$.next(document);
 				});
 		});
 	}));
-
-
-function validateDocument(uri: string, text: string = undefined): Promise<void> {
-	connection.console.log('Validating' + uri);
-
-	let document = getDocumentListenerByUri(uri);
-	try {
-		document.invalidate();
-		document.parse(text || document.readText());
-		document.link();
-	} catch (err) {
-		connection.sendDiagnostics({
-			uri: uri,
-			diagnostics: [Diagnostic.create(Range.create(0, 0, 0, 0), "Something went wrong while parsing this document! " + err, DiagnosticSeverity.Warning, undefined, 'unrealscript')]
-		});
-		return;
-	}
-
-	if (!document || document.class === null) {
-		connection.sendDiagnostics({
-			uri: uri,
-			diagnostics: [Diagnostic.create(Range.create(0, 0, 0, 0), "Couldn't validate document!", DiagnosticSeverity.Warning, undefined, 'unrealscript')]
-		});
-		return;
-	}
-
-	const diagnostics = document.analyze();
-	connection.sendDiagnostics({
-		uri: document.uri,
-		diagnostics
-	});
-}
 
 documents.onDidOpen(e => pendingTextDocuments$.next(e.document));
 documents.onDidSave(e => pendingTextDocuments$.next(e.document));
