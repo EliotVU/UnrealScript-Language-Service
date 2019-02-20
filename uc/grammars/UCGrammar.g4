@@ -762,8 +762,7 @@ stateDecl: (stateModifier)* kwSTATE (OPEN_PARENS CLOSE_PARENS)? identifier
 
 stateModifier: kwAUTO | kwSIMULATED;
 
-codeBlock: (OPEN_BRACE statement* CLOSE_BRACE);
-codeBlockOptional: (codeBlock | statement?);
+codeBlockOptional: ((OPEN_BRACE statement* CLOSE_BRACE) | statement?);
 
 statement:
 	(
@@ -841,7 +840,7 @@ argument: expression;
 ifStatement:
 	kwIF (OPEN_PARENS expression CLOSE_PARENS)
 		codeBlockOptional
-	(kwELSE codeBlockOptional)?;
+	elseStatement?;
 
 elseStatement: kwELSE codeBlockOptional;
 foreachStatement: kwFOREACH primaryExpression codeBlockOptional;
