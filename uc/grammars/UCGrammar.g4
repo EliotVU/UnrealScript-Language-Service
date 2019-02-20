@@ -763,7 +763,7 @@ stateDecl: (stateModifier)* kwSTATE (OPEN_PARENS CLOSE_PARENS)? identifier
 stateModifier: kwAUTO | kwSIMULATED;
 
 codeBlock: (OPEN_BRACE statement* CLOSE_BRACE);
-codeBlockOptional: (codeBlock | statement*);
+codeBlockOptional: (codeBlock | statement?);
 
 statement:
 	(
@@ -866,7 +866,7 @@ switchStatement:
 	kwSWITCH (OPEN_PARENS expression CLOSE_PARENS)
 	OPEN_BRACE? (
 		(kwCASE | kwDEFAULT) expression COLON
-			codeBlockOptional
+			(statement* breakStatement?)
 	)*
 	CLOSE_BRACE?;
 
