@@ -91,6 +91,8 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 				const symbol = context.findTypeSymbol(this.getName().toLowerCase(), true);
 				if (symbol) {
 					this.setReference(symbol, document);
+				} else {
+					this.linkToClass(document);
 				}
 				break;
 		}
