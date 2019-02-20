@@ -282,7 +282,7 @@
                     },
                     "patterns": [
                         {
-                            "begin": "\\b((?i)abstract|export|exportstructs|noexport|noexportheader|nativereplication|nativeonly|deprecated|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|hidedropdown|noteditinlinenew|cacheexempt|perobjectconfig|perobjectlocalized|forcescriptorder)\\b",
+                            "begin": "\\b((?i)abstract|export|exportstructs|noexport|noexportheader|nativereplication|nativeonly|deprecated|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|hidedropdown|editinlinenew|noteditinlinenew|cacheexempt|perobjectconfig|perobjectlocalized|forcescriptorder)\\b",
                             "name": "storage.modifier.uc",
                             "end": "\\b"
                         },
