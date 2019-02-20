@@ -2,10 +2,9 @@ import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-
 
 import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
-import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE } from "./";
+import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE, UCReferenceSymbol, UCMethodSymbol, UCStateSymbol, UCPropertySymbol } from "./";
 import { UCDocumentListener } from '../DocumentListener';
-import { CommonTokenStream } from 'antlr4ts';
-import { COMMENT_TYPES } from './UCSymbol';
+import { UCExpression } from './Expressions';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: UCTypeSymbol;
@@ -13,6 +12,9 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	public children?: UCFieldSymbol;
 
 	public types?: Map<string, UCFieldSymbol>;
+	public expressions?: UCExpression[];
+
+	private cachedTypeResolves = new Map<string, ISymbol>();
 
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
@@ -47,6 +49,16 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		if (this.extendsType && this.extendsType.getSymbolAtPos(position)) {
 			return this.extendsType;
 		}
+
+		if (this.expressions) {
+			for (let expr of this.expressions) {
+				const symbol = expr.getSymbolAtPos(position);
+				if (symbol) {
+					return symbol;
+				}
+			}
+		}
+
 		return this.getChildSymbolAtPos(position);
 	}
 
@@ -75,38 +87,67 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 
 	findSymbol(id: string): UCSymbol | undefined {
 		for (let child = this.children; child; child = child.next) {
-			if (child.getName().toLowerCase() === id) {
+			const name = child.getName().toLowerCase();
+			if (name === id) {
 				return child;
+			}
+
+			// Also match enum members
+			if (child instanceof UCEnumSymbol) {
+				const symbol = child.findSymbol(id);
+				if (symbol) {
+					return symbol;
+				}
 			}
 		}
 		return undefined;
 	}
 
 	findSuperSymbol(id: string): UCSymbol | undefined {
-		for (let superSymbol: UCStructSymbol = this; superSymbol; superSymbol = superSymbol.super) {
-			const symbol = superSymbol.findSymbol(id);
+		if (id === this.getName().toLowerCase()) {
+			return this;
+		}
+
+		let symbol = this.findSymbol(id);
+		if (symbol) {
+			return symbol;
+		}
+
+		// FIXME: Disable for methods?
+		if (this.super && !(this instanceof UCMethodSymbol)) {
+			symbol = this.super.findSuperSymbol(id);
 			if (symbol) {
 				return symbol;
 			}
+		}
+
+		// Check for symbols in the outer of a function or state.
+		if ((this instanceof UCMethodSymbol || this instanceof UCStateSymbol) && this.outer && this.outer instanceof UCStructSymbol) {
+			return this.outer.findSuperSymbol(id);
 		}
 		return undefined;
 	}
 
 	findTypeSymbol(qualifiedId: string, deepSearch: boolean): ISymbol | undefined {
+		let symbol = this.cachedTypeResolves.get(qualifiedId);
+		if (symbol) {
+			return symbol;
+		}
+
 		if (qualifiedId === this.getName().toLowerCase()) {
 			return this;
 		}
 
 		// Quick shortcut for the most common types or top level symbols.
-		const predefinedType: ISymbol = CORE_PACKAGE.findQualifiedSymbol(qualifiedId, false);
-		if (predefinedType) {
-			return predefinedType;
+		symbol = CORE_PACKAGE.findQualifiedSymbol(qualifiedId, false);
+		if (symbol) {
+			return symbol;
 		}
 
 		if (this.types) {
-			const typeSymbol = this.types.get(qualifiedId);
-			if (typeSymbol) {
-				return typeSymbol;
+			symbol = this.types.get(qualifiedId);
+			if (symbol) {
+				return symbol;
 			}
 		}
 
@@ -115,11 +156,15 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		}
 
 		if (this.super) {
-			return this.super.findTypeSymbol(qualifiedId, deepSearch);
+			symbol = this.super.findTypeSymbol(qualifiedId, deepSearch);
+		} else if (this.outer && this.outer instanceof UCStructSymbol) {
+			symbol = this.outer.findTypeSymbol(qualifiedId, deepSearch);
 		}
-		return this.outer && this.outer instanceof UCStructSymbol
-			? this.outer.findTypeSymbol(qualifiedId, deepSearch)
-			: undefined;
+
+		if (symbol) {
+			this.cachedTypeResolves.set(qualifiedId, symbol);
+		}
+		return symbol;
 	}
 
 	link(document: UCDocumentListener, context: UCStructSymbol) {
@@ -131,23 +176,25 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			}
 		}
 
-		if (!this.children) {
-			return;
-		}
+		if (this.children) {
+			// Link types before any child so that a child that referes one of our types can be linked properly!
+			if (this.types) {
+				for (let type of this.types.values()) {
+					type.link(document, this);
+				}
+			}
 
-		// Link types before any child so that a child that referes one of our types can be linked properly!
-		if (this.types) {
-			for (let type of this.types.values()) {
-				type.link(document, this);
+			for (let child = this.children; child; child = child.next) {
+				if (child instanceof UCScriptStructSymbol || child instanceof UCEnumSymbol) {
+					continue;
+				}
+
+				child.link(document, this);
 			}
 		}
 
-		for (let child = this.children; child; child = child.next) {
-			if (child instanceof UCScriptStructSymbol || child instanceof UCEnumSymbol) {
-				continue;
-			}
-
-			child.link(document, this);
+		if (this.expressions) for (let expr of this.expressions) {
+			expr.link(document, this);
 		}
 	}
 
@@ -158,6 +205,10 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 
 		for (let child = this.children; child; child = child.next) {
 			child.analyze(document, this);
+		}
+
+		if (this.expressions) for (let expr of this.expressions) {
+			expr.analyze(document, this);
 		}
 	}
 }

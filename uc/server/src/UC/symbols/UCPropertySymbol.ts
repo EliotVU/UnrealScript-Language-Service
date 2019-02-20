@@ -30,8 +30,6 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	public link(document: UCDocumentListener, context: UCStructSymbol) {
-		super.link(document);
-
 		if (this.type) {
 			this.type.link(document, context);
 		}

@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { Diagnostic, Position, Range } from 'vscode-languageserver-types';
+import { Diagnostic, Range } from 'vscode-languageserver-types';
 import URI from 'vscode-uri';
 
 import { BehaviorSubject } from 'rxjs';
@@ -26,32 +26,8 @@ import {
 } from './symbols';
 import { UCTypeKind } from './symbols/UCTypeKind';
 import { IDiagnosticNode, SyntaxErrorNode } from './diagnostics/diagnostics';
-
-function rangeFromBound(token: Token): Range {
-	const start: Position = {
-		line: token.line - 1,
-		character: token.charPositionInLine
-	};
-
-	const end: Position = {
-		line: token.line - 1,
-		character: token.charPositionInLine + token.text.length
-	};
-	return { start, end };
-}
-
-function rangeFromBounds(startToken: Token, stopToken: Token): Range {
-	return {
-		start: {
-			line: startToken.line - 1,
-			character: startToken.charPositionInLine
-		},
-		end: {
-			line: stopToken.line - 1,
-			character: stopToken.charPositionInLine + stopToken.text.length
-		}
-	};
-}
+import { UCExpressionVisitor } from './ExpressionVisitor';
+import { rangeFromBounds, rangeFromBound } from './helpers';
 
 export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener<Token> {
 	public getDocument: (className: string, cb: (document: UCDocumentListener) => void) => void;
@@ -105,6 +81,9 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	}
 
 	invalidate() {
+		if (this.class && this.classPackage) {
+			this.classPackage.symbols.delete(this.class.getName().toLowerCase());
+		}
 		this.class = undefined;
 	}
 
@@ -473,7 +452,23 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 					this.declare(propSymbol);
 				}
 			}
+
+			const statements = body.statement();
+			if (statements) {
+				const expressionVisitor = new UCExpressionVisitor();
+
+				funcSymbol.expressions = [];
+				for (let statement of statements) {
+					const exprSymbol = statement.accept(expressionVisitor);
+					if (exprSymbol) {
+						funcSymbol.expressions.push(exprSymbol);
+					}
+				}
+			}
 		}
+	}
+
+	exitFunctionDecl(ctx: UCParser.FunctionDeclContext) {
 		this.pop();
 	}
 

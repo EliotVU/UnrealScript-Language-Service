@@ -11,11 +11,40 @@ import {
 	Definition,
 	SymbolInformation,
 	Connection,
-	Position
+	Position,
+	Range
 } from 'vscode-languageserver';
 
 import { UCSymbol, UCReferenceSymbol, UCStructSymbol } from './symbols';
 import { getDocumentListenerByUri, ClassesMap$ } from "./DocumentListener";
+import { Token } from 'antlr4ts';
+
+export function rangeFromBound(token: Token): Range {
+	const start: Position = {
+		line: token.line - 1,
+		character: token.charPositionInLine
+	};
+
+	const end: Position = {
+		line: token.line - 1,
+		character: token.charPositionInLine + token.text.length
+	};
+	return { start, end };
+}
+
+export function rangeFromBounds(startToken: Token, stopToken: Token): Range {
+	return {
+		start: {
+			line: startToken.line - 1,
+			character: startToken.charPositionInLine
+		},
+		end: {
+			line: stopToken.line - 1,
+			character: stopToken.charPositionInLine + stopToken.text.length
+		}
+	};
+}
+
 
 async function buildClassesFilePathsMap(workspace: RemoteWorkspace): Promise<Map<string, string>> {
 	function scanPath(filePath: string, cb: (filePath: string) => void): Promise<boolean> {
