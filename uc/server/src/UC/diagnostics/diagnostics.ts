@@ -43,3 +43,18 @@ export class UnrecognizedTypeNode implements IDiagnosticNode {
 		return `Type '${this.symbol.getName()}' not found!`;
 	}
 }
+
+export class UnrecognizedFieldNode implements IDiagnosticNode {
+	constructor(private symbol: UCReferenceSymbol, private context?: UCSymbol) {
+	}
+
+	getRange(): Range {
+		return this.symbol.getRange();
+	}
+
+	toString(): string {
+		return this.context
+			? `'${this.symbol.getName()}' Does not exist on type '${this.context.getName()}'!`
+			: `'${this.symbol.getName()}' Does not exist!`;
+	}
+}
