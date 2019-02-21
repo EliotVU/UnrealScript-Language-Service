@@ -12,6 +12,7 @@ import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 import { UCGrammarListener } from '../antlr/UCGrammarListener';
 import * as UCParser from '../antlr/UCGrammarParser';
 
+import { rangeFromBounds, rangeFromBound } from './helpers';
 import { DocumentParser } from './DocumentParser';
 import { ISymbol } from './symbols/ISymbol';
 import { ISymbolContainer } from './symbols/ISymbolContainer';
@@ -27,7 +28,11 @@ import {
 import { UCTypeKind } from './symbols/UCTypeKind';
 import { IDiagnosticNode, SyntaxErrorNode } from './diagnostics/diagnostics';
 import { UCExpressionVisitor } from './ExpressionVisitor';
-import { rangeFromBounds, rangeFromBound } from './helpers';
+import { UCStatementVisitor } from './StatementVisitor';
+import { UCScriptBlock } from './symbols/Statements';
+
+export const ExpressionVisitor = new UCExpressionVisitor();
+export const StatementVisitor = new UCStatementVisitor();
 
 export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener<Token> {
 	public getDocument: (className: string, cb: (document: UCDocumentListener) => void) => void;
@@ -375,6 +380,20 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 		symbol.context = ctx;
 		this.class.repFieldRefs = [];
 		this.declare(symbol);
+
+		const statements = ctx.replicationStatement();
+		if (statements) {
+			// const scriptBlock = new UCScriptBlock(
+			// 	{ name: '', range: rangeFromBounds(ctx.start, ctx.stop) }
+			// );
+			// for (let statement of statements) {
+			// 	const sm = statement.accept(StatementVisitor);
+			// 	if (sm) {
+			// 		scriptBlock.statements.push(sm);
+			// 	}
+			// }
+			// this.class.scriptBlock = scriptBlock;
+		}
 	}
 
 	enterReplicationStatement(ctx: UCParser.ReplicationStatementContext) {
@@ -455,15 +474,16 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 
 			const statements = body.statement();
 			if (statements) {
-				const expressionVisitor = new UCExpressionVisitor();
-
-				funcSymbol.expressions = [];
+				const scriptBlock = new UCScriptBlock(
+					{ name: '', range: rangeFromBounds(body.start, body.stop) }
+				);
 				for (let statement of statements) {
-					const exprSymbol = statement.accept(expressionVisitor);
-					if (exprSymbol) {
-						funcSymbol.expressions.push(exprSymbol);
+					const sm = statement.accept(StatementVisitor);
+					if (sm) {
+						scriptBlock.statements.push(sm);
 					}
 				}
+				funcSymbol.scriptBlock = scriptBlock;
 			}
 		}
 	}

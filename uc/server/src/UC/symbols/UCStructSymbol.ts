@@ -1,10 +1,10 @@
 import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
 
+import { UCDocumentListener } from '../DocumentListener';
 import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
-import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE, UCReferenceSymbol, UCMethodSymbol, UCStateSymbol, UCPropertySymbol } from "./";
-import { UCDocumentListener } from '../DocumentListener';
-import { UCExpression } from './Expressions';
+import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE, UCMethodSymbol, UCStateSymbol } from "./";
+import { UCScriptBlock } from './Statements';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: UCTypeSymbol;
@@ -12,7 +12,8 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	public children?: UCFieldSymbol;
 
 	public types?: Map<string, UCFieldSymbol>;
-	public expressions?: UCExpression[];
+
+	public scriptBlock?: UCScriptBlock;
 
 	private cachedTypeResolves = new Map<string, ISymbol>();
 
@@ -50,12 +51,10 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			return this.extendsType;
 		}
 
-		if (this.expressions) {
-			for (let expr of this.expressions) {
-				const symbol = expr.getSymbolAtPos(position);
-				if (symbol) {
-					return symbol;
-				}
+		if (this.scriptBlock) {
+			const symbol = this.scriptBlock.getSymbolAtPos(position);
+			if (symbol) {
+				return symbol;
 			}
 		}
 
@@ -193,9 +192,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			}
 		}
 
-		if (this.expressions) for (let expr of this.expressions) {
-			expr.link(document, this);
-		}
+		if (this.scriptBlock) this.scriptBlock.link(document, this);
 	}
 
 	analyze(document: UCDocumentListener, context: UCStructSymbol) {
@@ -207,8 +204,6 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			child.analyze(document, this);
 		}
 
-		if (this.expressions) for (let expr of this.expressions) {
-			expr.analyze(document, this);
-		}
+		if (this.scriptBlock) this.scriptBlock.analyze(document, this);
 	}
 }
