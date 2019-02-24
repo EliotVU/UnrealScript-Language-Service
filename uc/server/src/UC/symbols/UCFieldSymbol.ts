@@ -19,21 +19,6 @@ export class UCFieldSymbol extends UCSymbol {
 		return this.span.range;
 	}
 
-	intersectsWith(position: Position) {
-		var range = this.getSpanRange();
-		var isInRange = position.line >= range.start.line && position.line <= range.end.line;
-		if (isInRange) {
-			if (position.line == range.start.line) {
-				return position.character >= range.start.character;
-			}
-
-			if (position.line == range.end.line) {
-				return position.character <= range.end.character;
-			}
-		}
-		return isInRange;
-	}
-
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (!this.intersectsWith(position)) {
 			return undefined;

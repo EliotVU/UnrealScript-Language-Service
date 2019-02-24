@@ -8,7 +8,7 @@ export class UCExpression extends UCSymbol {
 	public expression?: UCExpression;
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (!this.isIdWithinPosition(position)) {
+		if (!this.intersectsWith(position)) {
 			return undefined;
 		}
 		const symbol = this.getSubSymbolAtPos(position);
@@ -151,7 +151,7 @@ export class UCContextExpression extends UCExpression {
 	}
 }
 
-export class UCAssignmentExpression extends UCExpression {
+export class UCBinaryExpression extends UCExpression {
 	public leftExpression?: UCPrimaryExpression;
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -177,6 +177,10 @@ export class UCAssignmentExpression extends UCExpression {
 		}
 		super.analyze(document, context);
 	}
+}
+
+export class UCAssignmentExpression extends UCBinaryExpression {
+
 }
 
 // Reminder to myself, for call identifiers, match classes over functions.

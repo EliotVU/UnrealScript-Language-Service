@@ -8,7 +8,7 @@ export class UCScriptBlock extends UCSymbol {
 	public statements: UCStatement[] = [];
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (!this.isIdWithinPosition(position)) {
+		if (!this.intersectsWith(position)) {
 			return undefined;
 		}
 		const symbol = this.getSubSymbolAtPos(position);
@@ -39,7 +39,7 @@ export class UCScriptBlock extends UCSymbol {
 
 export class UCStatement extends UCSymbol {
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (!this.isIdWithinPosition(position)) {
+		if (!this.intersectsWith(position)) {
 			return undefined;
 		}
 		const symbol = this.getSubSymbolAtPos(position);
@@ -49,14 +49,6 @@ export class UCStatement extends UCSymbol {
 
 export class UCExpressionStatement extends UCStatement {
 	public expression?: UCExpression;
-
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (!this.isIdWithinPosition(position)) {
-			return undefined;
-		}
-		const symbol = this.getSubSymbolAtPos(position);
-		return symbol;
-	}
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.expression) {
@@ -110,5 +102,97 @@ export class UCBlockStatement extends UCExpressionStatement {
 }
 
 export class UCIfStatement extends UCBlockStatement {
+	public elseStatement?: UCElseStatement;
+
+	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+		const symbol = super.getSubSymbolAtPos(position);
+		if (symbol) {
+			return symbol;
+		}
+
+		if (this.elseStatement) {
+			return this.elseStatement.getSymbolAtPos(position);
+		}
+	}
+
+	link(document: UCDocumentListener, context: UCStructSymbol) {
+		super.link(document, context);
+		if (this.elseStatement) {
+			this.elseStatement.link(document, context);
+		}
+	}
+
+	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+		super.analyze(document, context);
+		if (this.elseStatement) {
+			this.elseStatement.analyze(document, context);
+		}
+	}
+}
+
+export class UCElseStatement extends UCBlockStatement {
+
+}
+
+export class UCDoStatement extends UCBlockStatement {
+
+}
+
+export class UCWhileStatement extends UCBlockStatement {
+
+}
+
+export class UCSwitchStatement extends UCBlockStatement {
+
+}
+
+export class UCSwitchCase extends UCBlockStatement {
+
+}
+
+export class UCForStatement extends UCBlockStatement {
+	// @super.expression is the conditional if expression
+	public initExpression?: UCExpression;
+	public nextExpression?: UCExpression;
+
+	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+		const symbol = super.getSubSymbolAtPos(position);
+		if (symbol) {
+			return symbol;
+		}
+
+		if (this.initExpression) {
+			const symbol = this.initExpression.getSymbolAtPos(position);
+			if (symbol) {
+				return symbol;
+			}
+		}
+
+		if (this.nextExpression) {
+			const symbol = this.nextExpression.getSymbolAtPos(position);
+			if (symbol) {
+				return symbol;
+			}
+		}
+	}
+
+	link(document: UCDocumentListener, context: UCStructSymbol) {
+		super.link(document, context);
+		if (this.initExpression) this.initExpression.link(document, context);
+		if (this.nextExpression) this.nextExpression.link(document, context);
+	}
+
+	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+		super.analyze(document, context);
+		if (this.initExpression) this.initExpression.link(document, context);
+		if (this.nextExpression) this.nextExpression.analyze(document, context);
+	}
+}
+
+export class UCForEachStatement extends UCBlockStatement {
+
+}
+
+export class UCLabeledStatement extends UCStatement {
 
 }

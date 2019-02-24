@@ -847,7 +847,7 @@ foreachStatement: kwFOREACH primaryExpression codeBlockOptional;
 
 forStatement:
 	kwFOR (
-		OPEN_PARENS assignmentExpression? SEMICOLON expression? SEMICOLON expression? CLOSE_PARENS
+		OPEN_PARENS expression? SEMICOLON expression? SEMICOLON expression? CLOSE_PARENS
 	) codeBlockOptional;
 
 whileStatement
@@ -863,11 +863,14 @@ doStatement
 
 switchStatement:
 	kwSWITCH (OPEN_PARENS expression CLOSE_PARENS)
-	OPEN_BRACE? (
-		(kwCASE | kwDEFAULT) expression COLON
-			(statement* breakStatement?)
-	)*
+	OPEN_BRACE?
+		switchCase*
 	CLOSE_BRACE?;
+
+switchCase:
+	(kwCASE | kwDEFAULT) expression? COLON
+		statement* breakStatement?
+	;
 
 returnStatement: kwRETURN expression? SEMICOLON;
 breakStatement: kwBREAK SEMICOLON;

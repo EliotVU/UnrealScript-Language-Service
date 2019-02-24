@@ -88,6 +88,21 @@ export abstract class UCSymbol implements ISymbol {
 		return isInRange;
 	}
 
+	intersectsWith(position: Position) {
+		var range = this.getSpanRange();
+		var isInRange = position.line >= range.start.line && position.line <= range.end.line;
+		if (isInRange) {
+			if (position.line == range.start.line) {
+				return position.character >= range.start.character;
+			}
+
+			if (position.line == range.end.line) {
+				return position.character <= range.end.character;
+			}
+		}
+		return isInRange;
+	}
+
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.isIdWithinPosition(position)) {
 			const symbol = this.getSubSymbolAtPos(position);
@@ -96,7 +111,7 @@ export abstract class UCSymbol implements ISymbol {
 		return undefined;
 	}
 
-	protected getSubSymbolAtPos(_position: Position): UCSymbol |  undefined {
+	protected getSubSymbolAtPos(_position: Position): UCSymbol | undefined {
 		return undefined;
 	}
 
