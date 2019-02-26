@@ -1,7 +1,7 @@
 import { Position } from 'vscode-languageserver';
 
 import { UCDocumentListener } from '../DocumentListener';
-import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCReferenceSymbol, UCStateSymbol } from '.';
+import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCReferenceSymbol, UCStateSymbol, NativeClass } from '.';
 import { UnrecognizedFieldNode } from '../diagnostics/diagnostics';
 
 export class UCExpression extends UCSymbol {
@@ -137,12 +137,16 @@ export class UCContextExpression extends UCExpression {
 		return undefined;
 	}
 
+	// Assumes that a reference is a valid instance of UCStructSymbol.
 	getExpressedContext(): UCStructSymbol | undefined {
 		const symbol = this.getExpressedContextSymbol();
 		if (symbol && symbol instanceof UCPropertySymbol && symbol.type) {
 			const ref = symbol.type.getReference();
-			if (ref && ref instanceof UCStructSymbol) {
-				return ref;
+			if (ref) {
+				if (symbol.type.innerType && ref === NativeClass) {
+					return symbol.type.innerType.getReference() as UCStructSymbol;
+				}
+				return ref as UCStructSymbol;
 			}
 		} else if (symbol instanceof UCStructSymbol) {
 			return symbol as UCStructSymbol;
@@ -187,10 +191,12 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 export class UCSymbolExpression extends UCExpression {
 	public symbol?: UCReferenceSymbol;
 
+	constructor() {
+		super(undefined);
+	}
+
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.isIdWithinPosition(position)) {
-			return this.symbol;
-		}
+		return this.symbol.getSymbolAtPos(position);
 	}
 
 	link(document: UCDocumentListener, context: UCStructSymbol) {
@@ -202,6 +208,7 @@ export class UCSymbolExpression extends UCExpression {
 			const id = this.symbol.getName().toLowerCase();
 			switch (id) {
 				case 'default': case 'self': case 'static': case 'global': case 'const': {
+					// FIXME: G.Static does not reference to the static class of G where g is a property of type "class<GameInfo>".
 					this.symbol.setReference(document.class, document);
 					break;
 				}
