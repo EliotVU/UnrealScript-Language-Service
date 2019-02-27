@@ -1,7 +1,6 @@
-import { Location } from 'vscode-languageserver-types';
+import { Location, Range, Position } from 'vscode-languageserver-types';
 
 import { ISymbol } from './ISymbol';
-import { ISymbolId } from './ISymbolId';
 import { UCSymbol } from '.';
 import { UCDocumentListener } from '../DocumentListener';
 
@@ -11,8 +10,13 @@ import { UCDocumentListener } from '../DocumentListener';
 export class UCReferenceSymbol extends UCSymbol {
 	protected reference?: ISymbol;
 
-	constructor(id: ISymbolId) {
-		super(id);
+	// TODO: evaulate if span range is needed for reference symbols?
+	constructor(private symbolName: string, range: Range) {
+		super(range);
+	}
+
+	getName(): string {
+		return this.symbolName;
 	}
 
 	getTooltip(): string {
@@ -22,10 +26,21 @@ export class UCReferenceSymbol extends UCSymbol {
 		return super.getTooltip();
 	}
 
+	getSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (!this.intersectsWith(position)) {
+			return undefined;
+		}
+
+		if (this.intersectsWithName(position)) {
+			return this;
+		}
+		return this.getSubSymbolAtPos(position);
+	}
+
 	setReference(symbol: ISymbol, document: UCDocumentListener) {
 		this.reference = symbol;
 		if (symbol && symbol instanceof UCSymbol) {
-			symbol.registerReference(Location.create(document.uri, this.getRange()));
+			symbol.registerReference(Location.create(document.uri, this.getNameRange()));
 		}
 	}
 

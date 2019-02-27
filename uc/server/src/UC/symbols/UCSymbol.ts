@@ -1,13 +1,15 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Location, Position } from 'vscode-languageserver-types';
 
 import { ISymbol } from './ISymbol';
-import { ISymbolId } from "./ISymbolId";
 import { UCStructSymbol, UCPackage } from "./";
 import { UCDocumentListener } from "../DocumentListener";
 import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
 import { UCGrammarParser } from '../../antlr/UCGrammarParser';
 
 export const COMMENT_TYPES = new Set([UCGrammarParser.LINE_COMMENT, UCGrammarParser.BLOCK_COMMENT]);
+
+export const NO_NAME = '';
+
 
 /**
  * A symbol that resides in a document, holding an id and range.
@@ -20,7 +22,7 @@ export abstract class UCSymbol implements ISymbol {
 
 	public context?: ParserRuleContext;
 
-	constructor(private id: ISymbolId) {
+	constructor(private nameRange: Range) {
 	}
 
 	getTypeTooltip(): string {
@@ -55,7 +57,7 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getName(): string {
-		return this.id.name || '';
+		return NO_NAME;
 	}
 
 	getQualifiedName(): string {
@@ -74,15 +76,15 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getSpanRange(): Range {
-		return this.id.range;
+		return this.nameRange;
 	}
 
-	getRange(): Range {
-		return this.id.range;
+	getNameRange(): Range {
+		return this.nameRange;
 	}
 
-	protected isIdWithinPosition(position: Position): boolean {
-		var range = this.id.range;
+	protected intersectsWithName(position: Position): boolean {
+		var range = this.getNameRange();
 		var isInRange = position.line >= range.start.line && position.line <= range.end.line
 			&& position.character >= range.start.character && position.character < range.end.character;
 		return isInRange;
@@ -104,7 +106,7 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.isIdWithinPosition(position)) {
+		if (this.intersectsWithName(position)) {
 			const symbol = this.getSubSymbolAtPos(position);
 			return symbol || this;
 		}

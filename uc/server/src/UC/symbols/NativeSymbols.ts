@@ -3,13 +3,13 @@ import { UCPackage, UCNativeSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSym
 export const CORE_PACKAGE = new UCPackage('Core');
 export const NativeClass = new UCNativeSymbol('Class');
 
-export const ArrayClass = new UCClassSymbol({ name: 'Array', range: undefined }, undefined);
+export const ArrayClass = new UCClassSymbol('Array', undefined, undefined);
 
-const LengthProperty = new UCPropertySymbol({ name: 'Length', range: undefined }, undefined);
-LengthProperty.type = new UCTypeSymbol({ name: 'int', range: undefined });
+const LengthProperty = new UCPropertySymbol('Length', undefined, undefined);
+LengthProperty.type = new UCTypeSymbol('int', undefined);
 ArrayClass.addSymbol(LengthProperty);
 
-const InsertFunction = new UCMethodSymbol({ name: 'Insert', range: undefined }, undefined);
+const InsertFunction = new UCMethodSymbol('Insert', undefined, undefined);
 ArrayClass.addSymbol(InsertFunction);
 
 const NATIVE_SYMBOLS = [

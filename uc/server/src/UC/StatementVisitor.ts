@@ -49,9 +49,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 
 		const exprSymbol: UCExpression = expr.accept(ExpressionVisitor);
 		if (exprSymbol) {
-			const smSymbol = new UCExpressionStatement({
-				name: '', range: rangeFromBounds(ctx.start, ctx.stop)
-			});
+			const smSymbol = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
 			smSymbol.context = ctx;
 			smSymbol.expression = exprSymbol;
 			return smSymbol;
@@ -60,9 +58,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 
 	visitLabeledStatement(ctx: LabeledStatementContext): UCLabeledStatement {
 		const name = ctx.labelName();
-		const smSymbol = new UCLabeledStatement({
-			name: name.text, range: rangeFromBounds(ctx.start, ctx.stop)
-		});
+		const smSymbol = new UCLabeledStatement(rangeFromBounds(ctx.start, ctx.stop));
 		smSymbol.context = ctx;
 		return smSymbol;
 	}
@@ -76,9 +72,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 
 	visitReturnStatement(ctx: ReturnStatementContext): UCExpressionStatement {
 		// TODO: custom class
-		const smSymbol = new UCExpressionStatement({
-			name: '', range: rangeFromBounds(ctx.start, ctx.stop)
-		});
+		const smSymbol = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
 		smSymbol.context = ctx;
 
 		const expr = ctx.expression();
@@ -90,9 +84,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 
 	visitGotoStatement(ctx: GotoStatementContext) {
 		// TODO: custom class
-		const smSymbol = new UCExpressionStatement({
-			name: '', range: rangeFromBounds(ctx.start, ctx.stop)
-		});
+		const smSymbol = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
 		smSymbol.context = ctx;
 		// TODO: read label
 		return smSymbol;
@@ -104,9 +96,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 	}
 
 	visitWhileStatement(ctx: WhileStatementContext): UCWhileStatement {
-		const smSymbol = new UCWhileStatement({
-			name: '', range: rangeFromBounds(ctx.start, ctx.stop)
-		});
+		const smSymbol = new UCWhileStatement(rangeFromBounds(ctx.start, ctx.stop));
 		smSymbol.context = ctx;
 
 		const expr = ctx.expression();
@@ -122,9 +112,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 	}
 
 	visitIfStatement(ctx: IfStatementContext): UCIfStatement {
-		const smSymbol = new UCIfStatement({
-			name: '', range: rangeFromBounds(ctx.start, ctx.stop)
-		});
+		const smSymbol = new UCIfStatement(rangeFromBounds(ctx.start, ctx.stop));
 		smSymbol.context = ctx;
 
 		const expr = ctx.expression();
@@ -145,9 +133,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 	}
 
 	visitElseStatement(ctx: ElseStatementContext): UCElseStatement {
-		const smSymbol = new UCElseStatement({
-			name: '', range: rangeFromBounds(ctx.start, ctx.stop)
-		});
+		const smSymbol = new UCElseStatement(rangeFromBounds(ctx.start, ctx.stop));
 		smSymbol.context = ctx;
 
 		const block = ctx.codeBlockOptional();
@@ -159,9 +145,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 	}
 
 	visitDoStatement(ctx: DoStatementContext): UCDoStatement {
-		const smSymbol = new UCDoStatement({
-			name: '', range: rangeFromBounds(ctx.start, ctx.stop)
-		});
+		const smSymbol = new UCDoStatement(rangeFromBounds(ctx.start, ctx.stop));
 		smSymbol.context = ctx;
 
 		const expr = ctx.expression();
@@ -177,9 +161,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 	}
 
 	visitSwitchStatement(ctx: SwitchStatementContext) {
-		const smSymbol = new UCSwitchStatement({
-			name: '', range: rangeFromBounds(ctx.start, ctx.stop)
-		});
+		const smSymbol = new UCSwitchStatement(rangeFromBounds(ctx.start, ctx.stop));
 		smSymbol.context = ctx;
 
 		const expr = ctx.expression();
@@ -189,10 +171,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 
 		const cases = ctx.switchCase();
 		if (cases) {
-			const blockSymbol = new UCScriptBlock(
-				{ name: '', range: rangeFromBounds(ctx.start, ctx.stop) }
-			);
-
+			const blockSymbol = new UCScriptBlock(rangeFromBounds(ctx.start, ctx.stop));
 			for (let sm of cases) {
 				const subSmSymbol = sm.accept(this);
 				if (subSmSymbol) {
@@ -205,9 +184,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 	}
 
 	visitForeachStatement(ctx: ForeachStatementContext): UCForEachStatement {
-		const smSymbol = new UCForEachStatement({
-			name: '', range: rangeFromBounds(ctx.start, ctx.stop)
-		});
+		const smSymbol = new UCForEachStatement(rangeFromBounds(ctx.start, ctx.stop));
 		smSymbol.context = ctx;
 
 		const expr = ctx.primaryExpression();
@@ -223,9 +200,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 	}
 
 	visitForStatement(ctx: ForStatementContext): UCForStatement {
-		const smSymbol = new UCForStatement({
-			name: '', range: rangeFromBounds(ctx.start, ctx.stop)
-		});
+		const smSymbol = new UCForStatement(rangeFromBounds(ctx.start, ctx.stop));
 		smSymbol.context = ctx;
 
 		let expr = ctx.expression(0);
@@ -251,9 +226,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 	}
 
 	visitSwitchCase(ctx: SwitchCaseContext) {
-		const smSymbol = new UCSwitchCase({
-			name: '', range: rangeFromBounds(ctx.start, ctx.stop)
-		});
+		const smSymbol = new UCSwitchCase(rangeFromBounds(ctx.start, ctx.stop));
 		smSymbol.context = ctx;
 
 		const expr = ctx.expression();
@@ -267,9 +240,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 			const breakSm = breakStatement.accept(this);
 			if (breakSm) {
 				if (!smSymbol.scriptBlock) {
-					smSymbol.scriptBlock = new UCScriptBlock(
-						{ name: '', range: rangeFromBounds(breakStatement.start, breakStatement.stop) }
-					);
+					smSymbol.scriptBlock = new UCScriptBlock(rangeFromBounds(breakStatement.start, breakStatement.stop));
 				}
 				smSymbol.scriptBlock.statements.push(breakSm);
 			}
@@ -280,9 +251,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 	parseScriptBlock(ctx: CodeBlockOptionalContext|SwitchCaseContext) {
 		const statements = ctx.statement();
 		if (statements) {
-			const blockSymbol = new UCScriptBlock(
-				{ name: '', range: rangeFromBounds(ctx.start, ctx.stop) }
-			);
+			const blockSymbol = new UCScriptBlock(rangeFromBounds(ctx.start, ctx.stop));
 
 			for (let sm of statements) {
 				const subSmSymbol = sm.accept(this);

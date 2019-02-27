@@ -1,14 +1,16 @@
 import { Range, Position } from 'vscode-languageserver-types';
 
 import { UCSymbol } from './';
-import { ISymbolId } from "./ISymbolId";
-import { ISymbolSpan } from "./ISymbolSpan";
 
 export class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;
 
-	constructor(id: ISymbolId, private span: ISymbolSpan) {
-		super(id);
+	constructor(private name: string, nameRange: Range, private spanRange: Range) {
+		super(nameRange);
+	}
+
+	getName(): string {
+		return this.name;
 	}
 
 	getTooltip(): string {
@@ -16,7 +18,7 @@ export class UCFieldSymbol extends UCSymbol {
 	}
 
 	getSpanRange(): Range {
-		return this.span.range;
+		return this.spanRange;
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -24,7 +26,7 @@ export class UCFieldSymbol extends UCSymbol {
 			return undefined;
 		}
 
-		if (this.isIdWithinPosition(position)) {
+		if (this.intersectsWithName(position)) {
 			return this;
 		}
 		return this.getSubSymbolAtPos(position);

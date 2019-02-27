@@ -120,7 +120,7 @@ export async function getHover(uri: string, position: Position): Promise<Hover> 
 
 	return {
 		contents: '```unrealscript\n' + contents + '\n```',
-		range: symbol.getRange()
+		range: symbol.getNameRange()
 	};
 }
 
@@ -139,7 +139,7 @@ export async function getDefinition(uri: string, position: Position): Promise<De
 	if (!(reference instanceof UCSymbol)) {
 		return undefined;
 	}
-	return Location.create(reference.getUri(), reference.getRange());
+	return Location.create(reference.getUri(), reference.getNameRange());
 }
 
 export async function getSymbols(uri: string): Promise<SymbolInformation[]> {

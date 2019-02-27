@@ -1,7 +1,5 @@
-import { Range, Position } from 'vscode-languageserver-types';
+import { Position, Range } from 'vscode-languageserver-types';
 
-import { ISymbolId } from "./ISymbolId";
-import { ISymbolSpan } from "./ISymbolSpan";
 import { UCSymbol, UCReferenceSymbol, UCStructSymbol } from '.';
 import { UCTypeKind } from './UCTypeKind';
 
@@ -11,8 +9,8 @@ import { UnrecognizedTypeNode } from '../diagnostics/diagnostics';
 export class UCTypeSymbol extends UCReferenceSymbol {
 	public innerType?: UCTypeSymbol;
 
-	constructor(id: ISymbolId, private _typeKind?: UCTypeKind, private span?: ISymbolSpan) {
-		super(id);
+	constructor(symbolName: string, typeRange: Range, private typeKind?: UCTypeKind) {
+		super(symbolName, typeRange);
 	}
 
 	getTooltip(): string {
@@ -38,40 +36,6 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 		return this.getName();
 	}
 
-	getSpanRange(): Range {
-		return this.span!.range;
-	}
-
-	isWithinPosition(position: Position) {
-		const range = this.getSpanRange();
-		if (position.line < range.start.line || position.line > range.end.line) {
-			return false;
-		}
-
-		if (position.line == range.start.line) {
-			return position.character >= range.start.character;
-		}
-
-		if (position.line == range.end.line) {
-			return position.character <= range.end.character;
-		}
-		return false;
-	}
-
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (!this.span) {
-			return super.getSymbolAtPos(position);
-		}
-
-		if (this.isWithinPosition(position)) {
-			if (this.isIdWithinPosition(position)) {
-				return this;
-			}
-			return this.getSubSymbolAtPos(position);
-		}
-		return undefined;
-	}
-
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.innerType) {
 			return this.innerType.getSymbolAtPos(position);
@@ -82,7 +46,7 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 	link(document: UCDocumentListener, context: UCStructSymbol) {
 		// console.assert(this.outer, 'No outer for type "' + this.getName() + '"');
 
-		switch (this._typeKind) {
+		switch (this.typeKind) {
 			case UCTypeKind.Class:
 				this.linkToClass(document);
 				break;
