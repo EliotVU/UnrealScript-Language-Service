@@ -1,6 +1,6 @@
 import { Location, Range, Position } from 'vscode-languageserver-types';
 
-import { ISymbol } from './ISymbol';
+import { ISymbol, ISymbolReference, ISymbolContext } from './ISymbol';
 import { UCSymbol } from '.';
 import { UCDocumentListener } from '../DocumentListener';
 
@@ -40,10 +40,15 @@ export class UCReferenceSymbol extends UCSymbol {
 		}
 	}
 
-	setReference(symbol: ISymbol, document: UCDocumentListener) {
+	setReference(symbol: ISymbol, document: UCDocumentListener, context?: ISymbolContext) {
 		this.reference = symbol;
 		if (symbol && symbol instanceof UCSymbol) {
-			symbol.registerReference(Location.create(document.uri, this.getNameRange()));
+			const ref: ISymbolReference = {
+				location: Location.create(document.uri, this.getNameRange()),
+				symbol: this,
+				context
+			};
+			symbol.addReference(ref);
 		}
 	}
 
@@ -51,10 +56,11 @@ export class UCReferenceSymbol extends UCSymbol {
 		return this.reference;
 	}
 
-	getReferencedLocations(): Location[] | undefined {
+	// Redirect
+	getReferences() {
 		var ref = this.getReference();
 		return ref instanceof UCSymbol
-			? ref.getReferencedLocations()
-			: super.getReferencedLocations();
+			? ref.getReferences()
+			: super.getReferences();
 	}
 }

@@ -231,7 +231,13 @@ export class UCSymbolExpression extends UCExpression {
 			default: {
 				const ref = context.findSuperSymbol(id);
 				if (ref) {
-					this.symbol.setReference(ref, document);
+					this.symbol.setReference(ref, document, {
+						// FIXME: pass a contextinfo instance to link()
+						inAssignment:
+							this.outer.outer instanceof UCAssignmentExpression
+							|| this.outer.outer instanceof UCContextExpression
+								&& this.outer.outer.outer instanceof UCAssignmentExpression
+					});
 				}
 			}
 		}

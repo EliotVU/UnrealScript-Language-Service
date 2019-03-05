@@ -1,6 +1,7 @@
-import { Range, Position } from 'vscode-languageserver-types';
+import { Range, Position, Location } from 'vscode-languageserver-types';
 
-import { UCSymbol } from './';
+import { UCSymbol, UCStructSymbol } from './';
+import { UCDocumentListener } from '../DocumentListener';
 
 export class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;
@@ -30,5 +31,15 @@ export class UCFieldSymbol extends UCSymbol {
 			return this;
 		}
 		return this.getSubSymbolAtPos(position);
+	}
+
+	link(document: UCDocumentListener, _context: UCStructSymbol) {
+		this.addReference({
+			location: Location.create(document.uri, this.getNameRange()),
+			symbol: this,
+			context: {
+				inAssignment: true
+			}
+		});
 	}
 }

@@ -30,12 +30,14 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	public link(document: UCDocumentListener, context: UCStructSymbol) {
+		super.link(document, context);
 		if (this.type) {
 			this.type.link(document, context);
 		}
 	}
 
 	public analyze(document: UCDocumentListener, context: UCStructSymbol) {
+		super.analyze(document, context);
 		if (this.type) {
 			this.type.analyze(document, context);
 		}

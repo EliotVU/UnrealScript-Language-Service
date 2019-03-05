@@ -175,20 +175,38 @@ export async function getReferences(uri: string, position: Position): Promise<Lo
 	if (!symbol) {
 		return undefined;
 	}
-	return symbol.getReferencedLocations();
+	return Array
+		.from(symbol.getReferences().values())
+		.map(ref => ref.location);
 }
 
 export async function getHighlights(uri: string, position: Position): Promise<DocumentHighlight[]> {
-	const locations = await getReferences(uri, position);
-
-	if (!locations) {
+	const document = getDocumentListenerByUri(uri);
+	if (!document || !document.class) {
 		return undefined;
 	}
 
-	return locations
-		.filter(loc => loc.uri === uri)
-		// TODO: Track read/write highlights.
-		.map(loc => DocumentHighlight.create(loc.range, DocumentHighlightKind.Read));
+	const symbol = document.class.getSymbolAtPos(position);
+	if (!symbol) {
+		return undefined;
+	}
+
+	const refs = symbol.getReferences();
+	if (!refs) {
+		return undefined;
+	}
+
+	return Array
+		.from(refs.values())
+		.filter(loc => loc.location.uri === uri)
+		.map(ref => DocumentHighlight.create(
+			ref.location.range,
+			ref.context
+				? ref.context.inAssignment
+					? DocumentHighlightKind.Write
+					: DocumentHighlightKind.Read
+				: undefined
+		));
 }
 
 export async function getCompletionItems(uri: string, position: Position): Promise<CompletionItem[]> {

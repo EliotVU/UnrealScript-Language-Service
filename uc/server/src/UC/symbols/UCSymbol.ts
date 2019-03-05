@@ -1,6 +1,6 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Location, Position } from 'vscode-languageserver-types';
 
-import { ISymbol } from './ISymbol';
+import { ISymbol, ISymbolReference } from './ISymbol';
 import { UCStructSymbol, UCPackage } from "./";
 import { UCDocumentListener } from "../DocumentListener";
 import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
@@ -17,7 +17,7 @@ export abstract class UCSymbol implements ISymbol {
 	public outer?: ISymbol;
 
 	/** Locations that reference this symbol. */
-	private links?: Location[];
+	private refs?: Set<ISymbolReference>;
 
 	public context?: ParserRuleContext;
 
@@ -131,15 +131,15 @@ export abstract class UCSymbol implements ISymbol {
 
 	}
 
-	registerReference(location: Location) {
-		if (!this.links) {
-			this.links = [];
+	addReference(ref: ISymbolReference) {
+		if (!this.refs) {
+			this.refs = new Set();
 		}
-		this.links.push(location);
+		this.refs.add(ref);
 	}
 
-	getReferencedLocations(): Location[] | undefined {
-		return this.links;
+	getReferences() {
+		return this.refs;
 	}
 
 	getUri(): string {
