@@ -12,10 +12,13 @@ import {
 	SymbolInformation,
 	Connection,
 	Position,
-	Range
+	Range,
+	DocumentHighlight,
+	DocumentHighlightKind,
+	MarkedString
 } from 'vscode-languageserver';
 
-import { UCSymbol, UCReferenceSymbol, UCStructSymbol } from './symbols';
+import { UCSymbol, UCReferenceSymbol, UCStructSymbol, UCScriptStructSymbol } from './symbols';
 import { getDocumentListenerByUri, ClassesMap$ } from "./DocumentListener";
 import { Token } from 'antlr4ts';
 
@@ -111,15 +114,15 @@ export async function getHover(uri: string, position: Position): Promise<Hover> 
 		return undefined;
 	}
 
-	let contents = symbol.getTooltip();
+	let contents = [{ language: 'unrealscript', value: symbol.getTooltip()}];
 
 	const documentation = symbol.getDocumentation(document.tokenStream);
 	if (documentation) {
-		contents += '\n\n' + documentation;
+		contents.push({ language: 'unrealscript', value: documentation });
 	}
 
 	return {
-		contents: '```unrealscript\n' + contents + '\n```',
+		contents,
 		range: symbol.getNameRange()
 	};
 }
@@ -175,15 +178,35 @@ export async function getReferences(uri: string, position: Position): Promise<Lo
 	return symbol.getReferencedLocations();
 }
 
+export async function getHighlights(uri: string, position: Position): Promise<DocumentHighlight[]> {
+	const locations = await getReferences(uri, position);
+
+	if (!locations) {
+		return undefined;
+	}
+
+	return locations
+		.filter(loc => loc.uri === uri)
+		// TODO: Track read/write highlights.
+		.map(loc => DocumentHighlight.create(loc.range, DocumentHighlightKind.Read));
+}
+
 export async function getCompletionItems(uri: string, position: Position): Promise<CompletionItem[]> {
 	const document = getDocumentListenerByUri(uri);
 	if (!document || !document.class) {
 		return undefined;
 	}
 
-	const symbols = document.class.getContextSymbolsAtPos(position);
-	if (!symbols) {
+	const context = document.class.getContextSymbolAtPos(position);
+	if (!context) {
 		return undefined;
 	}
-	return [].concat(symbols.map(symbol => symbol.toCompletionItem(document)), ClassCompletionItems);
+
+	const symbols = context.getCompletionSymbols();
+	let contextCompletions = symbols.map(symbol => symbol.toCompletionItem(document));
+
+	// if (!(context instanceof UCScriptStructSymbol)) {
+	// 	contextCompletions = contextCompletions.concat(ClassCompletionItems);
+	// }
+	return contextCompletions;
 }

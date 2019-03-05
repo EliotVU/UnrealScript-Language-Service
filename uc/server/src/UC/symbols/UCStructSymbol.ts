@@ -5,6 +5,8 @@ import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
 import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE, UCMethodSymbol, UCStateSymbol } from "./";
 import { UCScriptBlock } from './Statements';
+import { UCContextExpression, UCSymbolExpression } from './Expressions';
+import { UCReferenceSymbol } from './UCReferenceSymbol';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: UCTypeSymbol;
@@ -25,9 +27,28 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return CompletionItemKind.Module;
 	}
 
+	getCompletionSymbols(): UCSymbol[] {
+		const symbols: UCSymbol[] = [];
+		for (let child = this.children; child; child = child.next) {
+			if (child.acceptCompletion(this)) {
+				symbols.push(child);
+			}
+		}
+
+		let parent = this.super || this.outer as UCStructSymbol;
+		for (; parent; parent = parent.super || parent.outer as UCStructSymbol) {
+			for (let child = parent.children; child; child = child.next) {
+				if (child.acceptCompletion(this)) {
+					symbols.push(child);
+				}
+			}
+		}
+		return symbols;
+	}
+
 	getContextSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.intersectsWith(position)) {
-			return this;
+		if (!this.intersectsWith(position)) {
+			return undefined;
 		}
 
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
@@ -43,7 +64,18 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 				return symbol;
 			}
 		}
-		return undefined;
+
+		if (this.scriptBlock) {
+			const symbol = this.scriptBlock.getSymbolAtPos(position);
+			if (symbol && symbol instanceof UCReferenceSymbol) {
+				// Assuming ref's outer is a UCSymbolExpression
+				if (symbol.outer.outer instanceof UCContextExpression) {
+					return symbol.outer.outer.getExpressedContext();
+				}
+				return symbol;
+			}
+		}
+		return this;
 	}
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {

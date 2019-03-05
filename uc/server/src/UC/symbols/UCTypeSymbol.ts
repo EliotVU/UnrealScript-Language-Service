@@ -7,17 +7,21 @@ import { UCDocumentListener } from '../DocumentListener';
 import { UnrecognizedTypeNode } from '../diagnostics/diagnostics';
 
 export class UCTypeSymbol extends UCReferenceSymbol {
-	public innerType?: UCTypeSymbol;
+	public baseType?: UCTypeSymbol;
 
-	constructor(symbolName: string, typeRange: Range, private typeKind?: UCTypeKind) {
-		super(symbolName, typeRange);
+	constructor(typeName: string, typeRange: Range, private spanRange?: Range, private typeKind?: UCTypeKind) {
+		super(typeName, typeRange);
+	}
+
+	getSpanRange(): Range {
+		return this.spanRange || this.getNameRange();
 	}
 
 	getTooltip(): string {
 		if (this.reference) {
 			let text = this.reference.getQualifiedName();
-			if (this.innerType) {
-				return text + `<${this.innerType.getTooltip()}>`;
+			if (this.baseType) {
+				return text + `<${this.baseType.getTooltip()}>`;
 			}
 			return text;
 		}
@@ -28,8 +32,8 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 		if (this.reference) {
 			// use reference getName over innerType so that we can display the resolved name.
 			let text = this.reference.getName();
-			if (this.innerType) {
-				return text + `<${this.innerType.getTypeText()}>`;
+			if (this.baseType) {
+				return text + `<${this.baseType.getTypeText()}>`;
 			}
 			return text;
 		}
@@ -37,8 +41,8 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 	}
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.innerType) {
-			return this.innerType.getSymbolAtPos(position);
+		if (this.baseType) {
+			return this.baseType.getSymbolAtPos(position);
 		}
 		return undefined;
 	}
@@ -61,15 +65,15 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 				break;
 		}
 
-		if (this.innerType) {
-			this.innerType.link(document, context);
+		if (this.baseType) {
+			this.baseType.link(document, context);
 		}
 	}
 
 	analyze(document: UCDocumentListener, context: UCStructSymbol) {
 		if (this.getReference()) {
-			if (this.innerType) {
-				this.innerType.analyze(document, context);
+			if (this.baseType) {
+				this.baseType.analyze(document, context);
 			}
 			return;
 		}

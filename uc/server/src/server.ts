@@ -15,10 +15,11 @@ import {
 	Definition,
 	SymbolInformation,
 	DiagnosticSeverity,
-	Range
+	Range,
+	DocumentHighlight
 } from 'vscode-languageserver';
 
-import { initWorkspace, getCompletionItems, getReferences, getDefinition, getSymbols, getHover } from './UC/helpers';
+import { initWorkspace, getCompletionItems, getReferences, getDefinition, getSymbols, getHover, getHighlights } from './UC/helpers';
 import URI from 'vscode-uri';
 import { UCDocumentListener, ClassesMap$, getDocumentListenerByUri } from './UC/DocumentListener';
 
@@ -38,10 +39,11 @@ connection.onInitialize((params: InitializeParams) => {
 			textDocumentSync: documents.syncKind,
 			hoverProvider: true,
 			completionProvider: {
-				triggerCharacters: ['.']
+				triggerCharacters: ['.', '(', '[', ',']
 			},
 			definitionProvider: true,
 			documentSymbolProvider: true,
+			documentHighlightProvider: true,
 			referencesProvider: true
 		}
 	};
@@ -156,12 +158,13 @@ ClassesMap$
 	}));
 
 documents.onDidOpen(e => pendingTextDocuments$.next(e.document));
-documents.onDidSave(e => pendingTextDocuments$.next(e.document));
+documents.onDidChangeContent(e => pendingTextDocuments$.next(e.document));
 documents.listen(connection);
 
 connection.onDocumentSymbol((e): Promise<SymbolInformation[]> => getSymbols(e.textDocument.uri));
 connection.onHover((e): Promise<Hover> => getHover(e.textDocument.uri, e.position));
 connection.onDefinition((e): Promise<Definition> => getDefinition(e.textDocument.uri, e.position));
 connection.onReferences((e): Promise<Location[]> => getReferences(e.textDocument.uri, e.position));
+connection.onDocumentHighlight((e): Promise<DocumentHighlight[]> => getHighlights(e.textDocument.uri, e.position));
 connection.onCompletion((e): Promise<CompletionItem[]> => getCompletionItems(e.textDocument.uri, e.position));
 connection.listen();

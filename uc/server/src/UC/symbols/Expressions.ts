@@ -71,8 +71,8 @@ export class UCPrimaryExpression extends UCExpression {
 	}
 
 	getExpressedSymbol(): UCSymbol | undefined {
-		if (this.symbolExpression && this.symbolExpression.symbol) {
-			return this.symbolExpression.symbol.getReference() as UCSymbol;
+		if (this.symbolExpression && this.symbolExpression.getSymbol()) {
+			return this.symbolExpression.getSymbol().getReference() as UCSymbol;
 		}
 		return undefined;
 	}
@@ -109,7 +109,7 @@ export class UCContextExpression extends UCExpression {
 				if (symbol instanceof UCPropertySymbol) {
 					symbol = symbol.type;
 				}
-				document.nodes.push(new UnrecognizedFieldNode(this.symbolExpression.symbol, symbol));
+				document.nodes.push(new UnrecognizedFieldNode(this.symbolExpression.getSymbol(), symbol));
 			} else {
 				// Missing expression?
 			}
@@ -122,8 +122,8 @@ export class UCContextExpression extends UCExpression {
 	}
 
 	getExpressedSymbol(): UCSymbol | undefined {
-		if (this.symbolExpression && this.symbolExpression.symbol) {
-			return this.symbolExpression.symbol.getReference() as UCSymbol;
+		if (this.symbolExpression && this.symbolExpression.getSymbol()) {
+			return this.symbolExpression.getSymbol().getReference() as UCSymbol;
 		}
 		return undefined;
 	}
@@ -143,8 +143,9 @@ export class UCContextExpression extends UCExpression {
 		if (symbol && symbol instanceof UCPropertySymbol && symbol.type) {
 			const ref = symbol.type.getReference();
 			if (ref) {
-				if (symbol.type.innerType && ref === NativeClass) {
-					return symbol.type.innerType.getReference() as UCStructSymbol;
+				// Resolve class<TYPE> to TYPE.
+				if (symbol.type.baseType && ref === NativeClass) {
+					return symbol.type.baseType.getReference() as UCStructSymbol;
 				}
 				return ref as UCStructSymbol;
 			}
@@ -189,14 +190,19 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 
 // Reminder to myself, for call identifiers, match classes over functions.
 export class UCSymbolExpression extends UCExpression {
-	public symbol?: UCReferenceSymbol;
+	private symbol: UCReferenceSymbol;
 
-	constructor() {
-		super(undefined);
+	getSubSymbolAtPos(_position: Position): UCSymbol | undefined {
+		return this.symbol;
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		return this.symbol.getSymbolAtPos(position);
+	setSymbol(symbol: UCReferenceSymbol) {
+		symbol.outer = this;
+		this.symbol = symbol;
+	}
+
+	getSymbol() {
+		return this.symbol;
 	}
 
 	link(document: UCDocumentListener, context: UCStructSymbol) {
@@ -204,30 +210,28 @@ export class UCSymbolExpression extends UCExpression {
 			return;
 		}
 
-		if (this.symbol) {
-			const id = this.symbol.getName().toLowerCase();
-			switch (id) {
-				case 'default': case 'self': case 'static': case 'global': case 'const': {
-					// FIXME: G.Static does not reference to the static class of G where g is a property of type "class<GameInfo>".
-					this.symbol.setReference(document.class, document);
-					break;
-				}
+		const id = this.symbol.getName().toLowerCase();
+		switch (id) {
+			case 'default': case 'self': case 'static': case 'global': case 'const': {
+				// FIXME: G.Static does not reference to the static class of G where g is a property of type "class<GameInfo>".
+				this.symbol.setReference(document.class, document);
+				break;
+			}
 
-				case 'super': {
-					this.symbol.setReference(
-						context instanceof UCStateSymbol
-							? context.super
-							: document.class.super,
-						document
-					);
-					break;
-				}
+			case 'super': {
+				this.symbol.setReference(
+					context instanceof UCStateSymbol
+						? context.super
+						: document.class.super,
+					document
+				);
+				break;
+			}
 
-				default: {
-					const ref = context.findSuperSymbol(id);
-					if (ref) {
-						this.symbol.setReference(ref, document);
-					}
+			default: {
+				const ref = context.findSuperSymbol(id);
+				if (ref) {
+					this.symbol.setReference(ref, document);
 				}
 			}
 		}

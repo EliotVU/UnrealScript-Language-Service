@@ -10,7 +10,6 @@ export const COMMENT_TYPES = new Set([UCGrammarParser.LINE_COMMENT, UCGrammarPar
 
 export const NO_NAME = '';
 
-
 /**
  * A symbol that resides in a document, holding an id and range.
  */
@@ -75,11 +74,11 @@ export abstract class UCSymbol implements ISymbol {
 		return CompletionItemKind.Text;
 	}
 
-	getSpanRange(): Range {
+	getNameRange(): Range {
 		return this.nameRange;
 	}
 
-	getNameRange(): Range {
+	getSpanRange(): Range {
 		return this.nameRange;
 	}
 
@@ -115,6 +114,14 @@ export abstract class UCSymbol implements ISymbol {
 
 	protected getSubSymbolAtPos(_position: Position): UCSymbol | undefined {
 		return undefined;
+	}
+
+	getCompletionSymbols(): UCSymbol[] {
+		return [];
+	}
+
+	acceptCompletion(_context: UCSymbol): boolean {
+		return true;
 	}
 
 	link(_document: UCDocumentListener, _context: UCStructSymbol = _document.class) {

@@ -12,7 +12,7 @@ export { UCMethodSymbol } from './UCMethodSymbol';
 export { UCPropertySymbol } from './UCPropertySymbol';
 export { UCParamSymbol } from './UCParamSymbol';
 export { UCConstSymbol } from './UCConstSymbol';
-export { UCClassSymbol } from './UCClassSymbol';
+export { UCClassSymbol, UCDocumentClassSymbol } from './UCClassSymbol';
 export { UCLocalSymbol } from './UCLocalSymbol';
 export { UCNativeSymbol } from './UCNativeSymbol';
 export { UCStateSymbol } from './UCStateSymbol';

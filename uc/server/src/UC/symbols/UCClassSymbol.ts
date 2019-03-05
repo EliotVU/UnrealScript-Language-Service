@@ -5,8 +5,6 @@ import { UCDocumentListener } from '../DocumentListener';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 
 export class UCClassSymbol extends UCStructSymbol {
-	public document?: UCDocumentListener;
-
 	public withinType?: UCTypeSymbol;
 	public repFieldRefs?: UCReferenceSymbol[];
 
@@ -23,30 +21,6 @@ export class UCClassSymbol extends UCStructSymbol {
 
 	getTooltip(): string {
 		return `class ${this.getQualifiedName()}`;
-	}
-
-	getUri(): string {
-		return this.document.uri;
-	}
-
-	getContextSymbolsAtPos(position: Position): UCSymbol[] {
-		const context = this.getContextSymbolAtPos(position) || this;
-		if (!(context instanceof UCStructSymbol)) {
-			return [];
-		}
-
-		const symbols: UCSymbol[] = [];
-		for (let child = context.children; child; child = child.next) {
-			symbols.push(child);
-		}
-
-		let parent = context.super || context.outer as UCStructSymbol;
-		for (; parent; parent = parent.super || parent.outer as UCStructSymbol) {
-			for (let child = parent.children; child; child = child.next) {
-				symbols.push(child);
-			}
-		}
-		return symbols;
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -99,12 +73,24 @@ export class UCClassSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
-	link(document: UCDocumentListener, context: UCClassSymbol = document.class) {
-		if (this.document) { // already linked
-			return;
-		}
+	getContextSymbolAtPos(position: Position): UCSymbol | undefined {
+		for (let symbol = this.children; symbol; symbol = symbol.next) {
+			if (symbol instanceof UCStructSymbol) {
+				const subSymbol = symbol.getContextSymbolAtPos(position);
+				if (subSymbol) {
+					return subSymbol;
+				}
+				continue;
+			}
 
-		this.document = document;
+			if (symbol.intersectsWith(position)) {
+				return symbol;
+			}
+		}
+		return this;
+	}
+
+	link(document: UCDocumentListener, context: UCClassSymbol) {
 		if (this.withinType) {
 			this.withinType.link(document, context);
 
@@ -179,5 +165,22 @@ export class UCClassSymbol extends UCStructSymbol {
 			}
 		}
 		super.analyze(document, context);
+	}
+}
+
+export class UCDocumentClassSymbol extends UCClassSymbol {
+	public document?: UCDocumentListener;
+
+	getUri(): string {
+		return this.document.uri;
+	}
+
+	link(document: UCDocumentListener, context: UCClassSymbol = document.class) {
+		if (this.document) {
+			return;
+		}
+
+		this.document = document;
+		super.link(document, context);
 	}
 }

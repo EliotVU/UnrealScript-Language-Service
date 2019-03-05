@@ -33,7 +33,7 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 	}
 
 	getUri(): string {
-		throw new Error("getUri not implemented");
+		return '';
 	}
 
 	getTooltip(): string {

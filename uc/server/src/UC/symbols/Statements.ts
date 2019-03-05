@@ -37,7 +37,7 @@ export class UCScriptBlock extends UCSymbol {
 	}
 }
 
-export class UCStatement extends UCSymbol {
+export abstract class UCStatement extends UCSymbol {
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (!this.intersectsWith(position)) {
 			return undefined;

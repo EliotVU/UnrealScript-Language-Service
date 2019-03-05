@@ -23,7 +23,8 @@ import {
 	UCPropertySymbol, UCScriptStructSymbol, UCStateSymbol,
 	UCStructSymbol, UCSymbol, UCReferenceSymbol,
 	UCTypeSymbol,
-	CORE_PACKAGE
+	CORE_PACKAGE,
+	UCDocumentClassSymbol
 } from './symbols';
 import { UCTypeKind } from './symbols/UCTypeKind';
 import { IDiagnosticNode, SyntaxErrorNode } from './diagnostics/diagnostics';
@@ -129,9 +130,9 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 		this.nodes.push(node);
 	}
 
-	visitExtendsClause(extendsCtx: UCParser.ExtendsClauseContext | UCParser.WithinClauseContext, type: UCTypeKind): UCTypeSymbol {
+	visitExtendsClause(extendsCtx: UCParser.ExtendsClauseContext | UCParser.WithinClauseContext, _type: UCTypeKind): UCTypeSymbol {
 		const id = extendsCtx.qualifiedIdentifier();
-		return new UCTypeSymbol(id.text, rangeFromBounds(id.start, id.stop), UCTypeKind.Class);
+		return new UCTypeSymbol(id.text, rangeFromBounds(id.start, id.stop), undefined, _type);
 	}
 
 	enterProgram(ctx: UCParser.ProgramContext) {
@@ -144,7 +145,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 
 	enterClassDecl(ctx: UCParser.ClassDeclContext) {
 		const className = ctx.identifier();
-		const classDecl = new UCClassSymbol(className.text, rangeFromBound(className.start), rangeFromBounds(ctx.start, ctx.stop));
+		const classDecl = new UCDocumentClassSymbol(className.text, rangeFromBound(className.start), rangeFromBounds(ctx.start, ctx.stop));
 		classDecl.context = ctx;
 		this.class = classDecl; // Important!, must be assigned before further parsing.
 
@@ -171,7 +172,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 							classDecl.dependsOnTypes = [];
 						}
 						for (let type of modifierArguments.modifierValue()) {
-							const typeSymbol = new UCTypeSymbol(type.text, rangeFromBounds(type.start, type.stop), UCTypeKind.Class);
+							const typeSymbol = new UCTypeSymbol(type.text, rangeFromBounds(type.start, type.stop), undefined, UCTypeKind.Class);
 							classDecl.dependsOnTypes.push(typeSymbol);
 						}
 					}
@@ -182,7 +183,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 							classDecl.implementsTypes = [];
 						}
 						for (let type of modifierArguments.modifierValue()) {
-							const typeSymbol = new UCTypeSymbol(type.text, rangeFromBounds(type.start, type.stop), UCTypeKind.Class);
+							const typeSymbol = new UCTypeSymbol(type.text, rangeFromBounds(type.start, type.stop), undefined, UCTypeKind.Class);
 							classDecl.implementsTypes.push(typeSymbol);
 						}
 					}
@@ -260,7 +261,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 
 	private visitClassType(classTypeCtx: UCParser.ClassTypeContext): UCTypeSymbol {
 		const typeCtx = classTypeCtx.type();
-		return new UCTypeSymbol(typeCtx.text,rangeFromBounds(typeCtx.start, typeCtx.stop), UCTypeKind.Class);
+		return new UCTypeSymbol(typeCtx.text,rangeFromBounds(typeCtx.start, typeCtx.stop), undefined, UCTypeKind.Class);
 	}
 
 	private visitTypeDecl(varTypeCtx: UCParser.TypeDeclContext): UCTypeSymbol {
@@ -288,9 +289,9 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			}
 		}
 
-		const typeSymbol = new UCTypeSymbol(typeIdText, rangeFromBounds(varTypeCtx.start, varTypeCtx.stop));
+		const typeSymbol = new UCTypeSymbol(typeIdText, typeIdRange, rangeFromBounds(varTypeCtx.start, varTypeCtx.stop));
 		typeSymbol.outer = this.get() as UCStructSymbol;
-		typeSymbol.innerType = innerTypeSymbol;
+		typeSymbol.baseType = innerTypeSymbol;
 		if (innerTypeSymbol) {
 			innerTypeSymbol.outer = typeSymbol;
 		}
@@ -301,13 +302,13 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 		const inlinedStruct = inlinedTypeCtx.structDecl();
 		if (inlinedStruct) {
 			const structName = inlinedStruct.identifier();
-			return new UCTypeSymbol(structName.text, rangeFromBounds(structName.start, structName.stop), UCTypeKind.Struct);
+			return new UCTypeSymbol(structName.text, rangeFromBounds(structName.start, structName.stop), undefined, UCTypeKind.Struct);
 		}
 
 		const inlinedEnum = inlinedTypeCtx.enumDecl();
 		if (inlinedEnum) {
 			const enumName = inlinedEnum.identifier();
-			return new UCTypeSymbol(enumName.text, rangeFromBounds(enumName.start, enumName.stop), UCTypeKind.Enum);
+			return new UCTypeSymbol(enumName.text, rangeFromBounds(enumName.start, enumName.stop), undefined, UCTypeKind.Enum);
 		}
 		return this.visitTypeDecl(inlinedTypeCtx.typeDecl());
 	}
@@ -515,7 +516,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 
 			case 'class': {
 				const typeSymbol = new UCTypeSymbol(
-					refSymbol.getName(), rangeFromBounds(idCtx.start, idCtx.stop),
+					refSymbol.getName(), rangeFromBounds(idCtx.start, idCtx.stop), undefined,
 					UCTypeKind.Class
 				);
 				typeSymbol.outer = context;
@@ -627,7 +628,7 @@ function getDocumentListenerById(qualifiedClassId: string, callback: (document: 
 	// Try the shorter route first before we scan the entire workspace!
 	if (SymbolsTable) {
 		let classSymbol = SymbolsTable.findQualifiedSymbol(qualifiedClassId, true);
-		if (classSymbol && classSymbol instanceof UCClassSymbol) {
+		if (classSymbol && classSymbol instanceof UCDocumentClassSymbol) {
 			callback(classSymbol.document);
 			return;
 		}

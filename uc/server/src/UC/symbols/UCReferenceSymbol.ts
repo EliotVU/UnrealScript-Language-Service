@@ -10,9 +10,8 @@ import { UCDocumentListener } from '../DocumentListener';
 export class UCReferenceSymbol extends UCSymbol {
 	protected reference?: ISymbol;
 
-	// TODO: evaulate if span range is needed for reference symbols?
-	constructor(private symbolName: string, range: Range) {
-		super(range);
+	constructor(private symbolName: string, nameRange: Range) {
+		super(nameRange);
 	}
 
 	getName(): string {
@@ -31,10 +30,14 @@ export class UCReferenceSymbol extends UCSymbol {
 			return undefined;
 		}
 
+		const symbol = this.getSubSymbolAtPos(position);
+		if (symbol) {
+			return symbol;
+		}
+
 		if (this.intersectsWithName(position)) {
 			return this;
 		}
-		return this.getSubSymbolAtPos(position);
 	}
 
 	setReference(symbol: ISymbol, document: UCDocumentListener) {
