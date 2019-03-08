@@ -67,7 +67,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	private buildReturnType(): string {
-		return this.returnType ? this.returnType.getName() + ' ' : '';
+		return this.returnType ? this.returnType.getTypeText() + ' ' : '';
 	}
 
 	private buildArguments(): string {
