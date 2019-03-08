@@ -93,6 +93,10 @@ export abstract class UCSymbol implements ISymbol {
 		var range = this.getSpanRange();
 		var isInRange = position.line >= range.start.line && position.line <= range.end.line;
 		if (isInRange) {
+			if (range.start.line === range.end.line) {
+				return position.character >= range.start.character && position.character < range.end.character;
+			}
+
 			if (position.line == range.start.line) {
 				return position.character >= range.start.character;
 			}
@@ -132,10 +136,7 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	addReference(ref: ISymbolReference) {
-		if (!this.refs) {
-			this.refs = new Set();
-		}
-		this.refs.add(ref);
+		(this.refs || (this.refs = new Set())).add(ref);
 	}
 
 	getReferences() {
