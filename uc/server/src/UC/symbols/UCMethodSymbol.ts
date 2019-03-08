@@ -2,11 +2,12 @@ import { SymbolKind, CompletionItemKind, Position, Location } from 'vscode-langu
 
 import { UCSymbol, UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
 import { UCDocumentListener } from '../DocumentListener';
+import { FunctionDeclContext } from '../../antlr/UCGrammarParser';
 
 export class UCMethodSymbol extends UCStructSymbol {
 	public returnType?: UCTypeSymbol;
-	public params: UCParamSymbol[] = [];
 	public overridenMethod?: UCMethodSymbol;
+	public params: UCParamSymbol[] = [];
 
 	getKind(): SymbolKind {
 		return SymbolKind.Function;
@@ -17,11 +18,15 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getTypeTooltip(): string {
-		return this.overridenMethod ? '(method override)' : '(method)';
+		return this.overridenMethod ? '(override) ' : '';
+	}
+
+	getKindText(): string {
+		return (this.context as FunctionDeclContext).functionKind().text.toLowerCase();
 	}
 
 	getTooltip(): string {
-		return this.getTypeTooltip() + ' ' + this.buildReturnType() + this.getQualifiedName() + this.buildArguments();
+		return this.getTypeTooltip() + this.getKindText() + ' ' + this.buildReturnType() + this.getQualifiedName() + this.buildArguments();
 	}
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
