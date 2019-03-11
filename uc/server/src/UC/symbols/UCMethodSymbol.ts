@@ -22,7 +22,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getKindText(): string {
-		return (this.context as FunctionDeclContext).functionKind().text.toLowerCase();
+		return this.context ? (this.context as FunctionDeclContext).functionKind().text.toLowerCase() : 'function';
 	}
 
 	getTooltip(): string {
