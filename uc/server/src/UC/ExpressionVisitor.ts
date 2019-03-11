@@ -37,31 +37,21 @@ export class UCExpressionVisitor implements UCGrammarVisitor<UCExpression> {
 	}
 
 	visitExpression(ctx: ExpressionContext): UCExpression {
-		const exprSymbol = new UCExpression(rangeFromBounds(ctx.start, ctx.stop));
-		exprSymbol.context = ctx;
-
 		const primaryExpression = ctx.primaryExpression();
 		if (primaryExpression) {
-			exprSymbol.expression = primaryExpression.accept(this);
-			exprSymbol.expression.outer = exprSymbol;
-			return exprSymbol;
+			return primaryExpression.accept(this);
 		}
 
 		const unaryExpression = ctx.unaryExpression();
 		if (unaryExpression) {
-			exprSymbol.expression = unaryExpression.accept(this);
-			exprSymbol.expression.outer = exprSymbol;
-			return exprSymbol;
+			return unaryExpression.accept(this);
 		}
 
 		const functionName = ctx.functionName();
 		if (functionName) {
-			exprSymbol.expression = this.visitBinaryExpression(ctx);
-			exprSymbol.expression.outer = exprSymbol;
-			return exprSymbol;
+			return this.visitBinaryExpression(ctx);
 		}
-
-		return exprSymbol;
+		return undefined;
 	}
 
 	visitBinaryExpression(ctx: ExpressionContext) {

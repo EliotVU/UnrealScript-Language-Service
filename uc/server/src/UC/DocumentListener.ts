@@ -340,7 +340,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 
 	enterReplicationBlock(ctx: UCParser.ReplicationBlockContext) {
 		const nameCtx = ctx.kwREPLICATION();
-		const symbol = new UCStructSymbol(nameCtx.text, rangeFromBound(nameCtx.start),rangeFromBounds(ctx.start, ctx.stop));
+		const symbol = new UCStructSymbol(nameCtx.text, rangeFromBound(nameCtx.start), rangeFromBounds(ctx.start, ctx.stop));
 		symbol.context = ctx;
 
 		this.class.repFieldRefs = [];
