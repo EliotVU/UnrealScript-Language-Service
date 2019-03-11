@@ -10,12 +10,20 @@ import { UCDocumentListener } from '../DocumentListener';
 export class UCReferenceSymbol extends UCSymbol {
 	protected reference?: ISymbol;
 
-	constructor(private symbolName: string, nameRange: Range) {
-		super(nameRange);
+	constructor(private refName: string, refNameRange: Range) {
+		super(refNameRange);
 	}
 
+	// Redirect name to our resolved reference, so that e.g. 'obJeCT' resolves to the properly declared name 'Object'.
 	getName(): string {
-		return this.symbolName;
+		return this.reference ? this.reference.getName() : this.refName;
+	}
+
+	getQualifiedName(): string {
+		if (this.reference) {
+			return this.reference.getQualifiedName();
+		}
+		return this.refName;
 	}
 
 	getTooltip(): string {

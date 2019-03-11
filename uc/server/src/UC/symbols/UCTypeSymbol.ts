@@ -18,24 +18,15 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 	}
 
 	getTooltip(): string {
-		if (this.reference) {
-			let text = this.reference.getQualifiedName();
-			if (this.baseType) {
-				return text + `<${this.baseType.getTooltip()}>`;
-			}
-			return text;
+		if (this.baseType) {
+			return this.getQualifiedName() + `<${this.baseType.getTooltip()}>`;
 		}
 		return this.getQualifiedName();
 	}
 
 	getTypeText(): string {
-		if (this.reference) {
-			// use reference getName over innerType so that we can display the resolved name.
-			let text = this.reference.getName();
-			if (this.baseType) {
-				return text + `<${this.baseType.getTypeText()}>`;
-			}
-			return text;
+		if (this.baseType) {
+			return this.getName() + `<${this.baseType.getTypeText()}>`;
 		}
 		return this.getName();
 	}

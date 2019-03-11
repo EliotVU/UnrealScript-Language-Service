@@ -15,7 +15,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	getTypeTooltip(): string {
-		return '(variable)';
+		return 'var';
 	}
 
 	getTooltip(): string {

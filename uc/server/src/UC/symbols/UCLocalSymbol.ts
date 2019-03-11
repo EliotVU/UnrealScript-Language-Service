@@ -12,6 +12,6 @@ export class UCLocalSymbol extends UCPropertySymbol {
 	}
 
 	getTypeTooltip(): string {
-		return '(local)';
+		return 'local';
 	}
 }
