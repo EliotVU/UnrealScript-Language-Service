@@ -74,27 +74,29 @@ connection.onDidChangeConfiguration(() => {
 	}
 });
 
-const pendingTextDocuments$ = new Subject<TextDocument>();
+const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
 
 ClassesMap$
 	.pipe(switchMapTo(pendingTextDocuments$), debounce(() => interval(300)))
-	.subscribe((textDocument) => {
+	.subscribe(({ textDocument, isDirty }) => {
 		connection.console.log('Validating' + textDocument.uri);
 
 		let document = getDocumentListenerByUri(textDocument.uri);
 		try {
-			document.invalidate();
-			document.parse(textDocument.getText());
-			document.link();
+			if (isDirty || !(document.class)) {
+				document.invalidate();
+				document.parse(textDocument.getText());
+				document.link();
+			}
 		} catch (err) {
 			connection.sendDiagnostics({
 				uri: textDocument.uri,
 				diagnostics: [
 					Diagnostic.create(Range.create(0, 0, 0, 0),
-					"Something went wrong while parsing this document! " + err,
-					DiagnosticSeverity.Warning,
-					undefined,
-					'unrealscript')
+						"Something went wrong while parsing this document! " + err,
+						DiagnosticSeverity.Warning,
+						undefined,
+						'unrealscript')
 				]
 			});
 			return;
@@ -105,10 +107,10 @@ ClassesMap$
 				uri: textDocument.uri,
 				diagnostics: [
 					Diagnostic.create(Range.create(0, 0, 0, 0),
-					"Couldn't validate document!",
-					DiagnosticSeverity.Warning,
-					undefined,
-					'unrealscript')
+						"Couldn't validate document!",
+						DiagnosticSeverity.Warning,
+						undefined,
+						'unrealscript')
 				]
 			});
 			return;
@@ -119,6 +121,8 @@ ClassesMap$
 			uri: document.uri,
 			diagnostics
 		});
+	}, (error) => {
+		connection.console.error(error);
 	});
 
 const pendingDocuments$ = new AsyncSubject<UCDocumentListener>();
@@ -147,7 +151,7 @@ ClassesMap$
 				.subscribe(uri => {
 					let document = getDocumentListenerByUri(uri);
 					if (!document) {
-						console.error('no document found for uri', uri);
+						connection.console.error('no document found for uri ' + uri);
 						return;
 					}
 					// connection.console.log('parsing' + document.name);
@@ -157,8 +161,8 @@ ClassesMap$
 		});
 	}));
 
-documents.onDidOpen(e => pendingTextDocuments$.next(e.document));
-documents.onDidChangeContent(e => pendingTextDocuments$.next(e.document));
+documents.onDidOpen(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: false }));
+documents.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
 documents.listen(connection);
 
 connection.onDocumentSymbol((e): Promise<SymbolInformation[]> => getSymbols(e.textDocument.uri));
