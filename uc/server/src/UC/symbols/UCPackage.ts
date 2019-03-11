@@ -4,6 +4,7 @@ import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
 import { UCStructSymbol } from "./";
+import { UCDocumentListener } from '../DocumentListener';
 
 // Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbolContainer<ISymbol> {
@@ -82,5 +83,14 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 			return symbol.findTypeSymbol(nextQualifiedId, deepSearch);
 		}
 		return this.findQualifiedSymbol(nextQualifiedId, deepSearch);
+	}
+
+	// FIXME: Not setup yet!
+	getCompletionSymbols(_document: UCDocumentListener): ISymbol[] {
+		const symbols: ISymbol[] = [];
+		for (let symbol of this.symbols.values()) {
+			symbols.push(symbol);
+		}
+		return symbols;
 	}
 }

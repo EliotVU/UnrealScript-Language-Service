@@ -14,11 +14,10 @@ import {
 	Position,
 	Range,
 	DocumentHighlight,
-	DocumentHighlightKind,
-	MarkedString
+	DocumentHighlightKind
 } from 'vscode-languageserver';
 
-import { UCSymbol, UCReferenceSymbol, UCStructSymbol, UCScriptStructSymbol } from './symbols';
+import { UCSymbol, UCReferenceSymbol, UCStructSymbol } from './symbols';
 import { getDocumentListenerByUri, ClassesMap$ } from "./DocumentListener";
 import { Token } from 'antlr4ts';
 
@@ -220,7 +219,7 @@ export async function getCompletionItems(uri: string, position: Position): Promi
 		return undefined;
 	}
 
-	const symbols = context.getCompletionSymbols();
+	const symbols = context.getCompletionSymbols(document);
 	let contextCompletions = symbols.map(symbol => symbol.toCompletionItem(document));
 
 	// if (!(context instanceof UCScriptStructSymbol)) {

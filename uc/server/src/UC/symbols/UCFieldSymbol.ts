@@ -2,9 +2,11 @@ import { Range, Position, Location } from 'vscode-languageserver-types';
 
 import { UCSymbol, UCStructSymbol } from './';
 import { UCDocumentListener } from '../DocumentListener';
+import { UCClassSymbol } from './UCClassSymbol';
 
 export class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;
+	public containingStruct?: UCStructSymbol;
 
 	constructor(private name: string, nameRange: Range, private spanRange: Range) {
 		super(nameRange);
@@ -31,6 +33,26 @@ export class UCFieldSymbol extends UCSymbol {
 			return this;
 		}
 		return this.getSubSymbolAtPos(position);
+	}
+
+	isPublic(): boolean {
+		return true;
+	}
+
+	isPrivate(): boolean {
+		return false;
+	}
+
+	isProtected(): boolean {
+		return false;
+	}
+
+	acceptCompletion(_document: UCDocumentListener, _context: UCSymbol): boolean {
+		// TODO: Does match the language's behavior yet!
+		if (this.isPrivate()) {
+			return this.getOuter<UCClassSymbol>() === _document.class;
+		}
+		return this.isPublic();
 	}
 
 	link(document: UCDocumentListener, _context: UCStructSymbol) {

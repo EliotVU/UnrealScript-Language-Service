@@ -5,6 +5,10 @@ import { UCFieldSymbol } from "./";
 export class UCConstSymbol extends UCFieldSymbol {
 	public value: string;
 
+	isProtected(): boolean {
+		return true;
+	}
+
 	getKind(): SymbolKind {
 		return SymbolKind.Constant;
 	}

@@ -83,6 +83,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	}
 
 	link() {
+		console.assert(this.class, "Document hasn't been parsed yet!");
 		this.class!.link(this, this.class);
 	}
 
@@ -94,6 +95,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	}
 
 	analyze(): Diagnostic[] {
+		console.assert(this.class, "Document hasn't been parsed yet!");
 		this.nodes = []; // clear
 		this.class!.analyze(this, this.class);
 

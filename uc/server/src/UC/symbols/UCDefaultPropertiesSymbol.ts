@@ -1,7 +1,8 @@
 import { UCObjectSymbol, UCSymbol } from '.';
+import { UCDocumentListener } from '../DocumentListener';
 
 export class UCDefaultPropertiesSymbol extends UCObjectSymbol {
-	acceptCompletion(context: UCSymbol): boolean {
+	acceptCompletion(_document: UCDocumentListener, _context: UCSymbol): boolean {
 		return false;
 	}
 }

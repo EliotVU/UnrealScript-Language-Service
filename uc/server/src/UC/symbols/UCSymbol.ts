@@ -1,4 +1,4 @@
-import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Location, Position } from 'vscode-languageserver-types';
+import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
 import { ISymbol, ISymbolReference } from './ISymbol';
 import { UCStructSymbol, UCPackage } from "./";
@@ -15,11 +15,10 @@ export const NO_NAME = '';
  */
 export abstract class UCSymbol implements ISymbol {
 	public outer?: ISymbol;
+	public context?: ParserRuleContext;
 
 	/** Locations that reference this symbol. */
 	private refs?: Set<ISymbolReference>;
-
-	public context?: ParserRuleContext;
 
 	constructor(private nameRange: Range) {
 	}
@@ -84,28 +83,28 @@ export abstract class UCSymbol implements ISymbol {
 
 	protected intersectsWithName(position: Position): boolean {
 		var range = this.getNameRange();
-		var isInRange = position.line >= range.start.line && position.line <= range.end.line
+		return position.line >= range.start.line && position.line <= range.end.line
 			&& position.character >= range.start.character && position.character < range.end.character;
-		return isInRange;
 	}
 
 	intersectsWith(position: Position) {
 		var range = this.getSpanRange();
-		var isInRange = position.line >= range.start.line && position.line <= range.end.line;
-		if (isInRange) {
-			if (range.start.line === range.end.line) {
-				return position.character >= range.start.character && position.character < range.end.character;
-			}
-
-			if (position.line == range.start.line) {
-				return position.character >= range.start.character;
-			}
-
-			if (position.line == range.end.line) {
-				return position.character <= range.end.character;
-			}
+		if (position.line < range.start.line || position.line > range.end.line) {
+			return false;
 		}
-		return isInRange;
+
+		if (range.start.line === range.end.line) {
+			return position.character >= range.start.character && position.character < range.end.character;
+		}
+
+		if (position.line == range.start.line) {
+			return position.character >= range.start.character;
+		}
+
+		if (position.line == range.end.line) {
+			return position.character <= range.end.character;
+		}
+		return true;
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -120,11 +119,19 @@ export abstract class UCSymbol implements ISymbol {
 		return undefined;
 	}
 
-	getCompletionSymbols(): UCSymbol[] {
+	getOuter<T extends ISymbol>(): ISymbol {
+		for (let outer = this.outer; outer; outer = outer.outer) {
+			if (<T>(outer)) {
+				return outer;
+			}
+		}
+	}
+
+	getCompletionSymbols(_document: UCDocumentListener): UCSymbol[] {
 		return [];
 	}
 
-	acceptCompletion(_context: UCSymbol): boolean {
+	acceptCompletion(_document: UCDocumentListener, _context: UCSymbol): boolean {
 		return true;
 	}
 

@@ -5,7 +5,7 @@ import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
 import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE, UCMethodSymbol, UCStateSymbol } from "./";
 import { UCScriptBlock } from './Statements';
-import { UCContextExpression, UCSymbolExpression } from './Expressions';
+import { UCContextExpression } from './Expressions';
 import { UCReferenceSymbol } from './UCReferenceSymbol';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
@@ -27,10 +27,10 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return CompletionItemKind.Module;
 	}
 
-	getCompletionSymbols(): UCSymbol[] {
+	getCompletionSymbols(document: UCDocumentListener): UCSymbol[] {
 		const symbols: UCSymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
-			if (child.acceptCompletion(this)) {
+			if (child.acceptCompletion(document, this)) {
 				symbols.push(child);
 			}
 		}
@@ -38,7 +38,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		let parent = this.super || this.outer as UCStructSymbol;
 		for (; parent; parent = parent.super || parent.outer as UCStructSymbol) {
 			for (let child = parent.children; child; child = child.next) {
-				if (child.acceptCompletion(this)) {
+				if (child.acceptCompletion(document, this)) {
 					symbols.push(child);
 				}
 			}
@@ -106,6 +106,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	addSymbol(symbol: UCFieldSymbol) {
 		symbol.outer = this;
 		symbol.next = this.children;
+		symbol.containingStruct = this;
 		this.children = symbol;
 
 		if (symbol instanceof UCScriptStructSymbol || symbol instanceof UCEnumSymbol) {
