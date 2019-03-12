@@ -43,6 +43,7 @@ export class UCUnaryExpression extends UCExpression {
 
 export class UCPrimaryExpression extends UCExpression {
 	public symbolExpression?: UCSymbolExpression;
+	public arguments?: UCExpression[];
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.symbolExpression) {
@@ -51,6 +52,14 @@ export class UCPrimaryExpression extends UCExpression {
 				return symbol;
 			}
 		}
+
+		if (this.arguments) for (let arg of this.arguments) {
+			const symbol = arg.getSymbolAtPos(position);
+			if (symbol) {
+				return symbol;
+			}
+		}
+
 		return super.getSubSymbolAtPos(position);
 	}
 
@@ -60,6 +69,10 @@ export class UCPrimaryExpression extends UCExpression {
 		if (this.symbolExpression) {
 			this.symbolExpression.link(document, context);
 		}
+
+		if (this.arguments) for (let arg of this.arguments) {
+			arg.link(document, context);
+		}
 	}
 
 	analyze(document: UCDocumentListener, context: UCStructSymbol) {
@@ -67,6 +80,10 @@ export class UCPrimaryExpression extends UCExpression {
 
 		if (this.symbolExpression) {
 			this.symbolExpression.analyze(document, context);
+		}
+
+		if (this.arguments) for (let arg of this.arguments) {
+			arg.analyze(document, context);
 		}
 	}
 
@@ -229,6 +246,16 @@ export class UCSymbolExpression extends UCExpression {
 			}
 
 			default: {
+				// If we have arguments then try to first match a class or struct (e.g. a casting).
+				const isCasting = (this.outer instanceof UCPrimaryExpression && this.outer.arguments);
+				if (isCasting) {
+					const type = context.findTypeSymbol(id, true);
+					if (type) {
+						this.symbol.setReference(type, document);
+						return;
+					}
+				}
+
 				const ref = context.findSuperSymbol(id);
 				if (ref) {
 					this.symbol.setReference(ref, document, {

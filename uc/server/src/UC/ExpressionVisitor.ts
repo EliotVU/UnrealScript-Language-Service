@@ -1,6 +1,6 @@
 import { ParserRuleContext } from 'antlr4ts';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { ExpressionContext, PrimaryExpressionContext, UnaryExpressionContext, OperatorIdContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext } from '../antlr/UCGrammarParser';
+import { ExpressionContext, PrimaryExpressionContext, UnaryExpressionContext, OperatorIdContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ArgumentContext } from '../antlr/UCGrammarParser';
 
 import { UCReferenceSymbol } from './symbols';
 import { UCExpression, UCSymbolExpression, UCUnaryExpression, UCPrimaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression } from './symbols/Expressions';
@@ -101,6 +101,23 @@ export class UCExpressionVisitor implements UCGrammarVisitor<UCExpression> {
 		return exprSymbol;
 	}
 
+	visitArguments(ctx: ArgumentsContext): UCExpression {
+		const exprArgument = ctx.argument();
+		if (!exprArgument) {
+			return undefined;
+		}
+
+		const exprArguments: UCExpression[] = [];
+		for (let arg of exprArgument) {
+			exprArguments.push(arg.accept(this));
+		}
+		return exprArguments as any as UCExpression;
+	}
+
+	visitArgument(ctx: ArgumentContext): UCExpression {
+		return ctx.expression().accept(this);
+	}
+
 	visitPrimaryExpression(ctx: PrimaryExpressionContext): UCExpression {
 		if (ctx.DOT()) {
 			const exprSymbol = new UCContextExpression(rangeFromBounds(ctx.start, ctx.stop));
@@ -122,6 +139,11 @@ export class UCExpressionVisitor implements UCGrammarVisitor<UCExpression> {
 
 		const exprSymbol = new UCPrimaryExpression(rangeFromBounds(ctx.start, ctx.stop));
 		exprSymbol.context = ctx;
+
+		const exprArguments = ctx.arguments();
+		if (exprArguments) {
+			exprSymbol.arguments = exprArguments.accept(this);
+		}
 
 		const id = (ctx.identifier()
 			|| ctx.kwDEFAULT() || ctx.kwSELF()
