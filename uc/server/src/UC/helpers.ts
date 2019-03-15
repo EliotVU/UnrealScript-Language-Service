@@ -174,8 +174,14 @@ export async function getReferences(uri: string, position: Position): Promise<Lo
 	if (!symbol) {
 		return undefined;
 	}
+
+	const references = symbol.getReferences();
+	if (!references) {
+		return undefined;
+	}
+
 	return Array
-		.from(symbol.getReferences().values())
+		.from(references.values())
 		.map(ref => ref.location);
 }
 
@@ -190,13 +196,13 @@ export async function getHighlights(uri: string, position: Position): Promise<Do
 		return undefined;
 	}
 
-	const refs = symbol.getReferences();
-	if (!refs) {
+	const references = symbol.getReferences();
+	if (!references) {
 		return undefined;
 	}
 
 	return Array
-		.from(refs.values())
+		.from(references.values())
 		.filter(loc => loc.location.uri === uri)
 		.map(ref => DocumentHighlight.create(
 			ref.location.range,
