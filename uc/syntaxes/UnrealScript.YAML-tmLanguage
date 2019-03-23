@@ -1,0 +1,533 @@
+name: UnrealScript
+scopeName: source.uc
+foldingStartMarker: \{\s*$
+foldingStopMarker: ^\s*\}
+patterns:
+  - include: '#comment'
+  - include: '#hashpp'
+  - include: '#declarations'
+repository:
+  comment:
+    patterns:
+      - name: comment.block.uc
+        begin: /\*
+        beginCaptures:
+          '0':
+            name: punctuation.definition.comment.uc
+        end: \*/
+        endCaptures:
+          '0':
+            name: punctuation.definition.comment.uc
+      - name: comment.line.double-slash.uc
+        begin: //
+        end: \n
+
+  hashpp:
+    name: string.quoted.single.uc
+    begin: (?=^\#)
+    end: (?<=\n)
+  literal:
+    patterns:
+      - name: string.quoted.single.uc
+        begin: "'"
+        end: "'"
+      - name: string.quoted.double.uc
+        begin: '"'
+        end: '"'
+      - name: constant.language.boolean.uc
+        match: (?i)(true|false)
+      - name: constant.numeric.hex.uc
+        match: 0(x|X)[0-9a-fA-F]+
+      - name: constant.numeric.decimal.uc
+        match: '[0-9]+(f|F)?'
+  declarations:
+    patterns:
+      - include: '#class-declaration'
+      - include: '#cppblock'
+      - include: '#type-declarations'
+      - include: '#replication'
+      - include: '#method-modifier'
+      - include: '#method-declaration'
+      - include: '#state-modifier'
+      - include: '#state-declaration'
+      - include: '#defaultproperties'
+  type-declarations:
+    patterns:
+      - include: '#const-declaration'
+      - include: '#enum-declaration'
+      - include: '#struct-declaration'
+      - include: '#var-declaration'
+  type-modifier:
+    name: storage.modifier.uc
+    match: "\\b((?i)public|protected|protectedwrite|private|privatewrite|localized|native|intrinsic|const|editconst|config|globalconfig|transient|travel|input|export|noexport|cache|automated|edithide|editinline|editinlinenotify|editconstarray|edfindable|init|editfixedsize|editoronly|editortextbox|noclear|noimport|serializetext|nontransactional|instanced|databinding|duplicatetransient|repretry|repnotify|interp|deprecated|notforconsole|archetype|crosslevelactive|crosslevelpassive)\\b"
+  type-declaration:
+    patterns:
+      - include: '#comment'
+      - include: '#type-modifier'
+      - begin: "(([_[:alpha:]][_[:alnum:]]*)(\\.([_[:alpha:]][_[:alnum:]]*))*)\\s*([_[:alpha:]][_[:alnum:]]*)"
+        beginCaptures:
+          '1':
+            patterns:
+              - include: '#comment'
+              - begin: "\\b((?i)float|int|byte|bool|button|name|string|pointer|map)\\b"
+                beginCaptures:
+                  '0':
+                    name: keyword.type.uc
+                end: \b
+              - begin: ([_[:alpha:]][_[:alnum:]]*)(\.([_[:alpha:]][_[:alnum:]]*))*
+                beginCaptures:
+                  '1':
+                    name: entity.name.type.uc
+                  '3':
+                    name: entity.name.type.uc
+                end: \b
+              - begin: \<
+                beginCaptures:
+                  '0':
+                    name: punctuation.definition.typeparameters.begin.uc
+                patterns:
+                  - include: '#inlined-declaration'
+                end: \>
+                endCaptures:
+                  '0':
+                    name: punctuation.definition.typeparameters.end.uc
+          '5':
+            name: entity.name.variable.field.uc
+        end: \s*
+  inlined-declaration:
+    patterns:
+      - include: '#comment'
+      - include: '#type-modifier'
+      - begin: ([_[:alpha:]][_[:alnum:]]*)(\.([_[:alpha:]][_[:alnum:]]*))*
+        beginCaptures:
+          '0':
+            patterns:
+              - include: '#comment'
+              - begin: '((?i)float|int|byte|bool|button|name|string|pointer|map)'
+                beginCaptures:
+                  '0':
+                    name: keyword.type.uc
+                end: \b
+              - begin: ([_[:alpha:]][_[:alnum:]]*)(\.([_[:alpha:]][_[:alnum:]]*))*(?<=\,|\;|\))
+                beginCaptures:
+                  '1':
+                    name: entity.name.type.uc
+                  '3':
+                    name: entity.name.type.uc
+                end: \b
+              - begin: \<
+                beginCaptures:
+                  '0':
+                    name: punctuation.definition.typeparameters.begin.uc
+                patterns:
+                  - include: '#inlined-declaration'
+                end: \>
+                endCaptures:
+                  '0':
+                    name: punctuation.definition.typeparameters.end.uc
+        end: \s*
+  class-declaration:
+    name: meta.class
+    begin: "(?i)(?=\\b(class|interface)\\b)"
+    end: (?<=\;)
+    patterns:
+      - include: '#comment'
+      - begin: "((?i)class|interface)\\s+([_[:alpha:]][_[:alnum:]]*)\\s*(((?i)extends|expands)\\s+([_[:alpha:]][_[:alnum:]]*))?\\s*(((?i)within)\\s+([_[:alpha:]][_[:alnum:]]*))?"
+        beginCaptures:
+          '1':
+            name: keyword.other.class.uc
+          '2':
+            name: entity.name.type.class.uc
+          '4':
+            name: storage.modifier.uc
+          '5':
+            name: entity.other.inherited-class.uc
+          '7':
+            name: storage.modifier.uc
+          '8':
+            name: entity.other.inherited-class.uc
+        patterns:
+          - begin: "\\b((?i)abstract|export|exportstructs|noexport|noexportheader|nativereplication|nativeonly|deprecated|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|hidedropdown|editinlinenew|noteditinlinenew|cacheexempt|perobjectconfig|perobjectlocalized|forcescriptorder)\\b"
+            name: storage.modifier.uc
+            end: \b
+          - begin: "\\b((?i)config|native|intrinsic)\\b\\s*(\\(\\s*([_[:alpha:]][_[:alnum:]]*)\\s*))?"
+            beginCaptures:
+              '1':
+                name: storage.modifier.uc
+              '3':
+                name: string.quoted.single.uc
+            end: \b
+          - begin: \b((?i)hidecategories|showcategories|autocollapsecategories|dontautocollapsecategories|autoexpandcategories|dontsortcategories|collapsecategories|dontcollapsecategories)\s*\(
+            beginCaptures:
+              '1':
+                name: storage.modifier.uc
+            patterns:
+              - match: '[_[:alpha:]][_[:alnum:]]*'
+                name: string.quoted.single.uc
+            end: \)
+          - begin: \b((?i)dllbind|inherits|dependson|implements|classgroup)\s*\(
+            beginCaptures:
+              '1':
+                name: storage.modifier.uc
+              '2':
+                name: entity.name.type.uc
+            patterns:
+              - match: '[_[:alpha:]][_[:alnum:]]*'
+                name: entity.name.type.uc
+            end: \)
+        end: \;
+  const-declaration:
+    name: meta.constant
+    begin: "\\b((?i)const)\\b"
+    beginCaptures:
+      '1':
+        name: keyword.other.constant.uc
+    patterns:
+      - include: '#comment'
+      - begin: "\\s+([_[:alpha:]][_[:alnum:]]*)\\s*(\\=)\\s*"
+        beginCaptures:
+          '1':
+            name: entity.name.constant.uc
+          '2':
+            name: keyword.operator.assignment.uc
+        patterns:
+          - include: '#comment'
+          - include: '#literal'
+        end: \;
+    end: (?<=\;)
+  enum-declaration:
+    name: meta.enum.declaration.uc
+    begin: "\\b((?i)enum)\\s*([_[:alpha:]][_[:alnum:]]*)"
+    beginCaptures:
+      '1':
+        name: storage.type.enum.uc
+      '2':
+        name: entity.name.type.enum.uc
+    patterns:
+      - name: meta.block.uc
+        begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        patterns:
+          - include: '#comment'
+          - match: '[_[:alpha:]][_[:alnum:]]*'
+            name: variable.other.enummember.uc
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
+    end: (?<=\}|\;)
+  struct-declaration:
+    name: meta.struct.declaration.uc
+    begin: "\\b((?i)struct)\\b\\s*(\\b((?i)native|intrinsic|transient|export|strictconfig|atomic|atomicwhencooked|immutable|immutablewhencooked|init|long)\\b\\s*)*([_[:alpha:]][_[:alnum:]]*)(\\s*((?i)extends)\\s*([_[:alpha:]][_[:alnum:]]*))?"
+    beginCaptures:
+      '1':
+        name: storage.type.struct.uc
+      '3':
+        name: storage.modifier.uc
+      '4':
+        name: entity.name.type.struct.uc
+      '6':
+        name: storage.modifier.uc
+      '7':
+        name: entity.other.inherited-class.uc
+    patterns:
+      - name: meta.block.uc
+        begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        patterns:
+          - include: '#comment'
+          - include: '#type-declarations'
+          - include: '#structdefaultproperties'
+          - include: '#cppblock'
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
+    end: (?<=\}|\;)
+  var-declaration:
+    begin: "((?i)\\bvar\\b)(\\s*\\(\\s*([_[:alpha:]][_[:alnum:]]*)\\s*\\))?"
+    beginCaptures:
+      '1':
+        name: storage.type.variable.uc
+      '3':
+        name: string.quoted.single.uc
+    patterns:
+      - include: '#comment'
+      - include: '#enum-declaration'
+      - include: '#struct-declaration'
+      - include: '#type-declaration'
+    end: (?<=\;)
+  method-modifier:
+    match: "(?i)(\\b(static|final|simulated|public|protected|private|exec|iterator|latent|singular|const|noexport|noexportheader|virtual|reliable|unreliable|server|client|dllimport|demorecording|native|intrinsic)\\b)(\\s*\\(\\s*([0-9]*)\\s*\\))?"
+    captures:
+      '2':
+        name: storage.modifier.uc
+      '4':
+        name: constant.numeric.uc
+  return-modifier:
+    name: storage.modifier.uc
+    match: "\\b((?i)coerce)\\b"
+  method-declaration:
+    name: meta.method.declaration
+    begin: "(?i)\\b((function|event|delegate|preoperator|postoperator)|((operator))((\\s*\\(\\s*([0-9]*)\\s*\\))))"
+    end: (?<=\}|\;)
+    beginCaptures:
+      '2':
+        name: keyword.other.method.uc
+      '4':
+        name: keyword.other.method.uc
+      '7':
+        name: constant.numeric.uc
+    patterns:
+      - include: '#comment'
+      - include: '#return-modifier'
+      - include: '#type-declaration'
+      - begin: \b([_[:alpha:]][_[:alnum:]]*)|((\$|\@|\%|\#|\<|\>|\=|\-|\+|\*|\/)+)
+        beginCaptures:
+          '1':
+            name: entity.name.function.uc
+          '2':
+            name: entity.name.operator.uc
+        end: \b
+      - name: punctuation.parenthese.uc
+        begin: \(
+        beginCaptures:
+          '0':
+            name: punctuation.parenthesis.open.uc
+        patterns:
+          - include: '#method-arguments'
+        end: \)
+        endCaptures:
+          '0':
+            name: punctuation.parenthesis.close.uc
+      - name: meta.block.uc
+        begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        patterns:
+          - include: '#local-declaration'
+          - include: '#statement'
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
+  param-modifier:
+    name: storage.modifier.uc
+    match: "\\b((?i)optional|out|coerce|const|init|skip)\\b"
+  method-arguments:
+    patterns:
+      - include: '#param-modifier'
+      - include: '#type-declaration'
+      - match: '[_[:alpha:]][_[:alnum:]]*'
+        name: entity.name.variable.parameter.uc
+  local-declaration:
+    name: meta.variable
+    begin: "\\b((?i)local)\\b"
+    beginCaptures:
+      '1':
+        name: keyword.other.variable.uc
+    patterns:
+      - include: '#comment'
+      - include: '#type-declaration'
+    end: (?<=\;)
+  state-modifier:
+    match: "(\\b((?i)auto|simulated)\\b)"
+    captures:
+      '2':
+        name: storage.modifier.uc
+  state-declaration:
+    name: meta.state.declaration.uc
+    begin: "\\b((?i)state)(\\s*\\(\\s*\\))?\\s*([_[:alpha:]][_[:alnum:]]*)(\\s*((?i)extends)\\s*([_[:alpha:]][_[:alnum:]]*))?"
+    beginCaptures:
+      '1':
+        name: storage.type.state.uc
+      '3':
+        name: entity.name.type.state.uc
+      '5':
+        name: storage.modifier.uc
+      '6':
+        name: entity.other.inherited-class.uc
+    patterns:
+      - name: meta.block.uc
+        begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        patterns:
+          - include: '#comment'
+          - include: '#type-declarations'
+          - include: '#method-modifier'
+          - include: '#method-declaration'
+          - include: '#expression'
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
+    end: "(?<=\\}|\\;)"
+  cppblock:
+    begin: "(?=\\b((?i)cpptext|structcpptext))"
+    patterns:
+      - name: keyword.other.method.uc
+        match: '((?i)cpptext|structcpptext)'
+      - begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        include: source.cpp
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
+    end: (?<=\})
+  replication:
+    begin: "(?=\\b((?i)replication))"
+    beginCaptures:
+      '1':
+        name: keyword.other.replication.uc
+    patterns:
+      - name: meta.block
+        begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        patterns:
+          - include: '#comment'
+          - begin: \b((?i)unreliable|reliable)?\s*((?i)if)?
+            beginCaptures:
+              '1':
+                name: keyword.other.modifier.uc
+              '2':
+                name: keyword.control.conditional.uc
+            patterns:
+              - include: '#comment'
+              - begin: \(
+                beginCaptures:
+                  '0':
+                    name: meta.brace.round.uc
+                patterns:
+                  - include: '#expression'
+                end: \)
+                endCaptures:
+                  '0':
+                    name: meta.brace.round.uc
+              - name: support.variable.dom
+                match: '([_[:alpha:]][_[:alnum:]]*)'
+            end: \;
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
+    end: (?<=\})
+  statement:
+    patterns:
+      - include: '#comment'
+      - name: keyword.control.conditional.uc
+        match: "\\b((?i)if|switch|while|foreach|for|do|until|else)\\b"
+      - name: keyword.control.flow.uc
+        match: "\\b((?i)return|continue|break|stop|goto|super)\\b"
+      - include: '#expression'
+  expression:
+    patterns:
+      - include: '#comment'
+      - include: '#literal'
+      - name: constant.language.null.uc
+        match: "\\b((?i)none)\\b"
+      - name: keyword.control.flow.uc
+        match: "\\b((?i)super)\\b"
+      - name: variable.language.this.uc
+        match: \b((?i)global|self|default|static)\b
+      - begin: ((?i)int|byte|float|bool|string|name|vect|range|rot)\s*(\()
+        beginCaptures:
+          '0':
+            name: cast.expr.uc
+          '1':
+            name: keyword.type.uc
+          '2':
+            name: punctuation.parenthesis.open.uc
+        patterns:
+          - include: '#expression'
+        end: \)
+        endCaptures:
+          '0':
+            name: punctuation.parenthesis.close.uc
+      - begin: ([_[:alpha:]][_[:alnum:]]*)\s*(\()
+        beginCaptures:
+          '0':
+            name: meta.function-call.uc
+          '1':
+            name: entity.name.function.uc
+          '2':
+            name: punctuation.parenthesis.open.uc
+        patterns:
+          - include: '#expression'
+        end: \)
+        endCaptures:
+          '0':
+            name: punctuation.parenthesis.close.uc
+      - name: support.variable.dom.uc
+        match: '[_[:alpha:]][_[:alnum:]]*'
+      - name: keyword.operator.other.uc
+        match: "[><#@&$\\^\\%\\?\\:\\=\\~\\+\\-\\*\\/\\!]+"
+      - begin: \(
+        beginCaptures:
+          '0':
+            name: punctuation.parenthesis.open.uc
+        patterns:
+          - include: '#expression'
+        end: \)
+        endCaptures:
+          '0':
+            name: punctuation.parenthesis.close.uc
+      - name: meta.block.uc
+        begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        patterns:
+          - include: '#comment'
+          - include: '#statement'
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
+  defaultproperties:
+    begin: \b((?i)defaultproperties)\b
+    beginCaptures:
+      '1':
+        name: keyword.other.defaultproperties.uc
+    patterns:
+      - name: meta.block
+        begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        patterns:
+          - include: '#expression'
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
+    end: (?<=\})
+  structdefaultproperties:
+    begin: \b((?i)structdefaultproperties)\b
+    beginCaptures:
+      '1':
+        name: keyword.other.structdefaultproperties.uc
+    patterns:
+      - name: meta.block
+        begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        patterns:
+          - include: '#expression'
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
+    end: (?<=\})
