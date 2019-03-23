@@ -23,7 +23,7 @@ export abstract class UCSymbol implements ISymbol {
 	constructor(private nameRange: Range) {
 	}
 
-	getTypeTooltip(): string {
+	getTypeTooltip(): string | undefined {
 		return undefined;
 	}
 
@@ -87,7 +87,7 @@ export abstract class UCSymbol implements ISymbol {
 			&& position.character >= range.start.character && position.character < range.end.character;
 	}
 
-	intersectsWith(position: Position) {
+	intersectsWith(position: Position): boolean {
 		var range = this.getSpanRange();
 		if (position.line < range.start.line || position.line > range.end.line) {
 			return false;
@@ -119,7 +119,7 @@ export abstract class UCSymbol implements ISymbol {
 		return undefined;
 	}
 
-	getOuter<T extends ISymbol>(): ISymbol {
+	getOuter<T extends ISymbol>(): ISymbol | undefined {
 		for (let outer = this.outer; outer; outer = outer.outer) {
 			if (<T>(outer)) {
 				return outer;
@@ -146,11 +146,11 @@ export abstract class UCSymbol implements ISymbol {
 		(this.refs || (this.refs = new Set())).add(ref);
 	}
 
-	getReferences() {
+	getReferences(): Set<ISymbolReference> | undefined {
 		return this.refs;
 	}
 
-	getUri(): string {
+	getUri(): string | undefined {
 		return this.outer.getUri();
 	}
 

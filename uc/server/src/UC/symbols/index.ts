@@ -1,7 +1,7 @@
 export { UCSymbol } from "./UCSymbol";
 export { UCReferenceSymbol } from './UCReferenceSymbol';
 export { UCTypeSymbol } from './UCTypeSymbol';
-export { UCPackage } from './UCPackage';
+export { UCPackage, SymbolsTable } from './UCPackage';
 export { UCFieldSymbol } from './UCFieldSymbol';
 export { UCStructSymbol } from './UCStructSymbol';
 export { UCEnumSymbol } from './UCEnumSymbol';

@@ -4,7 +4,7 @@ import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
 import { UCStructSymbol } from "./";
-import { UCDocumentListener } from '../DocumentListener';
+import { UCDocumentListener, getDocumentById, indexDocument } from '../DocumentListener';
 
 // Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbolContainer<ISymbol> {
@@ -52,12 +52,18 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 	 * @param deepSearch
 	 */
 	public findQualifiedSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol {
-		if (this.getName() === 'Workspace') {
+		if (this === SymbolsTable) {
 			for (let packageSymbol of (this.symbols as Map<string, UCPackage>).values()) {
 				const symbol = packageSymbol.findQualifiedSymbol(qualifiedId, deepSearch);
 				if (symbol) {
 					return symbol;
 				}
+			}
+
+			const document = getDocumentById(qualifiedId);
+			if (document) {
+				indexDocument(document);
+				return document.class;
 			}
 			return undefined;
 		}
@@ -94,3 +100,5 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 		return symbols;
 	}
 }
+
+export const SymbolsTable = new UCPackage('Workspace');

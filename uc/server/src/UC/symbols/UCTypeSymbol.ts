@@ -1,6 +1,6 @@
 import { Position, Range } from 'vscode-languageserver-types';
 
-import { UCSymbol, UCReferenceSymbol, UCStructSymbol } from '.';
+import { UCSymbol, UCReferenceSymbol, UCStructSymbol, SymbolsTable } from '.';
 import { UCTypeKind } from './UCTypeKind';
 
 import { UCDocumentListener } from '../DocumentListener';
@@ -73,10 +73,10 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 	}
 
 	private linkToClass(document: UCDocumentListener) {
-		document.getDocument(this.getName().toLowerCase(), (classDocument => {
-			if (classDocument && classDocument.class) {
-				this.setReference(classDocument.class, document);
-			}
-		}));
+		const qualifiedClassId = this.getName().toLowerCase();
+		const symbol = SymbolsTable.findQualifiedSymbol(qualifiedClassId, true);
+		if (symbol) {
+			this.setReference(symbol, document);
+		}
 	}
 }

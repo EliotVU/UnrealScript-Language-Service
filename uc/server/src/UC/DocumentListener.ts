@@ -19,25 +19,94 @@ import { ISymbolContainer } from './symbols/ISymbolContainer';
 import {
 	UCClassSymbol, UCConstSymbol, UCDefaultPropertiesSymbol,
 	UCEnumMemberSymbol, UCEnumSymbol, UCMethodSymbol,
-	UCLocalSymbol, UCObjectSymbol, UCPackage, UCParamSymbol,
+	UCLocalSymbol, UCObjectSymbol, UCPackage, SymbolsTable, UCParamSymbol,
 	UCPropertySymbol, UCScriptStructSymbol, UCStateSymbol,
 	UCStructSymbol, UCSymbol, UCReferenceSymbol,
 	UCTypeSymbol,
-	CORE_PACKAGE,
 	UCDocumentClassSymbol
 } from './symbols';
 import { UCTypeKind } from './symbols/UCTypeKind';
+import { UCScriptBlock } from './symbols/Statements';
 import { IDiagnosticNode, SyntaxErrorNode } from './diagnostics/diagnostics';
 import { UCExpressionVisitor } from './ExpressionVisitor';
 import { UCStatementVisitor } from './StatementVisitor';
-import { UCScriptBlock } from './symbols/Statements';
+import { connection } from '../server';
+import { performance } from 'perf_hooks';
 
 export const ExpressionVisitor = new UCExpressionVisitor();
 export const StatementVisitor = new UCStatementVisitor();
 
-export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener<Token> {
-	public getDocument: (className: string, cb: (document: UCDocumentListener) => void) => void;
+const PathPackageMap = new Map<string, UCPackage>();
+function getPackageByUri(uri: string): UCPackage {
+	const dir = path.parse(uri).dir;
+	let packageSymbol: UCPackage = PathPackageMap.get(dir);
+	if (packageSymbol) {
+		return packageSymbol;
+	}
 
+	const dirs = dir.split('/');
+	for (let i = dirs.length - 1; i >= 0; -- i) {
+		if (i > 0 && dirs[i].toLowerCase() === 'classes') {
+			const packageName = dirs[i - 1];
+
+			packageSymbol = SymbolsTable.symbols.get(packageName) as UCPackage;
+			if (packageSymbol) {
+				return packageSymbol;
+			}
+
+			packageSymbol = new UCPackage(packageName);
+			SymbolsTable.addSymbol(packageSymbol);
+
+			PathPackageMap.set(dir, packageSymbol);
+
+			return packageSymbol;
+		}
+	}
+	return SymbolsTable;
+}
+
+const Documents: Map<string, UCDocumentListener> = new Map<string, UCDocumentListener>();
+export function getDocumentByUri(uri: string): UCDocumentListener {
+	let document: UCDocumentListener = Documents.get(uri);
+	if (document) {
+		return document;
+	}
+
+	const packageTable = getPackageByUri(uri);
+
+	document = new UCDocumentListener(packageTable, uri);
+	Documents.set(uri, document);
+	return document;
+}
+
+export function getDocumentById(qualifiedId: string): UCDocumentListener {
+	const uri = getUriById(qualifiedId);
+	if (!uri) {
+		return undefined;
+	}
+
+	const document: UCDocumentListener = getDocumentByUri(uri);
+	return document;
+}
+
+export function indexDocument(document: UCDocumentListener) {
+	try {
+		document.invalidate();
+		document.parse(document.readText());
+		document.link();
+	} catch (err) {
+		console.error(err);
+		return undefined;
+	}
+}
+
+export const ClassesMap$ = new BehaviorSubject(new Map<string, string>());
+export function getUriById(qualifiedClassId: string): string | undefined {
+	const filePath: string = ClassesMap$.value.get(qualifiedClassId);
+	return filePath ? URI.file(filePath).toString() : undefined;
+}
+
+export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener<Token> {
 	public name: string;
 
 	public class?: UCClassSymbol;
@@ -70,10 +139,16 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	}
 
 	parse(text: string) {
+		connection.console.log('parsing' + this.name);
+
+		const start = performance.now();
 		const parser = new DocumentParser(text);
 		parser.parse(this);
 
 		this.tokenStream = parser.tokenStream;
+
+		const diff = performance.now() - start;
+		connection.console.log(this.name + ': parsing time ' + diff);
 	}
 
 	readText(): string {
@@ -83,8 +158,14 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	}
 
 	link() {
+		connection.console.log('linking' + this.name);
+		const start = performance.now();
+
 		console.assert(this.class, "Document hasn't been parsed yet!");
 		this.class!.link(this, this.class);
+
+		const diff = performance.now() - start;
+		connection.console.log(this.name + ': linking time ' + diff);
 	}
 
 	invalidate() {
@@ -92,11 +173,11 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 			this.classPackage.symbols.delete(this.class.getName().toLowerCase());
 		}
 		this.class = undefined;
+		this.nodes = []; // clear
 	}
 
 	analyze(): Diagnostic[] {
 		console.assert(this.class, "Document hasn't been parsed yet!");
-		this.nodes = []; // clear
 		this.class!.analyze(this, this.class);
 
 		return this.nodes
@@ -556,96 +637,4 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	exitDefaultpropertiesBlock(ctx: UCParser.DefaultpropertiesBlockContext) {
 		this.pop();
 	}
-}
-
-const SymbolsTable = new UCPackage('Workspace');
-SymbolsTable.addSymbol(CORE_PACKAGE);
-
-const PathPackageMap = new Map<string, UCPackage>();
-
-function getPackageFor(uri: string): UCPackage {
-	const dir = path.parse(uri).dir;
-	let packageSymbol: UCPackage = PathPackageMap.get(dir);
-	if (packageSymbol) {
-		return packageSymbol;
-	}
-
-	const dirs = dir.split('/');
-	for (let i = dirs.length - 1; i >= 0; -- i) {
-		if (i > 0 && dirs[i].toLowerCase() === 'classes') {
-			const packageName = dirs[i - 1];
-
-			packageSymbol = SymbolsTable.symbols.get(packageName) as UCPackage;
-			if (packageSymbol) {
-				return packageSymbol;
-			}
-
-			packageSymbol = new UCPackage(packageName);
-			SymbolsTable.addSymbol(packageSymbol);
-
-			PathPackageMap.set(dir, packageSymbol);
-
-			return packageSymbol;
-		}
-	}
-	return SymbolsTable;
-}
-
-export function getDocumentListenerByUri(uri: string): UCDocumentListener {
-	let document: UCDocumentListener = Documents.get(uri);
-	if (document) {
-		return document;
-	}
-
-	const packageTable = getPackageFor(uri);
-
-	document = new UCDocumentListener(packageTable, uri);
-	document.getDocument = getDocumentListenerById;
-	Documents.set(uri, document);
-	return document;
-}
-
-export const ClassesMap$ = new BehaviorSubject(new Map<string, string>());
-
-const Documents: Map<string, UCDocumentListener> = new Map<string, UCDocumentListener>();
-
-function findUriForQualifiedId(qualifiedClassId: string): string | undefined {
-	const filePath: string = ClassesMap$.value.get(qualifiedClassId);
-	if (!filePath) {
-		return undefined;
-	}
-
-	// FIXME: may not exist
-	if (!fs.existsSync(filePath)) {
-		return undefined;
-	}
-
-	const uriFromFilePath = URI.file(filePath).toString();
-	return uriFromFilePath;
-}
-
-function getDocumentListenerById(qualifiedClassId: string, callback: (document: UCDocumentListener) => void) {
-	console.log('Looking for external document ' + qualifiedClassId);
-
-	// Try the shorter route first before we scan the entire workspace!
-	if (SymbolsTable) {
-		let classSymbol = SymbolsTable.findQualifiedSymbol(qualifiedClassId, true);
-		if (classSymbol && classSymbol instanceof UCDocumentClassSymbol) {
-			callback(classSymbol.document);
-			return;
-		}
-	}
-
-	const uri = findUriForQualifiedId(qualifiedClassId);
-	if (!uri) {
-		callback(undefined);
-		return;
-	}
-
-	const document: UCDocumentListener = getDocumentListenerByUri(uri);
-	if (document) {
-		document.parse(document.readText());
-		document.link();
-	}
-	callback(document);
 }

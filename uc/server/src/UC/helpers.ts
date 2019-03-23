@@ -18,7 +18,7 @@ import {
 } from 'vscode-languageserver';
 
 import { UCSymbol, UCReferenceSymbol, UCStructSymbol } from './symbols';
-import { getDocumentListenerByUri, ClassesMap$ } from "./DocumentListener";
+import { getDocumentByUri, ClassesMap$ } from "./DocumentListener";
 import { Token } from 'antlr4ts';
 
 export function rangeFromBound(token: Token): Range {
@@ -103,7 +103,7 @@ export async function initWorkspace(connection: Connection) {
 }
 
 export async function getHover(uri: string, position: Position): Promise<Hover> {
-	const document = getDocumentListenerByUri(uri);
+	const document = getDocumentByUri(uri);
 	if (!document || !document.class) {
 		return undefined;
 	}
@@ -127,7 +127,7 @@ export async function getHover(uri: string, position: Position): Promise<Hover> 
 }
 
 export async function getDefinition(uri: string, position: Position): Promise<Definition> {
-	const document = getDocumentListenerByUri(uri);
+	const document = getDocumentByUri(uri);
 	if (!document || !document.class) {
 		return undefined;
 	}
@@ -145,7 +145,7 @@ export async function getDefinition(uri: string, position: Position): Promise<De
 }
 
 export async function getSymbols(uri: string): Promise<SymbolInformation[]> {
-	const document = getDocumentListenerByUri(uri);
+	const document = getDocumentByUri(uri);
 	if (!document || !document.class) {
 		return undefined;
 	}
@@ -165,7 +165,7 @@ export async function getSymbols(uri: string): Promise<SymbolInformation[]> {
 }
 
 export async function getReferences(uri: string, position: Position): Promise<Location[]> {
-	const document = getDocumentListenerByUri(uri);
+	const document = getDocumentByUri(uri);
 	if (!document || !document.class) {
 		return undefined;
 	}
@@ -186,7 +186,7 @@ export async function getReferences(uri: string, position: Position): Promise<Lo
 }
 
 export async function getHighlights(uri: string, position: Position): Promise<DocumentHighlight[]> {
-	const document = getDocumentListenerByUri(uri);
+	const document = getDocumentByUri(uri);
 	if (!document || !document.class) {
 		return undefined;
 	}
@@ -215,7 +215,7 @@ export async function getHighlights(uri: string, position: Position): Promise<Do
 }
 
 export async function getCompletionItems(uri: string, position: Position): Promise<CompletionItem[]> {
-	const document = getDocumentListenerByUri(uri);
+	const document = getDocumentByUri(uri);
 	if (!document || !document.class) {
 		return undefined;
 	}
