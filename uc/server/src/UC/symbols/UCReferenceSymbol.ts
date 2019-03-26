@@ -2,7 +2,7 @@ import { Location, Range, Position } from 'vscode-languageserver-types';
 
 import { ISymbol, ISymbolReference, ISymbolContext } from './ISymbol';
 import { UCSymbol } from '.';
-import { UCDocumentListener } from '../DocumentListener';
+import { UCDocument } from '../DocumentListener';
 
 /**
  * For general symbol references, like a function's return type which cannot yet be identified.
@@ -48,7 +48,7 @@ export class UCReferenceSymbol extends UCSymbol {
 		}
 	}
 
-	setReference(symbol: ISymbol, document: UCDocumentListener, context?: ISymbolContext) {
+	setReference(symbol: ISymbol, document: UCDocument, context?: ISymbolContext) {
 		this.reference = symbol;
 		if (symbol && symbol instanceof UCSymbol) {
 			const ref: ISymbolReference = {

@@ -1,7 +1,7 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
 import { UCStructSymbol, UCSymbol } from './';
-import { UCDocumentListener } from '../DocumentListener';
+import { UCDocument } from '../DocumentListener';
 
 export class UCEnumSymbol extends UCStructSymbol {
 	isProtected(): boolean {
@@ -20,7 +20,7 @@ export class UCEnumSymbol extends UCStructSymbol {
 		return `enum ${this.getQualifiedName()}`;
 	}
 
-	getCompletionSymbols(document: UCDocumentListener): UCSymbol[] {
+	getCompletionSymbols(document: UCDocument): UCSymbol[] {
 		const symbols: UCSymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
 			if (child.acceptCompletion(document, this)) {

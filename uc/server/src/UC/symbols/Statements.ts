@@ -1,6 +1,6 @@
 import { Position } from 'vscode-languageserver';
 
-import { UCDocumentListener } from '../DocumentListener';
+import { UCDocument } from '../DocumentListener';
 import { UCSymbol, UCStructSymbol } from '.';
 import { UCExpression } from './Expressions';
 
@@ -24,13 +24,13 @@ export class UCScriptBlock extends UCSymbol {
 		}
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocument, context: UCStructSymbol) {
 		for (let sm of this.statements) {
 			sm.link(document, context);
 		}
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		for (let sm of this.statements) {
 			sm.analyze(document, context);
 		}
@@ -59,13 +59,13 @@ export class UCExpressionStatement extends UCStatement {
 		}
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocument, context: UCStructSymbol) {
 		if (this.expression) {
 			this.expression.link(document, context);
 		}
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		if (this.expression) {
 			this.expression.analyze(document, context);
 		}
@@ -86,14 +86,14 @@ export class UCBlockStatement extends UCExpressionStatement {
 		}
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocument, context: UCStructSymbol) {
 		super.link(document, context);
 		if (this.scriptBlock) {
 			this.scriptBlock.link(document, context);
 		}
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 		if (this.scriptBlock) {
 			this.scriptBlock.analyze(document, context);
@@ -115,14 +115,14 @@ export class UCIfStatement extends UCBlockStatement {
 		}
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocument, context: UCStructSymbol) {
 		super.link(document, context);
 		if (this.elseStatement) {
 			this.elseStatement.link(document, context);
 		}
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 		if (this.elseStatement) {
 			this.elseStatement.analyze(document, context);
@@ -176,13 +176,13 @@ export class UCForStatement extends UCBlockStatement {
 		}
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocument, context: UCStructSymbol) {
 		super.link(document, context);
 		if (this.initExpression) this.initExpression.link(document, context);
 		if (this.nextExpression) this.nextExpression.link(document, context);
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 		if (this.initExpression) this.initExpression.link(document, context);
 		if (this.nextExpression) this.nextExpression.analyze(document, context);

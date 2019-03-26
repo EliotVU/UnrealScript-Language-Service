@@ -3,7 +3,7 @@ import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 import { ExpressionContext, PrimaryExpressionContext, UnaryExpressionContext, OperatorIdContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ArgumentContext } from '../antlr/UCGrammarParser';
 
 import { UCReferenceSymbol } from './symbols';
-import { UCExpression, UCSymbolExpression, UCUnaryExpression, UCPrimaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression } from './symbols/Expressions';
+import { UCExpression, UCMemberExpression, UCUnaryExpression, UCPrimaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression } from './symbols/Expressions';
 import { rangeFromBounds } from './helpers';
 
 export class UCExpressionVisitor implements UCGrammarVisitor<UCExpression> {
@@ -171,24 +171,27 @@ export class UCExpressionVisitor implements UCGrammarVisitor<UCExpression> {
 		return exprSymbol;
 	}
 
-	visitClassLiteralSpecifier(ctx: ClassLiteralSpecifierContext): UCSymbolExpression {
-		const exprSymbol = new UCSymbolExpression(rangeFromBounds(ctx.start, ctx.stop));
+	visitClassLiteralSpecifier(ctx: ClassLiteralSpecifierContext): UCMemberExpression {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const exprSymbol = new UCMemberExpression(range);
 		exprSymbol.context = ctx;
-		exprSymbol.setSymbol(new UCReferenceSymbol(ctx.text, rangeFromBounds(ctx.start, ctx.stop)));
+		exprSymbol.setSymbol(new UCReferenceSymbol(ctx.text, range));
 		return exprSymbol;
 	}
 
-	visitIdentifier(ctx: ParserRuleContext): UCSymbolExpression {
-		const exprSymbol = new UCSymbolExpression(rangeFromBounds(ctx.start, ctx.stop));
+	visitIdentifier(ctx: ParserRuleContext): UCMemberExpression {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const exprSymbol = new UCMemberExpression(range);
 		exprSymbol.context = ctx;
-		exprSymbol.setSymbol(new UCReferenceSymbol(ctx.text, rangeFromBounds(ctx.start, ctx.stop)));
+		exprSymbol.setSymbol(new UCReferenceSymbol(ctx.text, range));
 		return exprSymbol;
 	}
 
-	visitOperatorId(ctx: OperatorIdContext): UCSymbolExpression {
-		const exprSymbol = new UCSymbolExpression(rangeFromBounds(ctx.start, ctx.stop));
+	visitOperatorId(ctx: OperatorIdContext): UCMemberExpression {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const exprSymbol = new UCMemberExpression(range);
 		exprSymbol.context = ctx;
-		exprSymbol.setSymbol(new UCReferenceSymbol(ctx.text, rangeFromBounds(ctx.start, ctx.stop)));
+		exprSymbol.setSymbol(new UCReferenceSymbol(ctx.text, range));
 		return exprSymbol;
 	}
 }

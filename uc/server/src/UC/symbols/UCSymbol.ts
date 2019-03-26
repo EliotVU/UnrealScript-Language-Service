@@ -2,7 +2,7 @@ import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKin
 
 import { ISymbol, ISymbolReference } from './ISymbol';
 import { UCStructSymbol, UCPackage } from "./";
-import { UCDocumentListener } from "../DocumentListener";
+import { UCDocument } from "../DocumentListener";
 import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
 import { UCGrammarParser } from '../../antlr/UCGrammarParser';
 
@@ -127,18 +127,18 @@ export abstract class UCSymbol implements ISymbol {
 		}
 	}
 
-	getCompletionSymbols(_document: UCDocumentListener): UCSymbol[] {
+	getCompletionSymbols(_document: UCDocument): UCSymbol[] {
 		return [];
 	}
 
-	acceptCompletion(_document: UCDocumentListener, _context: UCSymbol): boolean {
+	acceptCompletion(_document: UCDocument, _context: UCSymbol): boolean {
 		return true;
 	}
 
-	link(_document: UCDocumentListener, _context: UCStructSymbol = _document.class) {
+	link(_document: UCDocument, _context: UCStructSymbol = _document.class) {
 	}
 
-	analyze(_document: UCDocumentListener, _context: UCStructSymbol) {
+	analyze(_document: UCDocument, _context: UCStructSymbol) {
 
 	}
 
@@ -158,7 +158,7 @@ export abstract class UCSymbol implements ISymbol {
 		return SymbolInformation.create(this.getName(), this.getKind(), this.getSpanRange(), undefined, this.outer.getName());
 	}
 
-	toCompletionItem(document: UCDocumentListener): CompletionItem {
+	toCompletionItem(document: UCDocument): CompletionItem {
 		const item = CompletionItem.create(this.getName());
 		item.detail = this.getTooltip();
 		if (document.tokenStream) {

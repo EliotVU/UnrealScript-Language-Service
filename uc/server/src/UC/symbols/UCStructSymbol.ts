@@ -1,6 +1,6 @@
 import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
 
-import { UCDocumentListener } from '../DocumentListener';
+import { UCDocument } from '../DocumentListener';
 import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
 import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE, UCMethodSymbol, UCStateSymbol } from "./";
@@ -27,7 +27,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return CompletionItemKind.Module;
 	}
 
-	getCompletionSymbols(document: UCDocumentListener): UCSymbol[] {
+	getCompletionSymbols(document: UCDocument): UCSymbol[] {
 		const symbols: UCSymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
 			if (child.acceptCompletion(document, this)) {
@@ -170,12 +170,6 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			return this;
 		}
 
-		// Quick shortcut for the most common types or top level symbols.
-		symbol = CORE_PACKAGE.findQualifiedSymbol(qualifiedId, false);
-		if (symbol) {
-			return symbol;
-		}
-
 		if (this.types) {
 			symbol = this.types.get(qualifiedId);
 			if (symbol) {
@@ -183,14 +177,12 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			}
 		}
 
-		if (!deepSearch) {
-			return undefined;
-		}
-
-		if (this.super) {
-			symbol = this.super.findTypeSymbol(qualifiedId, deepSearch);
-		} else if (this.outer && this.outer instanceof UCStructSymbol) {
-			symbol = this.outer.findTypeSymbol(qualifiedId, deepSearch);
+		if (deepSearch) {
+			if (this.super) {
+				symbol = this.super.findTypeSymbol(qualifiedId, deepSearch);
+			} else if (this.outer && this.outer instanceof UCStructSymbol) {
+				symbol = this.outer.findTypeSymbol(qualifiedId, deepSearch);
+			}
 		}
 
 		if (symbol) {
@@ -199,7 +191,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return symbol;
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocument, context: UCStructSymbol) {
 		if (this.extendsType) {
 			this.extendsType.link(document, context);
 			// Ensure that we don't overwrite super assignment from our descendant class.
@@ -228,7 +220,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		if (this.scriptBlock) this.scriptBlock.link(document, this);
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		if (this.extendsType) {
 			this.extendsType.analyze(document, context);
 		}

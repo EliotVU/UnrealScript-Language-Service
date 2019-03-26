@@ -1,8 +1,9 @@
 import { SymbolKind, CompletionItemKind, Position, Location } from 'vscode-languageserver-types';
 
 import { UCSymbol, UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
-import { UCDocumentListener } from '../DocumentListener';
+import { UCDocument } from '../DocumentListener';
 import { FunctionDeclContext } from '../../antlr/UCGrammarParser';
+import { ISymbol } from './ISymbol';
 
 export class UCMethodSymbol extends UCStructSymbol {
 	public returnType?: UCTypeSymbol;
@@ -39,7 +40,11 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return super.getSubSymbolAtPos(position);
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	findTypeSymbol(qualifiedId: string, deepSearch: boolean): ISymbol | undefined {
+		return (this.outer as UCStructSymbol).findTypeSymbol(qualifiedId, deepSearch);
+	}
+
+	link(document: UCDocument, context: UCStructSymbol) {
 		super.link(document, context);
 
 		if (this.returnType) {
@@ -55,7 +60,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 		}
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 		if (this.returnType) {
 			this.returnType.analyze(document, context);

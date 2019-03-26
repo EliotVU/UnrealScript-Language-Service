@@ -1,7 +1,7 @@
 import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
 import { UCSymbol, UCReferenceSymbol, UCStructSymbol, UCPropertySymbol, UCTypeSymbol, UCMethodSymbol } from './';
-import { UCDocumentListener } from '../DocumentListener';
+import { UCDocument } from '../DocumentListener';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 
 export class UCClassSymbol extends UCStructSymbol {
@@ -90,7 +90,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		return this;
 	}
 
-	link(document: UCDocumentListener, context: UCClassSymbol) {
+	link(document: UCDocument, context: UCClassSymbol) {
 		if (this.withinType) {
 			this.withinType.link(document, context);
 
@@ -113,7 +113,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		super.link(document, context);
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		const className = this.getName();
 		if (className.toLowerCase() != document.name.toLowerCase()) {
 			const errorNode = new SemanticErrorNode(
@@ -169,13 +169,13 @@ export class UCClassSymbol extends UCStructSymbol {
 }
 
 export class UCDocumentClassSymbol extends UCClassSymbol {
-	public document?: UCDocumentListener;
+	public document?: UCDocument;
 
 	getUri(): string {
 		return this.document.uri;
 	}
 
-	link(document: UCDocumentListener, context: UCClassSymbol = document.class) {
+	link(document: UCDocument, context: UCClassSymbol = document.class) {
 		if (this.document) {
 			return;
 		}

@@ -8,12 +8,14 @@ import { BehaviorSubject } from 'rxjs';
 
 import { ANTLRErrorListener, RecognitionException, Recognizer, Token, CommonTokenStream } from 'antlr4ts';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
+import { ParseTreeWalker } from 'antlr4ts/tree/ParseTreeWalker';
 
 import { UCGrammarListener } from '../antlr/UCGrammarListener';
 import * as UCParser from '../antlr/UCGrammarParser';
+import { UCGrammarLexer } from '../antlr/UCGrammarLexer';
+import { CaseInsensitiveStream } from './CaseInsensitiveStream';
 
 import { rangeFromBounds, rangeFromBound } from './helpers';
-import { DocumentParser } from './DocumentParser';
 import { ISymbol } from './symbols/ISymbol';
 import { ISymbolContainer } from './symbols/ISymbolContainer';
 import {
@@ -65,34 +67,34 @@ function getPackageByUri(uri: string): UCPackage {
 	return SymbolsTable;
 }
 
-const Documents: Map<string, UCDocumentListener> = new Map<string, UCDocumentListener>();
-export function getDocumentByUri(uri: string): UCDocumentListener {
-	let document: UCDocumentListener = Documents.get(uri);
+const Documents: Map<string, UCDocument> = new Map<string, UCDocument>();
+export function getDocumentByUri(uri: string): UCDocument {
+	let document: UCDocument = Documents.get(uri);
 	if (document) {
 		return document;
 	}
 
 	const packageTable = getPackageByUri(uri);
 
-	document = new UCDocumentListener(packageTable, uri);
+	document = new UCDocument(packageTable, uri);
 	Documents.set(uri, document);
 	return document;
 }
 
-export function getDocumentById(qualifiedId: string): UCDocumentListener {
+export function getDocumentById(qualifiedId: string): UCDocument {
 	const uri = getUriById(qualifiedId);
 	if (!uri) {
 		return undefined;
 	}
 
-	const document: UCDocumentListener = getDocumentByUri(uri);
+	const document: UCDocument = getDocumentByUri(uri);
 	return document;
 }
 
-export function indexDocument(document: UCDocumentListener) {
+export function indexDocument(document: UCDocument) {
 	try {
 		document.invalidate();
-		document.parse(document.readText());
+		document.parse();
 		document.link();
 	} catch (err) {
 		console.error(err);
@@ -106,13 +108,14 @@ export function getUriById(qualifiedClassId: string): string | undefined {
 	return filePath ? URI.file(filePath).toString() : undefined;
 }
 
-export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener<Token> {
+export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {
 	public name: string;
 
 	public class?: UCClassSymbol;
 	private context?: UCStructSymbol[]; // FIXME: Type
 
 	public nodes: IDiagnosticNode[] = [];
+
 	public tokenStream: CommonTokenStream;
 
 	constructor(public classPackage: UCPackage, public readonly uri: string) {
@@ -138,14 +141,21 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 		context.addSymbol(symbol);
 	}
 
-	parse(text: string) {
+	parse(text: string = this.readText()) {
+		const start = performance.now();
 		connection.console.log('parsing' + this.name);
 
-		const start = performance.now();
-		const parser = new DocumentParser(text);
-		parser.parse(this);
+		const lexer = new UCGrammarLexer(new CaseInsensitiveStream(text));
+		const stream = this.tokenStream = new CommonTokenStream(lexer);
+		const parser = new UCParser.UCGrammarParser(stream);
+		parser.addErrorListener(this);
 
-		this.tokenStream = parser.tokenStream;
+		try {
+			const programCtx = parser.program();
+			ParseTreeWalker.DEFAULT.walk(this, programCtx);
+		} catch (err) {
+			console.error('Error walking document', this.uri, err);
+		}
 
 		const diff = performance.now() - start;
 		connection.console.log(this.name + ': parsing time ' + diff);
@@ -169,10 +179,7 @@ export class UCDocumentListener implements UCGrammarListener, ANTLRErrorListener
 	}
 
 	invalidate() {
-		if (this.class && this.classPackage) {
-			this.classPackage.symbols.delete(this.class.getName().toLowerCase());
-		}
-		this.class = undefined;
+		delete this.class;
 		this.nodes = []; // clear
 	}
 

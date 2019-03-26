@@ -1,7 +1,7 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
 import { UCStructSymbol, UCSymbol, UCMethodSymbol, UCPropertySymbol } from './';
-import { UCDocumentListener } from '../DocumentListener';
+import { UCDocument } from '../DocumentListener';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
 	isProtected(): boolean {
@@ -20,7 +20,7 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return `struct ${this.getQualifiedName()}`;
 	}
 
-	getCompletionSymbols(_document: UCDocumentListener): UCSymbol[] {
+	getCompletionSymbols(_document: UCDocument): UCSymbol[] {
 		const symbols: UCSymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
 			symbols.push(child);
@@ -34,7 +34,7 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return symbols;
 	}
 
-	acceptCompletion(_document: UCDocumentListener, context: UCSymbol): boolean {
+	acceptCompletion(_document: UCDocument, context: UCSymbol): boolean {
 		return (context instanceof UCPropertySymbol || context instanceof UCMethodSymbol);
 	}
 }

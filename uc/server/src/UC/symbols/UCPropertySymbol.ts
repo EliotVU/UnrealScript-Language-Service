@@ -1,7 +1,7 @@
 import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
 import { UCSymbol, UCTypeSymbol, UCFieldSymbol, UCStructSymbol } from './';
-import { UCDocumentListener } from '../DocumentListener';
+import { UCDocument } from '../DocumentListener';
 
 export class UCPropertySymbol extends UCFieldSymbol {
 	public type: UCTypeSymbol;
@@ -29,14 +29,14 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return undefined;
 	}
 
-	public link(document: UCDocumentListener, context: UCStructSymbol) {
+	public link(document: UCDocument, context: UCStructSymbol) {
 		super.link(document, context);
 		if (this.type) {
 			this.type.link(document, context);
 		}
 	}
 
-	public analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	public analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 		if (this.type) {
 			this.type.analyze(document, context);

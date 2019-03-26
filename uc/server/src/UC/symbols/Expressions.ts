@@ -1,7 +1,7 @@
 import { Position } from 'vscode-languageserver';
 
-import { UCDocumentListener } from '../DocumentListener';
-import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCReferenceSymbol, UCStateSymbol, NativeClass } from '.';
+import { UCDocument } from '../DocumentListener';
+import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCReferenceSymbol, UCStateSymbol, NativeClass, SymbolsTable } from '.';
 import { UnrecognizedFieldNode } from '../diagnostics/diagnostics';
 
 export class UCExpression extends UCSymbol {
@@ -24,13 +24,13 @@ export class UCExpression extends UCSymbol {
 		}
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocument, context: UCStructSymbol) {
 		if (this.expression) {
 			this.expression.link(document, context);
 		}
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		if (this.expression) {
 			this.expression.analyze(document, context);
 		}
@@ -38,11 +38,11 @@ export class UCExpression extends UCSymbol {
 }
 
 export class UCUnaryExpression extends UCExpression {
-	public operatorId: UCSymbolExpression;
+	public operatorId: UCMemberExpression;
 }
 
 export class UCPrimaryExpression extends UCExpression {
-	public symbolExpression?: UCSymbolExpression;
+	public symbolExpression?: UCMemberExpression;
 	public arguments?: UCExpression[];
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -63,7 +63,7 @@ export class UCPrimaryExpression extends UCExpression {
 		return super.getSubSymbolAtPos(position);
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocument, context: UCStructSymbol) {
 		super.link(document, context);
 
 		if (this.symbolExpression) {
@@ -75,7 +75,7 @@ export class UCPrimaryExpression extends UCExpression {
 		}
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 
 		if (this.symbolExpression) {
@@ -96,7 +96,7 @@ export class UCPrimaryExpression extends UCExpression {
 }
 
 export class UCContextExpression extends UCExpression {
-	public symbolExpression?: UCSymbolExpression;
+	public symbolExpression?: UCMemberExpression;
 
 	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.symbolExpression) {
@@ -108,7 +108,7 @@ export class UCContextExpression extends UCExpression {
 		return super.getSubSymbolAtPos(position);
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocument, context: UCStructSymbol) {
 		super.link(document, context);
 
 		if (this.symbolExpression) {
@@ -116,7 +116,7 @@ export class UCContextExpression extends UCExpression {
 		}
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 
 		context = this.getExpressedContext();
@@ -186,14 +186,14 @@ export class UCBinaryExpression extends UCExpression {
 		return super.getSubSymbolAtPos(position);
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocument, context: UCStructSymbol) {
 		if (this.leftExpression) {
 			this.leftExpression.link(document, context);
 		}
 		super.link(document, context);
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		if (this.leftExpression) {
 			this.leftExpression.analyze(document, context);
 		}
@@ -205,38 +205,37 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 
 }
 
-// Reminder to myself, for call identifiers, match classes over functions.
-export class UCSymbolExpression extends UCExpression {
-	private symbol: UCReferenceSymbol;
+export class UCMemberExpression extends UCExpression {
+	private symbolRef: UCReferenceSymbol;
 
 	getSubSymbolAtPos(_position: Position): UCSymbol | undefined {
-		return this.symbol;
+		return this.symbolRef;
 	}
 
 	setSymbol(symbol: UCReferenceSymbol) {
 		symbol.outer = this;
-		this.symbol = symbol;
+		this.symbolRef = symbol;
 	}
 
 	getSymbol() {
-		return this.symbol;
+		return this.symbolRef;
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocument, context: UCStructSymbol) {
 		if (!context) {
 			return;
 		}
 
-		const id = this.symbol.getName().toLowerCase();
+		const id = this.symbolRef.getName().toLowerCase();
 		switch (id) {
 			case 'default': case 'self': case 'static': case 'global': case 'const': {
 				// FIXME: G.Static does not reference to the static class of G where g is a property of type "class<GameInfo>".
-				this.symbol.setReference(document.class, document);
+				this.symbolRef.setReference(document.class, document);
 				break;
 			}
 
 			case 'super': {
-				this.symbol.setReference(
+				this.symbolRef.setReference(
 					context instanceof UCStateSymbol
 						? context.super
 						: document.class.super,
@@ -247,18 +246,22 @@ export class UCSymbolExpression extends UCExpression {
 
 			default: {
 				// If we have arguments then try to first match a class or struct (e.g. a casting).
-				const isCasting = (this.outer instanceof UCPrimaryExpression && this.outer.arguments);
-				if (isCasting) {
-					const type = context.findTypeSymbol(id, true);
+				const hasArguments = this.outer instanceof UCPrimaryExpression && this.outer.arguments;
+				if (hasArguments) {
+					let type = SymbolsTable.findQualifiedSymbol(id, true); // Look for a class or predefined type.
+					if (!type) {
+						type = context.findTypeSymbol(id, true); // look for struct types
+					}
+
 					if (type) {
-						this.symbol.setReference(type, document);
+						this.symbolRef.setReference(type, document);
 						return;
 					}
 				}
 
-				const ref = context.findSuperSymbol(id);
-				if (ref) {
-					this.symbol.setReference(ref, document, {
+				const symbol = context.findSuperSymbol(id);
+				if (symbol) {
+					this.symbolRef.setReference(symbol, document, {
 						// FIXME: pass a contextinfo instance to link()
 						inAssignment:
 							this.outer.outer instanceof UCAssignmentExpression
@@ -270,13 +273,13 @@ export class UCSymbolExpression extends UCExpression {
 		}
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		if (!context) {
 			return;
 		}
 
-		if (!this.symbol.getReference()) {
-			document.nodes.push(new UnrecognizedFieldNode(this.symbol, context));
+		if (!this.symbolRef.getReference()) {
+			document.nodes.push(new UnrecognizedFieldNode(this.symbolRef, context));
 		}
 	}
 }

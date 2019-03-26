@@ -1,7 +1,7 @@
 import { Range, Position, Location } from 'vscode-languageserver-types';
 
 import { UCSymbol, UCStructSymbol } from './';
-import { UCDocumentListener } from '../DocumentListener';
+import { UCDocument } from '../DocumentListener';
 import { UCClassSymbol } from './UCClassSymbol';
 
 export class UCFieldSymbol extends UCSymbol {
@@ -47,7 +47,7 @@ export class UCFieldSymbol extends UCSymbol {
 		return false;
 	}
 
-	acceptCompletion(_document: UCDocumentListener, _context: UCSymbol): boolean {
+	acceptCompletion(_document: UCDocument, _context: UCSymbol): boolean {
 		// TODO: Does match the language's behavior yet!
 		if (this.isPrivate()) {
 			return this.getOuter<UCClassSymbol>() === _document.class;
@@ -55,7 +55,7 @@ export class UCFieldSymbol extends UCSymbol {
 		return this.isPublic();
 	}
 
-	link(document: UCDocumentListener, _context: UCStructSymbol) {
+	link(document: UCDocument, _context: UCStructSymbol) {
 		this.addReference({
 			location: Location.create(document.uri, this.getNameRange()),
 			symbol: this,

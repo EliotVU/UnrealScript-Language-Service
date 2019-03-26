@@ -1,9 +1,9 @@
 import { Position, Range } from 'vscode-languageserver-types';
 
-import { UCSymbol, UCReferenceSymbol, UCStructSymbol, SymbolsTable } from '.';
+import { UCSymbol, UCReferenceSymbol, UCStructSymbol, SymbolsTable, CORE_PACKAGE } from '.';
 import { UCTypeKind } from './UCTypeKind';
 
-import { UCDocumentListener } from '../DocumentListener';
+import { UCDocument } from '../DocumentListener';
 import { UnrecognizedTypeNode } from '../diagnostics/diagnostics';
 
 export class UCTypeSymbol extends UCReferenceSymbol {
@@ -38,7 +38,7 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 		return undefined;
 	}
 
-	link(document: UCDocumentListener, context: UCStructSymbol) {
+	link(document: UCDocument, context: UCStructSymbol) {
 		// console.assert(this.outer, 'No outer for type "' + this.getName() + '"');
 
 		switch (this.typeKind) {
@@ -47,13 +47,18 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 				break;
 
 			default:
-				const symbol = context.findTypeSymbol(this.getName().toLowerCase(), true);
+				const id = this.getName().toLowerCase();
+				// Quick shortcut for the most common types or top level symbols.
+				let symbol = CORE_PACKAGE.findQualifiedSymbol(id, false);
+				if (!symbol) {
+					symbol = context.findTypeSymbol(id, true);
+				}
+
 				if (symbol) {
 					this.setReference(symbol, document);
 				} else {
 					this.linkToClass(document);
 				}
-				break;
 		}
 
 		if (this.baseType) {
@@ -61,7 +66,7 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 		}
 	}
 
-	analyze(document: UCDocumentListener, context: UCStructSymbol) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
 		if (this.getReference()) {
 			if (this.baseType) {
 				this.baseType.analyze(document, context);
@@ -72,7 +77,7 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 		document.nodes.push(new UnrecognizedTypeNode(this));
 	}
 
-	private linkToClass(document: UCDocumentListener) {
+	private linkToClass(document: UCDocument) {
 		const qualifiedClassId = this.getName().toLowerCase();
 		const symbol = SymbolsTable.findQualifiedSymbol(qualifiedClassId, true);
 		if (symbol) {

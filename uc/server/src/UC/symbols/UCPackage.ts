@@ -4,7 +4,7 @@ import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
 import { UCStructSymbol } from "./";
-import { UCDocumentListener, getDocumentById, indexDocument } from '../DocumentListener';
+import { UCDocument, getDocumentById, indexDocument } from '../DocumentListener';
 
 // Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbolContainer<ISymbol> {
@@ -52,22 +52,6 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 	 * @param deepSearch
 	 */
 	public findQualifiedSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol {
-		if (this === SymbolsTable) {
-			for (let packageSymbol of (this.symbols as Map<string, UCPackage>).values()) {
-				const symbol = packageSymbol.findQualifiedSymbol(qualifiedId, deepSearch);
-				if (symbol) {
-					return symbol;
-				}
-			}
-
-			const document = getDocumentById(qualifiedId);
-			if (document) {
-				indexDocument(document);
-				return document.class;
-			}
-			return undefined;
-		}
-
 		if (qualifiedId.indexOf('.') === -1) {
 			return this.symbols.get(qualifiedId);
 		}
@@ -92,7 +76,7 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 	}
 
 	// FIXME: Not setup yet!
-	getCompletionSymbols(_document: UCDocumentListener): ISymbol[] {
+	getCompletionSymbols(_document: UCDocument): ISymbol[] {
 		const symbols: ISymbol[] = [];
 		for (let symbol of this.symbols.values()) {
 			symbols.push(symbol);
@@ -101,4 +85,24 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 	}
 }
 
-export const SymbolsTable = new UCPackage('Workspace');
+class UCWorkspace extends UCPackage {
+	public findQualifiedSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol {
+		for (let packageSymbol of (this.symbols as Map<string, UCPackage>).values()) {
+			const symbol = packageSymbol.findQualifiedSymbol(qualifiedId, deepSearch);
+			if (symbol) {
+				return symbol;
+			}
+		}
+
+		const document = getDocumentById(qualifiedId);
+		if (document) {
+			if (!document.class) {
+				indexDocument(document);
+			}
+			return document.class;
+		}
+		return this.symbols.get(qualifiedId);
+	}
+}
+
+export const SymbolsTable = new UCWorkspace('Workspace');
