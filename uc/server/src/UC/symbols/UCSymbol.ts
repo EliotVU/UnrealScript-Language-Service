@@ -28,7 +28,7 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getTooltip(): string | undefined {
-		return this.getName();
+		return this.getQualifiedName();
 	}
 
 	getDocumentation(tokenStream: CommonTokenStream): string | undefined {
@@ -108,11 +108,7 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.intersectsWithName(position)) {
-			const symbol = this.getSubSymbolAtPos(position);
-			return symbol || this;
-		}
-		return undefined;
+		return this.intersectsWithName(position) && this.getSubSymbolAtPos(position) || this;
 	}
 
 	protected getSubSymbolAtPos(_position: Position): UCSymbol | undefined {

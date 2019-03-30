@@ -21,7 +21,7 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 		if (this.baseType) {
 			return this.getQualifiedName() + `<${this.baseType.getTooltip()}>`;
 		}
-		return this.getQualifiedName();
+		return super.getTooltip();
 	}
 
 	getTypeText(): string {
