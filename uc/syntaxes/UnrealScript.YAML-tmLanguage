@@ -35,10 +35,9 @@ repository:
         begin: "'"
         end: "'"
       - name: string.quoted.double.uc
-        begin: '"'
-        end: '"'
+        match: \"(\\.|[^\"])*\"
       - name: constant.language.boolean.uc
-        match: (?i)(true|false)
+        match: \b((?i)true|false)\b
       - name: constant.numeric.hex.uc
         match: 0(x|X)[0-9a-fA-F]+
       - name: constant.numeric.decimal.uc
@@ -134,7 +133,7 @@ repository:
             name: entity.name.variable.field.uc
 
         # Function's id
-      - match: (([_[:alpha:]][_[:alnum:]]*)|([\!\&\$\@\%\#\<\>\=\-\+\*\/\^\~\|]+))\s*\(
+      - match: (([_[:alpha:]][_[:alnum:]]*)|([\!\&\$\@\%\#&lt;\>\=\-\+\*\/\^\~\|]+))\s*\(
         captures:
           '2':
             name: entity.name.function.uc
@@ -232,7 +231,7 @@ repository:
         name: keyword.other.constant.uc
     patterns:
       - include: '#comment'
-      - begin: "\\s+([_[:alpha:]][_[:alnum:]]*)\\s*(\\=)\\s*"
+      - begin: \s+([_[:alpha:]][_[:alnum:]]*)\s*(\=)\s*
         beginCaptures:
           '1':
             name: entity.name.constant.uc
@@ -473,9 +472,9 @@ repository:
     patterns:
       - include: '#comment'
       - name: keyword.control.conditional.uc
-        match: "\\b((?i)if|switch|case|while|foreach|for|do|until|else)\\b"
+        match: \b((?i)if|switch|case|(default\s*\:)|while|foreach|for|do|until|else)\b
       - name: keyword.control.flow.uc
-        match: "\\b((?i)return|continue|break|stop|goto|super)\\b"
+        match: \b((?i)return|continue|break|stop|goto|super)\b
       - include: '#expression'
   expression:
     patterns:
@@ -518,7 +517,7 @@ repository:
       - name: support.variable.dom.uc
         match: '[_[:alpha:]][_[:alnum:]]*'
       - name: keyword.operator.other.uc
-        match: ([\>\<\#\@\&\$\^\%\?\:\=\~\+\-\*\/\!\|]+)
+        match: ([\>&lt;\#\@\&\$\^\%\?\:\=\~\+\-\*\/\!\|]+)
       - begin: \(
         beginCaptures:
           '0':
