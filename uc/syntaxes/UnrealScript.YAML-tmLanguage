@@ -61,7 +61,7 @@ repository:
       - include: '#var-declaration'
   type-modifier:
     name: storage.modifier.uc
-    match: \b((?i)public|protected|protectedwrite|private|privatewrite|localized|native|intrinsic|const|editconst|config|globalconfig|transient|travel|input|export|noexport|cache|automated|edithide|editinline|editinlinenotify|editconstarray|edfindable|init|editfixedsize|editoronly|editortextbox|noclear|noimport|serializetext|nontransactional|instanced|databinding|duplicatetransient|repretry|repnotify|interp|deprecated|notforconsole|archetype|crosslevelactive|crosslevelpassive)\b
+    match: \b((?i)public|protected|protectedwrite|private|privatewrite|localized|native|intrinsic|const|editconst|config|globalconfig|transient|travel|input|export|noexport|cache|automated|edithide|editinline|editinlinenotify|editinlineuse|editconstarray|edfindable|init|editfixedsize|editoronly|editortextbox|noclear|noimport|serializetext|nontransactional|instanced|databinding|duplicatetransient|repretry|repnotify|interp|deprecated|notforconsole|archetype|crosslevelactive|crosslevelpassive)\b
   type-declaration:
     patterns:
       - include: '#comment'
@@ -133,7 +133,7 @@ repository:
             name: entity.name.variable.field.uc
 
         # Function's id
-      - match: (([_[:alpha:]][_[:alnum:]]*)|([\!\&\$\@\%\#&lt;\>\=\-\+\*\/\^\~\|]+))\s*\(
+      - match: (([_[:alpha:]][_[:alnum:]]*)|([\!\&\$\@\%\#\<\>\=\-\+\*\/\^\~\|]+))\s*\(
         captures:
           '2':
             name: entity.name.function.uc
@@ -517,7 +517,7 @@ repository:
       - name: support.variable.dom.uc
         match: '[_[:alpha:]][_[:alnum:]]*'
       - name: keyword.operator.other.uc
-        match: ([\>&lt;\#\@\&\$\^\%\?\:\=\~\+\-\*\/\!\|]+)
+        match: ([\>\<\#\@\&\$\^\%\?\:\=\~\+\-\*\/\!\|]+)
       - begin: \(
         beginCaptures:
           '0':

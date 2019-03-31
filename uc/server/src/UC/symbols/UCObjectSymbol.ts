@@ -1,13 +1,13 @@
 import { SymbolKind, Position } from 'vscode-languageserver-types';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
-import { UCSymbol, UCReferenceSymbol, UCStructSymbol, UCPropertySymbol } from '.';
+import { UCSymbol, UCSymbolReference, UCStructSymbol, UCPropertySymbol } from '.';
 import { UCDocument } from '../DocumentListener';
 
 /**
  * Can represent either a subobject aka archetype, or an instance of a defaultproperties declaration.
  */
 export class UCObjectSymbol extends UCStructSymbol {
-	public varRefs = new Map<string, UCReferenceSymbol>();
+	public varRefs = new Map<string, UCSymbolReference>();
 
 	getKind(): SymbolKind {
 		return SymbolKind.Module;
@@ -18,7 +18,7 @@ export class UCObjectSymbol extends UCStructSymbol {
 		return this.getName();
 	}
 
-	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (!this.varRefs) {
 			return undefined;
 		}
@@ -32,7 +32,7 @@ export class UCObjectSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
-	link(document: UCDocument, context: UCStructSymbol) {
+	index(document: UCDocument, context: UCStructSymbol) {
 		if (!this.varRefs) {
 			return;
 		}

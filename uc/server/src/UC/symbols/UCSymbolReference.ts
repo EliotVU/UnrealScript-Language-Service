@@ -3,11 +3,12 @@ import { Location, Range, Position } from 'vscode-languageserver-types';
 import { ISymbol, ISymbolReference, ISymbolContext } from './ISymbol';
 import { UCSymbol } from '.';
 import { UCDocument } from '../DocumentListener';
+import { intersectsWith } from '../helpers';
 
 /**
  * For general symbol references, like a function's return type which cannot yet be identified.
  */
-export class UCReferenceSymbol extends UCSymbol {
+export class UCSymbolReference extends UCSymbol {
 	protected reference?: ISymbol;
 
 	constructor(private refName: string, refNameRange: Range) {
@@ -34,11 +35,11 @@ export class UCReferenceSymbol extends UCSymbol {
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (!this.intersectsWith(position)) {
+		if (!intersectsWith(this.getSpanRange(), position)) {
 			return undefined;
 		}
 
-		const symbol = this.getSubSymbolAtPos(position);
+		const symbol = this.getContainedSymbolAtPos(position);
 		if (symbol) {
 			return symbol;
 		}

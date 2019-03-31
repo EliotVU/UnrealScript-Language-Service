@@ -1,12 +1,13 @@
 import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
-import { UCSymbol, UCReferenceSymbol, UCStructSymbol, UCPropertySymbol, UCTypeSymbol, UCMethodSymbol } from './';
+import { UCSymbol, UCSymbolReference, UCStructSymbol, UCPropertySymbol, UCTypeSymbol, UCMethodSymbol } from './';
 import { UCDocument } from '../DocumentListener';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
+import { intersectsWith } from '../helpers';
 
 export class UCClassSymbol extends UCStructSymbol {
 	public withinType?: UCTypeSymbol;
-	public repFieldRefs?: UCReferenceSymbol[];
+	public repFieldRefs?: UCSymbolReference[];
 
 	public dependsOnTypes?: UCTypeSymbol[];
 	public implementsTypes?: UCTypeSymbol[];
@@ -24,11 +25,11 @@ export class UCClassSymbol extends UCStructSymbol {
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.intersectsWith(position)) {
+		if (intersectsWith(this.getSpanRange(), position)) {
 			if (this.intersectsWithName(position)) {
 				return this;
 			}
-			return this.getSubSymbolAtPos(position);
+			return this.getContainedSymbolAtPos(position);
 		}
 		// TODO: Optimize
 		if (this.repFieldRefs) {
@@ -42,7 +43,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		return this.getChildSymbolAtPos(position);
 	}
 
-	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.extendsType && this.extendsType.getSymbolAtPos(position)) {
 			return this.extendsType;
 		}
@@ -73,10 +74,10 @@ export class UCClassSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
-	getContextSymbolAtPos(position: Position): UCSymbol | undefined {
+	getCompletionContext(position: Position): UCSymbol | undefined {
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
 			if (symbol instanceof UCStructSymbol) {
-				const subSymbol = symbol.getContextSymbolAtPos(position);
+				const subSymbol = symbol.getCompletionContext(position);
 				if (subSymbol) {
 					return subSymbol;
 				}
@@ -90,9 +91,9 @@ export class UCClassSymbol extends UCStructSymbol {
 		return this;
 	}
 
-	link(document: UCDocument, context: UCClassSymbol) {
+	index(document: UCDocument, context: UCClassSymbol) {
 		if (this.withinType) {
-			this.withinType.link(document, context);
+			this.withinType.index(document, context);
 
 			// Overwrite extendsRef super, we inherit from the within class instead.
 			this.super = this.withinType.getReference() as UCClassSymbol;
@@ -100,17 +101,17 @@ export class UCClassSymbol extends UCStructSymbol {
 
 		if (this.dependsOnTypes) {
 			for (let depType of this.dependsOnTypes) {
-				depType.link(document, context);
+				depType.index(document, context);
 			}
 		}
 
 		if (this.implementsTypes) {
 			for (let depType of this.implementsTypes) {
-				depType.link(document, context);
+				depType.index(document, context);
 			}
 		}
 
-		super.link(document, context);
+		super.index(document, context);
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
@@ -175,12 +176,12 @@ export class UCDocumentClassSymbol extends UCClassSymbol {
 		return this.document.uri;
 	}
 
-	link(document: UCDocument, context: UCClassSymbol = document.class) {
+	index(document: UCDocument, context: UCClassSymbol = document.class) {
 		if (this.document) {
 			return;
 		}
 
 		this.document = document;
-		super.link(document, context);
+		super.index(document, context);
 	}
 }

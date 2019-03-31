@@ -22,17 +22,17 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return `${this.getTypeTooltip()} ${this.type!.getTypeText()} ${this.getQualifiedName()}`;
 	}
 
-	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.type) {
 			return this.type.getSymbolAtPos(position);
 		}
 		return undefined;
 	}
 
-	public link(document: UCDocument, context: UCStructSymbol) {
-		super.link(document, context);
+	public index(document: UCDocument, context: UCStructSymbol) {
+		super.index(document, context);
 		if (this.type) {
-			this.type.link(document, context);
+			this.type.index(document, context);
 		}
 	}
 

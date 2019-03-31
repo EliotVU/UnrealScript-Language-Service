@@ -18,4 +18,8 @@ export class UCParamSymbol extends UCPropertySymbol {
 	getTypeTooltip(): string {
 		return '(parameter)';
 	}
+
+	getTooltip(): string {
+		return `${this.getTypeTooltip()} ${this.type!.getTypeText()} ${this.getName()}`;
+	}
 }

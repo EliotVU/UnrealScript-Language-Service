@@ -18,4 +18,8 @@ export class UCLocalSymbol extends UCPropertySymbol {
 	getTypeTooltip(): string {
 		return 'local';
 	}
+
+	getTooltip(): string {
+		return `${this.getTypeTooltip()} ${this.type!.getTypeText()} ${this.getName()}`;
+	}
 }

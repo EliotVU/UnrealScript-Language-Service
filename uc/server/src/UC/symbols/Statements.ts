@@ -3,19 +3,20 @@ import { Position } from 'vscode-languageserver';
 import { UCDocument } from '../DocumentListener';
 import { UCSymbol, UCStructSymbol } from '.';
 import { UCExpression } from './Expressions';
+import { intersectsWith } from '../helpers';
 
 export class UCScriptBlock extends UCSymbol {
 	public statements: UCStatement[] = [];
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (!this.intersectsWith(position)) {
+		if (!intersectsWith(this.getSpanRange(), position)) {
 			return undefined;
 		}
-		const symbol = this.getSubSymbolAtPos(position);
+		const symbol = this.getContainedSymbolAtPos(position);
 		return symbol;
 	}
 
-	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
 		for (let sm of this.statements) {
 			const symbol = sm.getSymbolAtPos(position);
 			if (symbol) {
@@ -24,9 +25,9 @@ export class UCScriptBlock extends UCSymbol {
 		}
 	}
 
-	link(document: UCDocument, context: UCStructSymbol) {
+	index(document: UCDocument, context: UCStructSymbol) {
 		for (let sm of this.statements) {
-			sm.link(document, context);
+			sm.index(document, context);
 		}
 	}
 
@@ -39,10 +40,10 @@ export class UCScriptBlock extends UCSymbol {
 
 export abstract class UCStatement extends UCSymbol {
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (!this.intersectsWith(position)) {
+		if (!intersectsWith(this.getSpanRange(), position)) {
 			return undefined;
 		}
-		const symbol = this.getSubSymbolAtPos(position);
+		const symbol = this.getContainedSymbolAtPos(position);
 		return symbol;
 	}
 }
@@ -50,7 +51,7 @@ export abstract class UCStatement extends UCSymbol {
 export class UCExpressionStatement extends UCStatement {
 	public expression?: UCExpression;
 
-	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.expression) {
 			const symbol = this.expression.getSymbolAtPos(position);
 			if (symbol) {
@@ -59,9 +60,9 @@ export class UCExpressionStatement extends UCStatement {
 		}
 	}
 
-	link(document: UCDocument, context: UCStructSymbol) {
+	index(document: UCDocument, context: UCStructSymbol) {
 		if (this.expression) {
-			this.expression.link(document, context);
+			this.expression.index(document, context);
 		}
 	}
 
@@ -75,8 +76,8 @@ export class UCExpressionStatement extends UCStatement {
 export class UCBlockStatement extends UCExpressionStatement {
 	public scriptBlock: UCScriptBlock;
 
-	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
-		const symbol = super.getSubSymbolAtPos(position);
+	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+		const symbol = super.getContainedSymbolAtPos(position);
 		if (symbol) {
 			return symbol;
 		}
@@ -86,10 +87,10 @@ export class UCBlockStatement extends UCExpressionStatement {
 		}
 	}
 
-	link(document: UCDocument, context: UCStructSymbol) {
-		super.link(document, context);
+	index(document: UCDocument, context: UCStructSymbol) {
+		super.index(document, context);
 		if (this.scriptBlock) {
-			this.scriptBlock.link(document, context);
+			this.scriptBlock.index(document, context);
 		}
 	}
 
@@ -104,8 +105,8 @@ export class UCBlockStatement extends UCExpressionStatement {
 export class UCIfStatement extends UCBlockStatement {
 	public elseStatement?: UCElseStatement;
 
-	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
-		const symbol = super.getSubSymbolAtPos(position);
+	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+		const symbol = super.getContainedSymbolAtPos(position);
 		if (symbol) {
 			return symbol;
 		}
@@ -115,10 +116,10 @@ export class UCIfStatement extends UCBlockStatement {
 		}
 	}
 
-	link(document: UCDocument, context: UCStructSymbol) {
-		super.link(document, context);
+	index(document: UCDocument, context: UCStructSymbol) {
+		super.index(document, context);
 		if (this.elseStatement) {
-			this.elseStatement.link(document, context);
+			this.elseStatement.index(document, context);
 		}
 	}
 
@@ -155,8 +156,8 @@ export class UCForStatement extends UCBlockStatement {
 	public initExpression?: UCExpression;
 	public nextExpression?: UCExpression;
 
-	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
-		const symbol = super.getSubSymbolAtPos(position);
+	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+		const symbol = super.getContainedSymbolAtPos(position);
 		if (symbol) {
 			return symbol;
 		}
@@ -176,15 +177,15 @@ export class UCForStatement extends UCBlockStatement {
 		}
 	}
 
-	link(document: UCDocument, context: UCStructSymbol) {
-		super.link(document, context);
-		if (this.initExpression) this.initExpression.link(document, context);
-		if (this.nextExpression) this.nextExpression.link(document, context);
+	index(document: UCDocument, context: UCStructSymbol) {
+		super.index(document, context);
+		if (this.initExpression) this.initExpression.index(document, context);
+		if (this.nextExpression) this.nextExpression.index(document, context);
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
-		if (this.initExpression) this.initExpression.link(document, context);
+		if (this.initExpression) this.initExpression.index(document, context);
 		if (this.nextExpression) this.nextExpression.analyze(document, context);
 	}
 }

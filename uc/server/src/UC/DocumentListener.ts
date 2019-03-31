@@ -19,13 +19,13 @@ import { rangeFromBounds, rangeFromBound } from './helpers';
 import { ISymbol } from './symbols/ISymbol';
 import { ISymbolContainer } from './symbols/ISymbolContainer';
 import {
-	UCClassSymbol, UCConstSymbol, UCDefaultPropertiesSymbol,
+	UCClassSymbol, UCConstSymbol, UCDefaultPropertiesBlock,
 	UCEnumMemberSymbol, UCEnumSymbol, UCMethodSymbol,
 	UCLocalSymbol, UCObjectSymbol, UCPackage, SymbolsTable, UCParamSymbol,
 	UCPropertySymbol, UCScriptStructSymbol, UCStateSymbol,
-	UCStructSymbol, UCSymbol, UCReferenceSymbol,
+	UCStructSymbol, UCSymbol, UCSymbolReference,
 	UCTypeSymbol,
-	UCDocumentClassSymbol
+	UCDocumentClassSymbol, UCReplicationBlock
 } from './symbols';
 import { UCTypeKind } from './symbols/UCTypeKind';
 import { UCScriptBlock } from './symbols/Statements';
@@ -95,6 +95,14 @@ export function indexDocument(document: UCDocument) {
 	try {
 		document.invalidate();
 		document.parse();
+
+		// send diagnostics before linking begins so that we can report syntax errors foremostly.
+		const diagnostics = document.getNodes();
+		connection.sendDiagnostics({
+			uri: document.uri,
+			diagnostics
+		});
+
 		document.link();
 	} catch (err) {
 		console.error(err);
@@ -141,24 +149,25 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		context.addSymbol(symbol);
 	}
 
-	parse(text: string = this.readText()) {
-		const start = performance.now();
-		connection.console.log('parsing' + this.name);
+	parse(text?: string) {
+		const startParsing = performance.now();
+		connection.console.log('parsing document ' + this.name);
 
-		const lexer = new UCGrammarLexer(new CaseInsensitiveStream(text));
+		const lexer = new UCGrammarLexer(new CaseInsensitiveStream(text || this.readText()));
 		const stream = this.tokenStream = new CommonTokenStream(lexer);
 		const parser = new UCParser.UCGrammarParser(stream);
 		parser.addErrorListener(this);
 
+		connection.console.log(this.name + ': parsing time ' + (performance.now() - startParsing));
+
+		const startWalking = performance.now();
 		try {
 			const programCtx = parser.program();
 			ParseTreeWalker.DEFAULT.walk(this, programCtx);
 		} catch (err) {
 			console.error('Error walking document', this.uri, err);
 		}
-
-		const diff = performance.now() - start;
-		connection.console.log(this.name + ': parsing time ' + diff);
+		connection.console.log(this.name + ': Walking time ' + (performance.now() - startWalking));
 	}
 
 	readText(): string {
@@ -168,14 +177,9 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	link() {
-		connection.console.log('linking' + this.name);
 		const start = performance.now();
-
-		console.assert(this.class, "Document hasn't been parsed yet!");
-		this.class!.link(this, this.class);
-
-		const diff = performance.now() - start;
-		connection.console.log(this.name + ': linking time ' + diff);
+		this.class!.index(this, this.class);
+		connection.console.log(this.name + ': linking time ' + (performance.now() - start));
 	}
 
 	invalidate() {
@@ -183,10 +187,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.nodes = []; // clear
 	}
 
-	analyze(): Diagnostic[] {
-		console.assert(this.class, "Document hasn't been parsed yet!");
-		this.class!.analyze(this, this.class);
-
+	getNodes() {
 		return this.nodes
 			.map(node => {
 				return Diagnostic.create(
@@ -197,6 +198,13 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 					'unrealscript'
 				);
 			});
+	}
+
+	analyze(): Diagnostic[] {
+		const start = performance.now();
+		this.class!.analyze(this, this.class);
+		connection.console.log(this.name + ': analyzing time ' + (performance.now() - start));
+		return this.getNodes();
 	}
 
 	syntaxError(_recognizer: Recognizer<Token, any>,
@@ -430,7 +438,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	enterReplicationBlock(ctx: UCParser.ReplicationBlockContext) {
 		const nameCtx = ctx.kwREPLICATION();
-		const symbol = new UCStructSymbol(nameCtx.text, rangeFromBound(nameCtx.start), rangeFromBounds(ctx.start, ctx.stop));
+		const symbol = new UCReplicationBlock(nameCtx.text, rangeFromBound(nameCtx.start), rangeFromBounds(ctx.start, ctx.stop));
 		symbol.context = ctx;
 
 		this.class.repFieldRefs = [];
@@ -438,6 +446,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 		const statements = ctx.replicationStatement();
 		if (statements) {
+			// TODO:
 			// const scriptBlock = new UCScriptBlock(
 			// 	{ name: '', range: rangeFromBounds(ctx.start, ctx.stop) }
 			// );
@@ -453,7 +462,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	enterReplicationStatement(ctx: UCParser.ReplicationStatementContext) {
 		for (const varCtx of ctx.replicateId()) {
-			const refSymbol = new UCReferenceSymbol(varCtx.text, rangeFromBound(varCtx.start));
+			const refSymbol = new UCSymbolReference(varCtx.text, rangeFromBound(varCtx.start));
 			refSymbol.outer = this.class;
 
 			this.class.repFieldRefs.push(refSymbol);
@@ -482,6 +491,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 		const params = ctx.parameters();
 		if (params) {
+			funcSymbol.params = [];
 			for (const paramCtx of params.paramDecl()) {
 				if (!paramCtx) {
 					break;
@@ -570,7 +580,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	enterDefaultpropertiesBlock(ctx: UCParser.DefaultpropertiesBlockContext) {
 		const nameCtx = ctx.kwDEFAULTPROPERTIES();
-		const symbol = new UCDefaultPropertiesSymbol(
+		const symbol = new UCDefaultPropertiesBlock(
 			nameCtx.text, rangeFromBound(nameCtx.start),
 			rangeFromBounds(ctx.start, ctx.stop)
 		);
@@ -593,7 +603,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	enterDefaultVariable(ctx: UCParser.DefaultVariableContext) {
 		const idCtx = ctx.defaultId();
-		const refSymbol = new UCReferenceSymbol(idCtx.text, rangeFromBound(ctx.start));
+		const refSymbol = new UCSymbolReference(idCtx.text, rangeFromBound(ctx.start));
 
 		const context = this.get() as UCObjectSymbol;
 		refSymbol.outer = context;

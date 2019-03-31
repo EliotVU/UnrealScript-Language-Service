@@ -91,6 +91,7 @@ kwEDITCONST: 'editconst';
 kwEDFINDABLE: 'edfindable';
 kwEDITINLINE: 'editinline';
 kwEDITINLINENOTIFY: 'editinlinenotify';
+kwEDITINLINEUSE: 'editinlineuse';
 kwEDITHIDE: 'edithide';
 kwEDITCONSTARRAY: 'editconstarray';
 kwEDITFIXEDSIZE: 'editfixedsize';
@@ -254,6 +255,7 @@ identifier
 	|'edfindable'
 	|'editinline'
 	|'editinlinenotify'
+	|'editinlineuse'
 	|'edithide'
 	|'editconstarray'
 	|'editfixedsize'
@@ -552,6 +554,7 @@ variableModifier
 		| kwAUTOMATED
 		| kwEDITINLINE
 		| kwEDITINLINENOTIFY
+		| kwEDITINLINEUSE
 		| kwEDITCONSTARRAY
 		| kwEDFINDABLE
 		// UC3
@@ -791,13 +794,13 @@ controlStatement
 	| stopStatement // in states
 	;
 
-assignmentExpression: primaryExpression ASSIGNMENT expression;
+assignmentExpression: primaryExpression (MINUS|PLUS|DIV|CARET|STAR|AMP|AT|DOLLAR|BITWISE_OR)? ASSIGNMENT expression;
 
 expression
-	: expression INTERR expression COLON expression
-	| expression functionName expression
-	| primaryExpression
-	| unaryExpression
+	: expression INTERR expression COLON expression #ternaryOperator
+	| expression functionName expression #binaryOperator
+	| primaryExpression #primaryOperator
+	| unaryExpression #unaryOperator
 	;
 
 unaryExpression

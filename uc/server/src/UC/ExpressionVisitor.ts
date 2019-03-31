@@ -1,9 +1,9 @@
 import { ParserRuleContext } from 'antlr4ts';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { ExpressionContext, PrimaryExpressionContext, UnaryExpressionContext, OperatorIdContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ArgumentContext } from '../antlr/UCGrammarParser';
+import { PrimaryExpressionContext, UnaryExpressionContext, OperatorIdContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ArgumentContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext } from '../antlr/UCGrammarParser';
 
-import { UCReferenceSymbol } from './symbols';
-import { UCExpression, UCMemberExpression, UCUnaryExpression, UCPrimaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression } from './symbols/Expressions';
+import { UCSymbolReference } from './symbols';
+import { UCExpression, UCMemberExpression, UCUnaryExpression, UCPrimaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression, UCTernaryExpression } from './symbols/Expressions';
 import { rangeFromBounds } from './helpers';
 
 export class UCExpressionVisitor implements UCGrammarVisitor<UCExpression> {
@@ -36,63 +36,78 @@ export class UCExpressionVisitor implements UCGrammarVisitor<UCExpression> {
 		return undefined;
 	}
 
-	visitExpression(ctx: ExpressionContext): UCExpression {
-		const primaryExpression = ctx.primaryExpression();
-		if (primaryExpression) {
-			return primaryExpression.accept(this);
-		}
-
-		const unaryExpression = ctx.unaryExpression();
-		if (unaryExpression) {
-			return unaryExpression.accept(this);
-		}
-
-		const functionName = ctx.functionName();
-		if (functionName) {
-			return this.visitBinaryExpression(ctx);
-		}
-		return undefined;
+	visitExpression(ctx: BinaryOperatorContext | UnaryOperatorContext | TernaryOperatorContext): UCExpression {
+		return ctx.accept(this);
 	}
 
-	visitBinaryExpression(ctx: ExpressionContext) {
-		const exprSymbol = new UCBinaryExpression(rangeFromBounds(ctx.start, ctx.stop));
+	visitTernaryOperator(ctx: TernaryOperatorContext) {
+		const exprSymbol = new UCTernaryExpression();
+		exprSymbol.context = ctx;
+
+		const condition = ctx.expression(0);
+		if (condition) {
+			exprSymbol.condition = condition.accept<UCExpression>(this);
+			exprSymbol.condition.outer = exprSymbol;
+		}
+
+		const leftExpression = ctx.expression(1);
+		if (leftExpression) {
+			exprSymbol.left = leftExpression.accept<UCExpression>(this);
+			exprSymbol.left.outer = exprSymbol;
+		}
+
+		const rightExpression = ctx.expression(2);
+		if (rightExpression) {
+			exprSymbol.right = rightExpression.accept<UCExpression>(this);
+			exprSymbol.right.outer = exprSymbol;
+		}
+
+		return exprSymbol;
+	}
+
+	visitBinaryOperator(ctx: BinaryOperatorContext) {
+		const exprSymbol = new UCBinaryExpression();
 		exprSymbol.context = ctx;
 
 		const leftExpression = ctx.expression(0);
 		if (leftExpression) {
-			exprSymbol.leftExpression = leftExpression.accept(this);
-			exprSymbol.leftExpression.outer = exprSymbol;
+			exprSymbol.left = leftExpression.accept<UCExpression>(this);
+			exprSymbol.left.outer = exprSymbol;
 		}
 
 		const rightExpression = ctx.expression(1);
 		if (rightExpression) {
-			exprSymbol.expression = rightExpression.accept(this);
-			exprSymbol.expression.outer = exprSymbol;
+			exprSymbol.right = rightExpression.accept<UCExpression>(this);
+			exprSymbol.right.outer = exprSymbol;
 		}
 
 		return exprSymbol;
 	}
 
 	visitAssignmentExpression(ctx: AssignmentExpressionContext): UCAssignmentExpression {
-		const exprSymbol = new UCAssignmentExpression(rangeFromBounds(ctx.start, ctx.stop));
+		const exprSymbol = new UCAssignmentExpression();
 		exprSymbol.context = ctx;
 
 		const primaryExpression = ctx.primaryExpression();
 		if (primaryExpression) {
-			exprSymbol.leftExpression = primaryExpression.accept(this);
-			exprSymbol.leftExpression.outer = exprSymbol;
+			exprSymbol.left = primaryExpression.accept(this);
+			exprSymbol.left.outer = exprSymbol;
 		}
 
 		const expression = ctx.expression();
 		if (expression) {
-			exprSymbol.expression = expression.accept(this);
-			exprSymbol.expression.outer = exprSymbol;
+			exprSymbol.right = expression.accept(this);
+			exprSymbol.right.outer = exprSymbol;
 		}
 		return exprSymbol;
 	}
 
-	visitUnaryExpression(ctx: UnaryExpressionContext): UCExpression {
-		const exprSymbol = new UCUnaryExpression(rangeFromBounds(ctx.start, ctx.stop));
+	visitUnaryOperator(ctx: UnaryOperatorContext): UCUnaryExpression {
+		return ctx.unaryExpression().accept(this);
+	}
+
+	visitUnaryExpression(ctx: UnaryExpressionContext): UCUnaryExpression {
+		const exprSymbol = new UCUnaryExpression();
 		exprSymbol.context = ctx;
 		exprSymbol.expression = ctx.primaryExpression().accept(this);
 		exprSymbol.expression.outer = exprSymbol;
@@ -101,65 +116,68 @@ export class UCExpressionVisitor implements UCGrammarVisitor<UCExpression> {
 		return exprSymbol;
 	}
 
-	visitArguments(ctx: ArgumentsContext): UCExpression {
-		const exprArgument = ctx.argument();
-		if (!exprArgument) {
-			return undefined;
-		}
-
-		const exprArguments: UCExpression[] = [];
-		for (let arg of exprArgument) {
-			exprArguments.push(arg.accept(this));
-		}
-		return exprArguments as any as UCExpression;
+	visitPrimaryOperator(ctx: PrimaryOperatorContext): UCPrimaryExpression {
+		return ctx.primaryExpression().accept(this);
 	}
 
-	visitArgument(ctx: ArgumentContext): UCExpression {
-		return ctx.expression().accept(this);
-	}
-
-	visitPrimaryExpression(ctx: PrimaryExpressionContext): UCExpression {
+	visitPrimaryExpression(ctx: PrimaryExpressionContext): UCPrimaryExpression {
 		if (ctx.DOT()) {
-			const exprSymbol = new UCContextExpression(rangeFromBounds(ctx.start, ctx.stop));
+			const exprSymbol = new UCContextExpression();
 			exprSymbol.context = ctx;
 
 			const primaryExpression = ctx.primaryExpression();
 			if (primaryExpression) {
-				exprSymbol.expression = primaryExpression.accept(this);
-				exprSymbol.expression.outer = exprSymbol;
+				exprSymbol.left = primaryExpression.accept<UCExpression>(this);
+				exprSymbol.left.outer = exprSymbol;
 			}
 
 			const id = (ctx.identifier() || ctx.classLiteralSpecifier()) as ParserRuleContext;
 			if (id) {
-				exprSymbol.symbolExpression = id.accept(this);
-				exprSymbol.symbolExpression.outer = exprSymbol;
+				exprSymbol.member = id.accept(this);
+				exprSymbol.member.outer = exprSymbol;
 			}
 			return exprSymbol;
 		}
 
-		const exprSymbol = new UCPrimaryExpression(rangeFromBounds(ctx.start, ctx.stop));
-		exprSymbol.context = ctx;
+		// Handles the following grammar
+		// | castClassLimiter primaryExpression
+		// | primaryExpression OPEN_PARENS arguments CLOSE_PARENS
+		// | primaryExpression OPEN_BRACKET expression CLOSE_BRACKET
+		const primaryExpression = ctx.primaryExpression();
+		if (primaryExpression) {
+			const exprSymbol = primaryExpression.accept(this) as UCPrimaryExpression;
+			exprSymbol['range'] = rangeFromBounds(ctx.start, ctx.stop);
 
-		const exprArguments = ctx.arguments();
-		if (exprArguments) {
-			exprSymbol.arguments = exprArguments.accept(this);
+			const expr = ctx.expression();
+			if (expr) {
+				exprSymbol.withIndex = true;
+				exprSymbol.expression = expr.accept<UCExpression>(this);
+				exprSymbol.expression.outer = exprSymbol;
+			}
+
+			const exprArguments = ctx.arguments();
+			if (exprArguments) {
+				exprSymbol.arguments = exprArguments.accept(this) as UCExpression[];
+				exprSymbol.withArgument = true;
+			}
+
+			if (ctx.castClassLimiter()) {
+				// TODO: unhandled case
+			}
+			return exprSymbol;
 		}
+
+		const exprSymbol = new UCPrimaryExpression();
+		exprSymbol.context = ctx;
 
 		const id = (ctx.identifier()
 			|| ctx.kwDEFAULT() || ctx.kwSELF()
 			|| ctx.kwSUPER() || ctx.kwGLOBAL()
 			|| ctx.kwSTATIC()) as ParserRuleContext;
 		if (id) {
-			exprSymbol.symbolExpression = this.visitIdentifier(id);
-			exprSymbol.symbolExpression.outer = exprSymbol;
+			exprSymbol.member = this.visitIdentifier(id);
+			exprSymbol.member.outer = exprSymbol;
 			return exprSymbol;
-		}
-
-		// e.g. a function call won't have a direct identifier but instead is nested within a primary expression!
-		const primaryExpression = ctx.primaryExpression();
-		if (primaryExpression) {
-			exprSymbol.expression = primaryExpression.accept(this);
-			exprSymbol.expression.outer = exprSymbol;
 		}
 
 		// ( expr )
@@ -175,7 +193,7 @@ export class UCExpressionVisitor implements UCGrammarVisitor<UCExpression> {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const exprSymbol = new UCMemberExpression(range);
 		exprSymbol.context = ctx;
-		exprSymbol.setSymbol(new UCReferenceSymbol(ctx.text, range));
+		exprSymbol.setSymbol(new UCSymbolReference(ctx.text, range));
 		return exprSymbol;
 	}
 
@@ -183,7 +201,7 @@ export class UCExpressionVisitor implements UCGrammarVisitor<UCExpression> {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const exprSymbol = new UCMemberExpression(range);
 		exprSymbol.context = ctx;
-		exprSymbol.setSymbol(new UCReferenceSymbol(ctx.text, range));
+		exprSymbol.setSymbol(new UCSymbolReference(ctx.text, range));
 		return exprSymbol;
 	}
 
@@ -191,7 +209,24 @@ export class UCExpressionVisitor implements UCGrammarVisitor<UCExpression> {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const exprSymbol = new UCMemberExpression(range);
 		exprSymbol.context = ctx;
-		exprSymbol.setSymbol(new UCReferenceSymbol(ctx.text, range));
+		exprSymbol.setSymbol(new UCSymbolReference(ctx.text, range));
 		return exprSymbol;
+	}
+
+	visitArguments(ctx: ArgumentsContext): UCExpression {
+		const exprArgument = ctx.argument();
+		if (!exprArgument) {
+			return undefined;
+		}
+
+		const exprArguments: UCExpression[] = [];
+		for (let arg of exprArgument) {
+			exprArguments.push(arg.accept<UCExpression>(this));
+		}
+		return exprArguments as any as UCExpression;
+	}
+
+	visitArgument(ctx: ArgumentContext): UCExpression {
+		return ctx.expression().accept<UCExpression>(this);
 	}
 }

@@ -1,12 +1,12 @@
 import { Position, Range } from 'vscode-languageserver-types';
 
-import { UCSymbol, UCReferenceSymbol, UCStructSymbol, SymbolsTable, CORE_PACKAGE } from '.';
+import { UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable, CORE_PACKAGE } from '.';
 import { UCTypeKind } from './UCTypeKind';
 
 import { UCDocument } from '../DocumentListener';
 import { UnrecognizedTypeNode } from '../diagnostics/diagnostics';
 
-export class UCTypeSymbol extends UCReferenceSymbol {
+export class UCTypeSymbol extends UCSymbolReference {
 	public baseType?: UCTypeSymbol;
 
 	constructor(typeName: string, typeRange: Range, private spanRange?: Range, private typeKind?: UCTypeKind) {
@@ -31,14 +31,14 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 		return this.getName();
 	}
 
-	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.baseType) {
 			return this.baseType.getSymbolAtPos(position);
 		}
 		return undefined;
 	}
 
-	link(document: UCDocument, context: UCStructSymbol) {
+	index(document: UCDocument, context: UCStructSymbol) {
 		// console.assert(this.outer, 'No outer for type "' + this.getName() + '"');
 
 		switch (this.typeKind) {
@@ -62,7 +62,7 @@ export class UCTypeSymbol extends UCReferenceSymbol {
 		}
 
 		if (this.baseType) {
-			this.baseType.link(document, context);
+			this.baseType.index(document, context);
 		}
 	}
 

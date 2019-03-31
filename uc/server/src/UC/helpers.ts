@@ -14,10 +14,11 @@ import {
 	Position,
 	Range,
 	DocumentHighlight,
-	DocumentHighlightKind
+	DocumentHighlightKind,
+	CompletionContext
 } from 'vscode-languageserver';
 
-import { UCSymbol, UCReferenceSymbol, UCStructSymbol } from './symbols';
+import { UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable } from './symbols';
 import { getDocumentByUri, ClassesMap$ } from "./DocumentListener";
 import { Token } from 'antlr4ts';
 
@@ -47,6 +48,24 @@ export function rangeFromBounds(startToken: Token, stopToken: Token): Range {
 	};
 }
 
+export function intersectsWith(range: Range, position: Position): boolean {
+	if (position.line < range.start.line || position.line > range.end.line) {
+		return false;
+	}
+
+	if (range.start.line === range.end.line) {
+		return position.character >= range.start.character && position.character < range.end.character;
+	}
+
+	if (position.line == range.start.line) {
+		return position.character >= range.start.character;
+	}
+
+	if (position.line == range.end.line) {
+		return position.character <= range.end.character;
+	}
+	return true;
+}
 
 async function buildClassesFilePathsMap(workspace: RemoteWorkspace): Promise<Map<string, string>> {
 	function scanPath(filePath: string, cb: (filePath: string) => void): Promise<boolean> {
@@ -133,7 +152,7 @@ export async function getDefinition(uri: string, position: Position): Promise<De
 	}
 
 	const symbol = document.class.getSymbolAtPos(position);
-	if (!symbol || !(symbol instanceof UCReferenceSymbol)) {
+	if (!symbol || !(symbol instanceof UCSymbolReference)) {
 		return undefined;
 	}
 
@@ -214,22 +233,38 @@ export async function getHighlights(uri: string, position: Position): Promise<Do
 		));
 }
 
-export async function getCompletionItems(uri: string, position: Position): Promise<CompletionItem[]> {
+export async function getCompletionItems(uri: string, position: Position, context: CompletionContext): Promise<CompletionItem[]> {
 	const document = getDocumentByUri(uri);
 	if (!document || !document.class) {
 		return undefined;
 	}
 
-	const context = document.class.getContextSymbolAtPos(position);
+	-- position.character;
+	// Temp workaround for context expressions that haven't yet been parsed as such.
+	if (context.triggerCharacter === '.') {
+		-- position.character;
+	}
+
+	const symbol = document.class.getCompletionContext(position);
 	if (!context) {
 		return undefined;
 	}
 
-	const symbols = context.getCompletionSymbols(document);
-	let contextCompletions = symbols.map(symbol => symbol.toCompletionItem(document));
-
-	// if (!(context instanceof UCScriptStructSymbol)) {
-	// 	contextCompletions = contextCompletions.concat(ClassCompletionItems);
-	// }
+	const symbols = symbol.getCompletionSymbols(document);
+	const contextCompletions = symbols.map(symbol => symbol.toCompletionItem(document));
+	// TODO: Add context sensitive keywords
 	return contextCompletions;
+}
+
+export async function getFullCompletionItem(item: CompletionItem): Promise<CompletionItem> {
+	if (item.data) {
+		const symbol = SymbolsTable.findQualifiedSymbol(item.data, true) as UCSymbol;
+		if (!symbol) {
+			return item;
+		}
+
+		const tokenStream = getDocumentByUri(symbol.getUri()).tokenStream;
+		item.documentation = symbol.getDocumentation(tokenStream);
+	}
+	return item;
 }

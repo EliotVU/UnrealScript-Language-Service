@@ -3,6 +3,7 @@ import { Range, Position, Location } from 'vscode-languageserver-types';
 import { UCSymbol, UCStructSymbol } from './';
 import { UCDocument } from '../DocumentListener';
 import { UCClassSymbol } from './UCClassSymbol';
+import { intersectsWith } from '../helpers';
 
 export class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;
@@ -25,14 +26,14 @@ export class UCFieldSymbol extends UCSymbol {
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (!this.intersectsWith(position)) {
+		if (!intersectsWith(this.getSpanRange(), position)) {
 			return undefined;
 		}
 
 		if (this.intersectsWithName(position)) {
 			return this;
 		}
-		return this.getSubSymbolAtPos(position);
+		return this.getContainedSymbolAtPos(position);
 	}
 
 	isPublic(): boolean {
@@ -48,14 +49,14 @@ export class UCFieldSymbol extends UCSymbol {
 	}
 
 	acceptCompletion(_document: UCDocument, _context: UCSymbol): boolean {
-		// TODO: Does match the language's behavior yet!
+		// TODO: Does not match the language's behavior yet!
 		if (this.isPrivate()) {
 			return this.getOuter<UCClassSymbol>() === _document.class;
 		}
 		return this.isPublic();
 	}
 
-	link(document: UCDocument, _context: UCStructSymbol) {
+	index(document: UCDocument, _context: UCStructSymbol) {
 		this.addReference({
 			location: Location.create(document.uri, this.getNameRange()),
 			symbol: this,

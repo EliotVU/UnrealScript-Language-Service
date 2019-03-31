@@ -28,6 +28,6 @@ export class UCNativeSymbol implements ISymbol {
 	}
 
 	getTooltip(): string {
-		return this.getName();
+		return this.getQualifiedName();
 	}
 }

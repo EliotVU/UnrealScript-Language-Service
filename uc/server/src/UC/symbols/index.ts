@@ -1,5 +1,5 @@
 export { UCSymbol } from "./UCSymbol";
-export { UCReferenceSymbol } from './UCReferenceSymbol';
+export { UCSymbolReference } from './UCSymbolReference';
 export { UCTypeSymbol } from './UCTypeSymbol';
 export { UCPackage, SymbolsTable } from './UCPackage';
 export { UCFieldSymbol } from './UCFieldSymbol';
@@ -16,5 +16,6 @@ export { UCClassSymbol, UCDocumentClassSymbol } from './UCClassSymbol';
 export { UCLocalSymbol } from './UCLocalSymbol';
 export { UCNativeSymbol } from './UCNativeSymbol';
 export { UCStateSymbol } from './UCStateSymbol';
-export { UCDefaultPropertiesSymbol } from './UCDefaultPropertiesSymbol';
+export { UCDefaultPropertiesBlock } from './UCDefaultPropertiesBlock';
+export { UCReplicationBlock } from './UCReplicationBlock';
 export * from './NativeSymbols';

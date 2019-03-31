@@ -3,10 +3,9 @@ import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-
 import { UCDocument } from '../DocumentListener';
 import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
-import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, CORE_PACKAGE, UCMethodSymbol, UCStateSymbol } from "./";
+import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol, UCStateSymbol, UCSymbolReference } from "./";
 import { UCScriptBlock } from './Statements';
-import { UCContextExpression } from './Expressions';
-import { UCReferenceSymbol } from './UCReferenceSymbol';
+import { intersectsWith } from '../helpers';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: UCTypeSymbol;
@@ -46,14 +45,14 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return symbols;
 	}
 
-	getContextSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (!this.intersectsWith(position)) {
+	getCompletionContext(position: Position): UCSymbol | undefined {
+		if (!intersectsWith(this.getSpanRange(), position)) {
 			return undefined;
 		}
 
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
 			if (symbol instanceof UCStructSymbol) {
-				const subSymbol = symbol.getContextSymbolAtPos(position);
+				const subSymbol = symbol.getCompletionContext(position);
 				if (subSymbol) {
 					return subSymbol;
 				}
@@ -67,18 +66,14 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 
 		if (this.scriptBlock) {
 			const symbol = this.scriptBlock.getSymbolAtPos(position);
-			if (symbol && symbol instanceof UCReferenceSymbol) {
-				// Assuming ref's outer is a UCSymbolExpression
-				if (symbol.outer.outer instanceof UCContextExpression) {
-					return symbol.outer.outer.getExpressedContext();
-				}
-				return symbol;
+			if (symbol && symbol instanceof UCSymbolReference) {
+				return symbol.getReference() as UCSymbol;
 			}
 		}
 		return this;
 	}
 
-	getSubSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.extendsType && this.extendsType.getSymbolAtPos(position)) {
 			return this.extendsType;
 		}
@@ -191,9 +186,9 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return symbol;
 	}
 
-	link(document: UCDocument, context: UCStructSymbol) {
+	index(document: UCDocument, context: UCStructSymbol) {
 		if (this.extendsType) {
-			this.extendsType.link(document, context);
+			this.extendsType.index(document, context);
 			// Ensure that we don't overwrite super assignment from our descendant class.
 			if (!this.super) {
 				this.super = this.extendsType.getReference() as UCStructSymbol;
@@ -204,7 +199,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			// Link types before any child so that a child that referes one of our types can be linked properly!
 			if (this.types) {
 				for (let type of this.types.values()) {
-					type.link(document, this);
+					type.index(document, this);
 				}
 			}
 
@@ -213,11 +208,11 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 					continue;
 				}
 
-				child.link(document, this);
+				child.index(document, this);
 			}
 		}
 
-		if (this.scriptBlock) this.scriptBlock.link(document, this);
+		if (this.scriptBlock) this.scriptBlock.index(document, this);
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {

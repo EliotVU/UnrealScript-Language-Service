@@ -3,7 +3,7 @@ import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 import { rangeFromBounds } from './helpers';
 import { ExpressionVisitor } from './DocumentListener';
 
-import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ExpressionContext, AssignmentExpressionContext, ControlStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, SwitchCaseContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext } from '../antlr/UCGrammarParser';
+import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ExpressionContext, AssignmentExpressionContext, ControlStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, SwitchCaseContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, BinaryOperatorContext, UnaryOperatorContext, TernaryOperatorContext } from '../antlr/UCGrammarParser';
 import { UCStatement, UCExpressionStatement, UCIfStatement, UCScriptBlock, UCElseStatement, UCDoStatement, UCWhileStatement, UCSwitchStatement, UCSwitchCase, UCForStatement, UCForEachStatement, UCLabeledStatement } from './symbols/Statements';
 import { UCExpression } from './symbols/Expressions';
 
@@ -42,7 +42,8 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 			return sm.accept(this);
 		}
 
-		const expr = ctx.expression() || ctx.assignmentExpression();
+		const expr = (ctx.expression() as BinaryOperatorContext | UnaryOperatorContext | TernaryOperatorContext)
+			|| ctx.assignmentExpression();
 		if (!expr) {
 			return undefined;
 		}

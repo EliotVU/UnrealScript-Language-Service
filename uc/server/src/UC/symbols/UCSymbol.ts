@@ -108,10 +108,10 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		return this.intersectsWithName(position) && this.getSubSymbolAtPos(position) || this;
+		return this.intersectsWithName(position) && this.getContainedSymbolAtPos(position) || this;
 	}
 
-	protected getSubSymbolAtPos(_position: Position): UCSymbol | undefined {
+	protected getContainedSymbolAtPos(_position: Position): UCSymbol | undefined {
 		return undefined;
 	}
 
@@ -131,7 +131,7 @@ export abstract class UCSymbol implements ISymbol {
 		return true;
 	}
 
-	link(_document: UCDocument, _context: UCStructSymbol = _document.class) {
+	index(_document: UCDocument, _context: UCStructSymbol = _document.class) {
 	}
 
 	analyze(_document: UCDocument, _context: UCStructSymbol) {
@@ -157,14 +157,8 @@ export abstract class UCSymbol implements ISymbol {
 	toCompletionItem(document: UCDocument): CompletionItem {
 		const item = CompletionItem.create(this.getName());
 		item.detail = this.getTooltip();
-		if (document.tokenStream) {
-			try {
-				item.documentation = this.getDocumentation(document.tokenStream);
-			} catch (err) {
-				// do nothing
-			}
-		}
 		item.kind = this.getCompletionItemKind();
+		item.data = this.getQualifiedName();
 		return item;
 	}
 
