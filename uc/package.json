@@ -3,6 +3,7 @@
 	"displayName": "UnrealScriptLang",
 	"description": "UnrealScript Language support",
 	"publisher": "Eliot van Uytfanghe",
+	"homepage": "http://EliotVU.com",
 	"version": "0.0.1",
 	"engines": {
 		"vscode": "^1.29.0"
@@ -20,7 +21,7 @@
 	"contributes": {
 		"configuration": {
 			"type": "object",
-			"title": "UnrealScript Setup",
+			"title": "UnrealScript LSP",
 			"properties": {
 				"ucLanguageServer.trace.server": {
 					"scope": "window",
@@ -72,15 +73,15 @@
 		"compile:grammar": "antlr4ts -visitor grammars/UCGrammar.g4 -o server/src/antlr"
 	},
 	"devDependencies": {
-		"@types/mocha": "^5.2.0",
-		"@types/node": "^8.0.0",
-		"antlr4ts-cli": "^0.5.0-alpha.1",
+		"@types/mocha": "^5.2.6",
+		"@types/node": "^8.10.45",
+		"antlr4ts-cli": "^0.5.0-alpha.3",
 		"gulp": "^4.0.0",
-		"tslint": "^5.12.1",
-		"js-yaml": "^3.12.2",
-		"typescript": "^3.2.4"
+		"js-yaml": "^3.13.0",
+		"tslint": "^5.14.0",
+		"typescript": "^3.4.1"
 	},
 	"dependencies": {
-		"antlr4ts": "^0.5.0-alpha.1"
+		"antlr4ts": "^0.5.0-alpha.3"
 	}
 }
