@@ -4,10 +4,10 @@ import { rangeFromBounds } from './helpers';
 import { ExpressionVisitor } from './DocumentListener';
 
 import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ExpressionContext, AssignmentExpressionContext, ControlStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, SwitchCaseContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, BinaryOperatorContext, UnaryOperatorContext, TernaryOperatorContext } from '../antlr/UCGrammarParser';
-import { UCStatement, UCExpressionStatement, UCIfStatement, UCScriptBlock, UCElseStatement, UCDoStatement, UCWhileStatement, UCSwitchStatement, UCSwitchCase, UCForStatement, UCForEachStatement, UCLabeledStatement } from './symbols/Statements';
+import { UCExpressionStatement, UCIfStatement, UCScriptBlock, UCElseStatement, UCDoStatement, UCWhileStatement, UCSwitchStatement, UCSwitchCase, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCBlockStatement, UCReturnStatement, UCGotoStatement } from './symbols/Statements';
 import { UCExpression } from './symbols/Expressions';
 
-export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
+export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 	visitTerminal(ctx) {
 		return undefined;
 	}
@@ -32,63 +32,66 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 		return ctx.accept(ExpressionVisitor);
 	}
 
-	visitStatement(ctx: StatementContext): UCStatement {
-		let sm = ctx.ifStatement()
+	visitStatement(ctx: StatementContext): IStatement {
+		let statementNode = ctx.ifStatement()
 			|| ctx.whileStatement() || ctx.switchStatement()
 			|| ctx.labeledStatement() || ctx.forStatement()
 			|| ctx.foreachStatement() || ctx.doStatement()
 			|| ctx.controlStatement();
-		if (sm) {
-			return sm.accept(this);
+		if (statementNode) {
+			return statementNode.accept(this);
 		}
 
-		const expr = (ctx.expression() as BinaryOperatorContext | UnaryOperatorContext | TernaryOperatorContext)
+		const exprNode = (ctx.expression() as BinaryOperatorContext | UnaryOperatorContext | TernaryOperatorContext)
 			|| ctx.assignmentExpression();
-		if (!expr) {
+		if (!exprNode) {
 			return undefined;
 		}
 
-		const exprSymbol: UCExpression = expr.accept(ExpressionVisitor);
+		const exprSymbol: UCExpression = exprNode.accept(ExpressionVisitor);
 		if (exprSymbol) {
-			const smSymbol = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
-			smSymbol.context = ctx;
-			smSymbol.expression = exprSymbol;
-			return smSymbol;
+			const satement = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
+			satement.context = ctx;
+			satement.expression = exprSymbol;
+			return satement;
 		}
 	}
 
 	visitLabeledStatement(ctx: LabeledStatementContext): UCLabeledStatement {
-		const name = ctx.labelName();
-		const smSymbol = new UCLabeledStatement(rangeFromBounds(ctx.start, ctx.stop));
-		smSymbol.context = ctx;
-		return smSymbol;
+		const statement = new UCLabeledStatement(rangeFromBounds(ctx.start, ctx.stop));
+		const nameNode = ctx.labelName();
+		if (nameNode) {
+			statement.label = nameNode.text;
+		}
+		statement.context = ctx;
+		return statement;
 	}
 
-	visitControlStatement(ctx: ControlStatementContext): UCStatement {
-		let sm = ctx.returnStatement() || ctx.gotoStatement();
-		if (sm) {
-			return sm.accept(this);
+	visitControlStatement(ctx: ControlStatementContext): IStatement {
+		let statementNode = ctx.returnStatement() || ctx.gotoStatement();
+		if (statementNode) {
+			return statementNode.accept(this);
 		}
 	}
 
-	visitReturnStatement(ctx: ReturnStatementContext): UCExpressionStatement {
+	visitReturnStatement(ctx: ReturnStatementContext): IStatement {
 		// TODO: custom class
-		const smSymbol = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
-		smSymbol.context = ctx;
+		const statement = new UCReturnStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
 
-		const expr = ctx.expression();
-		if (expr) {
-			smSymbol.expression = expr.accept(ExpressionVisitor);
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(ExpressionVisitor);
 		}
-		return smSymbol;
+		return statement;
 	}
 
-	visitGotoStatement(ctx: GotoStatementContext) {
+	visitGotoStatement(ctx: GotoStatementContext): IStatement {
 		// TODO: custom class
-		const smSymbol = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
-		smSymbol.context = ctx;
+		const statement = new UCGotoStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
 		// TODO: read label
-		return smSymbol;
+		return statement;
 	}
 
 	visitReplicationStatement(ctx: ReplicationStatementContext): UCIfStatement {
@@ -97,170 +100,163 @@ export class UCStatementVisitor implements UCGrammarVisitor<UCStatement> {
 	}
 
 	visitWhileStatement(ctx: WhileStatementContext): UCWhileStatement {
-		const smSymbol = new UCWhileStatement(rangeFromBounds(ctx.start, ctx.stop));
-		smSymbol.context = ctx;
+		const statement = new UCWhileStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
 
-		const expr = ctx.expression();
-		if (expr) {
-			smSymbol.expression = expr.accept(ExpressionVisitor);
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(ExpressionVisitor);
 		}
 
-		const block = ctx.codeBlockOptional();
-		if (block) {
-			smSymbol.scriptBlock = this.parseScriptBlock(block);
+		const blockNode = ctx.codeBlockOptional();
+		if (blockNode) {
+			statement.scriptBlock = this.parseScriptBlock(blockNode);
 		}
-		return smSymbol;
+		return statement;
 	}
 
 	visitIfStatement(ctx: IfStatementContext): UCIfStatement {
-		const smSymbol = new UCIfStatement(rangeFromBounds(ctx.start, ctx.stop));
-		smSymbol.context = ctx;
+		const statement = new UCIfStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
 
-		const expr = ctx.expression();
-		if (expr) {
-			smSymbol.expression = expr.accept(ExpressionVisitor);
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(ExpressionVisitor);
 		}
 
-		const block = ctx.codeBlockOptional();
-		if (block) {
-			smSymbol.scriptBlock = this.parseScriptBlock(block);
+		const blockNode = ctx.codeBlockOptional();
+		if (blockNode) {
+			statement.scriptBlock = this.parseScriptBlock(blockNode);
 		}
 
-		const elseSm = ctx.elseStatement();
-		if (elseSm) {
-			smSymbol.elseStatement = elseSm.accept(this);
+		const elseStatementNode = ctx.elseStatement();
+		if (elseStatementNode) {
+			statement.else = elseStatementNode.accept(this);
 		}
-		return smSymbol;
+		return statement;
 	}
 
 	visitElseStatement(ctx: ElseStatementContext): UCElseStatement {
-		const smSymbol = new UCElseStatement(rangeFromBounds(ctx.start, ctx.stop));
-		smSymbol.context = ctx;
+		const statement = new UCElseStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
 
-		const block = ctx.codeBlockOptional();
-		if (block) {
-			smSymbol.scriptBlock = this.parseScriptBlock(block);
+		const blockNode = ctx.codeBlockOptional();
+		if (blockNode) {
+			statement.scriptBlock = this.parseScriptBlock(blockNode);
 
 		}
-		return smSymbol;
+		return statement;
 	}
 
 	visitDoStatement(ctx: DoStatementContext): UCDoStatement {
-		const smSymbol = new UCDoStatement(rangeFromBounds(ctx.start, ctx.stop));
-		smSymbol.context = ctx;
+		const statemment = new UCDoStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statemment.context = ctx;
 
-		const expr = ctx.expression();
-		if (expr) {
-			smSymbol.expression = expr.accept(ExpressionVisitor);
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statemment.expression = exprNode.accept(ExpressionVisitor);
 		}
 
-		const block = ctx.codeBlockOptional();
-		if (block) {
-			smSymbol.scriptBlock = this.parseScriptBlock(block);
+		const blockNode = ctx.codeBlockOptional();
+		if (blockNode) {
+			statemment.scriptBlock = this.parseScriptBlock(blockNode);
 		}
-		return smSymbol;
+		return statemment;
 	}
 
-	visitSwitchStatement(ctx: SwitchStatementContext) {
-		const smSymbol = new UCSwitchStatement(rangeFromBounds(ctx.start, ctx.stop));
-		smSymbol.context = ctx;
+	visitSwitchStatement(ctx: SwitchStatementContext): IStatement {
+		const statemment = new UCSwitchStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statemment.context = ctx;
 
-		const expr = ctx.expression();
-		if (expr) {
-			smSymbol.expression = expr.accept(ExpressionVisitor);
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statemment.expression = exprNode.accept(ExpressionVisitor);
 		}
 
-		const cases = ctx.switchCase();
-		if (cases) {
-			const blockSymbol = new UCScriptBlock(rangeFromBounds(ctx.start, ctx.stop));
-			for (let sm of cases) {
-				const subSmSymbol = sm.accept(this);
-				if (subSmSymbol) {
-					blockSymbol.statements.push(subSmSymbol);
-				}
+		const caseStatementNodes = ctx.switchCase();
+		if (caseStatementNodes) {
+			const scriptBlock = new UCScriptBlock(rangeFromBounds(ctx.start, ctx.stop));
+			scriptBlock.statements = Array(caseStatementNodes.length);
+			for (var i = 0; i < caseStatementNodes.length; ++ i) {
+				const caseStatement = caseStatementNodes[i].accept(this);
+				scriptBlock.statements[i] = caseStatement;
 			}
-			return blockSymbol;
+			statemment.scriptBlock = scriptBlock;
 		}
-		return smSymbol;
+		return statemment;
 	}
 
 	visitForeachStatement(ctx: ForeachStatementContext): UCForEachStatement {
-		const smSymbol = new UCForEachStatement(rangeFromBounds(ctx.start, ctx.stop));
-		smSymbol.context = ctx;
+		const statement = new UCForEachStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
 
-		const expr = ctx.primaryExpression();
-		if (expr) {
-			smSymbol.expression = expr.accept(ExpressionVisitor);
+		const exprNode = ctx.primaryExpression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(ExpressionVisitor);
 		}
 
-		const block = ctx.codeBlockOptional();
-		if (block) {
-			smSymbol.scriptBlock = this.parseScriptBlock(block);
+		const blockNode = ctx.codeBlockOptional();
+		if (blockNode) {
+			statement.scriptBlock = this.parseScriptBlock(blockNode);
 		}
-		return smSymbol;
+		return statement;
 	}
 
 	visitForStatement(ctx: ForStatementContext): UCForStatement {
-		const smSymbol = new UCForStatement(rangeFromBounds(ctx.start, ctx.stop));
-		smSymbol.context = ctx;
+		const statement = new UCForStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
 
-		let expr = ctx.expression(0);
-		if (expr) {
-			smSymbol.initExpression = expr.accept(ExpressionVisitor);
+		let exprNode = ctx.expression(0);
+		if (exprNode) {
+			statement.init = exprNode.accept(ExpressionVisitor);
 		}
 
-		expr = ctx.expression(1);
-		if (expr) {
-			smSymbol.expression = expr.accept(ExpressionVisitor);
+		exprNode = ctx.expression(1);
+		if (exprNode) {
+			statement.expression = exprNode.accept(ExpressionVisitor);
 		}
 
-		expr = ctx.expression(2);
-		if (expr) {
-			smSymbol.nextExpression = expr.accept(ExpressionVisitor);
+		exprNode = ctx.expression(2);
+		if (exprNode) {
+			statement.next = exprNode.accept(ExpressionVisitor);
 		}
 
-		const block = ctx.codeBlockOptional();
-		if (block) {
-			smSymbol.scriptBlock = this.parseScriptBlock(block);
+		const blockNode = ctx.codeBlockOptional();
+		if (blockNode) {
+			statement.scriptBlock = this.parseScriptBlock(blockNode);
 		}
-		return smSymbol;
+		return statement;
 	}
 
-	visitSwitchCase(ctx: SwitchCaseContext) {
-		const smSymbol = new UCSwitchCase(rangeFromBounds(ctx.start, ctx.stop));
-		smSymbol.context = ctx;
+	visitSwitchCase(ctx: SwitchCaseContext): IStatement {
+		const statement = new UCSwitchCase(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
 
-		const expr = ctx.expression();
-		if (expr) {
-			smSymbol.expression = expr.accept(ExpressionVisitor);
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(ExpressionVisitor);
 		}
-		smSymbol.scriptBlock = this.parseScriptBlock(ctx);
+		statement.scriptBlock = this.parseScriptBlock(ctx);
 
-		const breakStatement = ctx.breakStatement();
-		if (breakStatement) {
-			const breakSm = breakStatement.accept(this);
-			if (breakSm) {
-				if (!smSymbol.scriptBlock) {
-					smSymbol.scriptBlock = new UCScriptBlock(rangeFromBounds(breakStatement.start, breakStatement.stop));
-				}
-				smSymbol.scriptBlock.statements.push(breakSm);
-			}
+		// TODO: deprecate, merge this with general statement nodes.
+		const breakStatementNode = ctx.breakStatement();
+		if (breakStatementNode) {
+			const breakStatement = breakStatementNode.accept(this);
+			statement.break = breakStatement;
 		}
-		return smSymbol;
+		return statement;
 	}
 
-	parseScriptBlock(ctx: CodeBlockOptionalContext|SwitchCaseContext) {
-		const statements = ctx.statement();
-		if (statements) {
-			const blockSymbol = new UCScriptBlock(rangeFromBounds(ctx.start, ctx.stop));
-
-			for (let sm of statements) {
-				const subSmSymbol = sm.accept(this);
-				if (subSmSymbol) {
-					blockSymbol.statements.push(subSmSymbol);
-				}
+	parseScriptBlock(ctx: CodeBlockOptionalContext|SwitchCaseContext): UCScriptBlock {
+		const statementNodes = ctx.statement();
+		if (statementNodes) {
+			const scriptBlock = new UCScriptBlock(rangeFromBounds(ctx.start, ctx.stop));
+			scriptBlock.statements = new Array(statementNodes.length);
+			for (var i = 0; i < statementNodes.length; ++ i) {
+				const statement = statementNodes[i].accept(this);
+				scriptBlock.statements[i] = statement;
 			}
-			return blockSymbol;
+			return scriptBlock;
 		}
 		return undefined;
 	}

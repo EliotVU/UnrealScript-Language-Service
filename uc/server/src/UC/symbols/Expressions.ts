@@ -29,7 +29,6 @@ export abstract class UCExpression implements IExpression {
 			this.range = rangeFromBounds(this.context.start, this.context.stop);
 		}
 
-		console.assert(this.range, 'No range for this expression!');
 		if (!intersectsWith(this.range, position)) {
 			return undefined;
 		}
