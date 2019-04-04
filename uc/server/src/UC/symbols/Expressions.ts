@@ -5,10 +5,12 @@ import { UCDocument } from '../DocumentListener';
 import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, UCStateSymbol, UCEnumSymbol, SymbolsTable, UCMethodSymbol, UCClassSymbol } from '.';
 import { UnrecognizedFieldNode } from '../diagnostics/diagnostics';
 import { intersectsWith, rangeFromBounds } from '../helpers';
+import { ISymbolContext, ISymbol } from './ISymbol';
+import { connection } from '../../server';
 
 export interface IExpression {
-	outer?: IExpression;
-	context?: ParserRuleContext;
+	outer: IExpression;
+	context: ParserRuleContext;
 
 	getSymbolAtPos(position: Position): UCSymbol | undefined;
 
@@ -17,8 +19,8 @@ export interface IExpression {
 }
 
 export abstract class UCExpression implements IExpression {
-	outer?: IExpression;
-	context?: ParserRuleContext;
+	outer: IExpression;
+	context: ParserRuleContext;
 
 	constructor(private range?: Range) {
 
@@ -39,18 +41,10 @@ export abstract class UCExpression implements IExpression {
 	abstract getContainedSymbolAtPos(position: Position): UCSymbol | undefined;
 	abstract index(document: UCDocument, context: UCStructSymbol): void;
 	abstract analyze(document: UCDocument, context: UCStructSymbol): void;
-
-	getOuter<T extends IExpression>(): T | undefined {
-		for (let outer = this.outer; outer; outer = outer.outer) {
-			if (<T>(outer)) {
-				return outer as T;
-			}
-		}
-	}
 }
 
 export class UCUnaryExpression extends UCExpression {
-	public expression: UCPrimaryExpression;
+	public expression: IExpression;
 
 	// TODO: Linkup?
 	public operatorId: UCMemberExpression;
@@ -71,22 +65,34 @@ export class UCUnaryExpression extends UCExpression {
 	}
 }
 
-export class UCPrimaryExpression extends UCExpression {
-	// Points to expression within: "OPEN_PARENS expression CLOSE_PARENS" or "OPEN_BRACKET expression CLOSE_BRACKET"
-	public expression?: UCExpression;
-	public member?: UCMemberExpression;
-	public arguments?: UCExpression[];
-	public withArgument?: boolean;
-	public withIndex?: boolean; // @this.expression points to our index expression i.e. [expression]
+export class UCGroupExpression extends UCExpression {
+	public expression: IExpression;
 
 	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.member) {
-			const symbol = this.member.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
+		const symbol = this.expression && this.expression.getSymbolAtPos(position);
+		if (symbol) {
+			return symbol;
 		}
+	}
 
+	index(document: UCDocument, context: UCStructSymbol) {
+		if (this.expression) this.expression.index(document, context);
+	}
+
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		if (this.expression) this.expression.analyze(document, context);
+	}
+}
+
+export interface IExpressesMember extends IExpression {
+	getMemberSymbol(): ISymbol;
+}
+
+export class UCArgumentedExpression extends UCExpression implements IExpressesMember {
+	public expression?: IExpressesMember;
+	public arguments?: IExpression[];
+
+	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
 		if (this.expression) {
 			const symbol = this.expression.getSymbolAtPos(position);
 			if (symbol) {
@@ -102,9 +108,11 @@ export class UCPrimaryExpression extends UCExpression {
 		}
 	}
 
-	index(document: UCDocument, context: UCStructSymbol) {
-		if (this.member) this.member.index(document, context);
+	getMemberSymbol(): ISymbol {
+		return this.expression && this.expression.getMemberSymbol();
+	}
 
+	index(document: UCDocument, context: UCStructSymbol) {
 		if (this.expression) this.expression.index(document, context);
 		if (this.arguments) for (let arg of this.arguments) {
 			arg.index(document, context);
@@ -112,22 +120,70 @@ export class UCPrimaryExpression extends UCExpression {
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
-		if (this.member) this.member.analyze(document, context);
-
 		if (this.expression) this.expression.analyze(document, context);
 		if (this.arguments) for (let arg of this.arguments) {
 			arg.analyze(document, context);
 		}
 	}
+}
 
-	getMemberSymbol(): UCSymbol | undefined {
-		const symbol = this.member && this.member.getSymbol();
-		return symbol ? symbol.getReference() as UCSymbol : undefined;
+export class UCIndexExpression extends UCExpression implements IExpressesMember {
+	public primary?: IExpressesMember;
+	public expression?: IExpression;
+
+	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+		if (this.primary) {
+			const symbol = this.primary.getSymbolAtPos(position);
+			if (symbol) {
+				return symbol;
+			}
+		}
+
+		if (this.expression) {
+			const symbol = this.expression.getSymbolAtPos(position);
+			if (symbol) {
+				return symbol;
+			}
+		}
+	}
+
+	getMemberSymbol(): ISymbol {
+		const symbol = this.primary && this.primary.getMemberSymbol();
+
+		// Try to resolve to the referred symbol's defined type.
+		if (symbol instanceof UCPropertySymbol) {
+			if (!symbol.type) return undefined;
+
+			if (symbol.type.baseType) {
+				return symbol.type.baseType.getReference() as UCStructSymbol;
+			}
+			return symbol.type.getReference() as UCStructSymbol;
+		}
+
+		if (symbol instanceof UCMethodSymbol) {
+			if (!symbol.returnType) return undefined;
+
+			if (symbol.returnType.baseType) {
+				return symbol.returnType.baseType.getReference() as UCStructSymbol;
+			}
+			return symbol.returnType.getReference() as UCStructSymbol;
+		}
+		return symbol;
+	}
+
+	index(document: UCDocument, context: UCStructSymbol) {
+		if (this.primary) this.primary.index(document, context);
+		if (this.expression) this.expression.index(document, context);
+	}
+
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		if (this.primary) this.primary.analyze(document, context);
+		if (this.expression) this.expression.analyze(document, context);
 	}
 }
 
-export class UCContextExpression extends UCExpression {
-	public left?: UCExpression;
+export class UCContextExpression extends UCExpression implements IExpressesMember {
+	public left?: IExpressesMember;
 	public member?: UCMemberExpression;
 
 	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
@@ -148,70 +204,38 @@ export class UCContextExpression extends UCExpression {
 
 	index(document: UCDocument, context: UCStructSymbol) {
 		if (this.left) this.left.index(document, context);
-		if (this.member) this.member.index(document, this.getLeftMemberType());
+		if (this.member) this.member.index(document, this.getContextType());
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		if (this.left) this.left.analyze(document, context);
-		if (this.member) this.member.analyze(document, this.getLeftMemberType());
+		if (this.member) this.member.analyze(document, this.getContextType());
 	}
 
-	getMemberSymbol(): UCSymbol | undefined {
-		const symbol = this.member && this.member.getSymbol();
-		return symbol ? symbol.getReference() as UCSymbol : undefined;
+	getMemberSymbol(): ISymbol {
+		const symbolRef = this.member && this.member.getSymbolRef();
+		return symbolRef ? symbolRef.getReference() : undefined;
 	}
 
-	getLeftMemberSymbol(): UCSymbol | undefined {
-		const contextExpr = this.left;
-		if (contextExpr && (contextExpr instanceof UCPrimaryExpression || contextExpr instanceof UCContextExpression)) {
-			const symbol = contextExpr.getMemberSymbol();
-			return symbol;
-		}
-		return undefined;
-	}
-
-	// Assumes that a reference is a valid instance of UCStructSymbol.
-	// TODO: Resolve to the default Core.Object if type is a class limiter.
-	getLeftMemberType(): UCStructSymbol | undefined {
-		const symbol = this.getLeftMemberSymbol();
-		if (!symbol) {
-			return undefined;
-		}
-
-		// Try to resolve to the referred symbol's defined type.
+	getContextType(): UCStructSymbol {
+		const symbol = this.left && this.left.getMemberSymbol();
+		// Resolve properties to its defined type e.g. given property "local array<Vector> Foo;" will be resolved to array or Vector (in an index expression, handled elsewhere).
 		if (symbol instanceof UCPropertySymbol) {
-			if (!symbol.type) return undefined;
-
-			if (symbol.type.baseType && this.left instanceof UCPrimaryExpression && this.left.withIndex) {
-				return symbol.type.baseType.getReference() as UCStructSymbol;
-			}
+			// TODO: handle properties of type class<DamageType>.
 			return symbol.type.getReference() as UCStructSymbol;
 		}
-
 		if (symbol instanceof UCMethodSymbol) {
-			if (!symbol.returnType) return undefined;
-
-			if (symbol.returnType.baseType && this.left instanceof UCPrimaryExpression && this.left.withIndex) {
-				return symbol.returnType.baseType.getReference() as UCStructSymbol;
-			}
+			// TODO: handle properties of type class<DamageType>.
 			return symbol.returnType.getReference() as UCStructSymbol;
 		}
-
-		if (symbol instanceof UCEnumSymbol) {
-			return symbol as UCStructSymbol;
-		}
-
-		// Only for castings
-		if (symbol instanceof UCStructSymbol /* && this.expression instanceof UCPrimaryExpression && this.expression.withArgument */) {
-			return symbol as UCStructSymbol;
-		}
+		return symbol as UCStructSymbol;
 	}
 }
 
 export class UCTernaryExpression extends UCExpression {
-	public condition?: UCExpression;
-	public left?: UCExpression;
-	public right?: UCExpression;
+	public condition?: IExpression;
+	public left?: IExpression;
+	public right?: IExpression;
 
 	getContainedSymbolAtPos(position: Position) {
 		if (this.condition) {
@@ -250,8 +274,8 @@ export class UCTernaryExpression extends UCExpression {
 }
 
 export class UCBinaryExpression extends UCExpression {
-	public left?: UCExpression;
-	public right?: UCExpression;
+	public left?: IExpression;
+	public right?: IExpression;
 
 	getContainedSymbolAtPos(position: Position) {
 		if (this.left) {
@@ -284,20 +308,21 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 
 }
 
-export class UCMemberExpression extends UCExpression {
-	private symbolRef: UCSymbolReference;
+export class UCMemberExpression extends UCExpression implements IExpressesMember {
+	constructor (private symbolRef: UCSymbolReference) {
+		super(symbolRef.getNameRange());
+	}
 
 	getContainedSymbolAtPos(_position: Position) {
-		return this.symbolRef;
+		// Only return if we have a RESOLVED reference.
+		return this.symbolRef.getReference() && this.symbolRef;
 	}
 
-	setSymbol(symbol: UCSymbolReference) {
-		// FIXME: is this needed?
-		// symbol.outer = this;
-		this.symbolRef = symbol;
+	getMemberSymbol(): ISymbol {
+		return this.symbolRef.getReference();
 	}
 
-	getSymbol() {
+	getSymbolRef() {
 		return this.symbolRef;
 	}
 
@@ -306,72 +331,77 @@ export class UCMemberExpression extends UCExpression {
 			return;
 		}
 
-		const id = this.symbolRef.getName().toLowerCase();
-		switch (id) {
-			case 'default': case 'static': case 'const': {
-				// FIXME: G.Static does not reference to the static class of G where g is a property of type "class<GameInfo>".
-				this.symbolRef.setReference(context instanceof UCClassSymbol ? context : document.class, document);
-				break;
-			}
+		try {
+			const id = this.symbolRef.getName().toLowerCase();
+			switch (id) {
+				case 'self': case 'global': {
+					this.symbolRef.setReference(document.class, document);
+					break;
+				}
 
-			case 'self': case 'global': {
-				this.symbolRef.setReference(document.class, document);
-				break;
-			}
+				case 'super': {
+					this.symbolRef.setReference(
+						context instanceof UCStateSymbol
+							? context.super
+							: document.class.super,
+						document
+					);
+					break;
+				}
 
-			case 'super': {
-				this.symbolRef.setReference(
-					context instanceof UCStateSymbol
-						? context.super
-						: document.class.super,
-					document
-				);
-				break;
-			}
+				default: {
+					// First try to match a class or struct (e.g. a casting).
+					const hasArguments = this.outer instanceof UCArgumentedExpression;
+					if (hasArguments) {
+						let type = SymbolsTable.findQualifiedSymbol(id, true); // Look for a class or predefined type.
+						if (!type) {
+							type = context.findTypeSymbol(id, true); // look for struct types
+						}
 
-			default: {
-				// First try to match a class or struct (e.g. a casting).
-				// FIXME: withArgument is false sometimes!
-				const outer = this.getOuter<UCPrimaryExpression>();
-				const hasArguments = outer && outer.withArgument;
-				if (hasArguments) {
-					let type = SymbolsTable.findQualifiedSymbol(id, true); // Look for a class or predefined type.
-					if (!type) {
-						type = context.findTypeSymbol(id, true); // look for struct types
+						if (type) {
+							this.symbolRef.setReference(type, document);
+							return;
+						}
 					}
 
-					if (type) {
-						this.symbolRef.setReference(type, document);
-						return;
+					const symbol = context.findSuperSymbol(id);
+					if (symbol) {
+						let contextInfo: ISymbolContext;
+							contextInfo = {
+								inAssignment:
+									(this.outer instanceof UCAssignmentExpression && this.outer.left === this)
+									|| this.outer instanceof UCContextExpression
+										&& this.outer.member === this
+										&& this.outer.outer instanceof UCAssignmentExpression
+										&& this.outer.outer.left === this.outer
+							};
+							this.symbolRef.setReference(symbol, document, contextInfo);
+						}
 					}
 				}
-
-				// FIXME: we are receiving a context pointing to a predefined type sometimes?
-				if (!(context instanceof UCStructSymbol)) {
-					console.log('invalid context ' + this.symbolRef.getTooltip());
-					return;
-				}
-
-				const symbol = context.findSuperSymbol(id);
-				if (symbol) {
-					this.symbolRef.setReference(symbol, document, {
-						// FIXME: pass a contextinfo instance to link()
-						inAssignment:
-							(this.outer.outer instanceof UCAssignmentExpression
-								&& this.outer.outer.left === this.outer)
-							||
-							(this.outer.outer instanceof UCContextExpression
-								&& this.outer.outer.outer instanceof UCAssignmentExpression
-								&& this.outer.outer.outer.left === this.outer.outer)
-					});
-				}
-			}
+		} catch (err) {
+			connection.console.error('An unexpected indexing error occurred ' + JSON.stringify(err));
 		}
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
-		if (!this.symbolRef.getReference()) {
+		if (!this.getMemberSymbol()) {
 			document.nodes.push(new UnrecognizedFieldNode(this.symbolRef, context));
 		}
+	}
+}
+
+export class UCPredefinedMemberExpression extends UCMemberExpression {
+	index(document: UCDocument, context: UCStructSymbol) {
+		if (!context) {
+			return;
+		}
+
+		this.getSymbolRef().setReference(
+			context instanceof UCClassSymbol
+				? context
+				: document.class,
+			document
+		);
 	}
 }

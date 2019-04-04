@@ -2,7 +2,7 @@ import { Position, Range } from 'vscode-languageserver';
 
 import { UCDocument } from '../DocumentListener';
 import { UCSymbol, UCStructSymbol } from '.';
-import { UCExpression } from './Expressions';
+import { IExpression } from './Expressions';
 import { intersectsWith, rangeFromBounds } from '../helpers';
 import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
@@ -82,7 +82,7 @@ export abstract class UCBaseStatement implements IStatement {
 export class UCExpressionStatement implements IStatement {
 	outer?: IStatement;
 	context?: ParserRuleContext;
-	expression?: UCExpression;
+	expression?: IExpression;
 
 	constructor(private range?: Range) {
 
@@ -227,8 +227,8 @@ export class UCSwitchCase extends UCBlockStatement {
 
 export class UCForStatement extends UCBlockStatement {
 	// @super.expression is the conditional if expression
-	public init?: UCExpression;
-	public next?: UCExpression;
+	public init?: IExpression;
+	public next?: IExpression;
 
 	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
 		const symbol = super.getContainedSymbolAtPos(position);

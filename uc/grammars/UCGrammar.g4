@@ -809,27 +809,21 @@ unaryExpression
 	| operatorId primaryExpression // (++ id)
 	;
 
-newExpression: kwNEW (OPEN_PARENS arguments CLOSE_PARENS)? classArgument;
-
 classArgument: primaryExpression; // Inclusive template argument (will be parsed as a function call)
 
 primaryExpression
-	// : (kwSUPER | kwGLOBAL) DOT identifier OPEN_PARENS arguments CLOSE_PARENS
-	// | (kwSUPER | kwGLOBAL) OPEN_PARENS identifier CLOSE_PARENS DOT identifier arguments
-	: newExpression
-	| castClassLimiter primaryExpression
-	| literal
-	| kwDEFAULT | kwSELF | kwSUPER | kwGLOBAL | kwSTATIC
-	| identifier
-	| (OPEN_PARENS expression CLOSE_PARENS)
-	| primaryExpression DOT classLiteralSpecifier
-	| primaryExpression DOT identifier
-	| primaryExpression OPEN_PARENS arguments CLOSE_PARENS
-	| primaryExpression OPEN_BRACKET expression CLOSE_BRACKET
+	: kwNEW (OPEN_PARENS arguments CLOSE_PARENS)? classArgument #newExpression
+	| kwCLASS LT qualifiedIdentifier GT primaryExpression #classCastExpression
+	| literal #literalExpression
+	| (kwDEFAULT | kwSELF | kwSUPER | kwGLOBAL | kwSTATIC) #specifierExpression
+	| identifier #memberExpression
+	| (OPEN_PARENS expression CLOSE_PARENS) #groupExpression
+	| primaryExpression DOT (classLiteralSpecifier | identifier) #contextExpression
+	| primaryExpression OPEN_PARENS arguments CLOSE_PARENS #argumentedExpression
+	| primaryExpression OPEN_BRACKET expression CLOSE_BRACKET #indexExpression
 	// nameof, arraycount?
-	;
 
-castClassLimiter: kwCLASS LT qualifiedIdentifier GT;
+	;
 
 classLiteralSpecifier
 	: kwDEFAULT

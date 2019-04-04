@@ -5,7 +5,7 @@ import { ExpressionVisitor } from './DocumentListener';
 
 import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ExpressionContext, AssignmentExpressionContext, ControlStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, SwitchCaseContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, BinaryOperatorContext, UnaryOperatorContext, TernaryOperatorContext } from '../antlr/UCGrammarParser';
 import { UCExpressionStatement, UCIfStatement, UCScriptBlock, UCElseStatement, UCDoStatement, UCWhileStatement, UCSwitchStatement, UCSwitchCase, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCBlockStatement, UCReturnStatement, UCGotoStatement } from './symbols/Statements';
-import { UCExpression } from './symbols/Expressions';
+import { IExpression } from './symbols/Expressions';
 
 export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 	visitTerminal(ctx) {
@@ -48,11 +48,11 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 			return undefined;
 		}
 
-		const exprSymbol: UCExpression = exprNode.accept(ExpressionVisitor);
-		if (exprSymbol) {
+		const expression: IExpression = exprNode.accept(ExpressionVisitor);
+		if (expression) {
 			const satement = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
 			satement.context = ctx;
-			satement.expression = exprSymbol;
+			satement.expression = expression;
 			return satement;
 		}
 	}

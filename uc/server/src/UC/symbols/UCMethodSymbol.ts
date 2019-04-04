@@ -65,7 +65,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return super.getContainedSymbolAtPos(position);
 	}
 
-	findTypeSymbol(qualifiedId: string, deepSearch: boolean): ISymbol | undefined {
+	findTypeSymbol(qualifiedId: string, deepSearch: boolean): UCSymbol | undefined {
 		return (this.outer as UCStructSymbol).findTypeSymbol(qualifiedId, deepSearch);
 	}
 

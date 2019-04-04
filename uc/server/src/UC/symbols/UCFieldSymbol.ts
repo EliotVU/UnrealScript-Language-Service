@@ -5,7 +5,7 @@ import { UCDocument } from '../DocumentListener';
 import { UCClassSymbol } from './UCClassSymbol';
 import { intersectsWith } from '../helpers';
 
-export class UCFieldSymbol extends UCSymbol {
+export abstract class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;
 	public containingStruct?: UCStructSymbol;
 

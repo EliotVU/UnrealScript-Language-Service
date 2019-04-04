@@ -84,7 +84,7 @@ export class UCClassSymbol extends UCStructSymbol {
 				continue;
 			}
 
-			if (symbol.intersectsWith(position)) {
+			if (intersectsWith(symbol.getSpanRange(), position)) {
 				return symbol;
 			}
 		}

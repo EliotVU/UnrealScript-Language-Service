@@ -53,14 +53,13 @@ function getPackageByUri(uri: string): UCPackage {
 
 			packageSymbol = SymbolsTable.symbols.get(packageName) as UCPackage;
 			if (packageSymbol) {
+				PathPackageMap.set(dir, packageSymbol);
 				return packageSymbol;
 			}
 
 			packageSymbol = new UCPackage(packageName);
-			SymbolsTable.addSymbol(packageSymbol);
-
 			PathPackageMap.set(dir, packageSymbol);
-
+			SymbolsTable.addSymbol(packageSymbol);
 			return packageSymbol;
 		}
 	}

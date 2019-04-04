@@ -1,7 +1,7 @@
 import { SymbolKind } from 'vscode-languageserver-types';
 
 import { UCStructSymbol } from "./";
-import { ISymbol } from './ISymbol';
+import { UCSymbol } from './UCSymbol';
 
 export class UCStateSymbol extends UCStructSymbol {
 	isProtected(): boolean {
@@ -16,7 +16,7 @@ export class UCStateSymbol extends UCStructSymbol {
 		return `state ${this.getQualifiedName()}`;
 	}
 
-	findTypeSymbol(qualifiedId: string, deepSearch: boolean): ISymbol | undefined {
+	findTypeSymbol(qualifiedId: string, deepSearch: boolean): UCSymbol | undefined {
 		return (this.outer as UCStructSymbol).findTypeSymbol(qualifiedId, deepSearch);
 	}
 }

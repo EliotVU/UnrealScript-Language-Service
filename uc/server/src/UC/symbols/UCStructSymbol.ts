@@ -7,7 +7,7 @@ import { UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymb
 import { UCScriptBlock } from './Statements';
 import { intersectsWith } from '../helpers';
 
-export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
+export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: UCTypeSymbol;
 	public super?: UCStructSymbol;
 	public children?: UCFieldSymbol;
@@ -16,7 +16,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 
 	public scriptBlock?: UCScriptBlock;
 
-	private cachedTypeResolves = new Map<string, ISymbol>();
+	private cachedTypeResolves = new Map<string, UCSymbol>();
 
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
@@ -59,7 +59,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 				continue;
 			}
 
-			if (symbol.intersectsWith(position)) {
+			if (intersectsWith(symbol.getSpanRange(), position)) {
 				return symbol;
 			}
 		}
@@ -155,7 +155,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	findTypeSymbol(qualifiedId: string, deepSearch: boolean): ISymbol | undefined {
+	findTypeSymbol(qualifiedId: string, deepSearch: boolean): UCSymbol | undefined {
 		let symbol = this.cachedTypeResolves.get(qualifiedId);
 		if (symbol) {
 			return symbol;

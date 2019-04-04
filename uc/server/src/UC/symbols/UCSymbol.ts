@@ -87,26 +87,6 @@ export abstract class UCSymbol implements ISymbol {
 			&& position.character >= range.start.character && position.character < range.end.character;
 	}
 
-	intersectsWith(position: Position): boolean {
-		var range = this.getSpanRange();
-		if (position.line < range.start.line || position.line > range.end.line) {
-			return false;
-		}
-
-		if (range.start.line === range.end.line) {
-			return position.character >= range.start.character && position.character < range.end.character;
-		}
-
-		if (position.line == range.start.line) {
-			return position.character >= range.start.character;
-		}
-
-		if (position.line == range.end.line) {
-			return position.character <= range.end.character;
-		}
-		return true;
-	}
-
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
 		return this.intersectsWithName(position) && this.getContainedSymbolAtPos(position) || this;
 	}

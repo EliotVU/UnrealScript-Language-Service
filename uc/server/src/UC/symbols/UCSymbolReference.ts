@@ -61,7 +61,7 @@ export class UCSymbolReference extends UCSymbol {
 		}
 	}
 
-	getReference(): ISymbol | undefined {
+	getReference(): ISymbol {
 		return this.reference;
 	}
 
