@@ -4,6 +4,7 @@ import { UCSymbol, UCStructSymbol } from './';
 import { UCDocument } from '../DocumentListener';
 import { UCClassSymbol } from './UCClassSymbol';
 import { intersectsWith } from '../helpers';
+import { ISymbol } from './ISymbol';
 
 export abstract class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;
@@ -36,6 +37,10 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return this.getContainedSymbolAtPos(position);
 	}
 
+	getCompletionContext(_position: Position): UCSymbol | undefined {
+		return this;
+	}
+
 	isPublic(): boolean {
 		return true;
 	}
@@ -48,7 +53,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return false;
 	}
 
-	acceptCompletion(_document: UCDocument, _context: UCSymbol): boolean {
+	acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
 		// TODO: Does not match the language's behavior yet!
 		if (this.isPrivate()) {
 			return this.getOuter<UCClassSymbol>() === _document.class;

@@ -37,7 +37,6 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	public analyze(document: UCDocument, context: UCStructSymbol) {
-		super.analyze(document, context);
 		if (this.type) {
 			this.type.analyze(document, context);
 		}

@@ -2,6 +2,7 @@ import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
 import { UCStructSymbol, UCSymbol, UCMethodSymbol, UCPropertySymbol } from './';
 import { UCDocument } from '../DocumentListener';
+import { ISymbol } from './ISymbol';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
 	isProtected(): boolean {
@@ -20,8 +21,8 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return `struct ${this.getQualifiedName()}`;
 	}
 
-	getCompletionSymbols(_document: UCDocument): UCSymbol[] {
-		const symbols: UCSymbol[] = [];
+	getCompletionSymbols(_document: UCDocument): ISymbol[] {
+		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
 			symbols.push(child);
 		}

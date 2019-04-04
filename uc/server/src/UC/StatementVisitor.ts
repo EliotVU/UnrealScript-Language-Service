@@ -75,7 +75,6 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 	}
 
 	visitReturnStatement(ctx: ReturnStatementContext): IStatement {
-		// TODO: custom class
 		const statement = new UCReturnStatement(rangeFromBounds(ctx.start, ctx.stop));
 		statement.context = ctx;
 
@@ -87,7 +86,6 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 	}
 
 	visitGotoStatement(ctx: GotoStatementContext): IStatement {
-		// TODO: custom class
 		const statement = new UCGotoStatement(rangeFromBounds(ctx.start, ctx.stop));
 		statement.context = ctx;
 		// TODO: read label
@@ -95,8 +93,14 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 	}
 
 	visitReplicationStatement(ctx: ReplicationStatementContext): UCIfStatement {
-		// TODO:
-		return undefined;
+		const statement = new UCIfStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(ExpressionVisitor);
+		}
+		return statement;
 	}
 
 	visitWhileStatement(ctx: WhileStatementContext): UCWhileStatement {

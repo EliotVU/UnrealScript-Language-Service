@@ -1,10 +1,11 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 import { ISymbol } from './ISymbol';
+import { UCDocument } from '../DocumentListener';
 
 export class UCNativeSymbol implements ISymbol {
 	public outer: ISymbol;
 
-	constructor(private name: string, private uri?: string) {
+	constructor(private name: string) {
 	}
 
 	getName(): string {
@@ -23,11 +24,12 @@ export class UCNativeSymbol implements ISymbol {
 		return CompletionItemKind.Reference;
 	}
 
-	getUri(): string | undefined {
-		return this.uri;
-	}
-
 	getTooltip(): string {
 		return this.getQualifiedName();
+	}
+
+	// TODO: implement
+	toCompletionItem(_document: UCDocument) {
+		return undefined;
 	}
 }

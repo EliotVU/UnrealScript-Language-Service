@@ -7,7 +7,7 @@ import { UCDocument } from '../DocumentListener';
  * Can represent either a subobject aka archetype, or an instance of a defaultproperties declaration.
  */
 export class UCObjectSymbol extends UCStructSymbol {
-	public varRefs = new Map<string, UCSymbolReference>();
+	public symbolRefs = new Map<string, UCSymbolReference>();
 
 	getKind(): SymbolKind {
 		return SymbolKind.Module;
@@ -19,25 +19,18 @@ export class UCObjectSymbol extends UCStructSymbol {
 	}
 
 	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (!this.varRefs) {
-			return undefined;
-		}
-
-		for (let ref of this.varRefs.values()) {
+		for (let ref of this.symbolRefs.values()) {
 			const symbol = ref.getSymbolAtPos(position);
 			if (symbol) {
 				return symbol;
 			}
 		}
-		return undefined;
+		return super.getContainedSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		if (!this.varRefs) {
-			return;
-		}
-
-		for (let ref of this.varRefs.values()) {
+		super.index(document, context);
+		for (let ref of this.symbolRefs.values()) {
 			const symbol = context.findSuperSymbol(ref.getName().toLowerCase());
 			if (!symbol) {
 				continue;
@@ -46,12 +39,9 @@ export class UCObjectSymbol extends UCStructSymbol {
 		}
 	}
 
-	analyze(document: UCDocument, _context: UCStructSymbol) {
-		if (!this.varRefs) {
-			return;
-		}
-
-		for (let ref of this.varRefs.values()) {
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		super.analyze(document, context);
+		for (let ref of this.symbolRefs.values()) {
 			const symbol = ref.getReference();
 			if (!symbol) {
 				document.nodes.push(new SemanticErrorNode(ref, `Variable '${ref.getName()}' not found!`));

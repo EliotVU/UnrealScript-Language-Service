@@ -1,12 +1,14 @@
-import { SymbolKind, Location } from 'vscode-languageserver-types';
+import { SymbolKind, Location, CompletionItem } from 'vscode-languageserver-types';
+import { UCDocument } from '../DocumentListener';
 
 export interface ISymbol {
 	outer?: ISymbol;
 	getName(): string;
 	getQualifiedName(): string;
 	getKind(): SymbolKind;
-	getUri(): string;
 	getTooltip(): string;
+
+	toCompletionItem(document: UCDocument): CompletionItem;
 }
 
 export interface ISymbolContext {

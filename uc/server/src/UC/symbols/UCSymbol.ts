@@ -103,20 +103,16 @@ export abstract class UCSymbol implements ISymbol {
 		}
 	}
 
-	getCompletionSymbols(_document: UCDocument): UCSymbol[] {
+	getCompletionSymbols(_document: UCDocument): ISymbol[] {
 		return [];
 	}
 
-	acceptCompletion(_document: UCDocument, _context: UCSymbol): boolean {
+	acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
 		return true;
 	}
 
-	index(_document: UCDocument, _context: UCStructSymbol = _document.class) {
-	}
-
-	analyze(_document: UCDocument, _context: UCStructSymbol) {
-
-	}
+	index(_document: UCDocument, _context: UCStructSymbol) {};
+	analyze(_document: UCDocument, _context: UCStructSymbol) {};
 
 	addReference(ref: ISymbolReference) {
 		(this.refs || (this.refs = new Set())).add(ref);
@@ -127,14 +123,18 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getUri(): string | undefined {
-		return this.outer.getUri();
+		return this.outer instanceof UCSymbol && this.outer.getUri();
 	}
 
 	toSymbolInfo(): SymbolInformation {
-		return SymbolInformation.create(this.getName(), this.getKind(), this.getSpanRange(), undefined, this.outer.getName());
+		return SymbolInformation.create(
+			this.getName(), this.getKind(),
+			this.getSpanRange(), undefined,
+			this.outer.getName()
+		);
 	}
 
-	toCompletionItem(document: UCDocument): CompletionItem {
+	toCompletionItem(_document: UCDocument): CompletionItem {
 		const item = CompletionItem.create(this.getName());
 		item.detail = this.getTooltip();
 		item.kind = this.getCompletionItemKind();

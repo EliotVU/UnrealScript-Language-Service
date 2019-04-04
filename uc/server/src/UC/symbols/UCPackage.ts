@@ -1,13 +1,13 @@
+import { SymbolKind, CompletionItem } from 'vscode-languageserver-types';
 import * as path from 'path';
 
-import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
-import { UCStructSymbol, UCSymbol } from "./";
+import { UCStructSymbol } from "./";
 import { UCDocument, getDocumentById, indexDocument } from '../DocumentListener';
 
 // Holds class symbols, solely used for traversing symbols in a package.
-export class UCPackage implements ISymbolContainer<UCSymbol> {
+export class UCPackage implements ISymbolContainer<ISymbol> {
 	public outer = null;
 	public symbols = new Map<string, ISymbol>();
 
@@ -29,16 +29,22 @@ export class UCPackage implements ISymbolContainer<UCSymbol> {
 		return SymbolKind.Package;
 	}
 
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Module;
-	}
-
-	getUri(): string {
-		return '';
-	}
-
 	getTooltip(): string {
 		return this.getName();
+	}
+
+	// FIXME: Not setup yet!
+	getCompletionSymbols(_document: UCDocument): ISymbol[] {
+		const symbols: ISymbol[] = [];
+		for (let symbol of this.symbols.values()) {
+			symbols.push(symbol);
+		}
+		return symbols;
+	}
+
+	// TODO: implement
+	toCompletionItem(_document: UCDocument): CompletionItem {
+		return undefined;
 	}
 
 	addSymbol(symbol: ISymbol) {
@@ -73,15 +79,6 @@ export class UCPackage implements ISymbolContainer<UCSymbol> {
 			return symbol.findTypeSymbol(nextQualifiedId, deepSearch);
 		}
 		return this.findQualifiedSymbol(nextQualifiedId, deepSearch);
-	}
-
-	// FIXME: Not setup yet!
-	getCompletionSymbols(_document: UCDocument): ISymbol[] {
-		const symbols: ISymbol[] = [];
-		for (let symbol of this.symbols.values()) {
-			symbols.push(symbol);
-		}
-		return symbols;
 	}
 }
 

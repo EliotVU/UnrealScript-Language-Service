@@ -1,13 +1,12 @@
 import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
-import { UCSymbol, UCSymbolReference, UCStructSymbol, UCPropertySymbol, UCTypeSymbol, UCMethodSymbol } from './';
+import { UCSymbol, UCStructSymbol, UCTypeSymbol } from './';
 import { UCDocument } from '../DocumentListener';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 import { intersectsWith } from '../helpers';
 
 export class UCClassSymbol extends UCStructSymbol {
 	public withinType?: UCTypeSymbol;
-	public repFieldRefs?: UCSymbolReference[];
 
 	public dependsOnTypes?: UCTypeSymbol[];
 	public implementsTypes?: UCTypeSymbol[];
@@ -30,14 +29,6 @@ export class UCClassSymbol extends UCStructSymbol {
 				return this;
 			}
 			return this.getContainedSymbolAtPos(position);
-		}
-		// TODO: Optimize
-		if (this.repFieldRefs) {
-			for (let ref of this.repFieldRefs) {
-				if (ref.getSymbolAtPos(position)) {
-					return ref;
-				}
-			}
 		}
 		// HACK: due the fact that a class doesn't enclose its symbols we'll have to check for child symbols regardless if the given position is within the declaration span.
 		return this.getChildSymbolAtPos(position);
@@ -76,16 +67,8 @@ export class UCClassSymbol extends UCStructSymbol {
 
 	getCompletionContext(position: Position): UCSymbol | undefined {
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
-			if (symbol instanceof UCStructSymbol) {
-				const subSymbol = symbol.getCompletionContext(position);
-				if (subSymbol) {
-					return subSymbol;
-				}
-				continue;
-			}
-
 			if (intersectsWith(symbol.getSpanRange(), position)) {
-				return symbol;
+				return symbol.getCompletionContext(position);
 			}
 		}
 		return this;
@@ -122,32 +105,6 @@ export class UCClassSymbol extends UCStructSymbol {
 				`Class name '${className}' must be equal to its file name ${document.name}!`,
 			);
 			document.nodes.push(errorNode);
-		}
-
-		if (this.repFieldRefs) {
-			for (let symbolRef of this.repFieldRefs) {
-				// ref.link(document);
-				let symbol = this.findSymbol(symbolRef.getName().toLowerCase());
-				if (!symbol) {
-					const errorNode = new SemanticErrorNode(
-						symbolRef,
-						`Variable or Function '${symbolRef.getName()}' does not exist in class '${className}'.`
-					);
-					document.nodes.push(errorNode);
-					continue;
-				}
-
-				symbolRef.setReference(symbol, document);
-				if (symbol instanceof UCPropertySymbol || symbol instanceof UCMethodSymbol) {
-					continue;
-				}
-
-				const errorNode = new SemanticErrorNode(
-					symbolRef,
-					`Type of field '${symbol.getName()}' is not replicatable!`
-				);
-				document.nodes.push(errorNode);
-			}
 		}
 
 		if (this.withinType) {

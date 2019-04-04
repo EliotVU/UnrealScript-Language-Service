@@ -214,7 +214,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		_error: RecognitionException | undefined
 	) {
 		if (_error) {
-			console.error(this.uri, _error.context ? _error.context.text : 'No context', _error.stack);
+			connection.console.error(this.uri + ' ' + (_error.context ? _error.context.text : 'No context') + ' ' + _error.stack);
 			this.nodes.push(new SyntaxErrorNode(rangeFromBound(offendingSymbol), '(Internal Error) ' + msg));
 			return;
 		}
@@ -440,31 +440,25 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		const replicationBlock = new UCReplicationBlock(nameNode.text, rangeFromBound(nameNode.start), rangeFromBounds(ctx.start, ctx.stop));
 		replicationBlock.context = ctx;
 
-		this.class.repFieldRefs = [];
 		this.declare(replicationBlock);
 
-		const statements = ctx.replicationStatement();
-		if (statements) {
-			// TODO:
-			// const scriptBlock = new UCScriptBlock(
-			// 	{ name: '', range: rangeFromBounds(ctx.start, ctx.stop) }
-			// );
-			// for (let statement of statements) {
-			// 	const sm = statement.accept(StatementVisitor);
-			// 	if (sm) {
-			// 		scriptBlock.statements.push(sm);
-			// 	}
-			// }
-			// this.class.scriptBlock = scriptBlock;
-		}
-	}
+		const statementNodes = ctx.replicationStatement();
+		if (statementNodes) {
+			const scriptBlock = new UCScriptBlock(rangeFromBounds(ctx.start, ctx.stop));
+			scriptBlock.statements = Array(statementNodes.length);
+			for (var i = 0; i < statementNodes.length; ++ i) {
+				const statement = statementNodes[i].accept(StatementVisitor);
+				scriptBlock.statements[i] = statement;
 
-	enterReplicationStatement(ctx: UCParser.ReplicationStatementContext) {
-		for (const idNode of ctx.replicateId()) {
-			const symbolRef = new UCSymbolReference(idNode.text, rangeFromBound(idNode.start));
-			symbolRef.outer = this.class;
-
-			this.class.repFieldRefs.push(symbolRef);
+				const replicatedIdNodes = statementNodes[i].replicateId();
+				if (replicatedIdNodes) for (const idNode of replicatedIdNodes) {
+					const identifier = idNode.text;
+					const symbolRef = new UCSymbolReference(identifier, rangeFromBound(idNode.start));
+					symbolRef.outer = this.class;
+					replicationBlock.symbolRefs.set(identifier.toLowerCase(), symbolRef);
+				}
+			}
+			replicationBlock.scriptBlock = scriptBlock;
 		}
 	}
 
@@ -625,7 +619,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 				context.extendsType = typeSymbol;
 			}
 		}
-		context.varRefs.set(propNameLC, symbolRef);
+		context.symbolRefs.set(propNameLC, symbolRef);
 
 		const valueNode = ctx.defaultValue();
 		if (valueNode) {

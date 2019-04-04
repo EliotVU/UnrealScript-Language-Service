@@ -39,8 +39,6 @@ export class UCTypeSymbol extends UCSymbolReference {
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		// console.assert(this.outer, 'No outer for type "' + this.getName() + '"');
-
 		switch (this.typeKind) {
 			case UCTypeKind.Class:
 				this.linkToClass(document);

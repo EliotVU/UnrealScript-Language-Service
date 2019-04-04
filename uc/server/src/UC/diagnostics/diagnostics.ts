@@ -54,7 +54,7 @@ export class UnrecognizedFieldNode implements IDiagnosticNode {
 
 	toString(): string {
 		return this.context
-			? `'${this.symbol.getName()}' Does not exist on type '${this.context.getName()}'!`
-			: `'${this.symbol.getName()}' Does not exist!`;
+			? `'${this.symbol.getName()}' Does not exist on type '${this.context.getQualifiedName()}'!`
+			: `Couldn't find '${this.symbol.getName()}'!`;
 	}
 }
