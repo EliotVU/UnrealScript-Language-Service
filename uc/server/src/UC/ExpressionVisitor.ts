@@ -3,7 +3,7 @@ import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 import { UnaryExpressionContext, OperatorIdContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ArgumentContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, GroupExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference } from './Symbols';
-import { UCMemberExpression, UCUnaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression, UCTernaryExpression, UCArgumentedExpression, UCIndexExpression, UCGroupExpression, UCPredefinedMemberExpression, IExpression, IExpressesMember } from './Symbols/Expressions';
+import { UCMemberExpression, UCUnaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression, UCTernaryExpression, UCArgumentedExpression, UCIndexExpression, UCGroupExpression, UCPredefinedMemberExpression, IExpression, UCLiteral, UCClassLiteral } from './Symbols/Expressions';
 import { rangeFromBounds } from './helpers';
 
 export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
@@ -52,14 +52,14 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 
 		const leftNode = ctx.expression(1);
 		if (leftNode) {
-			expression.left = leftNode.accept<IExpression>(this);
-			expression.left.outer = expression;
+			expression.true = leftNode.accept<IExpression>(this);
+			expression.true.outer = expression;
 		}
 
 		const rightNode = ctx.expression(2);
 		if (rightNode) {
-			expression.right = rightNode.accept<IExpression>(this);
-			expression.right.outer = expression;
+			expression.false = rightNode.accept<IExpression>(this);
+			expression.false.outer = expression;
 		}
 
 		return expression;
@@ -134,7 +134,7 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 
 		const primaryNode = ctx.primaryExpression();
 		if (primaryNode) {
-			expression.left = primaryNode.accept<IExpressesMember>(this);
+			expression.left = primaryNode.accept<IExpression>(this);
 			expression.left.outer = expression;
 		}
 
@@ -199,8 +199,24 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 
 	// FIXME:
 	visitLiteralExpression(ctx: LiteralExpressionContext) {
-		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCGroupExpression(range); // FIXME: placeholder
+		const classLiteralNode = ctx.literal().classLiteral();
+		if (classLiteralNode) {
+			const range = rangeFromBounds(ctx.start, ctx.stop);
+			const expression = new UCClassLiteral(range);
+
+			const classIdNode = classLiteralNode.identifier();
+			const classCastingRef = new UCSymbolReference(classIdNode.text, rangeFromBounds(classIdNode.start, classIdNode.stop));
+
+			const objectIdNode = classLiteralNode.objectLiteral();
+			const objectRef = new UCSymbolReference(objectIdNode.text.replace(/'/g, ""), rangeFromBounds(objectIdNode.start, objectIdNode.stop));
+
+			expression.classCastingRef = classCastingRef;
+			expression.objectRef = objectRef;
+			expression.context = classLiteralNode;
+			return expression;
+		}
+
+		const expression = new UCLiteral();
 		expression.context = ctx;
 		return expression;
 	}
