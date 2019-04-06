@@ -18,7 +18,7 @@ import {
 	CompletionContext
 } from 'vscode-languageserver';
 
-import { UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable } from './symbols';
+import { UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable } from './Symbols';
 import { getDocumentByUri, ClassesMap$ } from "./DocumentListener";
 import { Token } from 'antlr4ts';
 

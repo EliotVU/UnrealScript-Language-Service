@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { performance } from 'perf_hooks';
 import { Diagnostic, Range } from 'vscode-languageserver-types';
 import URI from 'vscode-uri';
 
@@ -14,26 +15,24 @@ import { UCGrammarListener } from '../antlr/UCGrammarListener';
 import * as UCParser from '../antlr/UCGrammarParser';
 import { UCGrammarLexer } from '../antlr/UCGrammarLexer';
 import { CaseInsensitiveStream } from './CaseInsensitiveStream';
+import { connection } from '../server';
 
 import { rangeFromBounds, rangeFromBound } from './helpers';
-import { ISymbol } from './symbols/ISymbol';
-import { ISymbolContainer } from './symbols/ISymbolContainer';
+import { ISymbolContainer } from './Symbols/ISymbolContainer';
 import {
-	UCClassSymbol, UCConstSymbol, UCDefaultPropertiesBlock,
+	ISymbol, UCClassSymbol, UCConstSymbol, UCDefaultPropertiesBlock,
 	UCEnumMemberSymbol, UCEnumSymbol, UCMethodSymbol,
 	UCLocalSymbol, UCObjectSymbol, UCPackage, SymbolsTable, UCParamSymbol,
 	UCPropertySymbol, UCScriptStructSymbol, UCStateSymbol,
 	UCStructSymbol, UCSymbol, UCSymbolReference,
 	UCTypeSymbol,
 	UCDocumentClassSymbol, UCReplicationBlock
-} from './symbols';
-import { UCTypeKind } from './symbols/UCTypeKind';
-import { UCScriptBlock } from './symbols/Statements';
+} from './Symbols';
+import { UCTypeKind } from './Symbols/TypeKind';
+import { UCScriptBlock } from "./Symbols/ScriptBlock";
 import { IDiagnosticNode, SyntaxErrorNode } from './diagnostics/diagnostics';
 import { UCExpressionVisitor } from './ExpressionVisitor';
 import { UCStatementVisitor } from './StatementVisitor';
-import { connection } from '../server';
-import { performance } from 'perf_hooks';
 
 export const ExpressionVisitor = new UCExpressionVisitor();
 export const StatementVisitor = new UCStatementVisitor();

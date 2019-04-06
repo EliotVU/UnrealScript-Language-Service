@@ -1,10 +1,12 @@
-import { SymbolKind, CompletionItem } from 'vscode-languageserver-types';
 import * as path from 'path';
+
+import { SymbolKind, CompletionItem } from 'vscode-languageserver-types';
+
+import { UCDocument, getDocumentById, indexDocument } from '../DocumentListener';
 
 import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
-import { UCStructSymbol } from "./";
-import { UCDocument, getDocumentById, indexDocument } from '../DocumentListener';
+import { UCStructSymbol } from ".";
 
 // Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbolContainer<ISymbol> {

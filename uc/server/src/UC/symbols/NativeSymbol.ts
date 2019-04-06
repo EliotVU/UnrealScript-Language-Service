@@ -1,6 +1,8 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
-import { ISymbol } from './ISymbol';
+
 import { UCDocument } from '../DocumentListener';
+
+import { ISymbol } from './ISymbol';
 
 export class UCNativeSymbol implements ISymbol {
 	public outer: ISymbol;

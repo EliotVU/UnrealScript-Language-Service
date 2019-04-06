@@ -3,9 +3,11 @@ import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 import { rangeFromBounds } from './helpers';
 import { ExpressionVisitor } from './DocumentListener';
 
+import { UCScriptBlock } from "./Symbols/ScriptBlock";
+import { IExpression } from './Symbols/Expressions';
+
 import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ExpressionContext, AssignmentExpressionContext, ControlStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, SwitchCaseContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, BinaryOperatorContext, UnaryOperatorContext, TernaryOperatorContext } from '../antlr/UCGrammarParser';
-import { UCExpressionStatement, UCIfStatement, UCScriptBlock, UCElseStatement, UCDoStatement, UCWhileStatement, UCSwitchStatement, UCSwitchCase, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCBlockStatement, UCReturnStatement, UCGotoStatement } from './symbols/Statements';
-import { IExpression } from './symbols/Expressions';
+import { UCExpressionStatement, UCIfStatement, UCElseStatement, UCDoStatement, UCWhileStatement, UCSwitchStatement, UCSwitchCase, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCBlockStatement, UCReturnStatement, UCGotoStatement } from './Symbols/Statements';
 
 export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 	visitTerminal(ctx) {

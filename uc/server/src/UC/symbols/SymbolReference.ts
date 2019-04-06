@@ -1,9 +1,10 @@
 import { Location, Range, Position } from 'vscode-languageserver-types';
 
-import { ISymbol, ISymbolReference, ISymbolContext } from './ISymbol';
-import { UCSymbol } from '.';
 import { UCDocument } from '../DocumentListener';
 import { intersectsWith } from '../helpers';
+
+import { ISymbol, ISymbolReference, ISymbolContext } from './ISymbol';
+import { UCSymbol } from '.';
 
 /**
  * For general symbol references, like a function's return type which cannot yet be identified.

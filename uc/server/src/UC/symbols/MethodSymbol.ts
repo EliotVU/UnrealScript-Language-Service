@@ -1,9 +1,9 @@
 import { SymbolKind, CompletionItemKind, Position, Location } from 'vscode-languageserver-types';
 
-import { UCSymbol, UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
-import { UCDocument, getDocumentByUri } from '../DocumentListener';
 import { FunctionDeclContext } from '../../antlr/UCGrammarParser';
-import { ISymbol } from './ISymbol';
+import { UCDocument, getDocumentByUri } from '../DocumentListener';
+
+import { UCSymbol, UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
 
 export class UCMethodSymbol extends UCStructSymbol {
 	public returnType?: UCTypeSymbol;

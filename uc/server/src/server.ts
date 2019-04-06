@@ -1,5 +1,3 @@
-import { performance } from 'perf_hooks';
-
 import { interval, Subject } from 'rxjs';
 import { debounce, map, switchMapTo, filter } from 'rxjs/operators';
 
@@ -22,7 +20,7 @@ import {
 } from 'vscode-languageserver';
 import URI from 'vscode-uri';
 
-import { initWorkspace, getCompletionItems, getReferences, getDefinition, getSymbols, getHover, getHighlights } from './UC/helpers';
+import { initWorkspace, getCompletionItems, getReferences, getDefinition, getSymbols, getHover, getHighlights, getFullCompletionItem } from './UC/helpers';
 import { ClassesMap$, getDocumentByUri, indexDocument } from './UC/DocumentListener';
 
 let documents: TextDocuments = new TextDocuments();
@@ -41,7 +39,7 @@ connection.onInitialize((params: InitializeParams) => {
 			textDocumentSync: documents.syncKind,
 			hoverProvider: true,
 			completionProvider: {
-				triggerCharacters: ['.', '(', '[', ',']
+				triggerCharacters: ['.', '(', '[', ',', '<']
 			},
 			definitionProvider: true,
 			documentSymbolProvider: true,
@@ -65,10 +63,9 @@ connection.onInitialized(async () => {
 });
 
 interface UCSettings {
-
 }
 
-let documentSettings: Map<string, Thenable<UCSettings>> = new Map();
+const documentSettings: Map<string, Thenable<UCSettings>> = new Map();
 
 connection.onDidChangeConfiguration(() => {
 	if (hasConfigurationCapability) {
@@ -87,7 +84,8 @@ connection.onHover((e): Promise<Hover> => getHover(e.textDocument.uri, e.positio
 connection.onDefinition((e): Promise<Definition> => getDefinition(e.textDocument.uri, e.position));
 connection.onReferences((e): Promise<Location[]> => getReferences(e.textDocument.uri, e.position));
 connection.onDocumentHighlight((e): Promise<DocumentHighlight[]> => getHighlights(e.textDocument.uri, e.position));
-connection.onCompletion((e): Promise<CompletionItem[]> => getCompletionItems(e.textDocument.uri, e.position));
+connection.onCompletion((e): Promise<CompletionItem[]> => getCompletionItems(e.textDocument.uri, e.position, e.context));
+connection.onCompletionResolve((e): Promise<CompletionItem> => getFullCompletionItem(e));
 connection.listen();
 
 ClassesMap$
@@ -138,12 +136,11 @@ ClassesMap$
 						'unrealscript')
 				]
 			});
-			return;
 		}
 	}, (error) => {
 		connection.console.error(error);
-	});
-
+	}
+);
 
 ClassesMap$
 	.pipe(
@@ -161,8 +158,9 @@ ClassesMap$
 			return;
 		}
 
-		const indexStartTime = performance.now();
+		const indexStartTime = Date.now();
 		connection.window.showInformationMessage('Indexing UnrealScript classes!');
+
 		classes.forEach(uri => {
 			let document = getDocumentByUri(uri);
 			if (!document || document.class) {
@@ -171,6 +169,6 @@ ClassesMap$
 			indexDocument(document);
 		});
 
-		const time = performance.now() - indexStartTime;
-		connection.window.showInformationMessage('UnrealScript classes have been indexed in ' + new Date(time).getUTCSeconds() + ' seconds!');
+		const time = Date.now() - indexStartTime;
+		connection.window.showInformationMessage('UnrealScript classes have been indexed in ' + new Date(time).getSeconds() + ' seconds!');
 	}));

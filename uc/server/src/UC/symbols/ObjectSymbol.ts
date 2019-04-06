@@ -1,7 +1,9 @@
 import { SymbolKind, Position } from 'vscode-languageserver-types';
+
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
-import { UCSymbol, UCSymbolReference, UCStructSymbol, UCPropertySymbol } from '.';
 import { UCDocument } from '../DocumentListener';
+
+import { UCSymbol, UCSymbolReference, UCStructSymbol, UCPropertySymbol } from '.';
 
 /**
  * Can represent either a subobject aka archetype, or an instance of a defaultproperties declaration.

@@ -1,9 +1,10 @@
 import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
-import { UCSymbol, UCStructSymbol, UCTypeSymbol } from './';
 import { UCDocument } from '../DocumentListener';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 import { intersectsWith } from '../helpers';
+
+import { UCSymbol, UCStructSymbol, UCTypeSymbol } from '.';
 
 export class UCClassSymbol extends UCStructSymbol {
 	public withinType?: UCTypeSymbol;

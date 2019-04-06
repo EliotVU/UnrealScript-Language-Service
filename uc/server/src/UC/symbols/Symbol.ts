@@ -1,10 +1,11 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Position } from 'vscode-languageserver-types';
+import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
+
+import { UCDocument } from "../DocumentListener";
+import { UCGrammarParser } from '../../antlr/UCGrammarParser';
 
 import { ISymbol, ISymbolReference } from './ISymbol';
-import { UCStructSymbol, UCPackage } from "./";
-import { UCDocument } from "../DocumentListener";
-import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
-import { UCGrammarParser } from '../../antlr/UCGrammarParser';
+import { UCStructSymbol, UCPackage } from ".";
 
 export const COMMENT_TYPES = new Set([UCGrammarParser.LINE_COMMENT, UCGrammarParser.BLOCK_COMMENT]);
 

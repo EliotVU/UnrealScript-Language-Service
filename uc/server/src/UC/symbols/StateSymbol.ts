@@ -1,7 +1,6 @@
 import { SymbolKind } from 'vscode-languageserver-types';
 
-import { UCStructSymbol } from "./";
-import { UCSymbol } from './UCSymbol';
+import { UCStructSymbol, UCSymbol } from ".";
 
 export class UCStateSymbol extends UCStructSymbol {
 	isProtected(): boolean {

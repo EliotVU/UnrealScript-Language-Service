@@ -1,47 +1,12 @@
 import { Position, Range } from 'vscode-languageserver';
-
-import { UCDocument } from '../DocumentListener';
-import { UCSymbol, UCStructSymbol } from '.';
-import { IExpression } from './Expressions';
-import { intersectsWith, rangeFromBounds } from '../helpers';
 import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
-export class UCScriptBlock {
-	public statements?: IStatement[];
+import { intersectsWith, rangeFromBounds } from '../helpers';
+import { UCDocument } from '../DocumentListener';
 
-	constructor(private range?: Range) {
-
-	}
-
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (!intersectsWith(this.range, position)) {
-			return undefined;
-		}
-		const symbol = this.getContainedSymbolAtPos(position);
-		return symbol;
-	}
-
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
-		if (this.statements) for (let statement of this.statements) if (statement) {
-			const symbol = statement.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
-		}
-	}
-
-	index(document: UCDocument, context: UCStructSymbol) {
-		if (this.statements) for (let statement of this.statements) if (statement) {
-			statement.index(document, context);
-		}
-	}
-
-	analyze(document: UCDocument, context: UCStructSymbol) {
-		if (this.statements) for (let statement of this.statements) if (statement) {
-			statement.analyze(document, context);
-		}
-	}
-}
+import { UCSymbol, UCStructSymbol } from '.';
+import { IExpression } from './Expressions';
+import { UCScriptBlock } from './ScriptBlock';
 
 export interface IStatement {
 	// Not in use atm, but might be needed later to traverse where an expression is contained.

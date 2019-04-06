@@ -1,8 +1,8 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
-import { UCPropertySymbol } from './';
+import { UCPropertySymbol } from '.';
 
-export class UCLocalSymbol extends UCPropertySymbol {
+export class UCParamSymbol extends UCPropertySymbol {
 	isPrivate(): boolean {
 		return true;
 	}
@@ -16,7 +16,7 @@ export class UCLocalSymbol extends UCPropertySymbol {
 	}
 
 	getTypeTooltip(): string {
-		return 'local';
+		return '(parameter)';
 	}
 
 	getTooltip(): string {

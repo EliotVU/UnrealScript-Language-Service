@@ -2,8 +2,8 @@ import { ParserRuleContext } from 'antlr4ts';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 import { UnaryExpressionContext, OperatorIdContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ArgumentContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, GroupExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext } from '../antlr/UCGrammarParser';
 
-import { UCSymbolReference } from './symbols';
-import { UCMemberExpression, UCUnaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression, UCTernaryExpression, UCArgumentedExpression, UCIndexExpression, UCGroupExpression, UCPredefinedMemberExpression, IExpression, IExpressesMember } from './symbols/Expressions';
+import { UCSymbolReference } from './Symbols';
+import { UCMemberExpression, UCUnaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression, UCTernaryExpression, UCArgumentedExpression, UCIndexExpression, UCGroupExpression, UCPredefinedMemberExpression, IExpression, IExpressesMember } from './Symbols/Expressions';
 import { rangeFromBounds } from './helpers';
 
 export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {

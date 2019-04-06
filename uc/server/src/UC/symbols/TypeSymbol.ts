@@ -1,10 +1,10 @@
 import { Position, Range } from 'vscode-languageserver-types';
 
-import { UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable, CORE_PACKAGE } from '.';
-import { UCTypeKind } from './UCTypeKind';
-
 import { UCDocument } from '../DocumentListener';
 import { UnrecognizedTypeNode } from '../diagnostics/diagnostics';
+
+import { UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable, CORE_PACKAGE } from '.';
+import { UCTypeKind } from './TypeKind';
 
 export class UCTypeSymbol extends UCSymbolReference {
 	public baseType?: UCTypeSymbol;

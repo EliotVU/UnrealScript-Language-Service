@@ -1,10 +1,11 @@
-import { UCFieldSymbol, UCSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCStructSymbol, UCSymbolReference } from '.';
+import { SymbolKind, Position } from 'vscode-languageserver-types';
+
 import { UCDocument } from '../DocumentListener';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
-import { SymbolKind, Position } from 'vscode-languageserver-types';
-import { UCScriptBlock } from './Statements';
+
+import { ISymbol, UCFieldSymbol, UCSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCStructSymbol, UCSymbolReference } from '.';
+import { UCScriptBlock } from "./ScriptBlock";
 import { ReliableKeyword, UnreliableKeyword } from './Keywords';
-import { ISymbol } from './ISymbol';
 
 export class UCReplicationBlock extends UCFieldSymbol {
 	public symbolRefs = new Map<string, UCSymbolReference>();

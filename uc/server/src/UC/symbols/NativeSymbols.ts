@@ -1,4 +1,4 @@
-import { UCPackage, UCNativeSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCTypeSymbol, UCParamSymbol, SymbolsTable } from "./";
+import { UCPackage, UCNativeSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCTypeSymbol, UCParamSymbol, SymbolsTable } from ".";
 
 export const CORE_PACKAGE = new UCPackage('Core');
 export const NativeClass = new UCNativeSymbol('Class');

@@ -1,10 +1,9 @@
 import { Range, Position, Location } from 'vscode-languageserver-types';
 
-import { UCSymbol, UCStructSymbol } from './';
-import { UCDocument } from '../DocumentListener';
-import { UCClassSymbol } from './UCClassSymbol';
 import { intersectsWith } from '../helpers';
-import { ISymbol } from './ISymbol';
+import { UCDocument } from '../DocumentListener';
+
+import { ISymbol, UCSymbol, UCStructSymbol, UCClassSymbol } from '.';
 
 export abstract class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;

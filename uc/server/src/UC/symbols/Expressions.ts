@@ -1,12 +1,13 @@
 import { Position, Range } from 'vscode-languageserver';
 import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
+import { connection } from '../../server';
 import { UCDocument } from '../DocumentListener';
-import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, UCStateSymbol, UCEnumSymbol, SymbolsTable, UCMethodSymbol, UCClassSymbol } from '.';
 import { UnrecognizedFieldNode } from '../diagnostics/diagnostics';
 import { intersectsWith, rangeFromBounds } from '../helpers';
+
+import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, UCStateSymbol, SymbolsTable, UCMethodSymbol, UCClassSymbol } from '.';
 import { ISymbolContext, ISymbol } from './ISymbol';
-import { connection } from '../../server';
 
 export interface IExpression {
 	outer: IExpression;
