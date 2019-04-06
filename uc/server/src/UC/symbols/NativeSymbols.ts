@@ -1,7 +1,11 @@
 import { UCPackage, UCNativeSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCTypeSymbol, UCParamSymbol, SymbolsTable } from ".";
+import { UCTypeKind } from './TypeKind';
 
 export const CORE_PACKAGE = new UCPackage('Core');
-export const NativeClass = new UCNativeSymbol('Class');
+
+// A Class type instance has all the members of an object.
+export const NativeClass = new UCClassSymbol('Class', undefined, undefined);
+NativeClass.extendsType = new UCTypeSymbol('Object', undefined, undefined, UCTypeKind.Class);
 CORE_PACKAGE.addSymbol(NativeClass);
 
 export const IntType = new UCTypeSymbol('int', undefined);
