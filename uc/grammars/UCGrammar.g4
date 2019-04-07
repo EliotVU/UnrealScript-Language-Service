@@ -463,7 +463,8 @@ enumDecl:
 enumMember: (identifier metaTuple? COMMA?);
 
 structDecl
-	:	kwSTRUCT nativeTypeDecl? structModifier* identifier extendsClause?
+	:	kwSTRUCT (OPEN_BRACE .*? CLOSE_BRACE)? // parses native type like "struct {DOUBLE}"
+			structModifier* identifier extendsClause?
 		OPEN_BRACE
 		(
 			constDecl
@@ -507,8 +508,7 @@ varDecl: kwVAR (OPEN_PARENS categoryList? CLOSE_PARENS)?
 variable:
 	identifier
 	arrayDim?
-	// FIXME: matches invalid code
-	// nativeTypeDecl?
+	(OPEN_BRACE .*? CLOSE_BRACE)? // nativeTypeDecl
 	metaTuple?
 	;
 
@@ -521,9 +521,6 @@ categoryList: identifier (COMMA identifier)*;
 
 // UC3 CPP specifier e.g. {public}
 nativeModifierDecl: OPEN_BRACE identifier CLOSE_BRACE;
-
-// UC3 CPP type e.g. {QWORD}
-nativeTypeDecl: OPEN_BRACE .*? CLOSE_BRACE;
 
 // UC3 CPP map e.g. map{FName, FLOAT}
 nativeMapTypeDecl: OPEN_BRACE .*? COMMA .*? CLOSE_BRACE;
