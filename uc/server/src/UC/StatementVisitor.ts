@@ -6,8 +6,8 @@ import { ExpressionVisitor } from './DocumentListener';
 import { UCScriptBlock } from "./Symbols/ScriptBlock";
 import { IExpression } from './Symbols/Expressions';
 
-import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ExpressionContext, AssignmentExpressionContext, ControlStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, SwitchCaseContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, BinaryOperatorContext, UnaryOperatorContext, TernaryOperatorContext } from '../antlr/UCGrammarParser';
-import { UCExpressionStatement, UCIfStatement, UCElseStatement, UCDoStatement, UCWhileStatement, UCSwitchStatement, UCSwitchCase, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCBlockStatement, UCReturnStatement, UCGotoStatement } from './Symbols/Statements';
+import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ExpressionContext, AssignmentExpressionContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, SwitchCaseContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, BinaryOperatorContext, UnaryOperatorContext, TernaryOperatorContext } from '../antlr/UCGrammarParser';
+import { UCExpressionStatement, UCIfStatement, UCElseStatement, UCDoStatement, UCWhileStatement, UCSwitchStatement, UCSwitchCase, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCReturnStatement, UCGotoStatement } from './Symbols/Statements';
 
 export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 	visitTerminal(ctx) {
@@ -39,7 +39,8 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 			|| ctx.whileStatement() || ctx.switchStatement()
 			|| ctx.labeledStatement() || ctx.forStatement()
 			|| ctx.foreachStatement() || ctx.doStatement()
-			|| ctx.controlStatement();
+			|| ctx.continueStatement() || ctx.breakStatement() || ctx.stopStatement()
+			|| ctx.returnStatement() || ctx.gotoStatement();
 		if (statementNode) {
 			return statementNode.accept(this);
 		}
@@ -67,13 +68,6 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 		}
 		statement.context = ctx;
 		return statement;
-	}
-
-	visitControlStatement(ctx: ControlStatementContext): IStatement {
-		let statementNode = ctx.returnStatement() || ctx.gotoStatement();
-		if (statementNode) {
-			return statementNode.accept(this);
-		}
 	}
 
 	visitReturnStatement(ctx: ReturnStatementContext): IStatement {

@@ -460,7 +460,7 @@ enumDecl:
 	CLOSE_BRACE
 	;
 
-enumMember: (identifier metaTuple? COMMA?);
+enumMember: identifier metaTuple? COMMA?;
 
 structDecl
 	:	kwSTRUCT (OPEN_BRACE .*? CLOSE_BRACE)? // parses native type like "struct {DOUBLE}"
@@ -750,7 +750,7 @@ localDecl:
 
 ignoresList: identifier (COMMA identifier)*;
 
-stateDecl: (stateModifier)* kwSTATE (OPEN_PARENS CLOSE_PARENS)? identifier
+stateDecl: stateModifier* kwSTATE (OPEN_PARENS CLOSE_PARENS)? identifier
 		extendsClause?
 		OPEN_BRACE
 			(kwIGNORES ignoresList SEMICOLON)?
@@ -761,7 +761,7 @@ stateDecl: (stateModifier)* kwSTATE (OPEN_PARENS CLOSE_PARENS)? identifier
 
 stateModifier: kwAUTO | kwSIMULATED;
 
-codeBlockOptional: ((OPEN_BRACE statement* CLOSE_BRACE) | statement?);
+codeBlockOptional: (OPEN_BRACE statement* CLOSE_BRACE) | statement?;
 
 statement:
 	(
@@ -771,7 +771,14 @@ statement:
 		| whileStatement
 		| doStatement
 		| switchStatement
-		| controlStatement
+		| returnStatement
+		| gotoStatement
+
+		// These will require post-parsing validation
+		| breakStatement // in for loops only
+		| continueStatement // in for loops only
+		| stopStatement // in states only
+
 		| labeledStatement
 		| (assignmentExpression SEMICOLON)
 		| (expression SEMICOLON)
@@ -780,15 +787,6 @@ statement:
 
 labeledStatement: identifier COLON;
 gotoStatement: kwGOTO identifier SEMICOLON;
-
-controlStatement
-	: returnStatement
-	| gotoStatement
-	// These will require post-parsing validation
-	| breakStatement
-	| continueStatement
-	| stopStatement // in states
-	;
 
 assignmentExpression: primaryExpression (MINUS|PLUS|DIV|CARET|STAR|AMP|AT|DOLLAR|BITWISE_OR)? ASSIGNMENT expression;
 
@@ -839,9 +837,8 @@ elseStatement: kwELSE codeBlockOptional;
 foreachStatement: kwFOREACH primaryExpression codeBlockOptional;
 
 forStatement:
-	kwFOR (
-		OPEN_PARENS expression? SEMICOLON expression? SEMICOLON expression? CLOSE_PARENS
-	) codeBlockOptional;
+	kwFOR (OPEN_PARENS expression? SEMICOLON expression? SEMICOLON expression? CLOSE_PARENS)
+		codeBlockOptional;
 
 whileStatement
 	: kwWHILE (OPEN_PARENS expression CLOSE_PARENS)
