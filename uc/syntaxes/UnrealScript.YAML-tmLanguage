@@ -267,17 +267,19 @@ repository:
     end: (?<=\}|\;)
   struct-declaration:
     name: meta.struct.declaration.uc
-    begin: "\\b((?i)struct)\\b\\s*(\\b((?i)native|intrinsic|transient|export|strictconfig|atomic|atomicwhencooked|immutable|immutablewhencooked|init|long)\\b\\s*)*([_[:alpha:]][_[:alnum:]]*)(\\s*((?i)extends)\\s*([_[:alpha:]][_[:alnum:]]*))?"
+    begin: "\\b((?i)struct)\\b\\s*(\\{(\\s*[_[:alpha:]][_[:alnum:]]*\\s*)\\})?\\s*(\\b((?i)native|intrinsic|transient|export|strictconfig|atomic|atomicwhencooked|immutable|immutablewhencooked|init|long)\\b\\s*)*([_[:alpha:]][_[:alnum:]]*)(\\s*((?i)extends)\\s*([_[:alpha:]][_[:alnum:]]*))?"
     beginCaptures:
       '1':
         name: storage.type.struct.uc
       '3':
-        name: storage.modifier.uc
-      '4':
         name: entity.name.type.struct.uc
-      '6':
+      '5':
         name: storage.modifier.uc
-      '7':
+      '6':
+        name: entity.name.type.struct.uc
+      '8':
+        name: storage.modifier.uc
+      '9':
         name: entity.other.inherited-class.uc
     patterns:
       - name: meta.block.uc
