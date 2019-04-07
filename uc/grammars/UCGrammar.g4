@@ -460,7 +460,7 @@ enumDecl:
 	CLOSE_BRACE
 	;
 
-enumMember: (identifier COMMA?);
+enumMember: (identifier variableMeta? COMMA?);
 
 structDecl
 	:	kwSTRUCT nativeTypeDecl? structModifier* identifier extendsClause?
