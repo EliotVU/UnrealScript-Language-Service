@@ -805,6 +805,7 @@ unaryExpression
 	| operatorId primaryExpression // (++ id)
 	;
 
+// FIXME: might be more restricted, but at least "default.class" is valid code.
 classArgument: primaryExpression; // Inclusive template argument (will be parsed as a function call)
 
 primaryExpression
@@ -860,7 +861,8 @@ switchStatement:
 	CLOSE_BRACE?;
 
 switchCase:
-	(kwCASE | kwDEFAULT) expression? COLON
+	// FIXME: Maybe parse literal instead of expression? What exactly are the valid rules here?
+	(kwCASE expression?) | (kwDEFAULT) COLON
 		statement* breakStatement?
 	;
 
@@ -872,6 +874,7 @@ stopStatement: kwSTOP SEMICOLON;
 defaultpropertiesBlock
 	:
 		kwDEFAULTPROPERTIES
+		// UnrealScriptBug: Must on next the line after keyword!
 		OPEN_BRACE
 			(objectDecl | defaultVariable)*
 		CLOSE_BRACE
@@ -879,11 +882,13 @@ defaultpropertiesBlock
 
 objectDecl
 	:
+		// UnrealScriptBug: name= and class= are required to be on the same line as the keyword!
 		kwBEGIN kwOBJECT
 			(objectDecl | defaultVariable)*
 		kwEND kwOBJECT
 	;
 
+// FIXME: Use expressions pattern instead?
 defaultVariable:
 	defaultId
 	((OPEN_PARENS INTEGER CLOSE_PARENS) | (OPEN_BRACKET INTEGER CLOSE_BRACKET))?
