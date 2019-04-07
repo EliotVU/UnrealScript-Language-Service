@@ -460,7 +460,7 @@ enumDecl:
 	CLOSE_BRACE
 	;
 
-enumMember: (identifier variableMeta? COMMA?);
+enumMember: (identifier metaTuple? COMMA?);
 
 structDecl
 	:	kwSTRUCT nativeTypeDecl? structModifier* identifier extendsClause?
@@ -509,16 +509,13 @@ variable:
 	arrayDim?
 	// FIXME: matches invalid code
 	// nativeTypeDecl?
-	variableMeta?
+	metaTuple?
 	;
 
 // UC3 <UIMin=0.0|UIMax=1.0|Toolip=Hello world!>
-variableMeta: LT metaList GT;
-
-metaProperty: identifier ASSIGNMENT metaValue;
 // FIXME: This is incorrect, any value is allowed.
-metaValue: literal;
-metaList: metaProperty (BITWISE_OR metaProperty)*;
+metaTuple: LT (metaAssignment BITWISE_OR?)* GT;
+metaAssignment: identifier ASSIGNMENT .*?;
 
 categoryList: identifier (COMMA identifier)*;
 
