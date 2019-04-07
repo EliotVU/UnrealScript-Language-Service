@@ -449,8 +449,8 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 				const statement = statementNodes[i].accept(StatementVisitor);
 				scriptBlock.statements[i] = statement;
 
-				const replicatedIdNodes = statementNodes[i].replicateId();
-				if (replicatedIdNodes) for (const idNode of replicatedIdNodes) {
+				const idNodes = statementNodes[i].identifier();
+				if (idNodes) for (const idNode of idNodes) {
 					const identifier = idNode.text;
 					const symbolRef = new UCSymbolReference(identifier, rangeFromBound(idNode.start));
 					symbolRef.outer = this.class;

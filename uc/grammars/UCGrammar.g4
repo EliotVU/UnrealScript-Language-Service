@@ -631,10 +631,8 @@ replicationModifier: (kwRELIABLE | kwUNRELIABLE);
 
 replicationStatement:
 	replicationModifier? kwIF (OPEN_PARENS expression CLOSE_PARENS) (
-		replicateId (COMMA replicateId)* SEMICOLON
+		identifier (COMMA identifier)* SEMICOLON
 	);
-
-replicateId: identifier;
 
 /* Parses:
  * public simulated function coerce class<Actor> test(optional int p1, int p2) const;
