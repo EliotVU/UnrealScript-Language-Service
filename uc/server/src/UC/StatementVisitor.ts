@@ -61,9 +61,9 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 
 	visitLabeledStatement(ctx: LabeledStatementContext): UCLabeledStatement {
 		const statement = new UCLabeledStatement(rangeFromBounds(ctx.start, ctx.stop));
-		const nameNode = ctx.labelName();
-		if (nameNode) {
-			statement.label = nameNode.text;
+		const idNode = ctx.identifier();
+		if (idNode) {
+			statement.label = idNode.text;
 		}
 		statement.context = ctx;
 		return statement;

@@ -615,8 +615,10 @@ mapType: kwMAP nativeMapTypeDecl;
 
 cpptextBlock:
 	(kwCPPTEXT | kwSTRUCTCPPTEXT | kwCPPSTRUCT)
+	// UnrealScriptBug: Must on next the line after keyword!
 	OPEN_BRACE
 		.*?
+	// UnrealScriptBug: Anything WHATSOEVER can be written after this brace as long as it's on the same line!
 	CLOSE_BRACE;
 
 replicationBlock:
@@ -742,9 +744,9 @@ paramModifier
 	;
 
 localDecl:
-	kwLOCAL typeDecl variable (COMMA variable)* SEMICOLON;
-
-labelName: identifier;
+	kwLOCAL typeDecl variable (COMMA variable)*
+	// UnrealScriptBug: Can have multiple semicolons which is inconsistent with all other declaration kinds.
+	SEMICOLON+;
 
 ignoresList: identifier (COMMA identifier)*;
 
@@ -776,8 +778,8 @@ statement:
 	) SEMICOLON* // Pass trailing semicolons
 	;
 
-labeledStatement: labelName COLON;
-gotoStatement: kwGOTO labelName SEMICOLON;
+labeledStatement: identifier COLON;
+gotoStatement: kwGOTO identifier SEMICOLON;
 
 controlStatement
 	: returnStatement
