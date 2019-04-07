@@ -232,9 +232,9 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 		const statement = new UCSwitchCase(rangeFromBounds(ctx.start, ctx.stop));
 		statement.context = ctx;
 
-		const exprNode = ctx.expression();
-		if (exprNode) {
-			statement.expression = exprNode.accept(ExpressionVisitor);
+		const literalNode = ctx.literal();
+		if (literalNode) {
+			statement.expression = ExpressionVisitor.visitLiteralExpression(ctx); // FIXME: HARDCODED HACK
 		}
 		statement.scriptBlock = this.parseScriptBlock(ctx);
 

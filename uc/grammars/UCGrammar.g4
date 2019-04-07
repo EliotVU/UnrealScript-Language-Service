@@ -856,8 +856,8 @@ switchStatement:
 	CLOSE_BRACE?;
 
 switchCase:
-	// FIXME: Maybe parse literal instead of expression? What exactly are the valid rules here?
-	(kwCASE expression?) | (kwDEFAULT) COLON
+	// FIXME: What exactly are the valid value rules here?
+	((kwCASE (literal | qualifiedIdentifier)?) | kwDEFAULT) COLON
 		statement* breakStatement?
 	;
 
