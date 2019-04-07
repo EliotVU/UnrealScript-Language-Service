@@ -1,6 +1,6 @@
 import { ParserRuleContext } from 'antlr4ts';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { UnaryExpressionContext, OperatorIdContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ArgumentContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, GroupExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext } from '../antlr/UCGrammarParser';
+import { UnaryExpressionContext, OperatorIdContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, GroupExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference } from './Symbols';
 import { UCMemberExpression, UCUnaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression, UCTernaryExpression, UCArgumentedExpression, UCIndexExpression, UCGroupExpression, UCPredefinedMemberExpression, IExpression, UCLiteral, UCClassLiteral } from './Symbols/Expressions';
@@ -250,19 +250,15 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 	}
 
 	visitArguments(ctx: ArgumentsContext): IExpression {
-		const argumentNodes = ctx.argument();
+		const argumentNodes = ctx.expression();
 		if (!argumentNodes) {
 			return undefined;
 		}
 
 		const expressions: IExpression[] = [];
 		for (let arg of argumentNodes) {
-			expressions.push(arg.accept<IExpression>(this));
+			expressions.push(arg.accept(this));
 		}
 		return expressions as any as IExpression;
-	}
-
-	visitArgument(ctx: ArgumentContext): IExpression {
-		return ctx.expression().accept<IExpression>(this);
 	}
 }

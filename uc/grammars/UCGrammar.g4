@@ -827,8 +827,7 @@ classLiteralSpecifier
 	| kwCONST
 	;
 
-arguments: (COMMA* argument)*;
-argument: expression;
+arguments: (COMMA* expression)*;
 
 ifStatement:
 	kwIF (OPEN_PARENS expression CLOSE_PARENS)
