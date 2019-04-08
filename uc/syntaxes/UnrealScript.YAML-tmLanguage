@@ -193,7 +193,7 @@ repository:
           '8':
             name: entity.other.inherited-class.uc
         patterns:
-          - begin: \b((?i)abstract|export|exportstructs|noexport|noexportheader|nativereplication|nativeonly|deprecated|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|hidedropdown|editinlinenew|noteditinlinenew|cacheexempt|perobjectconfig|perobjectlocalized|forcescriptorder)\b
+          - begin: \b((?i)abstract|export|exportstructs|noexport|noexportheader|nativereplication|nativeonly|deprecated|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|hidedropdown|editinlinenew|noteditinlinenew|cacheexempt|perobjectconfig|perobjectlocalized|forcescriptorder|instanced)\b
             name: storage.modifier.uc
             end: \b
           - begin: \b((?i)config|native|intrinsic)(\s*\()?
