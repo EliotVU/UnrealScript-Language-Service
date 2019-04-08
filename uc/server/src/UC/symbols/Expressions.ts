@@ -15,7 +15,7 @@ export interface IExpression {
 
 	getMemberSymbol(): ISymbol;
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined;
+	getSymbolAtPos(position: Position): UCSymbol;
 
 	index(document: UCDocument, context: UCStructSymbol): void;
 	analyze(document: UCDocument, context: UCStructSymbol): void;
@@ -29,7 +29,7 @@ export abstract class UCExpression {
 
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol {
 		if (!this.range && this.context) {
 			this.range = rangeFromBounds(this.context.start, this.context.stop);
 		}
@@ -45,7 +45,7 @@ export abstract class UCExpression {
 		return undefined;
 	}
 
-	abstract getContainedSymbolAtPos(position: Position): UCSymbol | undefined;
+	abstract getContainedSymbolAtPos(position: Position): UCSymbol;
 	abstract index(document: UCDocument, context: UCStructSymbol): void;
 	abstract analyze(document: UCDocument, context: UCStructSymbol): void;
 }
@@ -60,7 +60,7 @@ export class UCUnaryExpression extends UCExpression {
 		return this.expression.getMemberSymbol();
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		const symbol = this.expression && this.expression.getSymbolAtPos(position);
 		if (symbol) {
 			return symbol;
@@ -86,7 +86,7 @@ export class UCGroupExpression extends UCExpression {
 		return this.expression && this.expression.getMemberSymbol();
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		const symbol = this.expression && this.expression.getSymbolAtPos(position);
 		if (symbol) {
 			return symbol;
@@ -110,7 +110,7 @@ export class UCArgumentedExpression extends UCExpression {
 		return this.expression && this.expression.getMemberSymbol();
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		if (this.expression) {
 			const symbol = this.expression.getSymbolAtPos(position);
 			if (symbol) {
@@ -169,7 +169,7 @@ export class UCIndexExpression extends UCExpression {
 		return symbol;
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		if (this.primary) {
 			const symbol = this.primary.getSymbolAtPos(position);
 			if (symbol) {
@@ -204,7 +204,7 @@ export class UCContextExpression extends UCExpression {
 		return this.member.getMemberSymbol();
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		if (this.left) {
 			const symbol = this.left.getSymbolAtPos(position);
 			if (symbol) {
@@ -361,12 +361,12 @@ export class UCClassLiteral extends UCExpression {
 	}
 
 	index(document: UCDocument, _context: UCStructSymbol) {
-		const castSymbol = SymbolsTable.findQualifiedSymbol(this.classCastingRef.getName().toLowerCase(), true) || NativeClass;
+		const castSymbol = SymbolsTable.findSymbol(this.classCastingRef.getName().toLowerCase(), true) || NativeClass;
 		if (castSymbol) {
 			this.classCastingRef.setReference(castSymbol, document);
 		}
 
-		const symbol = SymbolsTable.findQualifiedSymbol(this.objectRef.getName().toLowerCase(), true);
+		const symbol = SymbolsTable.findSymbol(this.objectRef.getName().toLowerCase(), true);
 		if (symbol) {
 			this.objectRef.setReference(symbol, document);
 		}
@@ -433,7 +433,7 @@ export class UCMemberExpression extends UCExpression {
 					// First try to match a class or struct (e.g. a casting).
 					const hasArguments = this.outer instanceof UCArgumentedExpression;
 					if (hasArguments) {
-						let type = SymbolsTable.findQualifiedSymbol(id, true); // Look for a class or predefined type.
+						let type = SymbolsTable.findSymbol(id, true); // Look for a class or predefined type.
 						if (!type) {
 							type = context.findTypeSymbol(id, true); // look for struct types
 						}

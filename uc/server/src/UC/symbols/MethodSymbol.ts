@@ -25,11 +25,17 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getKindText(): string {
-		return this.context ? (this.context as FunctionDeclContext).functionKind().text.toLowerCase() : 'function';
+		return this.context
+			? (this.context as FunctionDeclContext).functionKind().text.toLowerCase()
+			: 'function';
 	}
 
 	getTooltip(): string {
-		return this.getTypeTooltip() + this.getKindText() + ' ' + this.buildReturnType() + this.getQualifiedName() + this.buildArguments();
+		return this.getTypeTooltip()
+			+ this.getKindText()
+			+ ' ' + this.buildReturnType()
+			+ this.getQualifiedName()
+			+ this.buildArguments();
 	}
 
 	getDocumentation(tokenStream) {
@@ -55,7 +61,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 		}
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		if (this.returnType) {
 			const returnSymbol = this.returnType.getSymbolAtPos(position);
 			if (returnSymbol) {
@@ -65,7 +71,8 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return super.getContainedSymbolAtPos(position);
 	}
 
-	findTypeSymbol(qualifiedId: string, deepSearch: boolean): UCSymbol | undefined {
+	findTypeSymbol(qualifiedId: string, deepSearch: boolean): UCSymbol {
+		// Redirect to outer, because Methods are never supposed to have any type members!
 		return (this.outer as UCStructSymbol).findTypeSymbol(qualifiedId, deepSearch);
 	}
 
@@ -79,7 +86,10 @@ export class UCMethodSymbol extends UCStructSymbol {
 		if (context.super) {
 			const method = context.super.findSuperSymbol(this.getName().toLowerCase()) as UCMethodSymbol;
 			if (method) {
-				method.addReference({ location: Location.create(document.uri, this.getNameRange()), symbol: this });
+				method.addReference({
+					location: Location.create(document.uri, this.getNameRange()),
+					symbol: this
+				});
 			}
 			this.overridenMethod = method;
 		}

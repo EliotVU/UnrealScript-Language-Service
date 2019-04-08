@@ -20,7 +20,7 @@ export class UCReplicationBlock extends UCFieldSymbol {
 		return this.getName();
 	}
 
-	getCompletionContext(position: Position): UCSymbol | undefined {
+	getCompletionContext(position: Position): UCSymbol {
 		if (this.scriptBlock) {
 			const symbol = this.scriptBlock.getSymbolAtPos(position);
 			if (symbol && symbol instanceof UCSymbolReference) {
@@ -36,7 +36,7 @@ export class UCReplicationBlock extends UCFieldSymbol {
 			.concat(ReliableKeyword, UnreliableKeyword);
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		if (this.scriptBlock) {
 			const symbol = this.scriptBlock.getSymbolAtPos(position);
 			if (symbol) {

@@ -20,7 +20,7 @@ export class UCObjectSymbol extends UCStructSymbol {
 		return this.getName();
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		for (let ref of this.symbolRefs.values()) {
 			const symbol = ref.getSymbolAtPos(position);
 			if (symbol) {

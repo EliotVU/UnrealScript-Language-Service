@@ -25,7 +25,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return this.spanRange;
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol {
 		if (!intersectsWith(this.getSpanRange(), position)) {
 			return undefined;
 		}
@@ -36,7 +36,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return this.getContainedSymbolAtPos(position);
 	}
 
-	getCompletionContext(_position: Position): UCSymbol | undefined {
+	getCompletionContext(_position: Position): UCSymbol {
 		return this;
 	}
 

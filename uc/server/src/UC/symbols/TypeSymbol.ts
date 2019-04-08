@@ -31,7 +31,7 @@ export class UCTypeSymbol extends UCSymbolReference {
 		return this.getName();
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		if (this.baseType) {
 			return this.baseType.getSymbolAtPos(position);
 		}
@@ -47,7 +47,7 @@ export class UCTypeSymbol extends UCSymbolReference {
 			default:
 				const id = this.getName().toLowerCase();
 				// Quick shortcut for the most common types or top level symbols.
-				let symbol = CORE_PACKAGE.findQualifiedSymbol(id, false);
+				let symbol = CORE_PACKAGE.findSymbol(id, false);
 				if (!symbol) {
 					symbol = context.findTypeSymbol(id, true);
 				}
@@ -77,7 +77,7 @@ export class UCTypeSymbol extends UCSymbolReference {
 
 	private linkToClass(document: UCDocument) {
 		const qualifiedClassId = this.getName().toLowerCase();
-		const symbol = SymbolsTable.findQualifiedSymbol(qualifiedClassId, true);
+		const symbol = SymbolsTable.findSymbol(qualifiedClassId, true);
 		if (symbol) {
 			this.setReference(symbol, document);
 		}

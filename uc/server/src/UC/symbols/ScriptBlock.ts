@@ -13,7 +13,7 @@ export class UCScriptBlock {
 
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol {
 		if (!intersectsWith(this.range, position)) {
 			return undefined;
 		}
@@ -21,7 +21,7 @@ export class UCScriptBlock {
 		return symbol;
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		if (this.statements) for (let statement of this.statements) if (statement) {
 			const symbol = statement.getSymbolAtPos(position);
 			if (symbol) {

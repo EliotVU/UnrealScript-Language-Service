@@ -13,7 +13,7 @@ export interface IStatement {
 	outer?: IStatement;
 	context?: ParserRuleContext;
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined;
+	getSymbolAtPos(position: Position): UCSymbol;
 
 	index(document: UCDocument, context: UCStructSymbol): void;
 	analyze(document: UCDocument, context: UCStructSymbol): void;
@@ -27,7 +27,7 @@ export abstract class UCBaseStatement implements IStatement {
 
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol {
 		if (!this.range && this.context) {
 			this.range = rangeFromBounds(this.context.start, this.context.stop);
 		}
@@ -39,7 +39,7 @@ export abstract class UCBaseStatement implements IStatement {
 		return symbol;
 	}
 
-	abstract getContainedSymbolAtPos(position: Position): UCSymbol | undefined;
+	abstract getContainedSymbolAtPos(position: Position): UCSymbol;
 	abstract index(document: UCDocument, context: UCStructSymbol): void;
 	abstract analyze(document: UCDocument, context: UCStructSymbol): void;
 }
@@ -53,7 +53,7 @@ export class UCExpressionStatement implements IStatement {
 
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol {
 		if (!this.range && this.context) {
 			this.range = rangeFromBounds(this.context.start, this.context.stop);
 		}
@@ -65,7 +65,7 @@ export class UCExpressionStatement implements IStatement {
 		return symbol;
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		if (this.expression) {
 			const symbol = this.expression.getSymbolAtPos(position);
 			if (symbol) {
@@ -90,7 +90,7 @@ export class UCExpressionStatement implements IStatement {
 export abstract class UCBlockStatement extends UCExpressionStatement {
 	public scriptBlock: UCScriptBlock;
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		const symbol = super.getContainedSymbolAtPos(position);
 		if (symbol) {
 			return symbol;
@@ -119,7 +119,7 @@ export abstract class UCBlockStatement extends UCExpressionStatement {
 export class UCIfStatement extends UCBlockStatement {
 	public else?: UCElseStatement;
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		const symbol = super.getContainedSymbolAtPos(position);
 		if (symbol) {
 			return symbol;
@@ -164,7 +164,7 @@ export class UCSwitchStatement extends UCBlockStatement {
 export class UCSwitchCase extends UCBlockStatement {
 	public break?: IStatement;
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		const symbol = super.getContainedSymbolAtPos(position);
 		if (symbol) {
 			return symbol;
@@ -195,7 +195,7 @@ export class UCForStatement extends UCBlockStatement {
 	public init?: IExpression;
 	public next?: IExpression;
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		const symbol = super.getContainedSymbolAtPos(position);
 		if (symbol) {
 			return symbol;

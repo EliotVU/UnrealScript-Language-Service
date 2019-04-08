@@ -88,15 +88,15 @@ export abstract class UCSymbol implements ISymbol {
 			&& position.character >= range.start.character && position.character < range.end.character;
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol {
 		return this.intersectsWithName(position) && this.getContainedSymbolAtPos(position) || this;
 	}
 
-	protected getContainedSymbolAtPos(_position: Position): UCSymbol | undefined {
+	protected getContainedSymbolAtPos(_position: Position): UCSymbol {
 		return undefined;
 	}
 
-	getOuter<T extends ISymbol>(): ISymbol | undefined {
+	getOuter<T extends ISymbol>(): ISymbol {
 		for (let outer = this.outer; outer; outer = outer.outer) {
 			if (<T>(outer)) {
 				return outer;
@@ -143,11 +143,11 @@ export abstract class UCSymbol implements ISymbol {
 		return item;
 	}
 
-	findTypeSymbol(id: string, deepSearch: boolean): ISymbol | undefined {
+	findTypeSymbol(id: string, deepSearch: boolean): ISymbol {
 		if (this.outer instanceof UCSymbol) {
 			return this.outer.findTypeSymbol(id, deepSearch);
 		} else if (this.outer instanceof UCPackage) {
-			return this.outer.findQualifiedSymbol(id, deepSearch);
+			return this.outer.findSymbol(id, deepSearch);
 		}
 		return undefined;
 	}

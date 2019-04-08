@@ -258,7 +258,7 @@ export async function getCompletionItems(uri: string, position: Position, contex
 
 export async function getFullCompletionItem(item: CompletionItem): Promise<CompletionItem> {
 	if (item.data) {
-		const symbol = SymbolsTable.findQualifiedSymbol(item.data, true) as UCSymbol;
+		const symbol = SymbolsTable.findSymbol(item.data, true) as UCSymbol;
 		if (!symbol) {
 			return item;
 		}

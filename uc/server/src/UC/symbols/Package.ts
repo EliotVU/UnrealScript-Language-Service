@@ -4,15 +4,14 @@ import { SymbolKind, CompletionItem } from 'vscode-languageserver-types';
 
 import { UCDocument, getDocumentById, indexDocument } from '../DocumentListener';
 
-import { ISymbol } from './ISymbol';
 import { ISymbolContainer } from './ISymbolContainer';
-import { UCStructSymbol } from ".";
+import { ISymbol, UCStructSymbol } from ".";
 
 // Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbolContainer<ISymbol> {
 	public outer = null;
-	public symbols = new Map<string, ISymbol>();
 
+	protected symbols = new Map<string, ISymbol>();
 	private name: string;
 
 	constructor(uri: string) {
@@ -54,12 +53,16 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 		this.symbols.set(symbol.getName().toLowerCase(), symbol);
 	}
 
+	getSymbol(id: string): ISymbol {
+		return this.symbols.get(id);
+	}
+
 	/**
 	 * Looks up a symbol by a qualified identifier in the current package or its subpackages.
 	 * @param qualifiedId any valid qualified id e.g. Engine.Actor.EDrawType in lowercase.
 	 * @param deepSearch
 	 */
-	public findQualifiedSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol {
+	findSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol {
 		if (qualifiedId.indexOf('.') === -1) {
 			return this.symbols.get(qualifiedId);
 		}
@@ -80,14 +83,14 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 		if (symbol instanceof UCStructSymbol) {
 			return symbol.findTypeSymbol(nextQualifiedId, deepSearch);
 		}
-		return this.findQualifiedSymbol(nextQualifiedId, deepSearch);
+		return this.findSymbol(nextQualifiedId, deepSearch);
 	}
 }
 
 class UCWorkspace extends UCPackage {
-	public findQualifiedSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol {
+	findSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol {
 		for (let packageSymbol of (this.symbols as Map<string, UCPackage>).values()) {
-			const symbol = packageSymbol.findQualifiedSymbol(qualifiedId, deepSearch);
+			const symbol = packageSymbol.findSymbol(qualifiedId, deepSearch);
 			if (symbol) {
 				return symbol;
 			}
@@ -100,7 +103,7 @@ class UCWorkspace extends UCPackage {
 			}
 			return document.class;
 		}
-		return this.symbols.get(qualifiedId);
+		return this.getSymbol(qualifiedId);
 	}
 }
 

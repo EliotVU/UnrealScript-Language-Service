@@ -23,7 +23,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return `${this.getTypeTooltip()} ${this.type!.getTypeText()} ${this.getQualifiedName()}`;
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		if (this.type) {
 			return this.type.getSymbolAtPos(position);
 		}

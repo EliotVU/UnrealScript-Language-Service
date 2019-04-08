@@ -15,7 +15,7 @@ export class UCStateSymbol extends UCStructSymbol {
 		return `state ${this.getQualifiedName()}`;
 	}
 
-	findTypeSymbol(qualifiedId: string, deepSearch: boolean): UCSymbol | undefined {
+	findTypeSymbol(qualifiedId: string, deepSearch: boolean): UCSymbol {
 		return (this.outer as UCStructSymbol).findTypeSymbol(qualifiedId, deepSearch);
 	}
 }

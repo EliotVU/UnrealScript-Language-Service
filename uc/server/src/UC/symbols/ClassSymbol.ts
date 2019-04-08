@@ -24,7 +24,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		return `class ${this.getQualifiedName()}`;
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol {
 		if (intersectsWith(this.getSpanRange(), position)) {
 			if (this.intersectsWithName(position)) {
 				return this;
@@ -35,7 +35,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		return this.getChildSymbolAtPos(position);
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		if (this.extendsType && this.extendsType.getSymbolAtPos(position)) {
 			return this.extendsType;
 		}
@@ -66,7 +66,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
-	getCompletionContext(position: Position): UCSymbol | undefined {
+	getCompletionContext(position: Position): UCSymbol {
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
 			if (intersectsWith(symbol.getSpanRange(), position)) {
 				return symbol.getCompletionContext(position);

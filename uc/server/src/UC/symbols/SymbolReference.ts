@@ -35,7 +35,7 @@ export class UCSymbolReference extends UCSymbol {
 		return super.getTooltip();
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): UCSymbol {
 		if (!intersectsWith(this.getSpanRange(), position)) {
 			return undefined;
 		}

@@ -50,7 +50,7 @@ function getPackageByUri(uri: string): UCPackage {
 		if (i > 0 && dirs[i].toLowerCase() === 'classes') {
 			const packageName = dirs[i - 1];
 
-			packageSymbol = SymbolsTable.symbols.get(packageName) as UCPackage;
+			packageSymbol = SymbolsTable.getSymbol(packageName) as UCPackage;
 			if (packageSymbol) {
 				PathPackageMap.set(dir, packageSymbol);
 				return packageSymbol;

@@ -45,7 +45,7 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 		return symbols;
 	}
 
-	getCompletionContext(position: Position): UCSymbol | undefined {
+	getCompletionContext(position: Position): UCSymbol {
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
 			if (intersectsWith(symbol.getSpanRange(), position)) {
 				return symbol.getCompletionContext(position);
@@ -61,7 +61,7 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 		return this;
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol | undefined {
+	getContainedSymbolAtPos(position: Position): UCSymbol {
 		if (this.extendsType && this.extendsType.getSymbolAtPos(position)) {
 			return this.extendsType;
 		}
@@ -76,7 +76,7 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 		return this.getChildSymbolAtPos(position);
 	}
 
-	getChildSymbolAtPos(position: Position): UCSymbol | undefined {
+	getChildSymbolAtPos(position: Position): UCSymbol {
 		for (let child = this.children; child; child = child.next) {
 			const innerSymbol = child.getSymbolAtPos(position);
 			if (innerSymbol) {
@@ -100,7 +100,11 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 		}
 	}
 
-	findSymbol(id: string): UCSymbol | undefined {
+	getSymbol(id: string): UCSymbol {
+		return this.findSymbol(id);
+	}
+
+	findSymbol(id: string): UCSymbol {
 		for (let child = this.children; child; child = child.next) {
 			const name = child.getName().toLowerCase();
 			if (name === id) {
@@ -118,7 +122,7 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 		return undefined;
 	}
 
-	findSuperSymbol(id: string): UCSymbol | undefined {
+	findSuperSymbol(id: string): UCSymbol {
 		if (id === this.getName().toLowerCase()) {
 			return this;
 		}
@@ -143,7 +147,7 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 		return undefined;
 	}
 
-	findTypeSymbol(qualifiedId: string, deepSearch: boolean): UCSymbol | undefined {
+	findTypeSymbol(qualifiedId: string, deepSearch: boolean): UCSymbol {
 		let symbol = this.cachedTypeResolves.get(qualifiedId);
 		if (symbol) {
 			return symbol;
