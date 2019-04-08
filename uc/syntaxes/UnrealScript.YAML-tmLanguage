@@ -415,12 +415,13 @@ repository:
         endCaptures:
           '0':
             name: punctuation.curlybrace.close.uc
-    end: "(?<=\\}|\\;)"
+    end: (?<=\}|\;)
   cppblock:
-    begin: "(?=\\b((?i)cpptext|structcpptext))"
+    begin: (?=\b((?i)cpptext|structcpptext))
+    beginCaptures:
+      '1':
+        name: keyword.other.method.uc
     patterns:
-      - name: keyword.other.method.uc
-        match: '((?i)cpptext|structcpptext)'
       - begin: \{
         beginCaptures:
           '0':
@@ -432,7 +433,7 @@ repository:
             name: punctuation.curlybrace.close.uc
     end: (?<=\})
   replication:
-    begin: "(?=\\b((?i)replication))"
+    begin: (?=\b((?i)replication))
     beginCaptures:
       '1':
         name: keyword.other.replication.uc
@@ -481,13 +482,32 @@ repository:
   expression:
     patterns:
       - include: '#comment'
+
+      - begin: ([_[:alpha:]][_[:alnum:]]*)\s*(\')
+        beginCaptures:
+          '1':
+            name: entity.name.type.class.uc
+          '2':
+            name: string.quoted.single.uc
+        patterns:
+          - match: ([_[:alpha:]][_[:alnum:]]*)
+            name: entity.name.type.other.uc
+        end: \'
+        endCaptures:
+          '0':
+            name: string.quoted.single.uc
+
       - include: '#literal'
+
       - name: constant.language.null.uc
         match: "\\b((?i)none)\\b"
+
       - name: keyword.control.flow.uc
         match: "\\b((?i)super)\\b"
+
       - name: variable.language.this.uc
         match: \b((?i)global|self|default|static)\b
+
       - begin: ((?i)int|byte|float|bool|string|name|vect|range|rot)\s*(\()
         beginCaptures:
           '0':
@@ -502,6 +522,7 @@ repository:
         endCaptures:
           '0':
             name: punctuation.parenthesis.close.uc
+
       - begin: ([_[:alpha:]][_[:alnum:]]*)\s*(\()
         beginCaptures:
           '0':
@@ -516,8 +537,10 @@ repository:
         endCaptures:
           '0':
             name: punctuation.parenthesis.close.uc
+
       - name: support.variable.dom.uc
         match: '[_[:alpha:]][_[:alnum:]]*'
+
       - name: keyword.operator.other.uc
         match: ([\>\<\#\@\&\$\^\%\?\:\=\~\+\-\*\/\!\|]+)
       - begin: \(
@@ -530,6 +553,7 @@ repository:
         endCaptures:
           '0':
             name: punctuation.parenthesis.close.uc
+
       - name: meta.block.uc
         begin: \{
         beginCaptures:
