@@ -1,9 +1,9 @@
 import { ParserRuleContext } from 'antlr4ts';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { UnaryExpressionContext, OperatorIdContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, GroupExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext } from '../antlr/UCGrammarParser';
+import { UnaryExpressionContext, OperatorIdContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, GroupExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference } from './Symbols';
-import { UCMemberExpression, UCUnaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression, UCTernaryExpression, UCArgumentedExpression, UCIndexExpression, UCGroupExpression, UCPredefinedMemberExpression, IExpression, UCLiteral, UCClassLiteral } from './Symbols/Expressions';
+import { UCMemberExpression, UCUnaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression, UCTernaryExpression, UCArgumentedExpression, UCIndexExpression, UCGroupExpression, UCPredefinedMemberExpression, IExpression, UCLiteral, UCClassLiteral, UCNewOperator } from './Symbols/Expressions';
 import { rangeFromBounds } from './helpers';
 
 export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
@@ -187,9 +187,26 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 		return expression;
 	}
 
-	// FIXME:
+	// new ( arguments ) classArgument
 	visitNewExpression(ctx: NewExpressionContext) {
-		return ctx.classArgument().primaryExpression().accept(this);
+		const expression = new UCNewOperator();
+		expression.context = ctx;
+
+		const exprNode = ctx.classArgument();
+		if (exprNode) {
+			expression.expression = exprNode.accept(this);
+			expression.expression.outer = expression;
+		}
+
+		const exprArgumentNodes = ctx.arguments();
+		if (exprArgumentNodes) {
+			expression.arguments = exprArgumentNodes.accept(this) as IExpression[];
+		}
+		return expression;
+	}
+
+	visitClassArgument(ctx: ClassArgumentContext) {
+		return ctx.primaryExpression().accept(this);
 	}
 
 	// FIXME:

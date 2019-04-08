@@ -523,6 +523,22 @@ repository:
           '0':
             name: punctuation.parenthesis.close.uc
 
+      # new operator
+      - begin: ((?i)new)\s*(\()
+        beginCaptures:
+          '0':
+            name: new.expr.uc
+          '1':
+            name: keyword.operator.new.uc
+          '2':
+            name: punctuation.parenthesis.open.uc
+        patterns:
+          - include: '#expression'
+        end: \)
+        endCaptures:
+          '0':
+            name: punctuation.parenthesis.close.uc
+
       - begin: ([_[:alpha:]][_[:alnum:]]*)\s*(\()
         beginCaptures:
           '0':

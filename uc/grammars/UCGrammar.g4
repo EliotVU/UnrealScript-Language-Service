@@ -4,8 +4,6 @@ import UCLexer;
 
 // NOTE: all class exclusive modifiers are commented out because we don't have to capture them.
 kwDEFAULT: 'default';
-kwSELF: 'self';
-kwSUPER: 'super';
 kwGLOBAL: 'global';
 kwCLASS: 'class';
 
@@ -166,7 +164,6 @@ kwDEMORECORDING: 'demorecording';
 // kwINHERITS: 'inherits';
 // kwFORCESCRIPTORDER: 'forcescriptorder';
 
-kwNEW: 'new';
 kwGOTO: 'goto';
 
 kwBEGIN: 'begin';
@@ -508,7 +505,7 @@ varDecl: kwVAR (OPEN_PARENS categoryList? CLOSE_PARENS)?
 variable:
 	identifier
 	arrayDim?
-	(OPEN_BRACE .*? CLOSE_BRACE)? // nativeTypeDecl
+	cppcode? // nativeTypeDecl
 	metaTuple?
 	;
 
@@ -520,10 +517,10 @@ metaAssignment: identifier ASSIGNMENT .*?;
 categoryList: identifier (COMMA identifier)*;
 
 // UC3 CPP specifier e.g. {public}
-nativeModifierDecl: OPEN_BRACE identifier CLOSE_BRACE;
+nativeTypeModifier: OPEN_BRACE identifier CLOSE_BRACE;
 
 // UC3 CPP map e.g. map{FName, FLOAT}
-nativeMapTypeDecl: OPEN_BRACE .*? COMMA .*? CLOSE_BRACE;
+nativeMapType: OPEN_BRACE .*? COMMA .*? CLOSE_BRACE; // use cppcode?
 
 variableModifier
 	: (
@@ -573,7 +570,7 @@ variableModifier
 		| kwCROSSLEVELACTIVE
 		| kwCROSSLEVELPASSIVE
 		| kwALLOWABSTRACT
-	) nativeModifierDecl?
+	) nativeTypeModifier?
 	;
 
 typeDecl
@@ -611,15 +608,14 @@ type
 arrayType: kwARRAY LT inlinedDeclTypes GT;
 classType: kwCLASS LT type GT;
 delegateType: kwDELEGATE LT identifier GT;
-mapType: kwMAP nativeMapTypeDecl;
+mapType: kwMAP nativeMapType;
 
 cpptextBlock:
 	(kwCPPTEXT | kwSTRUCTCPPTEXT | kwCPPSTRUCT)
 	// UnrealScriptBug: Must on next the line after keyword!
-	OPEN_BRACE
-		.*?
-	// UnrealScriptBug: Anything WHATSOEVER can be written after this brace as long as it's on the same line!
-	CLOSE_BRACE;
+	cppcode;
+
+cppcode: (OPEN_BRACE .*? CLOSE_BRACE)+; // UnrealScriptBug: Anything WHATSOEVER can be written after this closing brace as long as it's on the same line!
 
 replicationBlock:
 	kwREPLICATION
@@ -805,17 +801,17 @@ unaryExpression
 classArgument: primaryExpression; // Inclusive template argument (will be parsed as a function call)
 
 primaryExpression
-	: kwNEW (OPEN_PARENS arguments CLOSE_PARENS)? classArgument #newExpression
-	| kwCLASS LT qualifiedIdentifier GT primaryExpression #classCastExpression
-	| literal #literalExpression
-	| (kwDEFAULT | kwSELF | kwSUPER | kwGLOBAL | kwSTATIC) #specifierExpression
-	| identifier #memberExpression
-	| (OPEN_PARENS expression CLOSE_PARENS) #groupExpression
-	| primaryExpression DOT (classLiteralSpecifier | identifier) #contextExpression
-	| primaryExpression OPEN_PARENS arguments CLOSE_PARENS #argumentedExpression
-	| primaryExpression OPEN_BRACKET expression CLOSE_BRACKET #indexExpression
+	: kwCLASS LT qualifiedIdentifier GT primaryExpression 			#classCastExpression
+	| literal 														#literalExpression
+	| (kwDEFAULT | 'self' | 'super' | 'global' | kwSTATIC) 			#specifierExpression
+	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? classArgument 	#newExpression
+	// Note any kwTOKEN must preceed identifier!
+	| identifier 													#memberExpression
+	| (OPEN_PARENS expression CLOSE_PARENS) 						#groupExpression
+	| primaryExpression DOT (classLiteralSpecifier | identifier)	#contextExpression
+	| primaryExpression OPEN_PARENS arguments CLOSE_PARENS 			#argumentedExpression
+	| primaryExpression OPEN_BRACKET expression CLOSE_BRACKET 		#indexExpression
 	// nameof, arraycount?
-
 	;
 
 classLiteralSpecifier

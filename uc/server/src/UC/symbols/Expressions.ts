@@ -486,3 +486,7 @@ export class UCPredefinedMemberExpression extends UCMemberExpression {
 		);
 	}
 }
+
+export class UCNewOperator extends UCArgumentedExpression {
+	// TODO: Implement psuedo new operator for hover info?
+}
