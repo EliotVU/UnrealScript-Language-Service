@@ -1,9 +1,9 @@
 import { ParserRuleContext } from 'antlr4ts';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { UnaryExpressionContext, OperatorIdContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, GroupExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext } from '../antlr/UCGrammarParser';
+import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference } from './Symbols';
-import { UCMemberExpression, UCUnaryExpression, UCAssignmentExpression, UCContextExpression, UCBinaryExpression, UCTernaryExpression, UCArgumentedExpression, UCIndexExpression, UCGroupExpression, UCPredefinedMemberExpression, IExpression, UCLiteral, UCClassLiteral, UCNewOperator } from './Symbols/Expressions';
+import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesisExpression, UCPredefinedMemberExpression, IExpression, UCLiteral, UCClassLiteral, UCNewOperator } from './Symbols/Expressions';
 import { rangeFromBounds } from './helpers';
 
 export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
@@ -41,22 +41,22 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 	}
 
 	visitTernaryOperator(ctx: TernaryOperatorContext) {
-		const expression = new UCTernaryExpression();
+		const expression = new UCTernaryOperator();
 		expression.context = ctx;
 
-		const conditionNode = ctx.expression(0);
+		const conditionNode = ctx.unaryExpression();
 		if (conditionNode) {
 			expression.condition = conditionNode.accept<IExpression>(this);
 			expression.condition.outer = expression;
 		}
 
-		const leftNode = ctx.expression(1);
+		const leftNode = ctx.expression(0);
 		if (leftNode) {
 			expression.true = leftNode.accept<IExpression>(this);
 			expression.true.outer = expression;
 		}
 
-		const rightNode = ctx.expression(2);
+		const rightNode = ctx.expression(1);
 		if (rightNode) {
 			expression.false = rightNode.accept<IExpression>(this);
 			expression.false.outer = expression;
@@ -66,7 +66,7 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 	}
 
 	visitBinaryOperator(ctx: BinaryOperatorContext) {
-		const expression = new UCBinaryExpression();
+		const expression = new UCBinaryOperator();
 		expression.context = ctx;
 
 		const leftNode = ctx.expression(0);
@@ -84,8 +84,8 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 		return expression;
 	}
 
-	visitAssignmentExpression(ctx: AssignmentExpressionContext): UCAssignmentExpression {
-		const expression = new UCAssignmentExpression();
+	visitAssignmentExpression(ctx: AssignmentExpressionContext): UCAssignmentOperator {
+		const expression = new UCAssignmentOperator();
 		expression.context = ctx;
 
 		const primaryNode = ctx.primaryExpression();
@@ -102,17 +102,31 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 		return expression;
 	}
 
-	visitUnaryOperator(ctx: UnaryOperatorContext): UCUnaryExpression {
+	visitUnaryOperator(ctx: UnaryOperatorContext): UCUnaryOperator {
 		return ctx.unaryExpression().accept(this);
 	}
 
-	visitUnaryExpression(ctx: UnaryExpressionContext): UCUnaryExpression {
-		const expression = new UCUnaryExpression();
+	visitUnaryExpression(ctx: UnaryExpressionContext): UCUnaryOperator {
+		throw 'This should never be called!';
+	}
+
+	visitPreOperator(ctx: PreOperatorContext) {
+		const expression = new UCUnaryOperator();
 		expression.context = ctx;
 		expression.expression = ctx.primaryExpression().accept(this);
 		expression.expression.outer = expression;
-		expression.operatorId = ctx.operatorId().accept(this);
-		expression.operatorId.outer = expression;
+		expression.operator = ctx.operator().accept(this);
+		expression.operator.outer = expression;
+		return expression;
+	}
+
+	visitPostOperator(ctx: PreOperatorContext) {
+		const expression = new UCUnaryOperator();
+		expression.context = ctx;
+		expression.expression = ctx.primaryExpression().accept(this);
+		expression.expression.outer = expression;
+		expression.operator = ctx.operator().accept(this);
+		expression.operator.outer = expression;
 		return expression;
 	}
 
@@ -120,8 +134,8 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 		return ctx.primaryExpression().accept(this);
 	}
 
-	visitGroupExpression(ctx: GroupExpressionContext) {
-		const expression = new UCGroupExpression();
+	visitParenthesisExpression(ctx: ParenthesisExpressionContext) {
+		const expression = new UCParenthesisExpression();
 		expression.context = ctx;
 		expression.expression = ctx.expression().accept(this);
 		expression.expression.outer = expression;
@@ -259,7 +273,7 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 		return expression;
 	}
 
-	visitOperatorId(ctx: OperatorIdContext): UCMemberExpression {
+	visitOperator(ctx: OperatorContext): UCMemberExpression {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const expression = new UCMemberExpression(new UCSymbolReference(ctx.text, range));
 		expression.context = ctx;

@@ -165,12 +165,12 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 	}
 
 	visitSwitchStatement(ctx: SwitchStatementContext): IStatement {
-		const statemment = new UCSwitchStatement(rangeFromBounds(ctx.start, ctx.stop));
-		statemment.context = ctx;
+		const statement = new UCSwitchStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
 
 		const exprNode = ctx.expression();
 		if (exprNode) {
-			statemment.expression = exprNode.accept(ExpressionVisitor);
+			statement.expression = exprNode.accept(ExpressionVisitor);
 		}
 
 		const caseStatementNodes = ctx.switchCase();
@@ -181,9 +181,9 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 				const caseStatement = caseStatementNodes[i].accept(this);
 				scriptBlock.statements[i] = caseStatement;
 			}
-			statemment.scriptBlock = scriptBlock;
+			statement.scriptBlock = scriptBlock;
 		}
-		return statemment;
+		return statement;
 	}
 
 	visitForeachStatement(ctx: ForeachStatementContext): UCForEachStatement {
@@ -232,9 +232,9 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 		const statement = new UCSwitchCase(rangeFromBounds(ctx.start, ctx.stop));
 		statement.context = ctx;
 
-		const literalNode = ctx.literal();
-		if (literalNode) {
-			statement.expression = ExpressionVisitor.visitLiteralExpression(ctx); // FIXME: HARDCODED HACK
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(ExpressionVisitor);
 		}
 		statement.scriptBlock = this.parseScriptBlock(ctx);
 

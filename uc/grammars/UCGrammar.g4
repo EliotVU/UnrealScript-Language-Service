@@ -48,7 +48,6 @@ kwRELIABLE: 'reliable';
 
 kwCPPTEXT: 'cpptext';
 kwSTRUCTCPPTEXT: 'structcpptext';
-kwCPPSTRUCT: 'cppstruct';
 
 kwARRAY: 'array';
 kwBYTE: 'byte';
@@ -213,7 +212,6 @@ identifier
 	|'reliable'
 	|'cpptext'
 	|'structcpptext'
-	|'cppstruct'
 	|'array'
 	|'byte'
 	|'int'
@@ -349,7 +347,7 @@ program:
 		| varDecl
 		| replicationBlock
 		| defaultpropertiesBlock
-		| cpptextBlock
+		| cppText
 	)*
 
 	(
@@ -359,6 +357,8 @@ program:
 		| replicationBlock
 		| defaultpropertiesBlock
 	)*
+
+	EOF
 ;
 
 literal
@@ -460,7 +460,7 @@ enumDecl:
 enumMember: identifier metaTuple? COMMA?;
 
 structDecl
-	:	kwSTRUCT (OPEN_BRACE .*? CLOSE_BRACE)? // parses native type like "struct {DOUBLE}"
+	:	kwSTRUCT // (OPEN_BRACE .*? CLOSE_BRACE)? // parses native type like "struct {DOUBLE}"
 			structModifier* identifier extendsClause?
 		OPEN_BRACE
 		(
@@ -469,7 +469,7 @@ structDecl
 			| structDecl
 			| varDecl
 			// Unfortunately these can appear in any order.
-			| cpptextBlock
+			| structCppText | cppText
 			| defaultpropertiesBlock
 		)*
 		CLOSE_BRACE SEMICOLON?
@@ -505,8 +505,8 @@ varDecl: kwVAR (OPEN_PARENS categoryList? CLOSE_PARENS)?
 variable:
 	identifier
 	arrayDim?
-	cppcode? // nativeTypeDecl
-	metaTuple?
+	/* cppcode? */ // nativeTypeDecl
+	/* metaTuple? */
 	;
 
 // UC3 <UIMin=0.0|UIMax=1.0|Toolip=Hello world!>
@@ -608,12 +608,19 @@ type
 arrayType: kwARRAY LT inlinedDeclTypes GT;
 classType: kwCLASS LT type GT;
 delegateType: kwDELEGATE LT identifier GT;
-mapType: kwMAP nativeMapType;
+mapType: kwMAP /* nativeMapType */;
 
-cpptextBlock:
-	(kwCPPTEXT | kwSTRUCTCPPTEXT | kwCPPSTRUCT)
-	// UnrealScriptBug: Must on next the line after keyword!
-	cppcode;
+cppText
+	: kwCPPTEXT
+	  // UnrealScriptBug: Must on next the line after keyword!
+	  cppcode
+	;
+
+structCppText
+	: kwSTRUCTCPPTEXT
+	  // UnrealScriptBug: Must on next the line after keyword!
+	  cppcode
+	;
 
 cppcode: (OPEN_BRACE .*? CLOSE_BRACE)+; // UnrealScriptBug: Anything WHATSOEVER can be written after this closing brace as long as it's on the same line!
 
@@ -679,7 +686,7 @@ functionModifier
 	| kwDEMORECORDING
 	;
 
-functionName: identifier | operatorId;
+functionName: identifier | operator;
 
 parameters: paramDecl (COMMA paramDecl)*;
 
@@ -693,7 +700,7 @@ returnTypeModifier
 
 returnType: typeDecl;
 
-operatorId
+operator
 	:
 	(
 		DOLLAR
@@ -757,57 +764,60 @@ stateModifier: kwAUTO | kwSIMULATED;
 
 codeBlockOptional: (OPEN_BRACE statement* CLOSE_BRACE) | statement?;
 
-statement:
-	(
-		ifStatement
-		| forStatement
-		| foreachStatement
-		| whileStatement
-		| doStatement
-		| switchStatement
-		| returnStatement
-		| gotoStatement
+statement
+	: SEMICOLON
 
-		// These will require post-parsing validation
-		| breakStatement // in for loops only
-		| continueStatement // in for loops only
-		| stopStatement // in states only
+	| ifStatement
+	| forStatement
+	| foreachStatement
+	| whileStatement
+	| doStatement
+	| switchStatement
 
-		| labeledStatement
-		| (assignmentExpression SEMICOLON)
-		| (expression SEMICOLON)
-	) SEMICOLON* // Pass trailing semicolons
+	| returnStatement SEMICOLON
+	| gotoStatement SEMICOLON
+
+	// These will require post-parsing validation
+	| breakStatement SEMICOLON // in for loops only
+	| continueStatement SEMICOLON // in for loops only
+	| stopStatement SEMICOLON // in states only
+
+	| labeledStatement
+
+	// We must check for expressions after ALL statements so that we don't end up capturing statement keywords as identifiers.
+	| (assignmentExpression SEMICOLON)
+	| (expression SEMICOLON) // TODO: Maybe replace with unaryExpression?
 	;
 
 labeledStatement: identifier COLON;
 gotoStatement: kwGOTO identifier SEMICOLON;
 
-assignmentExpression: primaryExpression (MINUS|PLUS|DIV|CARET|STAR|AMP|AT|DOLLAR|BITWISE_OR)? ASSIGNMENT expression;
+assignmentOperator: /* '+=' | '-=' | '/=' | '*=' | '|=' | '&=' | '$=' | '@=' | */ ASSIGNMENT;
+assignmentExpression: primaryExpression assignmentOperator expression;
 
 expression
-	: expression INTERR expression COLON expression #ternaryOperator
-	| expression functionName expression #binaryOperator
-	| primaryExpression #primaryOperator
+	: expression functionName expression #binaryOperator
 	| unaryExpression #unaryOperator
 	;
 
 unaryExpression
-	// : primaryExpression operatorId primaryExpression // HACK: FIXME shouldn't be neccessary but since UC supports id for pre and post operators we kinda have to!
-	: primaryExpression operatorId // (id ++) etc
-	| operatorId primaryExpression // (++ id)
+	: primaryExpression #primaryOperator
+	| unaryExpression INTERR expression COLON expression #ternaryOperator
+	| primaryExpression operator #postOperator
+	| operator primaryExpression #preOperator
 	;
 
 // FIXME: might be more restricted, but at least "default.class" is valid code.
 classArgument: primaryExpression; // Inclusive template argument (will be parsed as a function call)
 
 primaryExpression
-	: kwCLASS LT qualifiedIdentifier GT primaryExpression 			#classCastExpression
-	| literal 														#literalExpression
+	: literal 														#literalExpression
+	| kwCLASS LT qualifiedIdentifier GT primaryExpression 			#classCastExpression
 	| (kwDEFAULT | 'self' | 'super' | 'global' | kwSTATIC) 			#specifierExpression
 	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? classArgument 	#newExpression
 	// Note any kwTOKEN must preceed identifier!
 	| identifier 													#memberExpression
-	| (OPEN_PARENS expression CLOSE_PARENS) 						#groupExpression
+	| (OPEN_PARENS expression CLOSE_PARENS) 						#parenthesisExpression
 	| primaryExpression DOT (classLiteralSpecifier | identifier)	#contextExpression
 	| primaryExpression OPEN_PARENS arguments CLOSE_PARENS 			#argumentedExpression
 	| primaryExpression OPEN_BRACKET expression CLOSE_BRACKET 		#indexExpression
@@ -847,20 +857,21 @@ doStatement
 
 switchStatement:
 	kwSWITCH (OPEN_PARENS expression CLOSE_PARENS)
-	OPEN_BRACE?
+	// Switch braces are NOT optional
+	OPEN_BRACE
 		switchCase*
-	CLOSE_BRACE?;
+	CLOSE_BRACE;
 
 switchCase:
-	// FIXME: What exactly are the valid value rules here?
-	((kwCASE (literal | qualifiedIdentifier)?) | kwDEFAULT) COLON
-		statement* breakStatement?
+	((kwCASE expression?) | kwDEFAULT) COLON
+		statement*
+		breakStatement?
 	;
 
-returnStatement: kwRETURN expression? SEMICOLON;
-breakStatement: kwBREAK SEMICOLON;
-continueStatement: kwCONTINUE SEMICOLON;
-stopStatement: kwSTOP SEMICOLON;
+returnStatement: kwRETURN expression?;
+breakStatement: kwBREAK;
+continueStatement: kwCONTINUE;
+stopStatement: kwSTOP;
 
 defaultpropertiesBlock
 	:

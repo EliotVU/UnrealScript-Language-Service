@@ -50,33 +50,7 @@ export abstract class UCExpression {
 	abstract analyze(document: UCDocument, context: UCStructSymbol): void;
 }
 
-export class UCUnaryExpression extends UCExpression {
-	public expression: IExpression;
-
-	// TODO: Linkup?
-	public operatorId: UCMemberExpression;
-
-	getMemberSymbol(): ISymbol {
-		return this.expression.getMemberSymbol();
-	}
-
-	getContainedSymbolAtPos(position: Position): UCSymbol {
-		const symbol = this.expression && this.expression.getSymbolAtPos(position);
-		if (symbol) {
-			return symbol;
-		}
-	}
-
-	index(document: UCDocument, context: UCStructSymbol) {
-		if (this.expression) this.expression.index(document, context);
-	}
-
-	analyze(document: UCDocument, context: UCStructSymbol) {
-		if (this.expression) this.expression.analyze(document, context);
-	}
-}
-
-export class UCGroupExpression extends UCExpression {
+export class UCParenthesisExpression extends UCExpression {
 	public expression?: IExpression;
 
 	getMemberSymbol(): ISymbol {
@@ -245,7 +219,33 @@ export class UCContextExpression extends UCExpression {
 	}
 }
 
-export class UCTernaryExpression extends UCExpression {
+export class UCUnaryOperator extends UCExpression {
+	public expression: IExpression;
+
+	// TODO: Linkup?
+	public operator: UCMemberExpression;
+
+	getMemberSymbol(): ISymbol {
+		return this.expression.getMemberSymbol();
+	}
+
+	getContainedSymbolAtPos(position: Position): UCSymbol {
+		const symbol = this.expression && this.expression.getSymbolAtPos(position);
+		if (symbol) {
+			return symbol;
+		}
+	}
+
+	index(document: UCDocument, context: UCStructSymbol) {
+		if (this.expression) this.expression.index(document, context);
+	}
+
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		if (this.expression) this.expression.analyze(document, context);
+	}
+}
+
+export class UCTernaryOperator extends UCExpression {
 	public condition?: IExpression;
 	public true?: IExpression;
 	public false?: IExpression;
@@ -290,7 +290,7 @@ export class UCTernaryExpression extends UCExpression {
 	}
 }
 
-export class UCBinaryExpression extends UCExpression {
+export class UCBinaryOperator extends UCExpression {
 	public left?: IExpression;
 	public right?: IExpression;
 
@@ -325,7 +325,7 @@ export class UCBinaryExpression extends UCExpression {
 	}
 }
 
-export class UCAssignmentExpression extends UCBinaryExpression {
+export class UCAssignmentOperator extends UCBinaryOperator {
 
 }
 
@@ -449,10 +449,10 @@ export class UCMemberExpression extends UCExpression {
 						let contextInfo: ISymbolContext;
 							contextInfo = {
 								inAssignment:
-									(this.outer instanceof UCAssignmentExpression && this.outer.left === this)
+									(this.outer instanceof UCAssignmentOperator && this.outer.left === this)
 									|| this.outer instanceof UCContextExpression
 										&& this.outer.member === this
-										&& this.outer.outer instanceof UCAssignmentExpression
+										&& this.outer.outer instanceof UCAssignmentOperator
 										&& this.outer.outer.left === this.outer
 							};
 							this.symbolRef.setReference(symbol, document, contextInfo);
