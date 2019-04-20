@@ -6,6 +6,7 @@ import { UCDocument, getDocumentById, indexDocument } from '../DocumentListener'
 
 import { ISymbolContainer } from './ISymbolContainer';
 import { ISymbol, UCStructSymbol } from ".";
+import { SymbolVisitor } from '../SymbolVisitor';
 
 // Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbolContainer<ISymbol> {
@@ -84,6 +85,10 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 			return symbol.findTypeSymbol(nextQualifiedId, deepSearch);
 		}
 		return this.findSymbol(nextQualifiedId, deepSearch);
+	}
+
+	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+		return visitor.visit(this);
 	}
 }
 

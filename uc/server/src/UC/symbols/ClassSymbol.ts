@@ -5,6 +5,7 @@ import { SemanticErrorNode } from '../diagnostics/diagnostics';
 import { intersectsWith } from '../helpers';
 
 import { UCSymbol, UCStructSymbol, UCTypeSymbol } from '.';
+import { SymbolVisitor } from '../SymbolVisitor';
 
 export class UCClassSymbol extends UCStructSymbol {
 	public withinType?: UCTypeSymbol;
@@ -124,6 +125,10 @@ export class UCClassSymbol extends UCStructSymbol {
 			}
 		}
 		super.analyze(document, context);
+	}
+
+	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+		return visitor.visitClass(this);
 	}
 }
 

@@ -1,6 +1,7 @@
 import { SymbolKind, Location, CompletionItem } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../DocumentListener';
+import { SymbolVisitor } from '../SymbolVisitor';
 
 export interface ISymbol {
 	outer?: ISymbol;
@@ -10,6 +11,8 @@ export interface ISymbol {
 	getTooltip(): string;
 
 	toCompletionItem(document: UCDocument): CompletionItem;
+
+	accept<Result>(visitor: SymbolVisitor<Result>): Result;
 }
 
 export interface ISymbolContext {

@@ -3,7 +3,7 @@ import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference } from './Symbols';
-import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesisExpression, UCPredefinedMemberExpression, IExpression, UCLiteral, UCClassLiteral, UCNewOperator } from './Symbols/Expressions';
+import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesisExpression, UCPredefinedMemberExpression, IExpression, UCLiteral, UCClassLiteral, UCNewOperator } from './Expressions';
 import { rangeFromBounds } from './helpers';
 
 export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {

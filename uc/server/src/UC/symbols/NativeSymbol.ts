@@ -3,6 +3,7 @@ import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 import { UCDocument } from '../DocumentListener';
 
 import { ISymbol } from './ISymbol';
+import { SymbolVisitor } from '../SymbolVisitor';
 
 export class UCNativeSymbol implements ISymbol {
 	public outer: ISymbol;
@@ -33,5 +34,9 @@ export class UCNativeSymbol implements ISymbol {
 	// TODO: implement
 	toCompletionItem(_document: UCDocument) {
 		return undefined;
+	}
+
+	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+		return visitor.visit(this);
 	}
 }

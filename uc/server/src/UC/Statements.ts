@@ -1,10 +1,10 @@
 import { Position, Range } from 'vscode-languageserver';
 import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
-import { intersectsWith, rangeFromBounds } from '../helpers';
-import { UCDocument } from '../DocumentListener';
+import { intersectsWith, rangeFromBounds } from './helpers';
+import { UCDocument } from './DocumentListener';
 
-import { UCSymbol, UCStructSymbol } from '.';
+import { UCSymbol, UCStructSymbol } from './Symbols';
 import { IExpression } from './Expressions';
 import { UCScriptBlock } from './ScriptBlock';
 

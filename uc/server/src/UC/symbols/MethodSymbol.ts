@@ -4,6 +4,7 @@ import { FunctionDeclContext } from '../../antlr/UCGrammarParser';
 import { UCDocument, getDocumentByUri } from '../DocumentListener';
 
 import { UCSymbol, UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
+import { SymbolVisitor } from '../SymbolVisitor';
 
 export class UCMethodSymbol extends UCStructSymbol {
 	public returnType?: UCTypeSymbol;
@@ -116,5 +117,9 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return this.params
 			? `(${this.params.map(f => f.type.getTypeText() + ' ' + f.getName()).join(', ')})`
 			: '()';
+	}
+
+	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+		return visitor.visitMethod(this);
 	}
 }

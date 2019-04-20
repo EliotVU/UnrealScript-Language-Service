@@ -1,9 +1,9 @@
 import { Position, Range } from 'vscode-languageserver';
 
-import { intersectsWith } from '../helpers';
-import { UCDocument } from '../DocumentListener';
+import { intersectsWith } from './helpers';
+import { UCDocument } from './DocumentListener';
 
-import { UCSymbol, UCStructSymbol } from '.';
+import { UCSymbol, UCStructSymbol } from './Symbols';
 import { IStatement } from './Statements';
 
 export class UCScriptBlock {

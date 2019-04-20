@@ -4,7 +4,7 @@ import { UCDocument } from '../DocumentListener';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 
 import { ISymbol, UCFieldSymbol, UCSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCStructSymbol, UCSymbolReference } from '.';
-import { UCScriptBlock } from "./ScriptBlock";
+import { UCScriptBlock } from "../ScriptBlock";
 import { ReliableKeyword, UnreliableKeyword } from './Keywords';
 
 export class UCReplicationBlock extends UCFieldSymbol {

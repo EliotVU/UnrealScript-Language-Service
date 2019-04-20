@@ -14,7 +14,7 @@ import { ParseTreeWalker } from 'antlr4ts/tree/ParseTreeWalker';
 import { UCGrammarListener } from '../antlr/UCGrammarListener';
 import * as UCParser from '../antlr/UCGrammarParser';
 import { UCGrammarLexer } from '../antlr/UCGrammarLexer';
-import { CaseInsensitiveStream } from './CaseInsensitiveStream';
+import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 import { connection } from '../server';
 
 import { rangeFromBounds, rangeFromBound } from './helpers';
@@ -29,7 +29,7 @@ import {
 	UCDocumentClassSymbol, UCReplicationBlock
 } from './Symbols';
 import { UCTypeKind } from './Symbols/TypeKind';
-import { UCScriptBlock } from "./Symbols/ScriptBlock";
+import { UCScriptBlock } from "./ScriptBlock";
 import { IDiagnosticNode, SyntaxErrorNode } from './diagnostics/diagnostics';
 import { UCExpressionVisitor } from './ExpressionVisitor';
 import { UCStatementVisitor } from './StatementVisitor';

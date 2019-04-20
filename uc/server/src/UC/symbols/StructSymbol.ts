@@ -5,7 +5,8 @@ import { UCDocument } from '../DocumentListener';
 
 import { ISymbolContainer } from './ISymbolContainer';
 import { ISymbol, UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol, UCStateSymbol, UCSymbolReference } from ".";
-import { UCScriptBlock } from "./ScriptBlock";
+import { UCScriptBlock } from "../ScriptBlock";
+import { SymbolVisitor } from '../SymbolVisitor';
 
 export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: UCTypeSymbol;
@@ -217,5 +218,9 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 		}
 
 		if (this.scriptBlock) this.scriptBlock.analyze(document, this);
+	}
+
+	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+		return visitor.visitStruct(this);
 	}
 }

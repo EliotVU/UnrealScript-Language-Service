@@ -1,6 +1,7 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
 import { UCFieldSymbol } from ".";
+import { SymbolVisitor } from '../SymbolVisitor';
 
 export class UCConstSymbol extends UCFieldSymbol {
 	public value: string;
@@ -19,5 +20,9 @@ export class UCConstSymbol extends UCFieldSymbol {
 
 	getTooltip(): string {
 		return 'const ' + this.getQualifiedName() + ' = ' + this.value;
+	}
+
+	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+		return visitor.visitConst(this);
 	}
 }
