@@ -1,6 +1,6 @@
 import { Location, Range, Position } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../DocumentListener';
+import { UCDocument, addIndexedReference, getIndexedReferences } from '../DocumentListener';
 import { intersectsWith } from '../helpers';
 
 import { ISymbol, ISymbolReference, ISymbolContext } from './ISymbol';
@@ -58,7 +58,7 @@ export class UCSymbolReference extends UCSymbol {
 				symbol: this,
 				context
 			};
-			symbol.addReference(ref);
+			symbol.indexReference(ref);
 		}
 	}
 
@@ -68,9 +68,10 @@ export class UCSymbolReference extends UCSymbol {
 
 	// Redirect
 	getReferences() {
-		var ref = this.getReference();
-		return ref instanceof UCSymbol
-			? ref.getReferences()
-			: super.getReferences();
+		const symbol = this.getReference() as UCSymbol;
+		if (!symbol) {
+			return undefined;
+		}
+		return symbol.getReferences();
 	}
 }

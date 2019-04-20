@@ -1,7 +1,7 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Position } from 'vscode-languageserver-types';
 import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
 
-import { UCDocument } from "../DocumentListener";
+import { UCDocument, getIndexedReferences, addIndexedReference } from "../DocumentListener";
 import { UCGrammarParser } from '../../antlr/UCGrammarParser';
 
 import { ISymbol, ISymbolReference } from './ISymbol';
@@ -17,9 +17,6 @@ export const NO_NAME = '';
 export abstract class UCSymbol implements ISymbol {
 	public outer?: ISymbol;
 	public context?: ParserRuleContext;
-
-	/** Locations that reference this symbol. */
-	private refs?: Set<ISymbolReference>;
 
 	constructor(private nameRange: Range) {
 	}
@@ -115,12 +112,12 @@ export abstract class UCSymbol implements ISymbol {
 	index(_document: UCDocument, _context: UCStructSymbol) {};
 	analyze(_document: UCDocument, _context: UCStructSymbol) {};
 
-	addReference(ref: ISymbolReference) {
-		(this.refs || (this.refs = new Set())).add(ref);
+	indexReference(ref: ISymbolReference) {
+		addIndexedReference(this.getQualifiedName(), ref);
 	}
 
-	getReferences(): Set<ISymbolReference> | undefined {
-		return this.refs;
+	getReferences() {
+		return getIndexedReferences(this.getQualifiedName());
 	}
 
 	getUri(): string | undefined {

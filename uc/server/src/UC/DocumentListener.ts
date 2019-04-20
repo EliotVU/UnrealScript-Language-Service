@@ -33,6 +33,7 @@ import { UCScriptBlock } from "./Symbols/ScriptBlock";
 import { IDiagnosticNode, SyntaxErrorNode } from './diagnostics/diagnostics';
 import { UCExpressionVisitor } from './ExpressionVisitor';
 import { UCStatementVisitor } from './StatementVisitor';
+import { ISymbolReference } from './Symbols/ISymbol';
 
 export const ExpressionVisitor = new UCExpressionVisitor();
 export const StatementVisitor = new UCStatementVisitor();
@@ -109,9 +110,24 @@ export function indexDocument(document: UCDocument) {
 }
 
 export const ClassesMap$ = new BehaviorSubject(new Map<string, string>());
+
 export function getUriById(qualifiedClassId: string): string | undefined {
 	const filePath: string = ClassesMap$.value.get(qualifiedClassId);
 	return filePath ? URI.file(filePath).toString() : undefined;
+}
+
+// TODO: invalidate!
+const IndexedReferences = new Map<string, Set<ISymbolReference>>();
+
+export function addIndexedReference(qualifiedId: string, ref: ISymbolReference) {
+	const refs = getIndexedReferences(qualifiedId);
+	refs.add(ref);
+
+	IndexedReferences.set(qualifiedId, refs);
+}
+
+export function getIndexedReferences(qualifiedId: string): Set<ISymbolReference> {
+	return IndexedReferences.get(qualifiedId) || new Set<ISymbolReference>();
 }
 
 export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {

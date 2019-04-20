@@ -19,7 +19,7 @@ import {
 } from 'vscode-languageserver';
 
 import { UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable } from './Symbols';
-import { getDocumentByUri, ClassesMap$ } from "./DocumentListener";
+import { getDocumentByUri, ClassesMap$, getIndexedReferences } from "./DocumentListener";
 import { Token } from 'antlr4ts';
 
 export function rangeFromBound(token: Token): Range {
@@ -194,7 +194,7 @@ export async function getReferences(uri: string, position: Position): Promise<Lo
 		return undefined;
 	}
 
-	const references = symbol.getReferences();
+	const references = getIndexedReferences(symbol.getQualifiedName());
 	if (!references) {
 		return undefined;
 	}
@@ -215,7 +215,7 @@ export async function getHighlights(uri: string, position: Position): Promise<Do
 		return undefined;
 	}
 
-	const references = symbol.getReferences();
+	const references = getIndexedReferences(symbol.getQualifiedName());
 	if (!references) {
 		return undefined;
 	}
