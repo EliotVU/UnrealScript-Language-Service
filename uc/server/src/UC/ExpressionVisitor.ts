@@ -3,7 +3,7 @@ import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference } from './Symbols';
-import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesisExpression, UCPredefinedMemberExpression, IExpression, UCLiteral, UCClassLiteral, UCNewOperator } from './Expressions';
+import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesisExpression, UCPredefinedContextMember, IExpression, UCLiteral, UCClassLiteral, UCNewOperator, UCPredefinedMember } from './Expressions';
 import { rangeFromBounds } from './helpers';
 
 export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
@@ -254,14 +254,14 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 
 	visitSpecifierExpression(ctx: SpecifierExpressionContext) {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCMemberExpression(new UCSymbolReference(ctx.text, range));
+		const expression = new UCPredefinedMember(new UCSymbolReference(ctx.text, range));
 		expression.context = ctx;
 		return expression;
 	}
 
 	visitClassLiteralSpecifier(ctx: ClassLiteralSpecifierContext): UCMemberExpression {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCPredefinedMemberExpression(new UCSymbolReference(ctx.text, range));
+		const expression = new UCPredefinedContextMember(new UCSymbolReference(ctx.text, range));
 		expression.context = ctx;
 		return expression;
 	}

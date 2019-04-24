@@ -4,7 +4,7 @@ import { intersectsWith } from '../helpers';
 import { UCDocument } from '../DocumentListener';
 
 import { ISymbolContainer } from './ISymbolContainer';
-import { ISymbol, UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol, UCStateSymbol, UCSymbolReference } from ".";
+import { ISymbol, UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol, UCStateSymbol, UCSymbolReference, UCReplicationBlock } from ".";
 import { UCScriptBlock } from "../ScriptBlock";
 import { SymbolVisitor } from '../SymbolVisitor';
 
@@ -142,6 +142,7 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 		}
 
 		// Check for symbols in the outer of a function or state.
+		// TODO: Refactor, add a getInheritedContext method to return the proper inherited symbols table.
 		if ((this instanceof UCMethodSymbol || this instanceof UCStateSymbol) && this.outer && this.outer instanceof UCStructSymbol) {
 			return this.outer.findSuperSymbol(id);
 		}
@@ -188,6 +189,9 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 			}
 		}
 
+		// FIXME: Optimize. We have to index types before anything else but properties ALSO have to be indexed before any method can be indexed properly!
+		// FIXME: ReplicationBlock is also indexed before property types are linked!
+		// FIXME: EnumMembers are sometimes not found, issue in findSymbol?
 		if (this.children) {
 			// Link types before any child so that a child that referes one of our types can be linked properly!
 			if (this.types) {
@@ -197,11 +201,20 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 			}
 
 			for (let child = this.children; child; child = child.next) {
-				if (child instanceof UCScriptStructSymbol || child instanceof UCEnumSymbol) {
+				if (child instanceof UCScriptStructSymbol
+					|| child instanceof UCEnumSymbol
+					|| child instanceof UCMethodSymbol
+					|| child instanceof UCReplicationBlock) {
 					continue;
 				}
 
 				child.index(document, this);
+			}
+
+			for (let child = this.children; child; child = child.next) {
+				if (child instanceof UCMethodSymbol || child instanceof UCReplicationBlock) {
+					child.index(document, this);
+				}
 			}
 		}
 

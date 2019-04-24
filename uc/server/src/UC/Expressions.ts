@@ -6,7 +6,7 @@ import { UCDocument } from './DocumentListener';
 import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode } from './diagnostics/diagnostics';
 import { intersectsWith, rangeFromBounds } from './helpers';
 
-import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, UCStateSymbol, SymbolsTable, UCMethodSymbol, UCClassSymbol, NativeClass } from './Symbols';
+import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, UCStateSymbol, SymbolsTable, UCMethodSymbol, UCClassSymbol, NativeClass, CORE_PACKAGE } from './Symbols';
 import { ISymbolContext, ISymbol } from './Symbols/ISymbol';
 
 export interface IExpression {
@@ -206,6 +206,9 @@ export class UCContextExpression extends UCExpression {
 
 	getContextType(): UCStructSymbol {
 		const symbol = this.left && this.left.getMemberSymbol();
+		if (!symbol) {
+			connection.console.log("Couldn't resolve context " + this.left.context.text);
+		}
 		// Resolve properties to its defined type e.g. given property "local array<Vector> Foo;" will be resolved to array or Vector (in an index expression, handled elsewhere).
 		if (symbol instanceof UCPropertySymbol) {
 			// TODO: handle properties of type class<DamageType>.
@@ -411,54 +414,30 @@ export class UCMemberExpression extends UCExpression {
 
 		try {
 			const id = this.symbolRef.getName().toLowerCase();
-			switch (id) {
-				// TODO: Move to its own expression class
-				case 'self': case 'global': {
-					this.symbolRef.setReference(document.class, document);
-					break;
+			// First try to match a class or struct (e.g. a casting).
+			const hasArguments = this.outer instanceof UCArgumentedExpression;
+			if (hasArguments) {
+				// look for a predefined or struct/class type.
+				const type = SymbolsTable.findSymbol(id, true) || context.findTypeSymbol(id, true);
+				if (type) {
+					this.symbolRef.setReference(type, document);
+					return;
 				}
+			}
 
-				// TODO: Move to its own expression class
-				case 'super': {
-					this.symbolRef.setReference(
-						context instanceof UCStateSymbol
-							? context.super
-							: document.class.super,
-						document
-					);
-					break;
-				}
-
-				default: {
-					// First try to match a class or struct (e.g. a casting).
-					const hasArguments = this.outer instanceof UCArgumentedExpression;
-					if (hasArguments) {
-						let type = SymbolsTable.findSymbol(id, true); // Look for a class or predefined type.
-						if (!type) {
-							type = context.findTypeSymbol(id, true); // look for struct types
-						}
-
-						if (type) {
-							this.symbolRef.setReference(type, document);
-							return;
-						}
-					}
-
-					const symbol = context.findSuperSymbol(id);
-					if (symbol) {
-						let contextInfo: ISymbolContext;
-							contextInfo = {
-								inAssignment:
-									(this.outer instanceof UCAssignmentOperator && this.outer.left === this)
-									|| this.outer instanceof UCContextExpression
-										&& this.outer.member === this
-										&& this.outer.outer instanceof UCAssignmentOperator
-										&& this.outer.outer.left === this.outer
-							};
-							this.symbolRef.setReference(symbol, document, contextInfo);
-						}
-					}
-				}
+			const symbol = context.findSuperSymbol(id);
+			if (symbol) {
+				let contextInfo: ISymbolContext;
+					contextInfo = {
+						inAssignment:
+							(this.outer instanceof UCAssignmentOperator && this.outer.left === this)
+							|| this.outer instanceof UCContextExpression
+								&& this.outer.member === this
+								&& this.outer.outer instanceof UCAssignmentOperator
+								&& this.outer.outer.left === this.outer
+					};
+					this.symbolRef.setReference(symbol, document, contextInfo);
+			}
 		} catch (err) {
 			connection.console.error('An unexpected indexing error occurred ' + JSON.stringify(err));
 		}
@@ -471,8 +450,37 @@ export class UCMemberExpression extends UCExpression {
 	}
 }
 
+export class UCPredefinedMember extends UCMemberExpression {
+	index(document: UCDocument, context: UCStructSymbol) {
+		if (!context) {
+			return;
+		}
+
+		const id = this.symbolRef.getName().toLowerCase();
+		switch (id) {
+			// TODO: Move to its own expression class
+			case 'super': {
+				this.symbolRef.setReference(
+					context instanceof UCStateSymbol
+						? context.super
+						: document.class.super,
+					document
+				);
+				break;
+			}
+
+			default: {
+				this.symbolRef.setReference(
+					document.class,
+					document
+				);
+			}
+		}
+	}
+}
+
 // Resolves the context for predefined specifiers such as (default, static, and const).
-export class UCPredefinedMemberExpression extends UCMemberExpression {
+export class UCPredefinedContextMember extends UCMemberExpression {
 	index(document: UCDocument, context: UCStructSymbol) {
 		if (!context) {
 			return;
