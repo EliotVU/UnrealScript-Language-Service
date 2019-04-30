@@ -508,6 +508,22 @@ repository:
       - name: variable.language.this.uc
         match: \b((?i)global|self|default|static)\b
 
+      - begin: ((?i)class)\s*(\<)
+        beginCaptures:
+          '0':
+            name: cast.expr.uc
+          '1':
+            name: keyword.type.uc
+          '2':
+            name: punctuation.parenthesis.open.uc
+        patterns:
+          - match: ([_[:alpha:]][_[:alnum:]]*)
+            name: entity.name.type.other.uc
+        end: \>
+        endCaptures:
+          '0':
+            name: punctuation.parenthesis.close.uc
+
       - begin: ((?i)int|byte|float|bool|string|name|vect|rng|rot)\s*(\()
         beginCaptures:
           '0':

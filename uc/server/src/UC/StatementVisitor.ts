@@ -4,10 +4,10 @@ import { rangeFromBounds } from './helpers';
 import { ExpressionVisitor } from './DocumentListener';
 
 import { UCScriptBlock } from "./ScriptBlock";
-import { IExpression } from './Expressions';
 
-import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ExpressionContext, AssignmentExpressionContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, SwitchCaseContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, BinaryOperatorContext, UnaryOperatorContext, TernaryOperatorContext } from '../antlr/UCGrammarParser';
+import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, SwitchCaseContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext } from '../antlr/UCGrammarParser';
 import { UCExpressionStatement, UCIfStatement, UCElseStatement, UCDoStatement, UCWhileStatement, UCSwitchStatement, UCSwitchCase, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCReturnStatement, UCGotoStatement } from './Statements';
+import { ParserRuleContext } from 'antlr4ts';
 
 export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 	visitTerminal(ctx) {
@@ -26,14 +26,6 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 		return undefined;
 	}
 
-	visitExpression(ctx: ExpressionContext) {
-		return ctx.accept(ExpressionVisitor);
-	}
-
-	assignmentExpression(ctx: AssignmentExpressionContext) {
-		return ctx.accept(ExpressionVisitor);
-	}
-
 	visitStatement(ctx: StatementContext): IStatement {
 		let statementNode = ctx.ifStatement()
 			|| ctx.whileStatement() || ctx.switchStatement()
@@ -45,19 +37,15 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 			return statementNode.accept(this);
 		}
 
-		const exprNode = (ctx.expression() as BinaryOperatorContext | UnaryOperatorContext | TernaryOperatorContext)
-			|| ctx.assignmentExpression();
-		if (!exprNode) {
-			return undefined;
+		const exprNode = ctx.expression() || ctx.assignmentExpression() as ParserRuleContext;
+		if (exprNode) {
+			const statement = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
+			statement.context = exprNode;
+			statement.expression = exprNode.accept(ExpressionVisitor);
+			return statement;
 		}
 
-		const expression: IExpression = exprNode.accept(ExpressionVisitor);
-		if (expression) {
-			const satement = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
-			satement.context = ctx;
-			satement.expression = expression;
-			return satement;
-		}
+		throw 'Not implemented!';
 	}
 
 	visitLabeledStatement(ctx: LabeledStatementContext): UCLabeledStatement {

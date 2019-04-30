@@ -1,10 +1,11 @@
 import { ParserRuleContext } from 'antlr4ts';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext, RotLiteralContext, VectLiteralContext, RngLiteralContext } from '../antlr/UCGrammarParser';
+import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext, RotLiteralContext, VectLiteralContext, RngLiteralContext, GenericClassCastingContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference, UCTypeSymbol } from './Symbols';
-import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesisExpression, UCPredefinedContextMember, IExpression, UCLiteral, UCClassLiteral, UCNewOperator, UCPredefinedMember, UCStructLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral } from './Expressions';
+import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesisExpression, UCPredefinedContextMember, IExpression, UCLiteral, UCClassLiteral, UCNewOperator, UCPredefinedMember, UCStructLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCGenericClassCast } from './Expressions';
 import { rangeFromBounds } from './helpers';
+import { UCTypeKind } from './Symbols/TypeKind';
 
 export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 	visitChildren(ctx) {
@@ -37,7 +38,7 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 	}
 
 	visitExpression(ctx: BinaryOperatorContext | UnaryOperatorContext | TernaryOperatorContext): IExpression {
-		return ctx.accept(this);
+		throw 'This should never be called!';
 	}
 
 	visitTernaryOperator(ctx: TernaryOperatorContext) {
@@ -61,7 +62,6 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 			expression.false = rightNode.accept<IExpression>(this);
 			expression.false.outer = expression;
 		}
-
 		return expression;
 	}
 
@@ -80,29 +80,28 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 			expression.right = rightNode.accept<IExpression>(this);
 			expression.right.outer = expression;
 		}
-
 		return expression;
 	}
 
-	visitAssignmentExpression(ctx: AssignmentExpressionContext): UCAssignmentOperator {
+	visitAssignmentExpression(ctx: AssignmentExpressionContext) {
 		const expression = new UCAssignmentOperator();
 		expression.context = ctx;
 
 		const primaryNode = ctx.primaryExpression();
 		if (primaryNode) {
-			expression.left = primaryNode.accept(this);
+			expression.left = primaryNode.accept<IExpression>(this);
 			expression.left.outer = expression;
 		}
 
 		const exprNode = ctx.expression();
 		if (exprNode) {
-			expression.right = exprNode.accept(this);
+			expression.right = exprNode.accept<IExpression>(this);
 			expression.right.outer = expression;
 		}
 		return expression;
 	}
 
-	visitUnaryOperator(ctx: UnaryOperatorContext): UCUnaryOperator {
+	visitUnaryOperator(ctx: UnaryOperatorContext) {
 		return ctx.unaryExpression().accept(this);
 	}
 
@@ -223,9 +222,19 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 		return ctx.primaryExpression().accept(this);
 	}
 
-	// FIXME:
-	visitClassCastExpression(ctx: ClassCastExpressionContext) {
-		return ctx.primaryExpression().accept(this);
+	visitGenericClassCasting(ctx: GenericClassCastingContext) {
+		const expression = new UCGenericClassCast(rangeFromBounds(ctx.start, ctx.stop));
+		expression.context = ctx;
+
+		const classIdNode = ctx.identifier();
+		expression.classRef = new UCTypeSymbol(classIdNode.text, rangeFromBounds(classIdNode.start, classIdNode.stop), undefined, UCTypeKind.Class);
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			expression.expression = exprNode.accept(this);
+			expression.expression.outer = expression;
+		}
+		return expression;
 	}
 
 	// FIXME:
@@ -239,7 +248,7 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 			const classCastingRef = new UCSymbolReference(classIdNode.text, rangeFromBounds(classIdNode.start, classIdNode.stop));
 
 			const objectIdNode = classLiteralNode.objectLiteral();
-			const objectRef = new UCSymbolReference(objectIdNode.text.replace(/'/g, ""), rangeFromBounds(objectIdNode.start, objectIdNode.stop));
+			const objectRef = new UCSymbolReference(objectIdNode.text.replace(/'|\s/g, ""), rangeFromBounds(objectIdNode.start, objectIdNode.stop));
 
 			expression.classCastingRef = classCastingRef;
 			expression.objectRef = objectRef;

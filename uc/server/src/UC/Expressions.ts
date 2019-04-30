@@ -6,7 +6,7 @@ import { UCDocument } from './DocumentListener';
 import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode } from './diagnostics/diagnostics';
 import { intersectsWith, rangeFromBounds } from './helpers';
 
-import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, UCStateSymbol, SymbolsTable, UCMethodSymbol, UCClassSymbol, NativeClass, CORE_PACKAGE, FloatType, UCParamSymbol, UCTypeSymbol, VectMethodLike, RotMethodLike, RngMethodLike, VectorType, RotatorType, RangeType } from './Symbols';
+import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, UCStateSymbol, SymbolsTable, UCMethodSymbol, UCClassSymbol, NativeClass, VectMethodLike, RotMethodLike, RngMethodLike, VectorType, RotatorType, RangeType, UCTypeSymbol } from './Symbols';
 import { ISymbolContext, ISymbol } from './Symbols/ISymbol';
 
 export interface IExpression {
@@ -350,7 +350,7 @@ export class UCClassLiteral extends UCExpression {
 	public objectRef: UCSymbolReference;
 
 	getMemberSymbol(): ISymbol {
-		return this.objectRef.getReference() || this.classCastingRef.getReference();
+		return this.objectRef.getReference() || this.classCastingRef.getReference() || NativeClass;
 	}
 
 	getContainedSymbolAtPos(position: Position) {
@@ -364,7 +364,7 @@ export class UCClassLiteral extends UCExpression {
 	}
 
 	index(document: UCDocument, _context: UCStructSymbol) {
-		const castSymbol = SymbolsTable.findSymbol(this.classCastingRef.getName().toLowerCase(), true) || NativeClass;
+		const castSymbol = SymbolsTable.findSymbol(this.classCastingRef.getName().toLowerCase(), true);
 		if (castSymbol) {
 			this.classCastingRef.setReference(castSymbol, document);
 		}
@@ -551,5 +551,29 @@ export class UCRngLiteral extends UCStructLiteral {
 
 	getContainedSymbolAtPos(_position: Position) {
 		return RngMethodLike as unknown as UCSymbolReference;
+	}
+}
+
+export class UCGenericClassCast extends UCParenthesisExpression {
+	public classRef: UCTypeSymbol;
+
+	getMemberSymbol(): ISymbol {
+		return this.classRef.getReference() || NativeClass;
+	}
+
+	getContainedSymbolAtPos(position: Position) {
+		const subSymbol = this.classRef && this.classRef.getSymbolAtPos(position) as UCTypeSymbol;
+		return subSymbol && subSymbol.getReference() && this.classRef || super.getContainedSymbolAtPos(position);
+	}
+
+	index(document: UCDocument, context: UCStructSymbol) {
+		super.index(document, context);
+		this.classRef && this.classRef.index(document, context);
+	}
+
+	// TODO: verify class type by inheritance
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		super.analyze(document, context);
+		this.classRef && this.classRef.analyze(document, context);
 	}
 }

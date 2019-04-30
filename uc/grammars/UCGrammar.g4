@@ -814,19 +814,19 @@ unaryExpression
 classArgument: primaryExpression; // Inclusive template argument (will be parsed as a function call)
 
 primaryExpression
-	: literal 																	#literalExpression
-	| kwCLASS LT qualifiedIdentifier GT primaryExpression 						#classCastExpression
-	| (kwDEFAULT | 'self' | 'super' | 'global' | kwSTATIC) 						#specifierExpression
-	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? classArgument 				#newExpression
-	| 'vect' (OPEN_PARENS numberLiteral COMMA numberLiteral COMMA numberLiteral CLOSE_PARENS) 			#vectLiteral
-	| 'rot' (OPEN_PARENS numberLiteral COMMA numberLiteral COMMA numberLiteral CLOSE_PARENS) 			#rotLiteral
-	| 'rng' (OPEN_PARENS numberLiteral COMMA numberLiteral CLOSE_PARENS) 								#rngLiteral
+	: literal 																						#literalExpression
+	| kwCLASS (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)						#genericClassCasting
+	| (kwDEFAULT | 'self' | 'super' | 'global' | kwSTATIC) 											#specifierExpression
+	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? classArgument 									#newExpression
+	| 'vect' (OPEN_PARENS numberLiteral COMMA numberLiteral COMMA numberLiteral CLOSE_PARENS) 		#vectLiteral
+	| 'rot' (OPEN_PARENS numberLiteral COMMA numberLiteral COMMA numberLiteral CLOSE_PARENS) 		#rotLiteral
+	| 'rng' (OPEN_PARENS numberLiteral COMMA numberLiteral CLOSE_PARENS) 							#rngLiteral
 	// Note any kwTOKEN must preceed identifier!
-	| identifier 																#memberExpression
-	| (OPEN_PARENS expression CLOSE_PARENS) 									#parenthesisExpression
-	| primaryExpression DOT (classLiteralSpecifier | identifier)				#contextExpression
-	| primaryExpression OPEN_PARENS arguments CLOSE_PARENS 						#argumentedExpression
-	| primaryExpression OPEN_BRACKET expression CLOSE_BRACKET 					#indexExpression
+	| identifier 																					#memberExpression
+	| (OPEN_PARENS expression CLOSE_PARENS) 														#parenthesisExpression
+	| primaryExpression DOT (classLiteralSpecifier | identifier)									#contextExpression
+	| primaryExpression (OPEN_PARENS arguments CLOSE_PARENS) 										#argumentedExpression
+	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 									#indexExpression
 	// nameof, arraycount?
 	;
 
