@@ -39,6 +39,12 @@ export class UCTypeSymbol extends UCSymbolReference {
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
+		// In some cases where a variable declaration is declaring multiple properties we may already have initialized a reference.
+		// e.g. "local float x, y, z;"
+		if (this.reference) {
+			return;
+		}
+
 		switch (this.typeKind) {
 			case UCTypeKind.Class:
 				this.linkToClass(document);
