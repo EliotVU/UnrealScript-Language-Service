@@ -9,7 +9,7 @@ export { UCEnumSymbol } from './EnumSymbol';
 export { UCEnumMemberSymbol } from './EnumMemberSymbol';
 export { UCScriptStructSymbol } from './ScriptStructSymbol';
 export { UCObjectSymbol } from './ObjectSymbol';
-export { UCMethodSymbol } from './MethodSymbol';
+export { UCMethodSymbol, UCMethodLikeSymbol } from './MethodSymbol';
 export { UCPropertySymbol } from './PropertySymbol';
 export { UCParamSymbol } from './ParamSymbol';
 export { UCConstSymbol } from './ConstSymbol';

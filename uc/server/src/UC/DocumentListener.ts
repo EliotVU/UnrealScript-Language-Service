@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { performance } from 'perf_hooks';
-import { Diagnostic, Range } from 'vscode-languageserver-types';
+import { Diagnostic, Range, Position } from 'vscode-languageserver-types';
 import URI from 'vscode-uri';
 
 import { BehaviorSubject } from 'rxjs';
@@ -219,6 +219,10 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.class!.analyze(this, this.class);
 		connection.console.log(this.name + ': analyzing time ' + (performance.now() - start));
 		return this.getNodes();
+	}
+
+	getSymbolAtPos(position: Position): ISymbol {
+		return this.class && this.class.getSymbolAtPos(position);
 	}
 
 	syntaxError(_recognizer: Recognizer<Token, any>,

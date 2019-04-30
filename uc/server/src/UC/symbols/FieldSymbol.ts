@@ -9,7 +9,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;
 	public containingStruct?: UCStructSymbol;
 
-	constructor(private name: string, nameRange: Range, private spanRange: Range) {
+	constructor(private name: string, nameRange?: Range, private spanRange?: Range) {
 		super(nameRange);
 	}
 

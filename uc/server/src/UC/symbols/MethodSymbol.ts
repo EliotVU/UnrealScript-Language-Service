@@ -5,6 +5,7 @@ import { UCDocument, getDocumentByUri } from '../DocumentListener';
 
 import { UCSymbol, UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
 import { SymbolVisitor } from '../SymbolVisitor';
+import { ISymbol, IWithReference } from './ISymbol';
 
 export class UCMethodSymbol extends UCStructSymbol {
 	public returnType?: UCTypeSymbol;
@@ -107,19 +108,29 @@ export class UCMethodSymbol extends UCStructSymbol {
 		}
 	}
 
-	private buildReturnType(): string {
+	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+		return visitor.visitMethod(this);
+	}
+
+	protected buildReturnType(): string {
 		return this.returnType
 			? this.returnType.getTypeText() + ' '
 			: '';
 	}
 
-	private buildArguments(): string {
+	protected buildArguments(): string {
 		return this.params
 			? `(${this.params.map(f => f.type.getTypeText() + ' ' + f.getName()).join(', ')})`
 			: '()';
 	}
+}
 
-	accept<Result>(visitor: SymbolVisitor<Result>): Result {
-		return visitor.visitMethod(this);
+export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference {
+	getKindText(): string {
+		return 'function'; // placeholder
+	}
+
+	getReference(): ISymbol {
+		return this.returnType && this.returnType.getReference();
 	}
 }

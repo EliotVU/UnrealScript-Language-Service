@@ -1,15 +1,15 @@
 import { Location, Range, Position } from 'vscode-languageserver-types';
 
-import { UCDocument, addIndexedReference, getIndexedReferences } from '../DocumentListener';
+import { UCDocument } from '../DocumentListener';
 import { intersectsWith } from '../helpers';
 
-import { ISymbol, ISymbolReference, ISymbolContext } from './ISymbol';
+import { ISymbol, ISymbolReference, ISymbolContext, IWithReference } from './ISymbol';
 import { UCSymbol } from '.';
 
 /**
  * For general symbol references, like a function's return type which cannot yet be identified.
  */
-export class UCSymbolReference extends UCSymbol {
+export class UCSymbolReference extends UCSymbol implements IWithReference {
 	protected reference?: ISymbol;
 
 	constructor(private refName: string, refNameRange: Range) {
@@ -64,14 +64,5 @@ export class UCSymbolReference extends UCSymbol {
 
 	getReference(): ISymbol {
 		return this.reference;
-	}
-
-	// Redirect
-	getReferences() {
-		const symbol = this.getReference() as UCSymbol;
-		if (!symbol) {
-			return undefined;
-		}
-		return symbol.getReferences();
 	}
 }

@@ -24,3 +24,7 @@ export interface ISymbolReference {
 	location: Location;
 	context?: ISymbolContext;
 }
+
+export interface IWithReference extends ISymbol {
+	getReference(): ISymbol;
+}

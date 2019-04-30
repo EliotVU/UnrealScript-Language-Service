@@ -1,9 +1,9 @@
 import { ParserRuleContext } from 'antlr4ts';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext } from '../antlr/UCGrammarParser';
+import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, ClassCastExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext, RotLiteralContext, VectLiteralContext, RngLiteralContext } from '../antlr/UCGrammarParser';
 
-import { UCSymbolReference } from './Symbols';
-import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesisExpression, UCPredefinedContextMember, IExpression, UCLiteral, UCClassLiteral, UCNewOperator, UCPredefinedMember } from './Expressions';
+import { UCSymbolReference, UCTypeSymbol } from './Symbols';
+import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesisExpression, UCPredefinedContextMember, IExpression, UCLiteral, UCClassLiteral, UCNewOperator, UCPredefinedMember, UCStructLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral } from './Expressions';
 import { rangeFromBounds } from './helpers';
 
 export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
@@ -291,5 +291,26 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 			expressions.push(arg.accept(this));
 		}
 		return expressions as any as IExpression;
+	}
+
+	visitVectLiteral(ctx: VectLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCVectLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitRotLiteral(ctx: RotLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCRotLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitRngLiteral(ctx: RngLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCRngLiteral(range);
+		expression.context = ctx;
+		return expression;
 	}
 }

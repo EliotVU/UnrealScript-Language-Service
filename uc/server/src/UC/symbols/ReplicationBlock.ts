@@ -23,8 +23,8 @@ export class UCReplicationBlock extends UCFieldSymbol {
 	getCompletionContext(position: Position): UCSymbol {
 		if (this.scriptBlock) {
 			const symbol = this.scriptBlock.getSymbolAtPos(position);
-			if (symbol && symbol instanceof UCSymbolReference) {
-				return symbol.getReference() as UCSymbol;
+			if (symbol) {
+				return symbol;
 			}
 		}
 		return this;

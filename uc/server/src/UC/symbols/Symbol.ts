@@ -1,7 +1,7 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Position } from 'vscode-languageserver-types';
 import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
 
-import { UCDocument, getIndexedReferences, addIndexedReference } from "../DocumentListener";
+import { UCDocument, addIndexedReference } from "../DocumentListener";
 import { UCGrammarParser } from '../../antlr/UCGrammarParser';
 
 import { ISymbol, ISymbolReference } from './ISymbol';
@@ -115,10 +115,6 @@ export abstract class UCSymbol implements ISymbol {
 
 	indexReference(ref: ISymbolReference) {
 		addIndexedReference(this.getQualifiedName(), ref);
-	}
-
-	getReferences() {
-		return getIndexedReferences(this.getQualifiedName());
 	}
 
 	getUri(): string | undefined {

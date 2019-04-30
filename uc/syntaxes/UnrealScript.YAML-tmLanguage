@@ -508,7 +508,7 @@ repository:
       - name: variable.language.this.uc
         match: \b((?i)global|self|default|static)\b
 
-      - begin: ((?i)int|byte|float|bool|string|name|vect|range|rot)\s*(\()
+      - begin: ((?i)int|byte|float|bool|string|name|vect|rng|rot)\s*(\()
         beginCaptures:
           '0':
             name: cast.expr.uc

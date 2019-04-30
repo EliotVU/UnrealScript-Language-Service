@@ -21,6 +21,7 @@ import {
 import { UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable } from './Symbols';
 import { getDocumentByUri, ClassesMap$, getIndexedReferences } from "./DocumentListener";
 import { Token } from 'antlr4ts';
+import { IWithReference, ISymbol } from './Symbols/ISymbol';
 
 export function rangeFromBound(token: Token): Range {
 	const start: Position = {
@@ -123,44 +124,38 @@ export async function initWorkspace(connection: Connection) {
 
 export async function getHover(uri: string, position: Position): Promise<Hover> {
 	const document = getDocumentByUri(uri);
-	if (!document || !document.class) {
-		return undefined;
-	}
-
-	const symbol = document.class.getSymbolAtPos(position);
+	const symbol = document && document.getSymbolAtPos(position);
 	if (!symbol) {
 		return undefined;
 	}
 
-	let contents = [{ language: 'unrealscript', value: symbol.getTooltip()}];
+	if (symbol instanceof UCSymbol) {
+		const contents = [{ language: 'unrealscript', value: symbol.getTooltip()}];
 
-	const documentation = symbol.getDocumentation(document.tokenStream);
-	if (documentation) {
-		contents.push({ language: 'unrealscript', value: documentation });
+		const documentation = symbol.getDocumentation(document.tokenStream);
+		if (documentation) {
+			contents.push({ language: 'unrealscript', value: documentation });
+		}
+
+		return {
+			contents,
+			range: symbol.getNameRange()
+		};
 	}
-
-	return {
-		contents,
-		range: symbol.getNameRange()
-	};
 }
 
 export async function getDefinition(uri: string, position: Position): Promise<Definition> {
 	const document = getDocumentByUri(uri);
-	if (!document || !document.class) {
+	const symbol = document && document.getSymbolAtPos(position) as unknown as IWithReference;
+	if (!symbol) {
 		return undefined;
 	}
 
-	const symbol = document.class.getSymbolAtPos(position);
-	if (!symbol || !(symbol instanceof UCSymbolReference)) {
-		return undefined;
+	const reference = symbol.getReference && symbol.getReference();
+	if (reference instanceof UCSymbol) {
+		return Location.create(reference.getUri(), reference.getNameRange());
 	}
-
-	const reference = symbol.getReference();
-	if (!(reference instanceof UCSymbol)) {
-		return undefined;
-	}
-	return Location.create(reference.getUri(), reference.getNameRange());
+	return undefined;
 }
 
 export async function getSymbols(uri: string): Promise<SymbolInformation[]> {
@@ -185,32 +180,26 @@ export async function getSymbols(uri: string): Promise<SymbolInformation[]> {
 
 export async function getReferences(uri: string, position: Position): Promise<Location[]> {
 	const document = getDocumentByUri(uri);
-	if (!document || !document.class) {
-		return undefined;
-	}
-
-	const symbol = document.class.getSymbolAtPos(position);
+	const symbol = document && document.getSymbolAtPos(position) as ISymbol;
 	if (!symbol) {
 		return undefined;
 	}
 
-	const references = getIndexedReferences(symbol.getQualifiedName());
-	if (!references) {
-		return undefined;
-	}
+	const symbolWithReference = symbol as IWithReference;
+	const reference = symbolWithReference.getReference && symbolWithReference.getReference();
 
-	return Array
+	const qualifiedName = reference
+		? reference.getQualifiedName()
+		: symbol.getQualifiedName();
+	const references = getIndexedReferences(qualifiedName);
+	return references && Array
 		.from(references.values())
 		.map(ref => ref.location);
 }
 
 export async function getHighlights(uri: string, position: Position): Promise<DocumentHighlight[]> {
 	const document = getDocumentByUri(uri);
-	if (!document || !document.class) {
-		return undefined;
-	}
-
-	const symbol = document.class.getSymbolAtPos(position);
+	const symbol = document && document.getSymbolAtPos(position);
 	if (!symbol) {
 		return undefined;
 	}
@@ -245,11 +234,14 @@ export async function getCompletionItems(uri: string, position: Position, contex
 		-- position.character;
 	}
 
-	const symbol = document.class.getCompletionContext(position);
-	if (!context) {
-		return undefined;
+	let symbol = document.class.getCompletionContext(position);
+	if (symbol && symbol instanceof UCSymbolReference) {
+		symbol = symbol.getReference() as UCSymbol;
 	}
 
+	if (!symbol) {
+		return undefined;
+	}
 	const symbols = symbol.getCompletionSymbols(document);
 	const contextCompletions = symbols.map(symbol => symbol.toCompletionItem(document));
 	// TODO: Add context sensitive keywords

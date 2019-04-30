@@ -6,7 +6,7 @@ import { UCDocument } from './DocumentListener';
 import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode } from './diagnostics/diagnostics';
 import { intersectsWith, rangeFromBounds } from './helpers';
 
-import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, UCStateSymbol, SymbolsTable, UCMethodSymbol, UCClassSymbol, NativeClass, CORE_PACKAGE } from './Symbols';
+import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, UCStateSymbol, SymbolsTable, UCMethodSymbol, UCClassSymbol, NativeClass, CORE_PACKAGE, FloatType, UCParamSymbol, UCTypeSymbol, VectMethodLike, RotMethodLike, RngMethodLike, VectorType, RotatorType, RangeType } from './Symbols';
 import { ISymbolContext, ISymbol } from './Symbols/ISymbol';
 
 export interface IExpression {
@@ -21,11 +21,11 @@ export interface IExpression {
 	analyze(document: UCDocument, context: UCStructSymbol): void;
 }
 
-export abstract class UCExpression {
+export abstract class UCExpression implements IExpression {
 	outer: IExpression;
 	context: ParserRuleContext;
 
-	constructor(private range?: Range) {
+	constructor(protected range?: Range) {
 
 	}
 
@@ -38,14 +38,14 @@ export abstract class UCExpression {
 			return undefined;
 		}
 		const symbol = this.getContainedSymbolAtPos(position);
-		return symbol;
+		return symbol as UCSymbol;
 	}
 
 	getMemberSymbol(): ISymbol {
 		return undefined;
 	}
 
-	abstract getContainedSymbolAtPos(position: Position): UCSymbol;
+	abstract getContainedSymbolAtPos(position: Position): ISymbol;
 	abstract index(document: UCDocument, context: UCStructSymbol): void;
 	abstract analyze(document: UCDocument, context: UCStructSymbol): void;
 }
@@ -212,11 +212,11 @@ export class UCContextExpression extends UCExpression {
 		// Resolve properties to its defined type e.g. given property "local array<Vector> Foo;" will be resolved to array or Vector (in an index expression, handled elsewhere).
 		if (symbol instanceof UCPropertySymbol) {
 			// TODO: handle properties of type class<DamageType>.
-			return symbol.type.getReference() as UCStructSymbol;
+			return symbol.type && symbol.type.getReference() as UCStructSymbol;
 		}
 		if (symbol instanceof UCMethodSymbol) {
 			// TODO: handle properties of type class<DamageType>.
-			return symbol.returnType.getReference() as UCStructSymbol;
+			return symbol.returnType && symbol.returnType.getReference() as UCStructSymbol;
 		}
 		return symbol as UCStructSymbol;
 	}
@@ -497,4 +497,59 @@ export class UCPredefinedContextMember extends UCMemberExpression {
 
 export class UCNewOperator extends UCArgumentedExpression {
 	// TODO: Implement psuedo new operator for hover info?
+}
+
+// Struct literals are hardcode limited to Vector, Rotator, and Range.
+export abstract class UCStructLiteral extends UCExpression {
+	structType: UCSymbolReference;
+
+	constructor(range: Range) {
+		super(range);
+	}
+
+	getContainedSymbolAtPos(_position: Position) {
+		// Only return if we have a RESOLVED reference.
+		return this.structType.getReference() && this.structType;
+	}
+
+	getMemberSymbol() {
+		return this.structType.getReference();
+	}
+
+	index(document: UCDocument, context: UCStructSymbol) {
+		if (!this.structType || this.structType.getReference()) {
+			return;
+		}
+
+		const symbol = context.findTypeSymbol(this.structType.getName().toLowerCase(), true);
+		this.structType['nameRange'] = this.range; // HACK!
+		symbol && this.structType.setReference(symbol, document);
+	}
+
+	analyze(_document: UCDocument, _context: UCStructSymbol): void {
+	}
+}
+
+export class UCVectLiteral extends UCStructLiteral {
+	structType = VectorType;
+
+	getContainedSymbolAtPos(_position: Position) {
+		return VectMethodLike as unknown as UCSymbolReference;
+	}
+}
+
+export class UCRotLiteral extends UCStructLiteral {
+	structType = RotatorType;
+
+	getContainedSymbolAtPos(_position: Position) {
+		return RotMethodLike as unknown as UCSymbolReference;
+	}
+}
+
+export class UCRngLiteral extends UCStructLiteral {
+	structType = RangeType;
+
+	getContainedSymbolAtPos(_position: Position) {
+		return RngMethodLike as unknown as UCSymbolReference;
+	}
 }

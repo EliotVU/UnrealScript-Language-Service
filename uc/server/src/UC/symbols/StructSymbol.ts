@@ -55,8 +55,8 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 
 		if (this.scriptBlock) {
 			const symbol = this.scriptBlock.getSymbolAtPos(position);
-			if (symbol && symbol instanceof UCSymbolReference) {
-				return symbol.getReference() as UCSymbol;
+			if (symbol) {
+				return symbol;
 			}
 		}
 		return this;
