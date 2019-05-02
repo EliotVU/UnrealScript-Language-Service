@@ -4,7 +4,7 @@
 // TEST DESC
 //
 //=============================================================================
-class test extends Object;
+class test extends Core.Object;
 
 // var(MultiComponent, Advanced) protectedwrite editinline editfixedsize array<FComponent> Components<MaxPropertyDepth=1>;
 
@@ -14,6 +14,16 @@ class test extends Object;
 #exec obj load file="test\CountryFlagsUT2K4.utx" package="ClientBTimesV7b" group="CountryFlags"
 
 const TEST_CONSTANT = 10;
+
+var int staticArray[4];
+
+const CONST_CLASS = class'Object';
+const CONST_VECT = vect(0,0,0);
+const CONST_ROT = rot(0,0,0);
+const CONST_RNG = rng(0,0);
+const CONST_SIZEOF = sizeof(Object);
+const CONST_ARRAYCOUNT = arraycount(staticArray);
+const CONST_NAMEOF = nameof(staticArray);
 
 enum ETopEnum {
     TE_Value1
@@ -41,9 +51,10 @@ var array<struct structWithinArray {
     var() array<string> Names;
 }> InlinedStructArray;
 
-var public Engine.Actor DeepReference;
-var protected array<class<Engine.Actor> > DeepActorClassArray;
-var private array<Object.Vector> DeepVectorArray;
+var public Actor.ENetRole DeepEnumRef;
+var public Actor.ENetRole DeepStructRef;
+var protected array<class<Actor> > ActorClassArray;
+var private array<Object.Vector> VectorStructArray;
 
 var const Sound objectProperty;
 var array<int> arrayProperty;
@@ -65,13 +76,14 @@ var int MultiLineVar1[2], MultiLineVar2<UIMin=5|UIMax=10>;
 var(CategoryName) string CategoryProperty;
 
 var public const int ModifiedProperty;
+var Actor.ENetRole Role;
 
 // Ambigious test
 function replication();
 
 replication
 {
-	reliable if( bNetDirty && (Role==ROLE_Authority) )
+	reliable if( boolProperty && (Role==ROLE_Authority) )
         objectProperty, thisDoesntExist, notReplicatable;
 
 	reliable if( Role<ROLE_Authority )
@@ -82,6 +94,8 @@ native(121) static final operator(24) bool >= ( string A, string B );
 native(122) static final preoperator Color # ( string A );
 
 event ReplicatedFunction();
+
+static function CodeMethod();
 
 function TestForEach()
 {
@@ -103,6 +117,8 @@ function int TestReturn()
 
 function TestAssignment()
 {
+    const topGlobalConst = 1;
+
     local class<Actor> myClass;
 
     local Color C;
@@ -118,6 +134,8 @@ function TestAssignment()
 
     // Replication is not a class, but test ambigious case with replication block.
     replication'TestObject'.Name = 'Test';
+
+    const globalConst = topGlobalConst;
 }
 
 static function TestNew()
@@ -130,7 +148,6 @@ static function TestNew()
 
 function string Param(float float1, float float2)
 {
-
     local string s;
     local vector v;
     local array<string> ss;
@@ -145,7 +162,7 @@ function string Param(float float1, float float2)
 
     static.CodeMethod();
 
-    ss.Length = 2;
+    ss.Length = globalConst + topGlobalConst;
     ss[0] = "test";
 
     myLabel:
