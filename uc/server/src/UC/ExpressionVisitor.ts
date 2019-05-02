@@ -4,7 +4,7 @@ import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, S
 
 import { UCSymbolReference, UCTypeSymbol } from './Symbols';
 import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesisExpression, UCPredefinedContextMember, IExpression, UCLiteral, UCClassLiteral, UCNewOperator, UCPredefinedMember, UCStructLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCGenericClassCast } from './Expressions';
-import { rangeFromBounds } from './helpers';
+import { rangeFromBounds, rangeFromBound } from './helpers';
 import { UCTypeKind } from './Symbols/TypeKind';
 
 export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
@@ -253,8 +253,8 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 			const classIdNode = classLiteralNode.identifier();
 			const classCastingRef = new UCSymbolReference(classIdNode.text, rangeFromBounds(classIdNode.start, classIdNode.stop));
 
-			const objectIdNode = classLiteralNode.objectLiteral();
-			const objectRef = new UCSymbolReference(objectIdNode.text.replace(/'|\s/g, ""), rangeFromBounds(objectIdNode.start, objectIdNode.stop));
+			const objectIdNode = classLiteralNode.NAME();
+			const objectRef = new UCSymbolReference(objectIdNode.text.replace(/'|\s/g, ""), rangeFromBound(objectIdNode.symbol));
 
 			expression.classCastingRef = classCastingRef;
 			expression.objectRef = objectRef;
