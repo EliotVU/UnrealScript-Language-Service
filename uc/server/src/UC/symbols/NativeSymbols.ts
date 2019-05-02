@@ -8,8 +8,13 @@ export const NativeClass = new UCClassSymbol('Class');
 NativeClass.extendsType = new UCTypeSymbol('Object', undefined, undefined, UCTypeKind.Class);
 CORE_PACKAGE.addSymbol(NativeClass);
 
+export const ArgumentType = new UCTypeSymbol('Argument', undefined);
 export const IntType = new UCTypeSymbol('int', undefined);
 export const FloatType = new UCTypeSymbol('float', undefined);
+export const PropertyType = new UCTypeSymbol('Property', undefined);
+export const VectorType = new UCTypeSymbol('Vector', undefined);
+export const RotatorType = new UCTypeSymbol('Rotator', undefined);
+export const RangeType = new UCTypeSymbol('Range', undefined);
 
 export const NativeArray = new UCClassSymbol('Array');
 CORE_PACKAGE.addSymbol(NativeArray);
@@ -71,10 +76,6 @@ NATIVE_SYMBOLS.forEach(symbol => {
 
 SymbolsTable.addSymbol(CORE_PACKAGE);
 
-export const VectorType = new UCTypeSymbol('Vector', undefined);
-export const RotatorType = new UCTypeSymbol('Rotator', undefined);
-export const RangeType = new UCTypeSymbol('Range', undefined);
-
 export const VectMethodLike = new UCMethodLikeSymbol('vect');
 	VectMethodLike.returnType = VectorType;
 
@@ -121,3 +122,15 @@ export const RngMethodLike = new UCMethodLikeSymbol('rng');
 	RngMethodLike.addSymbol(MaxParam);
 
 	RngMethodLike.params = [MinParam, MaxParam];
+
+export const AssignmentOperator = new UCMethodLikeSymbol('=', 'operator');
+
+	const AParam = new UCParamSymbol('variable');
+	AParam.type = PropertyType;
+	AssignmentOperator.addSymbol(AParam);
+
+	const BParam = new UCParamSymbol('value');
+	BParam.type = ArgumentType;
+	AssignmentOperator.addSymbol(BParam);
+
+	AssignmentOperator.params = [AParam, BParam];
