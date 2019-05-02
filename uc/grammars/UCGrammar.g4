@@ -139,6 +139,7 @@ kwPARSECONFIG: 'parseconfig';
 // kwEDITINLINENEW: 'editinlinenew';
 // kwNOTEDITINLINENEW: 'noteditinlinenew';
 // kwEXPORTSTRUCTS: 'exportstructs';
+kwCLASSREDIRECT: 'classredirect';
 // kwDLLBIND: 'dllbind';
 kwDEPRECATED: 'deprecated';
 kwSTRICTCONFIG: 'strictconfig';
@@ -431,6 +432,7 @@ classModifier: identifier modifierArguments?;
 	// | kwNONTRANSIENT
 	// | kwPEROBJECTLOCALIZED
 	// | kwDEPRECATED
+	// | (kwCLASSREDIRECT modifierArguments)
 	// | (kwDLLBIND modifierArgument)
 	// | (kwIMPLEMENTS modifierArgument)
 	// | (kwCLASSGROUP modifierArguments)
