@@ -111,14 +111,6 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 			if (name === id) {
 				return child;
 			}
-
-			// Also match enum members
-			if (child instanceof UCEnumSymbol) {
-				const symbol = child.findSymbol(id);
-				if (symbol) {
-					return symbol;
-				}
-			}
 		}
 		return undefined;
 	}

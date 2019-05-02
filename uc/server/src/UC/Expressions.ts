@@ -293,11 +293,13 @@ export class UCTernaryOperator extends UCExpression {
 	}
 }
 
+// TODO: Index and match overloaded operators.
 export class UCBinaryOperator extends UCExpression {
 	public left?: IExpression;
 	public right?: IExpression;
 
 	getMemberSymbol(): ISymbol {
+		// TODO: Return the operator's return type.
 		return (this.left && this.left.getMemberSymbol()) || (this.right && this.right.getMemberSymbol());
 	}
 
