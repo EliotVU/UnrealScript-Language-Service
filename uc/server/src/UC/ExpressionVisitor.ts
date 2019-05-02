@@ -1,6 +1,6 @@
 import { ParserRuleContext } from 'antlr4ts';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext, RotLiteralContext, VectLiteralContext, RngLiteralContext, GenericClassCastingContext } from '../antlr/UCGrammarParser';
+import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext, GenericClassCastingContext, VectTokenContext, RotTokenContext, RngTokenContext, ClassLiteralContext, LiteralContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference, UCTypeSymbol } from './Symbols';
 import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesisExpression, UCPredefinedContextMember, IExpression, UCLiteral, UCClassLiteral, UCNewOperator, UCPredefinedMember, UCStructLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCGenericClassCast } from './Expressions';
@@ -243,30 +243,6 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 		return expression;
 	}
 
-	// FIXME:
-	visitLiteralExpression(ctx: LiteralExpressionContext) {
-		const classLiteralNode = ctx.literal().classLiteral();
-		if (classLiteralNode) {
-			const range = rangeFromBounds(ctx.start, ctx.stop);
-			const expression = new UCClassLiteral(range);
-
-			const classIdNode = classLiteralNode.identifier();
-			const classCastingRef = new UCSymbolReference(classIdNode.text, rangeFromBounds(classIdNode.start, classIdNode.stop));
-
-			const objectIdNode = classLiteralNode.NAME();
-			const objectRef = new UCSymbolReference(objectIdNode.text.replace(/'|\s/g, ""), rangeFromBound(objectIdNode.symbol));
-
-			expression.classCastingRef = classCastingRef;
-			expression.objectRef = objectRef;
-			expression.context = classLiteralNode;
-			return expression;
-		}
-
-		const expression = new UCLiteral();
-		expression.context = ctx;
-		return expression;
-	}
-
 	visitSpecifierExpression(ctx: SpecifierExpressionContext) {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const expression = new UCPredefinedMember(new UCSymbolReference(ctx.text, range));
@@ -308,21 +284,50 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 		return expressions as any as IExpression;
 	}
 
-	visitVectLiteral(ctx: VectLiteralContext) {
+	visitLiteralExpression(ctx: LiteralExpressionContext): IExpression {
+		return ctx.literal().accept<IExpression>(this);
+	}
+
+	visitLiteral(ctx: LiteralContext): IExpression {
+		const literal = ctx.getChild(0).accept<IExpression>(this);
+		// TODO: Deprecate as soon as all literals are supported!
+		if (!literal) {
+			const expression = new UCLiteral(rangeFromBounds(ctx.start, ctx.stop));
+			expression.context = ctx;
+			return expression;
+		}
+		return literal;
+	}
+
+	visitClassLiteral(ctx: ClassLiteralContext) {
+		const classIdNode = ctx.identifier();
+		const classCastingRef = new UCSymbolReference(classIdNode.text, rangeFromBounds(classIdNode.start, classIdNode.stop));
+
+		const objectIdNode = ctx.NAME();
+		const objectRef = new UCSymbolReference(objectIdNode.text.replace(/'|\s/g, ""), rangeFromBound(objectIdNode.symbol));
+
+		const expression = new UCClassLiteral(rangeFromBounds(ctx.start, ctx.stop));
+		expression.context = ctx;
+		expression.classCastingRef = classCastingRef;
+		expression.objectRef = objectRef;
+		return expression;
+	}
+
+	visitVectToken(ctx: VectTokenContext) {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const expression = new UCVectLiteral(range);
 		expression.context = ctx;
 		return expression;
 	}
 
-	visitRotLiteral(ctx: RotLiteralContext) {
+	visitRotToken(ctx: RotTokenContext) {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const expression = new UCRotLiteral(range);
 		expression.context = ctx;
 		return expression;
 	}
 
-	visitRngLiteral(ctx: RngLiteralContext) {
+	visitRngToken(ctx: RngTokenContext) {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const expression = new UCRngLiteral(range);
 		expression.context = ctx;

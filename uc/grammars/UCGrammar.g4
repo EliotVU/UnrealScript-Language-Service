@@ -372,6 +372,11 @@ literal
 	| stringLiteral
 	| classLiteral
 	| nameLiteral
+	| vectToken
+	| rotToken
+	| rngToken
+	| arrayCountToken
+	| nameOfToken
 	;
 
 numberLiteral: (MINUS | PLUS)? (FLOAT | INTEGER);
@@ -453,7 +458,44 @@ modifierArgument: OPEN_PARENS modifierValue CLOSE_PARENS;
 modifierArguments: OPEN_PARENS (modifierValue COMMA?)+ CLOSE_PARENS;
 
 constDecl: kwCONST identifier ASSIGNMENT constValue SEMICOLON;
-constValue: literal | qualifiedIdentifier;
+constValue
+	: noneLiteral
+	| booleanLiteral
+	| numberLiteral
+	| stringLiteral
+	| classLiteral
+	| nameLiteral
+	| vectToken
+	| rotToken
+	| rngToken
+	| arrayCountToken
+	| nameOfToken
+	| sizeOfToken
+	;
+
+vectToken
+	: 'vect' (OPEN_PARENS numberLiteral COMMA numberLiteral COMMA numberLiteral CLOSE_PARENS)
+	;
+
+rotToken
+	: 'rot' (OPEN_PARENS numberLiteral COMMA numberLiteral COMMA numberLiteral CLOSE_PARENS)
+	;
+
+rngToken
+	: 'rng' (OPEN_PARENS numberLiteral COMMA numberLiteral CLOSE_PARENS)
+	;
+
+arrayCountToken
+	: 'arraycount' (OPEN_PARENS identifier CLOSE_PARENS)
+	;
+
+nameOfToken
+	: 'nameof' (OPEN_PARENS identifier CLOSE_PARENS)
+	;
+
+sizeOfToken
+	: 'sizeof' (OPEN_PARENS identifier CLOSE_PARENS)
+	;
 
 enumDecl:
 	kwENUM identifier
@@ -817,19 +859,15 @@ classArgument: primaryExpression; // Inclusive template argument (will be parsed
 
 primaryExpression
 	: literal 																						#literalExpression
-	| kwCLASS (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)						#genericClassCasting
+	| kwCLASS (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)								#genericClassCasting
 	| (kwDEFAULT | 'self' | 'super' | 'global' | kwSTATIC) 											#specifierExpression
 	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? classArgument 									#newExpression
-	| 'vect' (OPEN_PARENS numberLiteral COMMA numberLiteral COMMA numberLiteral CLOSE_PARENS) 		#vectLiteral
-	| 'rot' (OPEN_PARENS numberLiteral COMMA numberLiteral COMMA numberLiteral CLOSE_PARENS) 		#rotLiteral
-	| 'rng' (OPEN_PARENS numberLiteral COMMA numberLiteral CLOSE_PARENS) 							#rngLiteral
-	// Note any kwTOKEN must preceed identifier!
+	// Note any keyword must preceed identifier!
 	| identifier 																					#memberExpression
 	| (OPEN_PARENS expression CLOSE_PARENS) 														#parenthesisExpression
 	| primaryExpression DOT (classLiteralSpecifier | identifier)									#contextExpression
 	| primaryExpression (OPEN_PARENS arguments CLOSE_PARENS) 										#argumentedExpression
 	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 									#indexExpression
-	// nameof, arraycount?
 	;
 
 classLiteralSpecifier
@@ -884,7 +922,7 @@ stopStatement: kwSTOP;
 defaultpropertiesBlock
 	:
 		kwDEFAULTPROPERTIES
-		// UnrealScriptBug: Must on next the line after keyword!
+		// UnrealScriptBug: Must be on the line after keyword!
 		OPEN_BRACE
 			(objectDecl | defaultVariable)*
 		CLOSE_BRACE

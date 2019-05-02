@@ -27,16 +27,6 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 	}
 
 	visitStatement(ctx: StatementContext): IStatement {
-		let statementNode = ctx.ifStatement()
-			|| ctx.whileStatement() || ctx.switchStatement()
-			|| ctx.labeledStatement() || ctx.forStatement()
-			|| ctx.foreachStatement() || ctx.doStatement()
-			|| ctx.continueStatement() || ctx.breakStatement() || ctx.stopStatement()
-			|| ctx.returnStatement() || ctx.gotoStatement();
-		if (statementNode) {
-			return statementNode.accept(this);
-		}
-
 		const exprNode = ctx.expression() || ctx.assignmentExpression() as ParserRuleContext;
 		if (exprNode) {
 			const statement = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
@@ -45,7 +35,8 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 			return statement;
 		}
 
-		throw 'Not implemented!';
+		const statementNode = ctx.getChild(0);
+		return statementNode && statementNode.accept(this);
 	}
 
 	visitLabeledStatement(ctx: LabeledStatementContext): UCLabeledStatement {
