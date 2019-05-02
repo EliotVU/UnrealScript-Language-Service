@@ -75,6 +75,9 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 			expression.left.outer = expression;
 		}
 
+		const operatorNode = ctx.functionName();
+		expression.operator = new UCSymbolReference(operatorNode.text, rangeFromBounds(operatorNode.start, operatorNode.stop));
+
 		const rightNode = ctx.expression(1);
 		if (rightNode) {
 			expression.right = rightNode.accept<IExpression>(this);
@@ -92,6 +95,9 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 			expression.left = primaryNode.accept<IExpression>(this);
 			expression.left.outer = expression;
 		}
+
+		const operatorNode = ctx.assignmentOperator();
+		expression.operator = new UCSymbolReference(operatorNode.text, rangeFromBounds(operatorNode.start, operatorNode.stop));
 
 		const exprNode = ctx.expression();
 		if (exprNode) {

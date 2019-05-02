@@ -6,7 +6,7 @@ import { UCDocument } from './DocumentListener';
 import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode } from './diagnostics/diagnostics';
 import { intersectsWith, rangeFromBounds } from './helpers';
 
-import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, UCStateSymbol, SymbolsTable, UCMethodSymbol, UCClassSymbol, NativeClass, VectMethodLike, RotMethodLike, RngMethodLike, VectorType, RotatorType, RangeType, UCTypeSymbol } from './Symbols';
+import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, UCStateSymbol, SymbolsTable, UCMethodSymbol, UCClassSymbol, NativeClass, VectMethodLike, RotMethodLike, RngMethodLike, VectorType, RotatorType, RangeType, UCTypeSymbol, AssignmentOperator } from './Symbols';
 import { ISymbolContext, ISymbol } from './Symbols/ISymbol';
 
 export interface IExpression {
@@ -295,6 +295,7 @@ export class UCTernaryOperator extends UCExpression {
 
 // TODO: Index and match overloaded operators.
 export class UCBinaryOperator extends UCExpression {
+	public operator: UCSymbolReference;
 	public left?: IExpression;
 	public right?: IExpression;
 
@@ -304,6 +305,11 @@ export class UCBinaryOperator extends UCExpression {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
+		const symbol = this.operator.getSymbolAtPos(position);
+		if (symbol && this.operator.getReference()) {
+			return symbol;
+		}
+
 		if (this.left) {
 			const symbol = this.left.getSymbolAtPos(position);
 			if (symbol) {
@@ -320,6 +326,8 @@ export class UCBinaryOperator extends UCExpression {
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
+		this.operator.setReference(context.findSuperSymbol(this.operator.getName().toLowerCase()), document);
+
 		if (this.left) this.left.index(document, context);
 		if (this.right) this.right.index(document, context);
 	}
@@ -331,7 +339,35 @@ export class UCBinaryOperator extends UCExpression {
 }
 
 export class UCAssignmentOperator extends UCBinaryOperator {
+	index(document: UCDocument, context: UCStructSymbol) {
+		this.operator.setReference(AssignmentOperator, document);
 
+		if (this.left) this.left.index(document, context);
+		if (this.right) this.right.index(document, context);
+	}
+
+
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		super.analyze(document, context);
+
+		// TODO: Validate type compatibility, but this requires us to match an overloaded operator first!
+		const letSymbol = this.left && this.left.getMemberSymbol();
+		if (letSymbol) {
+			if (letSymbol instanceof UCPropertySymbol) {
+				// Properties with a defined array dimension cannot be assigned!
+				if (letSymbol.arrayDim) {
+					document.nodes.push(new SemanticErrorNode(this.operator, "Can't assign static arrays!"));
+				}
+
+				if (letSymbol.isConst()) {
+					document.nodes.push(new SemanticErrorNode(this.operator, "Can't assign const Variables!"));
+				}
+			} else {
+				// TODO: handle case for dynamic arrays
+				// document.nodes.push(new SemanticErrorNode(this.operator, "Can only assign Variables!"));
+			}
+		}
+	}
 }
 
 export class UCLiteral extends UCExpression {
