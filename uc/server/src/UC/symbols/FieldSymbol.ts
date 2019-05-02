@@ -40,15 +40,28 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return this;
 	}
 
+	// TODO: reflect parsed modifier.
 	isPublic(): boolean {
 		return true;
 	}
 
+	// TODO: reflect parsed modifier.
 	isPrivate(): boolean {
 		return false;
 	}
 
+	// TODO: reflect parsed modifier.
 	isProtected(): boolean {
+		return false;
+	}
+
+	// TODO: reflect parsed modifier.
+	isConst(): boolean {
+		return false;
+	}
+
+	// TODO: reflect parsed modifier.
+	isNative(): boolean {
 		return false;
 	}
 
@@ -68,5 +81,19 @@ export abstract class UCFieldSymbol extends UCSymbol {
 				inAssignment: true
 			}
 		});
+	}
+
+	protected buildModifiers(): string[] {
+		let text: string[] = [];
+
+		if (this.isConst()) {
+			text.push('const');
+		}
+
+		if (this.isNative()) {
+			text.push('native');
+		}
+
+		return text;
 	}
 }

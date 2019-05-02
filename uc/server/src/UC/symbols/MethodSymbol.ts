@@ -12,32 +12,22 @@ export class UCMethodSymbol extends UCStructSymbol {
 	public overridenMethod?: UCMethodSymbol;
 	public params?: UCParamSymbol[];
 
+	// TODO: reflect parsed modifier.
+	isStatic(): boolean {
+		return false;
+	}
+
+	// TODO: reflect parsed modifier.
+	isFinal(): boolean {
+		return this.isStatic();
+	}
+
 	getKind(): SymbolKind {
 		return SymbolKind.Function;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
 		return CompletionItemKind.Function;
-	}
-
-	getTypeTooltip(): string {
-		return this.overridenMethod
-			? '(override) '
-			: '';
-	}
-
-	getKindText(): string {
-		return this.context
-			? (this.context as FunctionDeclContext).functionKind().text.toLowerCase()
-			: 'function';
-	}
-
-	getTooltip(): string {
-		return this.getTypeTooltip()
-			+ this.getKindText()
-			+ ' ' + this.buildReturnType()
-			+ this.getQualifiedName()
-			+ this.buildArguments();
 	}
 
 	getDocumentation(tokenStream) {
@@ -112,13 +102,52 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return visitor.visitMethod(this);
 	}
 
-	protected buildReturnType(): string {
-		return this.returnType
-			? this.returnType.getTypeText() + ' '
-			: '';
+	getTypeTooltip(): string {
+		return this.overridenMethod && '(override)';
 	}
 
-	protected buildArguments(): string {
+	getKindText(): string {
+		return this.context
+			? (this.context as FunctionDeclContext).functionKind().text.toLowerCase()
+			: 'function';
+	}
+
+	getTooltip(): string {
+		const text: string[] = [];
+
+		text.push(this.getTypeTooltip());
+
+		const modifiers = this.buildModifiers();
+		text.push(...modifiers);
+
+		text.push(this.getKindText());
+		text.push(this.buildReturnType());
+		text.push(this.getQualifiedName() + this.buildParameters());
+
+		return text.filter(s => s).join(' ');
+	}
+
+	protected buildModifiers(): string[] {
+		let text = super.buildModifiers();
+
+		if (this.isStatic()) {
+			text.push('static');
+		}
+		// isStatic is implicit final
+		else if (this.isFinal()) {
+			text.push('final');
+		}
+
+		return text;
+	}
+
+	// TODO: Print return modifiers? (e.g. coerce)
+	protected buildReturnType(): string {
+		return this.returnType && this.returnType.getTypeText();
+	}
+
+	// TODO: Print param modifiers?
+	protected buildParameters(): string {
 		return this.params
 			? `(${this.params.map(f => f.type.getTypeText() + ' ' + f.getName()).join(', ')})`
 			: '()';
@@ -126,8 +155,28 @@ export class UCMethodSymbol extends UCStructSymbol {
 }
 
 export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference {
+	constructor(name: string, protected kind?: string) {
+		super(name);
+	}
+
+	isStatic() {
+		return true;
+	}
+
+	isFinal() {
+		return true;
+	}
+
+	isNative() {
+		return true;
+	}
+
+	getTypeTooltip(): string {
+		return '(intrinsic)';
+	}
+
 	getKindText(): string {
-		return 'function'; // placeholder
+		return this.kind || 'function'; // placeholder
 	}
 
 	getReference(): ISymbol {
