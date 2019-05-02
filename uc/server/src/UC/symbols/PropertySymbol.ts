@@ -8,6 +8,9 @@ import { SymbolVisitor } from '../SymbolVisitor';
 export class UCPropertySymbol extends UCFieldSymbol {
 	public type: UCTypeSymbol;
 
+	// Array dimension if specified, string may represent a number or a qualified identifier e.g. a const.
+	public arrayDim?: string;
+
 	getKind(): SymbolKind {
 		return SymbolKind.Property;
 	}

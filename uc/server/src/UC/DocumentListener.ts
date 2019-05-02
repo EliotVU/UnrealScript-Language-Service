@@ -444,8 +444,12 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 				// Stop at varCtx instead of ctx for mulitiple variable declarations.
 				rangeFromBounds(ctx.start, variableNode.stop)
 			);
-			property.type = typeSymbol;
 			property.context = variableNode;
+			property.type = typeSymbol;
+			const arrayDimNode = variableNode.arrayDim();
+			if (arrayDimNode) {
+				property.arrayDim = arrayDimNode.text;
+			}
 			this.declare(property);
 
 			if (typeSymbol) {
@@ -520,6 +524,10 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 				const propTypeNode = paramNode.typeDecl();
 				propSymbol.type = this.visitTypeDecl(propTypeNode);
+				const arrayDimNode = variableNode.arrayDim();
+				if (arrayDimNode) {
+					propSymbol.arrayDim = arrayDimNode.text;
+				}
 				methodSymbol.params.push(propSymbol);
 				this.declare(propSymbol);
 			}
@@ -546,14 +554,16 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 						rangeFromBounds(localNode.start, variableNode.stop)
 					);
 					propSymbol.type = typeSymbol;
+					const arrayDimNode = variableNode.arrayDim();
+					if (arrayDimNode) {
+						propSymbol.arrayDim = arrayDimNode.text;
+					}
 					this.declare(propSymbol);
 				}
 			}
 
 			const statementNodes = bodyNode.statement();
 			if (statementNodes) {
-				const start = performance.now();
-
 				const scriptBlock = new UCScriptBlock(rangeFromBounds(bodyNode.start, bodyNode.stop));
 				scriptBlock.statements = Array(statementNodes.length);
 				for (var i = 0; i < statementNodes.length; ++ i) {
@@ -561,8 +571,6 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 					scriptBlock.statements[i] = statement;
 				}
 				methodSymbol.scriptBlock = scriptBlock;
-
-				connection.console.log(methodSymbol.getName() + ': statements build time ' + (performance.now() - start));
 			}
 		}
 	}
@@ -584,6 +592,8 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		if (extendsNode) {
 			stateSymbol.extendsType = this.visitExtendsClause(extendsNode, UCTypeKind.State);
 		}
+
+		// TODO: Walk locals
 
 		this.declare(stateSymbol);
 		this.push(stateSymbol);
