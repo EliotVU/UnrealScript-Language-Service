@@ -837,7 +837,7 @@ statement
 	;
 
 labeledStatement: identifier COLON;
-gotoStatement: kwGOTO identifier SEMICOLON;
+gotoStatement: kwGOTO identifier;
 
 assignmentOperator: /* '+=' | '-=' | '/=' | '*=' | '|=' | '&=' | '$=' | '@=' | */ ASSIGNMENT;
 assignmentExpression: primaryExpression assignmentOperator expression;
