@@ -1,6 +1,6 @@
 import { ParserRuleContext } from 'antlr4ts';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext, GenericClassCastingContext, VectTokenContext, RotTokenContext, RngTokenContext, ClassLiteralContext, LiteralContext } from '../antlr/UCGrammarParser';
+import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext, GenericClassCastingContext, VectTokenContext, RotTokenContext, RngTokenContext, ClassLiteralContext, LiteralContext, ArrayCountExpressionContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference, UCTypeSymbol } from './Symbols';
 import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesisExpression, UCPredefinedContextMember, IExpression, UCLiteral, UCClassLiteral, UCNewOperator, UCPredefinedMember, UCStructLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCGenericClassCast } from './Expressions';
@@ -282,6 +282,15 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 			expressions.push(arg.accept(this));
 		}
 		return expressions as any as IExpression;
+	}
+
+	// TODO: Implement specialized symbol class.
+	visitArrayCountExpression(ctx: ArrayCountExpressionContext) {
+		const expression = new UCParenthesisExpression();
+		expression.context = ctx;
+		expression.expression = ctx.primaryExpression().accept(this);
+		expression.expression.outer = expression;
+		return expression;
 	}
 
 	visitLiteralExpression(ctx: LiteralExpressionContext): IExpression {

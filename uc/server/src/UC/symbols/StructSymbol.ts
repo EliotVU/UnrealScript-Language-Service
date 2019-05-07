@@ -2,11 +2,11 @@ import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-
 
 import { intersectsWith } from '../helpers';
 import { UCDocument } from '../DocumentListener';
-
-import { ISymbolContainer } from './ISymbolContainer';
-import { ISymbol, UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol, UCStateSymbol, UCSymbolReference, UCReplicationBlock } from ".";
 import { UCScriptBlock } from "../ScriptBlock";
 import { SymbolVisitor } from '../SymbolVisitor';
+
+import { ISymbolContainer } from './ISymbolContainer';
+import { ISymbol, UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol, UCStateSymbol, UCReplicationBlock } from ".";
 
 export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: UCTypeSymbol;

@@ -46,8 +46,8 @@ kwIGNORES: 'ignores';
 kwUNRELIABLE: 'unreliable';
 kwRELIABLE: 'reliable';
 
-kwCPPTEXT: 'cpptext';
-kwSTRUCTCPPTEXT: 'structcpptext';
+kwCPPTEXT: 'cpptext' | 'cpptexts';
+kwSTRUCTCPPTEXT: 'structcpptext' | 'cppstruct';
 
 kwARRAY: 'array';
 kwBYTE: 'byte';
@@ -211,7 +211,8 @@ identifier
 	|'ignores'
 	|'unreliable'
 	|'reliable'
-	|'cpptext'
+	|'cpptext'|'cpptexts'
+	|'cppstruct'
 	|'structcpptext'
 	|'array'
 	|'byte'
@@ -375,7 +376,6 @@ literal
 	| vectToken
 	| rotToken
 	| rngToken
-	| arrayCountToken
 	| nameOfToken
 	;
 
@@ -516,7 +516,7 @@ structDecl
 			| structDecl
 			| varDecl
 			// Unfortunately these can appear in any order.
-			| structCppText | cppText
+			| structCppText
 			| defaultpropertiesBlock
 		)*
 		CLOSE_BRACE SEMICOLON?
@@ -659,17 +659,17 @@ mapType: kwMAP /* nativeMapType */;
 
 cppText
 	: kwCPPTEXT
-	  // UnrealScriptBug: Must on next the line after keyword!
+	  // UnrealScriptBug: Must be on the next line after keyword!
 	  cppcode
 	;
 
 structCppText
 	: kwSTRUCTCPPTEXT
-	  // UnrealScriptBug: Must on next the line after keyword!
+	  // UnrealScriptBug: Must be on the next line after keyword!
 	  cppcode
 	;
 
-cppcode: (OPEN_BRACE .*? CLOSE_BRACE)+; // UnrealScriptBug: Anything WHATSOEVER can be written after this closing brace as long as it's on the same line!
+cppcode: OPEN_BRACE (cppcode | .)*? CLOSE_BRACE; // UnrealScriptBug: Anything WHATSOEVER can be written after this closing brace as long as it's on the same line!
 
 replicationBlock:
 	kwREPLICATION
@@ -860,8 +860,9 @@ classArgument: primaryExpression; // Inclusive template argument (will be parsed
 primaryExpression
 	: literal 																						#literalExpression
 	| kwCLASS (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)								#genericClassCasting
-	| (kwDEFAULT | 'self' | 'super' | 'global' | kwSTATIC) 											#specifierExpression
 	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? classArgument 									#newExpression
+	| 'arraycount' (OPEN_PARENS primaryExpression CLOSE_PARENS)										#arrayCountExpression
+	| (kwDEFAULT | 'self' | 'super' | 'global' | kwSTATIC) 											#specifierExpression
 	// Note any keyword must preceed identifier!
 	| identifier 																					#memberExpression
 	| (OPEN_PARENS expression CLOSE_PARENS) 														#parenthesisExpression

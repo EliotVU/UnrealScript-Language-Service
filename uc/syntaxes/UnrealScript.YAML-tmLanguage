@@ -29,6 +29,7 @@ repository:
       '2':
         name: keyword.other.uc
     end: (?<=\n)
+
   literal:
     patterns:
       - name: string.quoted.single.uc
@@ -42,6 +43,7 @@ repository:
         match: 0(x|X)[0-9a-fA-F]+
       - name: constant.numeric.decimal.uc
         match: '[0-9]+(f|F)?'
+
   declarations:
     patterns:
       - include: '#class-declaration'
@@ -53,15 +55,18 @@ repository:
       - include: '#state-modifier'
       - include: '#state-declaration'
       - include: '#defaultproperties'
+
   type-declarations:
     patterns:
       - include: '#const-declaration'
       - include: '#enum-declaration'
       - include: '#struct-declaration'
       - include: '#var-declaration'
+
   type-modifier:
     name: storage.modifier.uc
     match: \b((?i)public|protected|protectedwrite|private|privatewrite|localized|native|intrinsic|const|editconst|config|globalconfig|transient|travel|input|export|noexport|cache|automated|edithide|editinline|editinlinenotify|editinlineuse|editconstarray|edfindable|init|editfixedsize|editoronly|editortextbox|noclear|noimport|serializetext|nontransactional|instanced|databinding|duplicatetransient|repretry|repnotify|interp|deprecated|notforconsole|archetype|crosslevelactive|crosslevelpassive)\b
+
   type-declaration:
     patterns:
       - include: '#comment'
@@ -223,6 +228,7 @@ repository:
                 name: entity.name.type.uc
             end: \)
         end: \;
+
   const-declaration:
     name: meta.constant
     begin: \b((?i)const)\b
@@ -239,9 +245,10 @@ repository:
             name: keyword.operator.assignment.uc
         patterns:
           - include: '#comment'
-          - include: '#literal'
+          - include: '#expression'
         end: \;
     end: (?<=\;)
+
   enum-declaration:
     name: meta.enum.declaration.uc
     begin: \b((?i)enum)\s*([_[:alpha:]][_[:alnum:]]*)
@@ -265,6 +272,7 @@ repository:
           '0':
             name: punctuation.curlybrace.close.uc
     end: (?<=\}|\;)
+
   struct-declaration:
     name: meta.struct.declaration.uc
     begin: "\\b((?i)struct)\\b\\s*(\\{(\\s*[_[:alpha:]][_[:alnum:]]*\\s*)\\})?\\s*(\\b((?i)native|intrinsic|transient|export|strictconfig|atomic|atomicwhencooked|immutable|immutablewhencooked|init|long)\\b\\s*)*([_[:alpha:]][_[:alnum:]]*)(\\s*((?i)extends)\\s*([_[:alpha:]][_[:alnum:]]*))?"
@@ -297,6 +305,7 @@ repository:
           '0':
             name: punctuation.curlybrace.close.uc
     end: (?<=\}|\;)
+
   var-declaration:
     begin: "((?i)\\bvar\\b)(\\s*\\(\\s*([_[:alpha:]][_[:alnum:]]*)\\s*\\))?"
     beginCaptures:
@@ -310,6 +319,7 @@ repository:
       - include: '#struct-declaration'
       - include: '#type-declaration'
     end: (?<=\;)
+
   method-modifier:
     match: "(\\b((?i)static|final|simulated|public|protected|private|exec|iterator|latent|singular|const|noexport|noexportheader|virtual|reliable|unreliable|server|client|dllimport|demorecording|native|intrinsic)\\b)(\\s*\\(\\s*([0-9]*)\\s*\\))?"
     captures:
@@ -317,9 +327,11 @@ repository:
         name: storage.modifier.uc
       '4':
         name: constant.numeric.uc
+
   return-modifier:
     name: storage.modifier.uc
     match: "\\b((?i)coerce)\\b"
+
   method-declaration:
     name: meta.method.declaration
     begin: "\\b(((?i)function|event|delegate|preoperator|postoperator)|(((?i)operator))((\\s*\\(\\s*([0-9]*)\\s*\\))))"
@@ -363,15 +375,18 @@ repository:
         endCaptures:
           '0':
             name: punctuation.curlybrace.close.uc
+
   param-modifier:
     name: storage.modifier.uc
     match: \b((?i)optional|out|coerce|const|init|skip)\b
+
   method-arguments:
     patterns:
       - include: '#param-modifier'
       - include: '#type-declaration'
       - match: '[_[:alpha:]][_[:alnum:]]*'
         name: entity.name.variable.parameter.uc
+
   local-declaration:
     name: meta.variable
     begin: \b((?i)local)\b
@@ -382,11 +397,13 @@ repository:
       - include: '#comment'
       - include: '#type-declaration'
     end: (?<=\;)
+
   state-modifier:
     match: (\b((?i)auto|simulated)\b)
     captures:
       '2':
         name: storage.modifier.uc
+
   state-declaration:
     name: meta.state.declaration.uc
     begin: \b((?i)state)(\s*\(\s*\))?\s*([_[:alpha:]][_[:alnum:]]*)(\s*((?i)extends)\s*([_[:alpha:]][_[:alnum:]]*))?
@@ -416,8 +433,9 @@ repository:
           '0':
             name: punctuation.curlybrace.close.uc
     end: (?<=\}|\;)
+
   cppblock:
-    begin: (?=\b((?i)cpptext|structcpptext))
+    begin: (?=\b((?i)cpptext|structcpptext|cppstruct))
     beginCaptures:
       '1':
         name: keyword.other.method.uc
@@ -432,6 +450,7 @@ repository:
           '0':
             name: punctuation.curlybrace.close.uc
     end: (?<=\})
+
   replication:
     begin: (?=\b((?i)replication))
     beginCaptures:
@@ -471,6 +490,7 @@ repository:
           '0':
             name: punctuation.curlybrace.close.uc
     end: (?<=\})
+
   statement:
     patterns:
       - include: '#comment'
@@ -479,6 +499,7 @@ repository:
       - name: keyword.control.flow.uc
         match: \b((?i)return|continue|break|stop|goto|super)\b
       - include: '#expression'
+
   expression:
     patterns:
       - include: '#comment'
@@ -524,7 +545,7 @@ repository:
           '0':
             name: punctuation.parenthesis.close.uc
 
-      - begin: ((?i)int|byte|float|bool|string|name|vect|rng|rot)\s*(\()
+      - begin: ((?i)int|byte|float|bool|string|name|vect|rng|rot|arraycount|nameof)\s*(\()
         beginCaptures:
           '0':
             name: cast.expr.uc
@@ -598,6 +619,7 @@ repository:
         endCaptures:
           '0':
             name: punctuation.curlybrace.close.uc
+
   defaultproperties:
     begin: \b((?i)defaultproperties)\b
     beginCaptures:
@@ -616,6 +638,7 @@ repository:
           '0':
             name: punctuation.curlybrace.close.uc
     end: (?<=\})
+
   structdefaultproperties:
     begin: \b((?i)structdefaultproperties)\b
     beginCaptures:
