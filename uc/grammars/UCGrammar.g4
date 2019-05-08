@@ -831,6 +831,7 @@ statement
 
 	| labeledStatement
 
+	| constDecl
 	// We must check for expressions after ALL statements so that we don't end up capturing statement keywords as identifiers.
 	| (assignmentExpression SEMICOLON)
 	| (expression SEMICOLON) // TODO: Maybe replace with unaryExpression?
