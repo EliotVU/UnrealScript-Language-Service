@@ -1,11 +1,18 @@
-name: UnrealScript
+# target_format: json, ext: tmLanguage
+---
+name: UnrealScript Syntax Definition (UC)
+fileTypes: [.uc, .uci]
 scopeName: source.uc
+uuid: 809240e6-4c3b-477f-8bcf-2eeddb00e050
+
 foldingStartMarker: \{\s*$
 foldingStopMarker: ^\s*\}
+
 patterns:
   - include: '#comment'
-  - include: '#hashpp'
+  - include: '#directive'
   - include: '#declarations'
+
 repository:
   comment:
     patterns:
@@ -22,7 +29,7 @@ repository:
         begin: //
         end: \n
 
-  hashpp:
+  directive:
     name: string.quoted.single.uc
     begin: (?=(^\#([_[:alpha:]][_[:alnum:]]*)))
     beginCaptures:
@@ -30,19 +37,122 @@ repository:
         name: keyword.other.uc
     end: (?<=\n)
 
-  literal:
+  string:
     patterns:
       - name: string.quoted.single.uc
         begin: "'"
         end: "'"
+
       - name: string.quoted.double.uc
         match: \"(\\.|[^\"])*\"
-      - name: constant.language.boolean.uc
-        match: \b((?i)true|false)\b
+
+      - include: '#string-character-escape'
+
+  string-character-escape:
+    name: constant.character.escape.uc
+    match: \\.
+
+  literal:
+    patterns:
+      - include: '#string'
+      - include: '#numeric-literal'
+      - include: '#boolean-literal'
+      - include: '#object-literal'
+
+  boolean-literal:
+    patterns:
+      - name: constant.language.boolean.false.uc
+        match: \b(?i)false\b
+      - name: constant.language.boolean.true.uc
+        match: \b(?i)true\\b
+
+  numeric-literal:
+    patterns:
       - name: constant.numeric.hex.uc
         match: 0(x|X)[0-9a-fA-F]+
+
       - name: constant.numeric.decimal.uc
         match: '[0-9]+(f|F)?'
+
+  object-literal:
+    begin: ([_[:alpha:]][_[:alnum:]]*)\s*(\')
+    beginCaptures:
+      '1':
+        name: entity.name.type.class.uc
+      '2':
+        name: string.quoted.single.uc
+    patterns:
+      - match: ([_[:alpha:]][_[:alnum:]]*)
+        name: variable.other.object.uc
+    end: \'
+    endCaptures:
+      '0':
+        name: string.quoted.single.uc
+
+  # Anything that is a static value such as a literal but including some "special tokens"
+  constant:
+    patterns:
+      - include: '#comment'
+      - include: '#literal'
+
+      - name: constant.language.null.uc
+        match: \b((?i)none)\b
+
+      - begin: \b((?i)sizeof)\b
+        beginCaptures:
+          '0':
+            name: keyword.constant.uc
+        patterns:
+          - begin: \(
+            beginCaptures:
+              '0':
+                name: punctuation.parenthesis.open.uc
+            patterns:
+              - include: '#comment'
+              - match: ([_[:alpha:]][_[:alnum:]]*)
+                name: entity.name.type.class.uc
+            end: \)
+            endCaptures:
+              '0':
+                name: punctuation.parenthesis.close.uc
+        end: (?=;)
+
+      - begin: \b((?i)arraycount|nameof)\b
+        beginCaptures:
+          '0':
+            name: keyword.constant.uc
+        patterns:
+          - begin: \(
+            beginCaptures:
+              '0':
+                name: punctuation.parenthesis.open.uc
+            patterns:
+              - include: '#comment'
+              - match: ([_[:alpha:]][_[:alnum:]]*)
+                name: variable.other.field.uc
+            end: \)
+            endCaptures:
+              '0':
+                name: punctuation.parenthesis.close.uc
+        end: (?=;)
+
+      - begin: \b((?i)vect|rng|rot)
+        beginCaptures:
+          '0':
+            name: keyword.constant.uc
+        patterns:
+          - begin: \(
+            beginCaptures:
+              '0':
+                name: punctuation.parenthesis.open.uc
+            patterns:
+              - include: '#comment'
+              - include: '#numeric-literal'
+            end: \)
+            endCaptures:
+              '0':
+                name: punctuation.parenthesis.close.uc
+        end: (?=;|\b)
 
   declarations:
     patterns:
@@ -90,7 +200,7 @@ repository:
 
       - begin: \[
         patterns:
-          - include: '#literal'
+          - include: '#constant'
         end: \]
 
         # Property's id
@@ -99,7 +209,7 @@ repository:
           '2':
             name: entity.name.variable.field.uc
 
-        # Qualified type id e.g. Engine.Actor.ERemoteRole
+        # Qualified type id e.g. Actor.ERemoteRole
       - match: ([_[:alpha:]][_[:alnum:]]*)
         name: entity.name.type.uc
 
@@ -145,7 +255,7 @@ repository:
           '3':
             name: entity.name.operator.uc
 
-        # Qualified type id e.g. Engine.Actor.ERemoteRole
+        # Qualified type id e.g. Actor.ERemoteRole
       - match: ([_[:alpha:]][_[:alnum:]]*)
         name: entity.name.type.uc
 
@@ -173,7 +283,7 @@ repository:
       - include: '#enum-declaration'
       - include: '#struct-declaration'
 
-        # Qualified type id e.g. Engine.Actor.ERemoteRole
+        # Qualified type id e.g. Actor.ERemoteRole
       - match: ([_[:alpha:]][_[:alnum:]]*)
         name: entity.name.type.uc
 
@@ -201,6 +311,7 @@ repository:
           - begin: \b((?i)abstract|export|exportstructs|noexport|noexportheader|nativereplication|nativeonly|deprecated|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|hidedropdown|editinlinenew|noteditinlinenew|cacheexempt|perobjectconfig|perobjectlocalized|forcescriptorder|instanced)\b
             name: storage.modifier.uc
             end: \b
+
           - begin: \b((?i)config|native|intrinsic)(\s*\()?
             beginCaptures:
               '1':
@@ -209,6 +320,7 @@ repository:
               - match: '[_[:alpha:]][_[:alnum:]]*'
                 name: string.quoted.single.uc
             end: \b|\)
+
           - begin: \b((?i)hidecategories|showcategories|autocollapsecategories|dontautocollapsecategories|autoexpandcategories|dontsortcategories|collapsecategories|dontcollapsecategories)\s*\(
             beginCaptures:
               '1':
@@ -217,6 +329,7 @@ repository:
               - match: '[_[:alpha:]][_[:alnum:]]*'
                 name: string.quoted.single.uc
             end: \)
+
           - begin: \b((?i)dllbind|inherits|dependson|implements|classgroup)\s*\(
             beginCaptures:
               '1':
@@ -234,18 +347,17 @@ repository:
     begin: \b((?i)const)\b
     beginCaptures:
       '1':
-        name: keyword.other.constant.uc
+        name: storage.type.constant.uc
     patterns:
       - include: '#comment'
       - begin: \s+([_[:alpha:]][_[:alnum:]]*)\s*(\=)\s*
         beginCaptures:
           '1':
-            name: entity.name.constant.uc
+            name: variable.other.constant.uc
           '2':
             name: keyword.operator.assignment.uc
         patterns:
-          - include: '#comment'
-          - include: '#expression'
+          - include: '#constant'
         end: \;
     end: (?<=\;)
 
@@ -299,7 +411,7 @@ repository:
           - include: '#comment'
           - include: '#type-declarations'
           - include: '#structdefaultproperties'
-          - include: '#cppblock'
+          - include: '#structcppblock'
         end: \}
         endCaptures:
           '0':
@@ -435,24 +547,45 @@ repository:
     end: (?<=\}|\;)
 
   cppblock:
-    begin: (?=\b((?i)cpptext|structcpptext|cppstruct))
+    begin: \b((?i)cpptext)\n
     beginCaptures:
       '1':
-        name: keyword.other.method.uc
+        name: keyword.other.uc
     patterns:
-      - begin: \{
+      - name: meta.block.uc
+        begin: \{
         beginCaptures:
           '0':
             name: punctuation.curlybrace.open.uc
-        include: source.cpp
+        patterns:
+          # - include: source.c++
         end: \}
         endCaptures:
           '0':
             name: punctuation.curlybrace.close.uc
-    end: (?<=\})
+    end: (?=\})
+
+  structcppblock:
+    begin: \b((?i)structcpptext|cppstruct)\n
+    beginCaptures:
+      '1':
+        name: keyword.other.uc
+    patterns:
+      - name: meta.block.uc
+        begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        patterns:
+          # - include: source.c++
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
+    end: (?=\})
 
   replication:
-    begin: (?=\b((?i)replication))
+    begin: \b((?i)replication)$
     beginCaptures:
       '1':
         name: keyword.other.replication.uc
@@ -482,7 +615,7 @@ repository:
                 endCaptures:
                   '0':
                     name: meta.brace.round.uc
-              - name: support.variable.dom
+              - name: variable.other.field.uc
                 match: '([_[:alpha:]][_[:alnum:]]*)'
             end: \;
         end: \}
@@ -503,25 +636,7 @@ repository:
   expression:
     patterns:
       - include: '#comment'
-
-      - begin: ([_[:alpha:]][_[:alnum:]]*)\s*(\')
-        beginCaptures:
-          '1':
-            name: entity.name.type.class.uc
-          '2':
-            name: string.quoted.single.uc
-        patterns:
-          - match: ([_[:alpha:]][_[:alnum:]]*)
-            name: entity.name.type.other.uc
-        end: \'
-        endCaptures:
-          '0':
-            name: string.quoted.single.uc
-
-      - include: '#literal'
-
-      - name: constant.language.null.uc
-        match: "\\b((?i)none)\\b"
+      - include: '#const-declaration'
 
       - name: keyword.control.flow.uc
         match: "\\b((?i)super)\\b"
@@ -529,6 +644,7 @@ repository:
       - name: variable.language.this.uc
         match: \b((?i)global|self|default|static)\b
 
+      # meta-class casting
       - begin: ((?i)class)\s*(\<)
         beginCaptures:
           '0':
@@ -539,18 +655,35 @@ repository:
             name: punctuation.parenthesis.open.uc
         patterns:
           - match: ([_[:alpha:]][_[:alnum:]]*)
-            name: entity.name.type.other.uc
+            name: entity.name.type.class.uc
         end: \>
         endCaptures:
           '0':
             name: punctuation.parenthesis.close.uc
 
-      - begin: ((?i)int|byte|float|bool|string|name|vect|rng|rot|arraycount|nameof)\s*(\()
+      # primitive castings
+      - begin: ((?i)int|byte|float|bool|string|name)\s*(\()
         beginCaptures:
           '0':
             name: cast.expr.uc
           '1':
             name: keyword.type.uc
+          '2':
+            name: punctuation.parenthesis.open.uc
+        patterns:
+          - include: '#expression'
+        end: \)
+        endCaptures:
+          '0':
+            name: punctuation.parenthesis.close.uc
+
+      # Predefined struct casting. UC only supports casting for two struct types.
+      - begin: ((?i)vector|rotator)\s*(\()
+        beginCaptures:
+          '0':
+            name: cast.expr.uc
+          '1':
+            name: entity.name.type.struct.uc
           '2':
             name: punctuation.parenthesis.open.uc
         patterns:
@@ -576,6 +709,8 @@ repository:
           '0':
             name: punctuation.parenthesis.close.uc
 
+      - include: '#constant'
+
       - begin: ([_[:alpha:]][_[:alnum:]]*)\s*(\()
         beginCaptures:
           '0':
@@ -591,12 +726,45 @@ repository:
           '0':
             name: punctuation.parenthesis.close.uc
 
-      - name: support.variable.dom.uc
-        match: '[_[:alpha:]][_[:alnum:]]*'
+      - name: variable.other.field.uc
+        match: ([_[:alpha:]][_[:alnum:]]*)
 
-      - name: keyword.operator.other.uc
-        match: ([\>\<\#\@\&\$\^\%\?\:\=\~\+\-\*\/\!\|]+)
-      - begin: \(
+      - name: "keyword.operator.assignment.compound.uc"
+        match: (\*=|(?<!\()/=|%=|\+=|\-=|\$=|\@=)
+
+      # UnrealScript doesn't support any compound bitwise assigment operators
+      # - name: "keyword.operator.assignment.compound.bitwise.uc"
+      # match:
+
+      - name: "keyword.operator.bitwise.shift.uc"
+        match: (<<|>>>|>>)
+
+      - name: "keyword.operator.comparison.uc"
+        match: (==|!=|~=)
+
+      - name: "keyword.operator.relational.uc"
+        match: (<=|>=|<|>)
+
+      - name: "keyword.operator.logical.uc"
+        match: (\!|&&|\|\||\^\^)
+
+      - name: "keyword.operator.bitwise.uc"
+        match: (\&|~|\^|\|)
+
+      - name: "keyword.operator.assignment.uc"
+        match: (\=)
+
+      - name: "keyword.operator.decrement.uc"
+        match: (--)
+
+      - name: "keyword.operator.increment.uc"
+        match: (\+\+)
+
+      - name: "keyword.operator.arithmetic.uc"
+        match: (%|\*|/|-|\+|\#|\$|\@)
+
+      - name: punctuation.definition.expression
+        begin: \(
         beginCaptures:
           '0':
             name: punctuation.parenthesis.open.uc
@@ -621,7 +789,7 @@ repository:
             name: punctuation.curlybrace.close.uc
 
   defaultproperties:
-    begin: \b((?i)defaultproperties)\b
+    begin: \b((?i)defaultproperties)\n
     beginCaptures:
       '1':
         name: keyword.other.defaultproperties.uc
@@ -640,7 +808,7 @@ repository:
     end: (?<=\})
 
   structdefaultproperties:
-    begin: \b((?i)structdefaultproperties)\b
+    begin: \b((?i)structdefaultproperties)\n
     beginCaptures:
       '1':
         name: keyword.other.structdefaultproperties.uc
