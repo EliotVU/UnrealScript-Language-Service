@@ -3,23 +3,53 @@ const fs = require('fs');
 const path = require('path');
 const jsyaml = require('js-yaml');
 
-const syntaxFile = 'UnrealScript.YAML-tmLanguage';
-const outSynaxFile = 'UnrealScript.tmLanguage.json';
-const syntaxDir = 'syntaxes/';
+const SYNTAX_TASK = (function(){
+	const TASK_NAME = 'buildSyntax';
 
-gulp.task('buildSyntax', (cb) => {
-	const jsonData = jsyaml.safeLoad(fs.readFileSync(path.join(syntaxDir, syntaxFile), 'utf-8'));
-	const content = JSON.stringify(jsonData);
-	const outPath = path.join(syntaxDir, outSynaxFile);
-	fs.writeFileSync(outPath, content);
+	const SYNTAX_FILE = 'UnrealScript.YAML-tmLanguage';
+	const OUT_SYNTAX_FILE = 'UnrealScript.tmLanguage.json';
+	const SYNTAX_DIR = 'syntaxes/';
 
-	if (cb) {
-		cb();
-	}
-});
+	gulp.task(TASK_NAME, (cb) => {
+		const jsonData = jsyaml.safeLoad(fs.readFileSync(path.join(SYNTAX_DIR, SYNTAX_FILE), 'utf-8'));
+		const content = JSON.stringify(jsonData);
+		const outPath = path.join(SYNTAX_DIR, OUT_SYNTAX_FILE);
+		fs.writeFileSync(outPath, content);
 
-gulp.watch(path.join(syntaxDir, syntaxFile), (cb) => {
-	return gulp.task('buildSyntax')(cb);
-});
+		if (cb) {
+			cb();
+		}
+	});
 
-gulp.task('default', gulp.series(['buildSyntax']));
+	gulp.watch(path.join(SYNTAX_DIR, SYNTAX_FILE), (cb) => {
+		return gulp.task(TASK_NAME)(cb);
+	});
+
+	return TASK_NAME;
+})();
+
+const GRAMMAR_TASK = (function(){
+	const TASK_NAME = 'buildGrammar';
+
+	const GRAMMAR_File = 'UCGrammar.g4';
+	const GRAMMAR_Dir = 'grammars/';
+	const GRAMMAR_PATH = path.join(GRAMMAR_Dir, GRAMMAR_File);
+
+	gulp.task(TASK_NAME, (cb) => {
+		var exec = require('child_process').exec;
+		/* `cd node_modules/antlr4ts-cli && antlr4ts -visitor ${GRAMMAR_PATH} -o server/src/antlr` */
+		exec('npm run compile:grammar', (err, stdout, stderr) => {
+			console.log(stdout);
+			console.error(stderr);
+			cb(err);
+		});
+	});
+
+	gulp.watch(GRAMMAR_PATH, (cb) => {
+		return gulp.task(TASK_NAME)(cb);
+	});
+
+	return TASK_NAME;
+})();
+
+gulp.task('default', gulp.series([SYNTAX_TASK, GRAMMAR_TASK]));
