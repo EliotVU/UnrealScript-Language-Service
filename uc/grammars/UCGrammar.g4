@@ -801,15 +801,14 @@ ignoresList: identifier (COMMA identifier)*;
 stateDecl: stateModifier* kwSTATE (OPEN_PARENS CLOSE_PARENS)? identifier
 		extendsClause?
 		OPEN_BRACE
-			(kwIGNORES ignoresList SEMICOLON)?
-			localDecl*
-			functionDecl*
+			(constDecl | localDecl)*
+			((kwIGNORES ignoresList SEMICOLON) | constDecl | functionDecl)*
 			(labeledStatement statement*)*
 		CLOSE_BRACE SEMICOLON?;
 
 stateModifier: kwAUTO | kwSIMULATED;
 
-codeBlockOptional: (OPEN_BRACE statement* CLOSE_BRACE) | statement?;
+codeBlockOptional: (OPEN_BRACE (constDecl | statement)* CLOSE_BRACE) | (constDecl | statement)?;
 
 statement
 	: SEMICOLON
@@ -831,7 +830,6 @@ statement
 
 	| labeledStatement
 
-	| constDecl
 	// We must check for expressions after ALL statements so that we don't end up capturing statement keywords as identifiers.
 	| (assignmentExpression SEMICOLON)
 	| (expression SEMICOLON) // TODO: Maybe replace with unaryExpression?

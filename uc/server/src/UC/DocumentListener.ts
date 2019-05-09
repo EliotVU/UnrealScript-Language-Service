@@ -537,32 +537,8 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 		const bodyNode = ctx.functionBody();
 		if (bodyNode) {
-			for (const localNode of bodyNode.localDecl()) {
-				if (!localNode) {
-					break;
-				}
-
-				const propTypeNode = localNode.typeDecl();
-				const typeSymbol = this.visitTypeDecl(propTypeNode);
-				for (const variableNode of localNode.variable()) {
-					const propIdNode = variableNode.identifier();
-					if (!propIdNode) {
-						continue;
-					}
-
-					const propSymbol = new UCLocalSymbol(
-						propIdNode.text, rangeFromBound(propIdNode.start),
-						// Stop at varCtx instead of localCtx for mulitiple variable declarations.
-						rangeFromBounds(localNode.start, variableNode.stop)
-					);
-					propSymbol.type = typeSymbol;
-					const arrayDimNode = variableNode.arrayDim();
-					if (arrayDimNode) {
-						propSymbol.arrayDim = arrayDimNode.text;
-					}
-					this.declare(propSymbol);
-				}
-			}
+			const localNodes = bodyNode.localDecl();
+			if (localNodes) this.visitLocals(bodyNode, localNodes);
 
 			const statementNodes = bodyNode.statement();
 			if (statementNodes) {
@@ -571,14 +547,39 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		}
 	}
 
+	visitLocals(ctx: ParserRuleContext, nodes: UCParser.LocalDeclContext[]) {
+		for (const localNode of nodes) {
+			if (!localNode) {
+				break;
+			}
+
+			const propTypeNode = localNode.typeDecl();
+			const typeSymbol = this.visitTypeDecl(propTypeNode);
+			for (const variableNode of localNode.variable()) {
+				const propIdNode = variableNode.identifier();
+				if (!propIdNode) {
+					continue;
+				}
+
+				const propSymbol = new UCLocalSymbol(
+					propIdNode.text, rangeFromBound(propIdNode.start),
+					// Stop at varCtx instead of localCtx for mulitiple variable declarations.
+					rangeFromBounds(localNode.start, variableNode.stop)
+				);
+				propSymbol.type = typeSymbol;
+				const arrayDimNode = variableNode.arrayDim();
+				if (arrayDimNode) {
+					propSymbol.arrayDim = arrayDimNode.text;
+				}
+				this.declare(propSymbol);
+			}
+		}
+	}
+
 	visitStatements(ctx: ParserRuleContext, nodes: UCParser.StatementContext[]) {
 		const scriptBlock = new UCScriptBlock(rangeFromBounds(ctx.start, ctx.stop));
 		scriptBlock.statements = Array(nodes.length);
 		for (var i = 0; i < nodes.length; ++ i) {
-			if (nodes[i] instanceof UCParser.ConstDeclContext) {
-				this.enterConstDecl(nodes[i] as any as UCParser.ConstDeclContext);
-				continue;
-			}
 			const statement = nodes[i].accept(StatementVisitor);
 			scriptBlock.statements[i] = statement;
 		}
@@ -603,7 +604,8 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			stateSymbol.extendsType = this.visitExtendsClause(extendsNode, UCTypeKind.State);
 		}
 
-		// TODO: Walk locals
+		const localNodes = ctx.localDecl();
+		if (localNodes) this.visitLocals(ctx, localNodes);
 
 		this.declare(stateSymbol);
 		this.push(stateSymbol);

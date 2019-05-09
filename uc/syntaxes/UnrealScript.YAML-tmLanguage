@@ -482,6 +482,7 @@ repository:
             name: punctuation.curlybrace.open.uc
         patterns:
           - include: '#local-declaration'
+          - include: '#const-declaration'
           - include: '#statement'
         end: \}
         endCaptures:
@@ -536,15 +537,30 @@ repository:
             name: punctuation.curlybrace.open.uc
         patterns:
           - include: '#comment'
-          - include: '#type-declarations'
-          - include: '#method-modifier'
-          - include: '#method-declaration'
-          - include: '#expression'
+          - include: '#local-declaration'
+          - include: '#state-body'
         end: \}
         endCaptures:
           '0':
             name: punctuation.curlybrace.close.uc
     end: (?<=\}|\;)
+
+  state-body:
+    patterns:
+      # TODO: Must be invalid within a labeled-block
+      - include: '#const-declaration'
+      - begin: (\b((?i)ignores)\b)
+        beginCaptures:
+          '1':
+            name: keyword.other.ignores.uc
+        patterns:
+          - match: ([_[:alpha:]][_[:alnum:]]*)
+            name: entity.name.function.uc
+        end: (?<=\;)
+
+      - include: '#method-modifier'
+      - include: '#method-declaration'
+      - include: '#statement'
 
   cppblock:
     begin: \b((?i)cpptext)\n
@@ -627,16 +643,25 @@ repository:
   statement:
     patterns:
       - include: '#comment'
+
+      - match: (([_[:alpha:]][_[:alnum:]]*)\s*(\:))
+        captures:
+          '1':
+            name: entity.name.label.uc
+          '2':
+            name: punctuation.separator.label.uc
+
       - name: keyword.control.conditional.uc
         match: \b((?i)if|switch|case|(default\s*\:)|while|foreach|for|do|until|else)\b
+
       - name: keyword.control.flow.uc
         match: \b((?i)return|continue|break|stop|goto|super)\b
+
       - include: '#expression'
 
   expression:
     patterns:
       - include: '#comment'
-      - include: '#const-declaration'
 
       - name: keyword.control.flow.uc
         match: "\\b((?i)super)\\b"
@@ -781,7 +806,7 @@ repository:
           '0':
             name: punctuation.curlybrace.open.uc
         patterns:
-          - include: '#comment'
+          - include: '#const-declaration'
           - include: '#statement'
         end: \}
         endCaptures:
