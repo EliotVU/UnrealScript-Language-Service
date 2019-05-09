@@ -21,13 +21,16 @@ import {
 import URI from 'vscode-uri';
 
 import { initWorkspace, getCompletionItems, getReferences, getDefinition, getSymbols, getHover, getHighlights, getFullCompletionItem } from './UC/helpers';
-import { ClassesMap$, getDocumentByUri, indexDocument } from './UC/DocumentListener';
+import { ClassNameToFilePathMap$, getDocumentByUri, indexDocument } from './UC/DocumentListener';
+import { UCSettings, defaultSettings } from './settings';
 
 let documents: TextDocuments = new TextDocuments();
 let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
+let currentSettings: UCSettings = defaultSettings;
 
 export let connection = createConnection(ProposedFeatures.all);
+
 connection.onInitialize((params: InitializeParams) => {
 	let capabilities = params.capabilities;
 
@@ -62,14 +65,9 @@ connection.onInitialized(async () => {
 	}
 });
 
-interface UCSettings {
-}
-
-const documentSettings: Map<string, Thenable<UCSettings>> = new Map();
-
-connection.onDidChangeConfiguration(() => {
+connection.onDidChangeConfiguration(async () => {
 	if (hasConfigurationCapability) {
-		documentSettings.clear();
+		currentSettings = await connection.workspace.getConfiguration() || defaultSettings;
 	}
 });
 
@@ -88,11 +86,11 @@ connection.onCompletion((e): Promise<CompletionItem[]> => getCompletionItems(e.t
 connection.onCompletionResolve((e): Promise<CompletionItem> => getFullCompletionItem(e));
 connection.listen();
 
-ClassesMap$
+ClassNameToFilePathMap$
 	.pipe(
 		filter(classes => !!classes),
 		switchMapTo(pendingTextDocuments$),
-		debounce(() => interval(300))
+		debounce(() => interval(500))
 	)
 	.subscribe(({ textDocument, isDirty }) => {
 		connection.console.log('Validating ' + textDocument.uri + ' dirty? ' + isDirty);
@@ -142,9 +140,9 @@ ClassesMap$
 	}
 );
 
-ClassesMap$
+ClassNameToFilePathMap$
 	.pipe(
-		map(classesMap => {
+		map((classesMap) => {
 			return Array
 				.from(classesMap.values())
 				.map(filePath => {
@@ -155,6 +153,10 @@ ClassesMap$
 	)
 	.subscribe((classes => {
 		if (classes.length === 0) {
+			return;
+		}
+
+		if (!currentSettings.indexAllDocuments) {
 			return;
 		}
 

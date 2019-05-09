@@ -66,9 +66,9 @@ function getPackageByUri(uri: string): UCPackage {
 	return SymbolsTable;
 }
 
-const Documents: Map<string, UCDocument> = new Map<string, UCDocument>();
+const ClassNameToDocumentMap: Map<string, UCDocument> = new Map<string, UCDocument>();
 export function getDocumentByUri(uri: string): UCDocument {
-	let document: UCDocument = Documents.get(uri);
+	let document: UCDocument = ClassNameToDocumentMap.get(uri);
 	if (document) {
 		return document;
 	}
@@ -76,7 +76,7 @@ export function getDocumentByUri(uri: string): UCDocument {
 	const packageTable = getPackageByUri(uri);
 
 	document = new UCDocument(packageTable, uri);
-	Documents.set(uri, document);
+	ClassNameToDocumentMap.set(uri, document);
 	return document;
 }
 
@@ -109,10 +109,10 @@ export function indexDocument(document: UCDocument) {
 	}
 }
 
-export const ClassesMap$ = new BehaviorSubject(new Map<string, string>());
+export const ClassNameToFilePathMap$ = new BehaviorSubject(new Map<string, string>());
 
 export function getUriById(qualifiedClassId: string): string | undefined {
-	const filePath: string = ClassesMap$.value.get(qualifiedClassId);
+	const filePath: string = ClassNameToFilePathMap$.getValue().get(qualifiedClassId);
 	return filePath ? URI.file(filePath).toString() : undefined;
 }
 

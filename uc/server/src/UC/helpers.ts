@@ -19,7 +19,7 @@ import {
 } from 'vscode-languageserver';
 
 import { UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable } from './Symbols';
-import { getDocumentByUri, ClassesMap$, getIndexedReferences } from "./DocumentListener";
+import { getDocumentByUri, ClassNameToFilePathMap$, getIndexedReferences } from "./DocumentListener";
 import { Token } from 'antlr4ts';
 import { IWithReference, ISymbol } from './Symbols/ISymbol';
 
@@ -107,7 +107,7 @@ async function buildClassesFilePathsMap(workspace: RemoteWorkspace): Promise<Map
 
 let ClassCompletionItems: CompletionItem[] = [];
 
-ClassesMap$.subscribe(classesMap => {
+ClassNameToFilePathMap$.subscribe(classesMap => {
 	ClassCompletionItems = Array.from(classesMap.values())
 		.map(value => {
 			return {
@@ -119,7 +119,7 @@ ClassesMap$.subscribe(classesMap => {
 
 export async function initWorkspace(connection: Connection) {
 	const filePathMap = await buildClassesFilePathsMap(connection.workspace);
-	ClassesMap$.next(filePathMap);
+	ClassNameToFilePathMap$.next(filePathMap);
 }
 
 export async function getHover(uri: string, position: Position): Promise<Hover> {
