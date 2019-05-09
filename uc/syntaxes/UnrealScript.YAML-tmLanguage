@@ -134,7 +134,7 @@ repository:
           '0':
             name: punctuation.parenthesis.close.uc
 
-      - begin: \b((?i)vect|rng|rot)
+      - begin: \b((?i)vect|rng|rot)\b
         beginCaptures:
           '0':
             name: keyword.constant.uc
