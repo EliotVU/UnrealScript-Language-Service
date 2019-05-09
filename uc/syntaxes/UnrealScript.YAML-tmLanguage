@@ -117,24 +117,22 @@ repository:
                 name: punctuation.parenthesis.close.uc
         end: (?=;)
 
-      - begin: \b((?i)arraycount|nameof)\b
+      # Including the parenthesis as part of the "begin" expression here.
+      # - So that we can properly detect the ending of this special token when used as an expression.
+      - begin: \b((?i)arraycount|nameof)\s*(\()?\b
         beginCaptures:
-          '0':
+          '1':
             name: keyword.constant.uc
+          '2':
+            name: punctuation.parenthesis.open.uc
         patterns:
-          - begin: \(
-            beginCaptures:
-              '0':
-                name: punctuation.parenthesis.open.uc
-            patterns:
-              - include: '#comment'
-              - match: ([_[:alpha:]][_[:alnum:]]*)
-                name: variable.other.field.uc
-            end: \)
-            endCaptures:
-              '0':
-                name: punctuation.parenthesis.close.uc
-        end: (?=;)
+          - include: '#comment'
+          - match: ([_[:alpha:]][_[:alnum:]]*)
+            name: variable.other.field.uc
+        end: (?=(\)))
+        endCaptures:
+          '0':
+            name: punctuation.parenthesis.close.uc
 
       - begin: \b((?i)vect|rng|rot)
         beginCaptures:
