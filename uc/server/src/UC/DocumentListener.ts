@@ -347,7 +347,8 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.push(enumSymbol);
 
 		var count = 0;
-		for (const memberNode of ctx.enumMember()) {
+		const memberNodes = ctx.enumMember();
+		for (const memberNode of memberNodes) {
 			const range = rangeFromBound(memberNode.start);
 			const memberIdNode = memberNode.identifier();
 			const memberSymbol = new UCEnumMemberSymbol(memberIdNode.text, range, range);
@@ -445,7 +446,9 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		}
 
 		const typeSymbol = this.visitInlinedDeclTypes(declTypeNode);
-		for (const variableNode of ctx.variable()) {
+
+		const varNodes = ctx.variable();
+		for (const variableNode of varNodes) {
 			const varIdNode = variableNode.identifier();
 
 			const property = new UCPropertySymbol(varIdNode.start.text, rangeFromBound(varIdNode.start),
@@ -474,23 +477,25 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.declare(replicationBlock);
 
 		const statementNodes = ctx.replicationStatement();
-		if (statementNodes) {
-			const scriptBlock = new UCScriptBlock(rangeFromBounds(ctx.start, ctx.stop));
-			scriptBlock.statements = Array(statementNodes.length);
-			for (var i = 0; i < statementNodes.length; ++ i) {
-				const statement = statementNodes[i].accept(StatementVisitor);
-				scriptBlock.statements[i] = statement;
-
-				const idNodes = statementNodes[i].identifier();
-				if (idNodes) for (const idNode of idNodes) {
-					const identifier = idNode.text;
-					const symbolRef = new UCSymbolReference(identifier, rangeFromBound(idNode.start));
-					symbolRef.outer = this.class;
-					replicationBlock.symbolRefs.set(identifier.toLowerCase(), symbolRef);
-				}
-			}
-			replicationBlock.scriptBlock = scriptBlock;
+		if (!statementNodes) {
+			return;
 		}
+
+		const scriptBlock = new UCScriptBlock(rangeFromBounds(ctx.start, ctx.stop));
+		scriptBlock.statements = Array(statementNodes.length);
+		for (var i = 0; i < statementNodes.length; ++ i) {
+			const statement = statementNodes[i].accept(StatementVisitor);
+			scriptBlock.statements[i] = statement;
+
+			const idNodes = statementNodes[i].identifier();
+			if (idNodes) for (const idNode of idNodes) {
+				const identifier = idNode.text;
+				const symbolRef = new UCSymbolReference(identifier, rangeFromBound(idNode.start));
+				symbolRef.outer = this.class;
+				replicationBlock.symbolRefs.set(identifier.toLowerCase(), symbolRef);
+			}
+		}
+		replicationBlock.scriptBlock = scriptBlock;
 	}
 
 	enterFunctionDecl(ctx: UCParser.FunctionDeclContext) {
@@ -513,18 +518,21 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			methodSymbol.returnType = this.visitTypeDecl(returnTypeNode.typeDecl());
 		}
 
-		const paramNodes = ctx.parameters();
-		if (paramNodes) {
+		const paramsNode = ctx.parameters();
+		if (paramsNode) {
 			methodSymbol.params = [];
-			for (const paramNode of paramNodes.paramDecl()) {
+			const paramNodes = paramsNode.paramDecl();
+			for (const paramNode of paramNodes) {
 				if (!paramNode) {
 					break;
 				}
+
 				const variableNode = paramNode.variable();
 				const propIdNode = variableNode.identifier();
 				if (!propIdNode) {
 					continue;
 				}
+
 				const propSymbol = new UCParamSymbol(
 					propIdNode.text, rangeFromBound(propIdNode.start),
 					rangeFromBounds(paramNode.start, paramNode.stop)
@@ -532,10 +540,12 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 				const propTypeNode = paramNode.typeDecl();
 				propSymbol.type = this.visitTypeDecl(propTypeNode);
+
 				const arrayDimNode = variableNode.arrayDim();
 				if (arrayDimNode) {
 					propSymbol.arrayDim = arrayDimNode.text;
 				}
+
 				methodSymbol.params.push(propSymbol);
 				this.declare(propSymbol);
 			}
@@ -561,7 +571,9 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 			const propTypeNode = localNode.typeDecl();
 			const typeSymbol = this.visitTypeDecl(propTypeNode);
-			for (const variableNode of localNode.variable()) {
+
+			const varNodes = localNode.variable();
+			for (const variableNode of varNodes) {
 				const propIdNode = variableNode.identifier();
 				if (!propIdNode) {
 					continue;
