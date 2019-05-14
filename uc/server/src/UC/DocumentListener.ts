@@ -168,8 +168,13 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		connection.console.log('parsing document ' + this.name);
 
 		const lexer = new UCGrammarLexer(new CaseInsensitiveStream(text || this.readText()));
+		lexer.removeErrorListeners();
+		lexer.addErrorListener(this as ANTLRErrorListener<number>);
+
 		const stream = this.tokenStream = new CommonTokenStream(lexer);
+
 		const parser = new UCParser.UCGrammarParser(stream);
+		parser.removeErrorListeners();
 		parser.addErrorListener(this);
 
 		connection.console.log(this.name + ': parsing time ' + (performance.now() - startParsing));
@@ -230,15 +235,16 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		_line: number,
 		_charPositionInLine: number,
 		msg: string,
-		_error: RecognitionException | undefined
+		error: RecognitionException | undefined
 	) {
-		if (_error) {
-			connection.console.error(this.uri + ' ' + (_error.context ? _error.context.text : 'No context') + ' ' + _error.stack);
-			this.nodes.push(new SyntaxErrorNode(rangeFromBound(offendingSymbol), '(Internal Error) ' + msg));
-			return;
+		let range: Range;
+		if (error && error.context instanceof ParserRuleContext) {
+			range = rangeFromBounds(error.context.start, offendingSymbol);
+		} else {
+			range = rangeFromBound(offendingSymbol);
 		}
-
-		this.nodes.push(new SyntaxErrorNode(rangeFromBound(offendingSymbol), '(ANTLR Syntax Error) ' + msg));
+		const node = new SyntaxErrorNode(range, msg);
+		this.nodes.push(node);
 	}
 
 	visitErrorNode(errNode: ErrorNode) {
