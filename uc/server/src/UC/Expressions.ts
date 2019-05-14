@@ -2,7 +2,7 @@ import { Position, Range } from 'vscode-languageserver';
 import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
 import { connection } from '../server';
-import { UCDocument } from './DocumentListener';
+import { UCDocument, getEnumMember } from './DocumentListener';
 import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode } from './diagnostics/diagnostics';
 import { intersectsWith, rangeFromBounds } from './helpers';
 
@@ -50,7 +50,7 @@ export abstract class UCExpression implements IExpression {
 	abstract analyze(document: UCDocument, context: UCStructSymbol): void;
 }
 
-export class UCParenthesisExpression extends UCExpression {
+export class UCParenthesizedExpression extends UCExpression {
 	public expression?: IExpression;
 
 	getMemberSymbol(): ISymbol {
@@ -456,6 +456,7 @@ export class UCMemberExpression extends UCExpression {
 			const hasArguments = this.outer instanceof UCArgumentedExpression;
 			if (hasArguments) {
 				// look for a predefined or struct/class type.
+				// FIXME: What about casting a byte to an ENUM type?
 				const type = SymbolsTable.findSymbol(id, true) || context.findTypeSymbol(id, true);
 				if (type) {
 					this.symbolRef.setReference(type, document);
@@ -463,11 +464,18 @@ export class UCMemberExpression extends UCExpression {
 				}
 			}
 
-			const symbol = context.findSuperSymbol(id);
+			let symbol: ISymbol = context.findSuperSymbol(id);
+			if (!symbol) {
+				// FIXME: only lookup an enumember if the context value is either an enum, byte, or int.
+				symbol = getEnumMember(id);
+			}
+
 			if (symbol) {
 				let contextInfo: ISymbolContext;
 					contextInfo = {
 						inAssignment:
+							// Check if we are being assigned a value.
+							// FIXME: This is very ugly and should instead be determined by passing down a more verbose context to index().
 							(this.outer instanceof UCAssignmentOperator && this.outer.left === this)
 							|| this.outer instanceof UCContextExpression
 								&& this.outer.member === this
@@ -592,7 +600,7 @@ export class UCRngLiteral extends UCStructLiteral {
 	}
 }
 
-export class UCGenericClassCast extends UCParenthesisExpression {
+export class UCGenericClassCast extends UCParenthesizedExpression {
 	public classRef: UCTypeSymbol;
 
 	getMemberSymbol(): ISymbol {

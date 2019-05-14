@@ -130,6 +130,16 @@ export function getIndexedReferences(qualifiedId: string): Set<ISymbolReference>
 	return IndexedReferences.get(qualifiedId) || new Set<ISymbolReference>();
 }
 
+const EnumMemberMap = new Map<string, UCEnumMemberSymbol>();
+
+export function getEnumMember(enumMember: string): UCEnumMemberSymbol {
+	return EnumMemberMap.get(enumMember);
+}
+
+export function setEnumMember(enumMember: UCEnumMemberSymbol) {
+	EnumMemberMap.set(enumMember.getName().toLowerCase(), enumMember);
+}
+
 export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {
 	public name: string;
 
@@ -356,6 +366,8 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			// HACK: overwrite define() outer let.
 			memberSymbol.outer = enumSymbol;
 			memberSymbol.value = count ++;
+
+			setEnumMember(memberSymbol);
 		}
 	}
 
