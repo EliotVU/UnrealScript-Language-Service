@@ -116,6 +116,10 @@ export abstract class UCBlockStatement extends UCExpressionStatement {
 	}
 }
 
+export class UCAssertStatement extends UCExpressionStatement {
+
+}
+
 export class UCIfStatement extends UCBlockStatement {
 	public else?: UCElseStatement;
 

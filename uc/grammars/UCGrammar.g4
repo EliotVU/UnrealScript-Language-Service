@@ -165,6 +165,7 @@ kwDEMORECORDING: 'demorecording';
 // kwFORCESCRIPTORDER: 'forcescriptorder';
 
 kwGOTO: 'goto';
+kwASSERT: 'assert';
 
 kwBEGIN: 'begin';
 kwOBJECT: 'object';
@@ -331,6 +332,7 @@ identifier
 	|'end'
 	|'new'
 	|'goto'
+	|'assert'
 	|'vect'
 	|'rot'
 	|'rng'
@@ -820,6 +822,7 @@ statement
 	| doStatement
 	| switchStatement
 
+	| assertStatement SEMICOLON
 	| returnStatement SEMICOLON
 	| gotoStatement SEMICOLON
 
@@ -834,49 +837,6 @@ statement
 	| (assignmentExpression SEMICOLON)
 	| (expression SEMICOLON) // TODO: Maybe replace with unaryExpression?
 	;
-
-labeledStatement: identifier COLON;
-gotoStatement: kwGOTO identifier;
-
-assignmentOperator: /* '+=' | '-=' | '/=' | '*=' | '|=' | '&=' | '$=' | '@=' | */ ASSIGNMENT;
-assignmentExpression: primaryExpression assignmentOperator expression;
-
-expression
-	: expression functionName expression #binaryOperator
-	| unaryExpression #unaryOperator
-	;
-
-unaryExpression
-	: primaryExpression #primaryOperator
-	| unaryExpression INTERR expression COLON expression #ternaryOperator
-	| primaryExpression operator #postOperator
-	| operator primaryExpression #preOperator
-	;
-
-// FIXME: might be more restricted, but at least "default.class" is valid code.
-classArgument: primaryExpression; // Inclusive template argument (will be parsed as a function call)
-
-primaryExpression
-	: literal 																						#literalExpression
-	| kwCLASS (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)								#genericClassCasting
-	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? classArgument 									#newExpression
-	| 'arraycount' (OPEN_PARENS primaryExpression CLOSE_PARENS)										#arrayCountExpression
-	| (kwDEFAULT | 'self' | 'super' | 'global' | kwSTATIC) 											#specifierExpression
-	// Note any keyword must preceed identifier!
-	| identifier 																					#memberExpression
-	| (OPEN_PARENS expression CLOSE_PARENS) 														#parenthesisExpression
-	| primaryExpression DOT (classLiteralSpecifier | identifier)									#contextExpression
-	| primaryExpression (OPEN_PARENS arguments CLOSE_PARENS) 										#argumentedExpression
-	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 									#indexExpression
-	;
-
-classLiteralSpecifier
-	: kwDEFAULT
-	| kwSTATIC
-	| kwCONST
-	;
-
-arguments: (COMMA* expression)*;
 
 ifStatement:
 	kwIF (OPEN_PARENS expression CLOSE_PARENS)
@@ -918,6 +878,49 @@ returnStatement: kwRETURN expression?;
 breakStatement: kwBREAK;
 continueStatement: kwCONTINUE;
 stopStatement: kwSTOP;
+labeledStatement: identifier COLON;
+gotoStatement: kwGOTO (identifier | expression);
+assertStatement: kwASSERT (OPEN_PARENS expression CLOSE_PARENS);
+
+assignmentOperator: /* '+=' | '-=' | '/=' | '*=' | '|=' | '&=' | '$=' | '@=' | */ ASSIGNMENT;
+assignmentExpression: primaryExpression assignmentOperator expression;
+
+expression
+	: expression functionName expression #binaryOperator
+	| unaryExpression #unaryOperator
+	;
+
+unaryExpression
+	: primaryExpression #primaryOperator
+	| unaryExpression INTERR expression COLON expression #ternaryOperator
+	| primaryExpression operator #postOperator
+	| operator primaryExpression #preOperator
+	;
+
+// FIXME: might be more restricted, but at least "default.class" is valid code.
+classArgument: primaryExpression; // Inclusive template argument (will be parsed as a function call)
+
+primaryExpression
+	: literal 																						#literalExpression
+	| kwCLASS (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)								#genericClassCasting
+	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? classArgument 									#newExpression
+	| 'arraycount' (OPEN_PARENS primaryExpression CLOSE_PARENS)										#arrayCountExpression
+	| (kwDEFAULT | 'self' | 'super' | 'global' | kwSTATIC) 											#specifierExpression
+	// Note any keyword must preceed identifier!
+	| identifier 																					#memberExpression
+	| (OPEN_PARENS expression CLOSE_PARENS) 														#parenthesisExpression
+	| primaryExpression DOT (classLiteralSpecifier | identifier)									#contextExpression
+	| primaryExpression (OPEN_PARENS arguments CLOSE_PARENS) 										#argumentedExpression
+	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 									#indexExpression
+	;
+
+classLiteralSpecifier
+	: kwDEFAULT
+	| kwSTATIC
+	| kwCONST
+	;
+
+arguments: (COMMA* expression)*;
 
 defaultpropertiesBlock
 	:

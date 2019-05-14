@@ -64,7 +64,7 @@ repository:
       - name: constant.language.boolean.false.uc
         match: \b(?i)false\b
       - name: constant.language.boolean.true.uc
-        match: \b(?i)true\\b
+        match: \b(?i)true\b
 
   numeric-literal:
     patterns:
@@ -650,7 +650,7 @@ repository:
             name: punctuation.separator.label.uc
 
       - name: keyword.control.conditional.uc
-        match: \b((?i)if|switch|case|(default\s*\:)|while|foreach|for|do|until|else)\b
+        match: \b((?i)if|switch|case|(default\s*\:)|while|foreach|for|do|until|else|assert)\b
 
       - name: keyword.control.flow.uc
         match: \b((?i)return|continue|break|stop|goto|super)\b

@@ -5,8 +5,8 @@ import { ExpressionVisitor } from './DocumentListener';
 
 import { UCScriptBlock } from "./ScriptBlock";
 
-import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, SwitchCaseContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext } from '../antlr/UCGrammarParser';
-import { UCExpressionStatement, UCIfStatement, UCElseStatement, UCDoStatement, UCWhileStatement, UCSwitchStatement, UCSwitchCase, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCReturnStatement, UCGotoStatement } from './Statements';
+import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, SwitchCaseContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, AssertStatementContext } from '../antlr/UCGrammarParser';
+import { UCExpressionStatement, UCIfStatement, UCElseStatement, UCDoStatement, UCWhileStatement, UCSwitchStatement, UCSwitchCase, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCReturnStatement, UCGotoStatement, UCAssertStatement } from './Statements';
 import { ParserRuleContext } from 'antlr4ts';
 
 export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
@@ -222,6 +222,17 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 		if (breakStatementNode) {
 			const breakStatement = breakStatementNode.accept(this);
 			statement.break = breakStatement;
+		}
+		return statement;
+	}
+
+	visitAssertStatement(ctx: AssertStatementContext): IStatement {
+		const statement = new UCAssertStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(ExpressionVisitor);
 		}
 		return statement;
 	}
