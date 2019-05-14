@@ -2,8 +2,8 @@ import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-
 
 import { intersectsWith } from '../helpers';
 import { UCDocument } from '../DocumentListener';
-import { UCScriptBlock } from "../ScriptBlock";
 import { SymbolVisitor } from '../SymbolVisitor';
+import { UCBlock } from '../Statements';
 
 import { ISymbolContainer } from './ISymbolContainer';
 import { ISymbol, UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol, UCStateSymbol, UCReplicationBlock } from ".";
@@ -15,7 +15,7 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 
 	public types?: Map<string, UCFieldSymbol>;
 
-	public scriptBlock?: UCScriptBlock;
+	public block?: UCBlock;
 
 	private cachedTypeResolves = new Map<string, UCSymbol>();
 
@@ -53,8 +53,8 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 			}
 		}
 
-		if (this.scriptBlock) {
-			const symbol = this.scriptBlock.getSymbolAtPos(position);
+		if (this.block) {
+			const symbol = this.block.getSymbolAtPos(position);
 			if (symbol) {
 				return symbol;
 			}
@@ -67,8 +67,8 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 			return this.extendsType;
 		}
 
-		if (this.scriptBlock) {
-			const symbol = this.scriptBlock.getSymbolAtPos(position);
+		if (this.block) {
+			const symbol = this.block.getSymbolAtPos(position);
 			if (symbol) {
 				return symbol;
 			}
@@ -210,7 +210,7 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 			}
 		}
 
-		if (this.scriptBlock) this.scriptBlock.index(document, this);
+		if (this.block) this.block.index(document, this);
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
@@ -222,7 +222,7 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 			child.analyze(document, this);
 		}
 
-		if (this.scriptBlock) this.scriptBlock.analyze(document, this);
+		if (this.block) this.block.analyze(document, this);
 	}
 
 	accept<Result>(visitor: SymbolVisitor<Result>): Result {

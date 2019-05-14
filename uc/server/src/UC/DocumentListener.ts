@@ -29,11 +29,11 @@ import {
 	UCDocumentClassSymbol, UCReplicationBlock
 } from './Symbols';
 import { UCTypeKind } from './Symbols/TypeKind';
-import { UCScriptBlock } from "./ScriptBlock";
 import { IDiagnosticNode, SyntaxErrorNode } from './diagnostics/diagnostics';
 import { UCExpressionVisitor } from './ExpressionVisitor';
 import { UCStatementVisitor } from './StatementVisitor';
 import { ISymbolReference } from './Symbols/ISymbol';
+import { UCBlock } from './Statements';
 
 export const ExpressionVisitor = new UCExpressionVisitor();
 export const StatementVisitor = new UCStatementVisitor();
@@ -493,11 +493,11 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			return;
 		}
 
-		const scriptBlock = new UCScriptBlock(rangeFromBounds(ctx.start, ctx.stop));
-		scriptBlock.statements = Array(statementNodes.length);
+		const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
+		block.statements = Array(statementNodes.length);
 		for (var i = 0; i < statementNodes.length; ++ i) {
 			const statement = statementNodes[i].accept(StatementVisitor);
-			scriptBlock.statements[i] = statement;
+			block.statements[i] = statement;
 
 			const idNodes = statementNodes[i].identifier();
 			if (idNodes) for (const idNode of idNodes) {
@@ -507,7 +507,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 				replicationBlock.symbolRefs.set(identifier.toLowerCase(), symbolRef);
 			}
 		}
-		replicationBlock.scriptBlock = scriptBlock;
+		replicationBlock.block = block;
 	}
 
 	enterFunctionDecl(ctx: UCParser.FunctionDeclContext) {
@@ -570,7 +570,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 			const statementNodes = bodyNode.statement();
 			if (statementNodes) {
-				methodSymbol.scriptBlock = this.visitStatements(bodyNode, statementNodes);
+				methodSymbol.block = this.visitStatements(bodyNode, statementNodes);
 			}
 		}
 	}
@@ -607,13 +607,13 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	visitStatements(ctx: ParserRuleContext, nodes: UCParser.StatementContext[]) {
-		const scriptBlock = new UCScriptBlock(rangeFromBounds(ctx.start, ctx.stop));
-		scriptBlock.statements = Array(nodes.length);
+		const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
+		block.statements = Array(nodes.length);
 		for (var i = 0; i < nodes.length; ++ i) {
 			const statement = nodes[i].accept(StatementVisitor);
-			scriptBlock.statements[i] = statement;
+			block.statements[i] = statement;
 		}
-		return scriptBlock;
+		return block;
 	}
 
 	exitFunctionDecl(ctx: UCParser.FunctionDeclContext) {
@@ -642,7 +642,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 		const statementNodes = ctx.statement();
 		if (statementNodes) {
-			stateSymbol.scriptBlock = this.visitStatements(ctx, statementNodes);
+			stateSymbol.block = this.visitStatements(ctx, statementNodes);
 		}
 	}
 

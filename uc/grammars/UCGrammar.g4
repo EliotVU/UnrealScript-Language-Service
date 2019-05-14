@@ -905,7 +905,8 @@ primaryExpression
 	| kwCLASS (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)								#genericClassCasting
 	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? classArgument 									#newExpression
 	| 'arraycount' (OPEN_PARENS primaryExpression CLOSE_PARENS)										#arrayCountExpression
-	| (kwDEFAULT | 'self' | 'super' | 'global' | kwSTATIC) 											#specifierExpression
+	| 'super' (OPEN_PARENS identifier CLOSE_PARENS)?												#superExpression
+	| (kwDEFAULT | 'self' | 'global' | kwSTATIC) 													#specifierExpression
 	// Note any keyword must preceed identifier!
 	| identifier 																					#memberExpression
 	| (OPEN_PARENS expression CLOSE_PARENS) 														#parenthesisExpression

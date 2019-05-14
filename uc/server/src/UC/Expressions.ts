@@ -6,7 +6,7 @@ import { UCDocument, getEnumMember } from './DocumentListener';
 import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode } from './diagnostics/diagnostics';
 import { intersectsWith, rangeFromBounds } from './helpers';
 
-import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, UCStateSymbol, SymbolsTable, UCMethodSymbol, UCClassSymbol, NativeClass, VectMethodLike, RotMethodLike, RngMethodLike, VectorType, RotatorType, RangeType, UCTypeSymbol, AssignmentOperator } from './Symbols';
+import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, SymbolsTable, UCMethodSymbol, UCClassSymbol, NativeClass, VectMethodLike, RotMethodLike, RngMethodLike, VectorType, RotatorType, RangeType, UCTypeSymbol, AssignmentOperator } from './Symbols';
 import { ISymbolContext, ISymbol } from './Symbols/ISymbol';
 
 export interface IExpression {
@@ -76,7 +76,7 @@ export class UCParenthesizedExpression extends UCExpression {
 	}
 }
 
-export class UCArgumentedExpression extends UCExpression {
+export class UCCallExpression extends UCExpression {
 	public expression?: IExpression;
 	public arguments?: IExpression[];
 
@@ -295,8 +295,8 @@ export class UCTernaryOperator extends UCExpression {
 
 // TODO: Index and match overloaded operators.
 export class UCBinaryOperator extends UCExpression {
-	public operator: UCSymbolReference;
 	public left?: IExpression;
+	public operator: UCSymbolReference;
 	public right?: IExpression;
 
 	getMemberSymbol(): ISymbol {
@@ -338,14 +338,12 @@ export class UCBinaryOperator extends UCExpression {
 	}
 }
 
-export class UCAssignmentOperator extends UCBinaryOperator {
+export class UCAssignmentExpression extends UCBinaryOperator {
 	index(document: UCDocument, context: UCStructSymbol) {
-		this.operator.setReference(AssignmentOperator, document);
-
 		if (this.left) this.left.index(document, context);
+		this.operator.setReference(AssignmentOperator, document);
 		if (this.right) this.right.index(document, context);
 	}
-
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
@@ -453,7 +451,7 @@ export class UCMemberExpression extends UCExpression {
 		try {
 			const id = this.symbolRef.getName().toLowerCase();
 			// First try to match a class or struct (e.g. a casting).
-			const hasArguments = this.outer instanceof UCArgumentedExpression;
+			const hasArguments = this.outer instanceof UCCallExpression;
 			if (hasArguments) {
 				// look for a predefined or struct/class type.
 				// FIXME: What about casting a byte to an ENUM type?
@@ -476,10 +474,10 @@ export class UCMemberExpression extends UCExpression {
 						inAssignment:
 							// Check if we are being assigned a value.
 							// FIXME: This is very ugly and should instead be determined by passing down a more verbose context to index().
-							(this.outer instanceof UCAssignmentOperator && this.outer.left === this)
+							(this.outer instanceof UCAssignmentExpression && this.outer.left === this)
 							|| this.outer instanceof UCContextExpression
 								&& this.outer.member === this
-								&& this.outer.outer instanceof UCAssignmentOperator
+								&& this.outer.outer instanceof UCAssignmentExpression
 								&& this.outer.outer.left === this.outer
 					};
 					this.symbolRef.setReference(symbol, document, contextInfo);
@@ -496,42 +494,19 @@ export class UCMemberExpression extends UCExpression {
 	}
 }
 
+// Resolves the member for predefined specifiers such as (self, default, static, and global)
 export class UCPredefinedMember extends UCMemberExpression {
-	index(document: UCDocument, context: UCStructSymbol) {
-		if (!context) {
-			return;
-		}
-
-		const id = this.symbolRef.getName().toLowerCase();
-		switch (id) {
-			// TODO: Move to its own expression class
-			case 'super': {
-				this.symbolRef.setReference(
-					context instanceof UCStateSymbol
-						? context.super
-						: document.class.super,
-					document
-				);
-				break;
-			}
-
-			default: {
-				this.symbolRef.setReference(
-					document.class,
-					document
-				);
-			}
-		}
+	index(document: UCDocument, _context: UCStructSymbol) {
+		this.symbolRef.setReference(
+			document.class,
+			document
+		);
 	}
 }
 
 // Resolves the context for predefined specifiers such as (default, static, and const).
 export class UCPredefinedContextMember extends UCMemberExpression {
 	index(document: UCDocument, context: UCStructSymbol) {
-		if (!context) {
-			return;
-		}
-
 		this.symbolRef.setReference(
 			context instanceof UCClassSymbol
 				? context
@@ -541,7 +516,18 @@ export class UCPredefinedContextMember extends UCMemberExpression {
 	}
 }
 
-export class UCNewOperator extends UCArgumentedExpression {
+export class UCSuperExpression extends UCMemberExpression {
+	classId: string;
+
+	// TODO: Can super refer to a parent STATE?
+	index(document: UCDocument, _context: UCStructSymbol) {
+		const superClass = document.class.super
+			|| this.classId && SymbolsTable.findSymbol(this.classId.toLowerCase(), true) as UCClassSymbol;
+		this.symbolRef.setReference(superClass, document);
+	}
+}
+
+export class UCNewExpression extends UCCallExpression {
 	// TODO: Implement psuedo new operator for hover info?
 }
 

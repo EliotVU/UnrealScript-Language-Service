@@ -1,9 +1,9 @@
 import { ParserRuleContext } from 'antlr4ts';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext, GenericClassCastingContext, VectTokenContext, RotTokenContext, RngTokenContext, ClassLiteralContext, LiteralContext, ArrayCountExpressionContext } from '../antlr/UCGrammarParser';
+import { UnaryExpressionContext, OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, BinaryOperatorContext, UnaryOperatorContext, PrimaryOperatorContext, TernaryOperatorContext, ContextExpressionContext, MemberExpressionContext, ArgumentedExpressionContext, IndexExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ClassArgumentContext, PreOperatorContext, ParenthesisExpressionContext, GenericClassCastingContext, VectTokenContext, RotTokenContext, RngTokenContext, ClassLiteralContext, LiteralContext, ArrayCountExpressionContext, SuperExpressionContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference, UCTypeSymbol } from './Symbols';
-import { UCMemberExpression, UCUnaryOperator, UCAssignmentOperator, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCArgumentedExpression, UCIndexExpression, UCParenthesizedExpression, UCPredefinedContextMember, IExpression, UCLiteral, UCClassLiteral, UCNewOperator, UCPredefinedMember, UCStructLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCGenericClassCast } from './Expressions';
+import { UCMemberExpression, UCUnaryOperator, UCAssignmentExpression, UCContextExpression, UCBinaryOperator, UCTernaryOperator, UCCallExpression, UCIndexExpression, UCParenthesizedExpression, UCPredefinedContextMember, IExpression, UCLiteral, UCClassLiteral, UCNewExpression, UCPredefinedMember, UCStructLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCGenericClassCast, UCSuperExpression } from './Expressions';
 import { rangeFromBounds, rangeFromBound } from './helpers';
 import { UCTypeKind } from './Symbols/TypeKind';
 
@@ -87,7 +87,7 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 	}
 
 	visitAssignmentExpression(ctx: AssignmentExpressionContext) {
-		const expression = new UCAssignmentOperator();
+		const expression = new UCAssignmentExpression();
 		expression.context = ctx;
 
 		const primaryNode = ctx.primaryExpression();
@@ -170,7 +170,7 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 	}
 
 	visitArgumentedExpression(ctx: ArgumentedExpressionContext) {
-		const expression = new UCArgumentedExpression();
+		const expression = new UCCallExpression();
 		expression.context = ctx;
 
 		// expr ( arguments )
@@ -208,7 +208,7 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 
 	// new ( arguments ) classArgument
 	visitNewExpression(ctx: NewExpressionContext) {
-		const expression = new UCNewOperator();
+		const expression = new UCNewExpression();
 		expression.context = ctx;
 
 		const exprNode = ctx.classArgument();
@@ -239,6 +239,18 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 		if (exprNode) {
 			expression.expression = exprNode.accept(this);
 			expression.expression.outer = expression;
+		}
+		return expression;
+	}
+
+	visitSuperExpression(ctx: SuperExpressionContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCSuperExpression(new UCSymbolReference(ctx.text, range));
+		expression.context = ctx;
+
+		const classIdNode = ctx.identifier();
+		if (classIdNode) {
+			expression.classId = classIdNode.text;
 		}
 		return expression;
 	}

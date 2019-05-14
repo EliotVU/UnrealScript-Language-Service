@@ -6,7 +6,6 @@ import { UCDocument } from './DocumentListener';
 
 import { UCSymbol, UCStructSymbol } from './Symbols';
 import { IExpression } from './Expressions';
-import { UCScriptBlock } from './ScriptBlock';
 
 export interface IStatement {
 	// Not in use atm, but might be needed later to traverse where an expression is contained.
@@ -23,7 +22,7 @@ export abstract class UCBaseStatement implements IStatement {
 	outer?: IStatement;
 	context?: ParserRuleContext;
 
-	constructor(private range?: Range) {
+	constructor(protected range?: Range) {
 
 	}
 
@@ -87,8 +86,8 @@ export class UCExpressionStatement implements IStatement {
 	}
 }
 
-export abstract class UCBlockStatement extends UCExpressionStatement {
-	public scriptBlock: UCScriptBlock;
+export abstract class UCThenStatement extends UCExpressionStatement {
+	public then: IStatement;
 
 	getContainedSymbolAtPos(position: Position): UCSymbol {
 		const symbol = super.getContainedSymbolAtPos(position);
@@ -96,22 +95,51 @@ export abstract class UCBlockStatement extends UCExpressionStatement {
 			return symbol;
 		}
 
-		if (this.scriptBlock) {
-			return this.scriptBlock.getSymbolAtPos(position);
+		if (this.then) {
+			return this.then.getSymbolAtPos(position);
 		}
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
-		if (this.scriptBlock) {
-			this.scriptBlock.index(document, context);
-		}
+		this.then && this.then.index(document, context);
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
-		if (this.scriptBlock) {
-			this.scriptBlock.analyze(document, context);
+		this.then && this.then.analyze(document, context);
+	}
+}
+
+export class UCBlock extends UCBaseStatement {
+	public statements?: IStatement[];
+
+	getSymbolAtPos(position: Position): UCSymbol {
+		if (!intersectsWith(this.range, position)) {
+			return undefined;
+		}
+		const symbol = this.getContainedSymbolAtPos(position);
+		return symbol;
+	}
+
+	getContainedSymbolAtPos(position: Position): UCSymbol {
+		if (this.statements) for (let statement of this.statements) if (statement) {
+			const symbol = statement.getSymbolAtPos(position);
+			if (symbol) {
+				return symbol;
+			}
+		}
+	}
+
+	index(document: UCDocument, context: UCStructSymbol) {
+		if (this.statements) for (let statement of this.statements) if (statement) {
+			statement.index(document, context);
+		}
+	}
+
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		if (this.statements) for (let statement of this.statements) if (statement) {
+			statement.analyze(document, context);
 		}
 	}
 }
@@ -120,52 +148,51 @@ export class UCAssertStatement extends UCExpressionStatement {
 
 }
 
-export class UCIfStatement extends UCBlockStatement {
-	public else?: UCElseStatement;
+export class UCIfStatement extends UCThenStatement {
+	public else?: IStatement;
 
 	getContainedSymbolAtPos(position: Position): UCSymbol {
-		const symbol = super.getContainedSymbolAtPos(position);
-		if (symbol) {
-			return symbol;
-		}
-
-		if (this.else) {
-			return this.else.getSymbolAtPos(position);
-		}
+		return super.getContainedSymbolAtPos(position) || this.else && this.else.getSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
-		if (this.else) {
-			this.else.index(document, context);
-		}
+		this.else && this.else.index(document, context);
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
-		if (this.else) {
-			this.else.analyze(document, context);
-		}
+		this.else && this.else.analyze(document, context);
 	}
 }
 
-export class UCElseStatement extends UCBlockStatement {
+export class UCDoUntilStatement extends UCThenStatement {
+	public until?: IStatement;
+
+	getContainedSymbolAtPos(position: Position): UCSymbol {
+		return super.getContainedSymbolAtPos(position) || this.until && this.until.getSymbolAtPos(position);
+	}
+
+	index(document: UCDocument, context: UCStructSymbol) {
+		super.index(document, context);
+		this.until && this.until.index(document, context);
+	}
+
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		super.analyze(document, context);
+		this.until && this.until.analyze(document, context);
+	}
+}
+
+export class UCWhileStatement extends UCThenStatement {
 
 }
 
-export class UCDoStatement extends UCBlockStatement {
+export class UCSwitchStatement extends UCThenStatement {
 
 }
 
-export class UCWhileStatement extends UCBlockStatement {
-
-}
-
-export class UCSwitchStatement extends UCBlockStatement {
-
-}
-
-export class UCSwitchCase extends UCBlockStatement {
+export class UCSwitchCase extends UCThenStatement {
 	public break?: IStatement;
 
 	getContainedSymbolAtPos(position: Position): UCSymbol {
@@ -194,7 +221,7 @@ export class UCSwitchCase extends UCBlockStatement {
 	}
 }
 
-export class UCForStatement extends UCBlockStatement {
+export class UCForStatement extends UCThenStatement {
 	// @super.expression is the conditional if expression
 	public init?: IExpression;
 	public next?: IExpression;
@@ -233,28 +260,21 @@ export class UCForStatement extends UCBlockStatement {
 	}
 }
 
-export class UCForEachStatement extends UCBlockStatement {
+export class UCForEachStatement extends UCThenStatement {
 
 }
 
-export class UCLabeledStatement implements IStatement {
-	context?: ParserRuleContext;
-	label?: string;
+export class UCLabeledStatement extends UCBaseStatement {
+	label: string;
 
-	constructor(private range?: Range) {
-
-	}
-
-	getSymbolAtPos(position: Position) {
+	getContainedSymbolAtPos(_position: Position): UCSymbol {
 		return undefined;
 	}
 
-	index(document: UCDocument, context: UCStructSymbol) {
-
+	index(_document: UCDocument, _context: UCStructSymbol): void {
 	}
 
-	analyze(document: UCDocument, context: UCStructSymbol) {
-
+	analyze(_document: UCDocument, _context: UCStructSymbol): void {
 	}
 }
 

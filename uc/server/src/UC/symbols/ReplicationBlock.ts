@@ -3,13 +3,14 @@ import { SymbolKind, Position } from 'vscode-languageserver-types';
 import { UCDocument } from '../DocumentListener';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 
+import { UCBlock } from '../Statements';
+
 import { ISymbol, UCFieldSymbol, UCSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCStructSymbol, UCSymbolReference } from '.';
-import { UCScriptBlock } from "../ScriptBlock";
 import { ReliableKeyword, UnreliableKeyword } from './Keywords';
 
 export class UCReplicationBlock extends UCFieldSymbol {
 	public symbolRefs = new Map<string, UCSymbolReference>();
-	public scriptBlock?: UCScriptBlock;
+	public block?: UCBlock;
 
 	getKind(): SymbolKind {
 		return SymbolKind.Function;
@@ -21,8 +22,8 @@ export class UCReplicationBlock extends UCFieldSymbol {
 	}
 
 	getCompletionContext(position: Position): UCSymbol {
-		if (this.scriptBlock) {
-			const symbol = this.scriptBlock.getSymbolAtPos(position);
+		if (this.block) {
+			const symbol = this.block.getSymbolAtPos(position);
 			if (symbol) {
 				return symbol;
 			}
@@ -37,8 +38,8 @@ export class UCReplicationBlock extends UCFieldSymbol {
 	}
 
 	getContainedSymbolAtPos(position: Position): UCSymbol {
-		if (this.scriptBlock) {
-			const symbol = this.scriptBlock.getSymbolAtPos(position);
+		if (this.block) {
+			const symbol = this.block.getSymbolAtPos(position);
 			if (symbol) {
 				return symbol;
 			}
@@ -55,7 +56,7 @@ export class UCReplicationBlock extends UCFieldSymbol {
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		this.scriptBlock && this.scriptBlock.index(document, context);
+		this.block && this.block.index(document, context);
 		for (let ref of this.symbolRefs.values()) {
 			const symbol = context.findSuperSymbol(ref.getName().toLowerCase());
 			if (!symbol) {
@@ -66,7 +67,7 @@ export class UCReplicationBlock extends UCFieldSymbol {
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
-		this.scriptBlock && this.scriptBlock.analyze(document, context);
+		this.block && this.block.analyze(document, context);
 		for (let symbolRef of this.symbolRefs.values()) {
 			const symbol = symbolRef.getReference();
 			if (!symbol) {
