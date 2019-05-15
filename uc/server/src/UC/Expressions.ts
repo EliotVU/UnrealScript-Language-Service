@@ -26,7 +26,6 @@ export abstract class UCExpression implements IExpression {
 	context: ParserRuleContext;
 
 	constructor(protected range?: Range) {
-
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol {
@@ -516,14 +515,35 @@ export class UCPredefinedContextMember extends UCMemberExpression {
 	}
 }
 
-export class UCSuperExpression extends UCMemberExpression {
-	classId: string;
+export class UCSuperExpression extends UCExpression {
+	public classRef?: UCTypeSymbol;
 
-	// TODO: Can super refer to a parent STATE?
-	index(document: UCDocument, _context: UCStructSymbol) {
-		const superClass = document.class.super
-			|| this.classId && SymbolsTable.findSymbol(this.classId.toLowerCase(), true) as UCClassSymbol;
-		this.symbolRef.setReference(superClass, document);
+	// Resolved super class.
+	private superClass?: UCClassSymbol;
+
+	getMemberSymbol(): ISymbol {
+		return this.superClass;
+	}
+
+	getContainedSymbolAtPos(position: Position) {
+		if (this.classRef && this.classRef.getSymbolAtPos(position) as UCTypeSymbol) {
+			return this.classRef;
+		}
+	}
+
+	index(document: UCDocument, context: UCStructSymbol) {
+		if (this.classRef) {
+			this.classRef.index(document, context);
+			this.superClass = this.classRef.getReference() as UCClassSymbol;
+		} else {
+			// TODO: Can super refer to a parent STATE?
+			this.superClass = document.class.super;
+		}
+	}
+
+	// TODO: verify class type by inheritance
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		this.classRef && this.classRef.analyze(document, context);
 	}
 }
 
@@ -534,10 +554,6 @@ export class UCNewExpression extends UCCallExpression {
 // Struct literals are hardcode limited to Vector, Rotator, and Range.
 export abstract class UCStructLiteral extends UCExpression {
 	structType: UCSymbolReference;
-
-	constructor(range: Range) {
-		super(range);
-	}
 
 	getContainedSymbolAtPos(_position: Position) {
 		// Only return if we have a RESOLVED reference.

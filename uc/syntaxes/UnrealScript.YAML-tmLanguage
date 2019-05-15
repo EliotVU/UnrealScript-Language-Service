@@ -653,7 +653,7 @@ repository:
         match: \b((?i)if|switch|case|(default\s*\:)|while|foreach|for|do|until|else|assert)\b
 
       - name: keyword.control.flow.uc
-        match: \b((?i)return|continue|break|stop|goto|super)\b
+        match: \b((?i)return|continue|break|stop|goto)\b
 
       - include: '#expression'
 
@@ -661,11 +661,15 @@ repository:
     patterns:
       - include: '#comment'
 
-      - name: keyword.control.flow.uc
-        match: "\\b((?i)super)\\b"
-
       - name: variable.language.this.uc
-        match: \b((?i)global|self|default|static)\b
+        match: \b((?i)global|self|default|static|const)\b
+
+      - match: ((?i)super)(?:\s*\(\s*([_[:alpha:]][_[:alnum:]]*\s*)\))?
+        captures:
+          '1':
+            name: variable.language.super.uc
+          '2':
+            name: entity.other.inherited-class.uc
 
       # meta-class casting
       - begin: ((?i)class)\s*(\<)
@@ -675,14 +679,14 @@ repository:
           '1':
             name: keyword.type.uc
           '2':
-            name: punctuation.parenthesis.open.uc
+            name: punctuation.arrow.open.uc
         patterns:
           - match: ([_[:alpha:]][_[:alnum:]]*)
             name: entity.name.type.class.uc
         end: \>
         endCaptures:
           '0':
-            name: punctuation.parenthesis.close.uc
+            name: punctuation.arrow.close.uc
 
       # primitive castings
       - begin: ((?i)int|byte|float|bool|string|name)\s*(\()

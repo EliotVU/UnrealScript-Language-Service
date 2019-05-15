@@ -245,12 +245,12 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 
 	visitSuperExpression(ctx: SuperExpressionContext) {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCSuperExpression(new UCSymbolReference(ctx.text, range));
+		const expression = new UCSuperExpression(range);
 		expression.context = ctx;
 
 		const classIdNode = ctx.identifier();
 		if (classIdNode) {
-			expression.classId = classIdNode.text;
+			expression.classRef = new UCTypeSymbol(classIdNode.text, rangeFromBounds(classIdNode.start, classIdNode.stop), undefined, UCTypeKind.Class);
 		}
 		return expression;
 	}
