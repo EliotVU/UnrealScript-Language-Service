@@ -3,8 +3,8 @@ import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 import { rangeFromBounds } from './helpers';
 import { ExpressionVisitor } from './DocumentListener';
 
-import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, SwitchCaseContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, AssertStatementContext } from '../antlr/UCGrammarParser';
-import { UCExpressionStatement, UCIfStatement, UCDoUntilStatement, UCWhileStatement, UCSwitchStatement, UCSwitchCase, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCReturnStatement, UCGotoStatement, UCAssertStatement, UCBlock } from './Statements';
+import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, AssertStatementContext, CaseClauseContext, DefaultClauseContext, ExpressionContext } from '../antlr/UCGrammarParser';
+import { UCExpressionStatement, UCIfStatement, UCDoUntilStatement, UCWhileStatement, UCSwitchStatement, UCCaseClause, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCReturnStatement, UCGotoStatement, UCAssertStatement, UCBlock, UCDefaultClause } from './Statements';
 import { ParserRuleContext } from 'antlr4ts';
 
 export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
@@ -25,16 +25,14 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 	}
 
 	visitStatement(ctx: StatementContext): IStatement {
-		const exprNode = ctx.expression() || ctx.assignmentExpression() as ParserRuleContext;
-		if (exprNode) {
-			const statement = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
-			statement.context = exprNode;
-			statement.expression = exprNode.accept(ExpressionVisitor);
-			return statement;
-		}
+		return ctx.childCount !== 0 && ctx.getChild(0).accept(this);
+	}
 
-		const statementNode = ctx.getChild(0);
-		return statementNode && statementNode.accept(this);
+	visitExpression(ctx: ExpressionContext) {
+		const statement = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+		statement.expression = ctx.accept(ExpressionVisitor);
+		return statement;
 	}
 
 	visitLabeledStatement(ctx: LabeledStatementContext): UCLabeledStatement {
@@ -61,7 +59,16 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 	visitGotoStatement(ctx: GotoStatementContext): IStatement {
 		const statement = new UCGotoStatement(rangeFromBounds(ctx.start, ctx.stop));
 		statement.context = ctx;
-		// TODO: read label
+
+		const idNode = ctx.identifier();
+		if (idNode) {
+			statement.label = idNode.text;
+		} else {
+			const exprNode = ctx.expression();
+			if (exprNode) {
+				statement.expression = exprNode.accept(ExpressionVisitor);
+			}
+		}
 		return statement;
 	}
 
@@ -137,28 +144,6 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 		return statement;
 	}
 
-	visitSwitchStatement(ctx: SwitchStatementContext): IStatement {
-		const statement = new UCSwitchStatement(rangeFromBounds(ctx.start, ctx.stop));
-		statement.context = ctx;
-
-		const exprNode = ctx.expression();
-		if (exprNode) {
-			statement.expression = exprNode.accept(ExpressionVisitor);
-		}
-
-		const caseStatementNodes = ctx.switchCase();
-		if (caseStatementNodes) {
-			const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
-			block.statements = Array(caseStatementNodes.length);
-			for (var i = 0; i < caseStatementNodes.length; ++ i) {
-				const caseStatement = caseStatementNodes[i].accept(this);
-				block.statements[i] = caseStatement;
-			}
-			statement.then = block;
-		}
-		return statement;
-	}
-
 	visitForeachStatement(ctx: ForeachStatementContext): UCForEachStatement {
 		const statement = new UCForEachStatement(rangeFromBounds(ctx.start, ctx.stop));
 		statement.context = ctx;
@@ -201,8 +186,35 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 		return statement;
 	}
 
-	visitSwitchCase(ctx: SwitchCaseContext): IStatement {
-		const statement = new UCSwitchCase(rangeFromBounds(ctx.start, ctx.stop));
+	visitSwitchStatement(ctx: SwitchStatementContext): IStatement {
+		const statement = new UCSwitchStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(ExpressionVisitor);
+		}
+
+		const clauseNodes: ParserRuleContext[] = ctx.caseClause() || [];
+		const defaultClauseNode = ctx.defaultClause();
+
+		if (defaultClauseNode) {
+			clauseNodes.push(defaultClauseNode);
+		}
+
+		const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
+		block.statements = Array(clauseNodes.length);
+		for (var i = 0; i < clauseNodes.length; ++ i) {
+			const caseStatement = clauseNodes[i].accept(this);
+			block.statements[i] = caseStatement;
+		}
+		statement.then = block;
+
+		return statement;
+	}
+
+	visitCaseClause(ctx: CaseClauseContext): IStatement {
+		const statement = new UCCaseClause(rangeFromBounds(ctx.start, ctx.stop));
 		statement.context = ctx;
 
 		const exprNode = ctx.expression();
@@ -210,13 +222,13 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 			statement.expression = exprNode.accept(ExpressionVisitor);
 		}
 		statement.then = this.visitCodeBlockOptional(ctx);
+		return statement;
+	}
 
-		// TODO: deprecate, merge this with general statement nodes.
-		const breakStatementNode = ctx.breakStatement();
-		if (breakStatementNode) {
-			const breakStatement = breakStatementNode.accept(this);
-			statement.break = breakStatement;
-		}
+	visitDefaultClause(ctx: DefaultClauseContext) {
+		const statement = new UCDefaultClause(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+		statement.then = this.visitCodeBlockOptional(ctx);
 		return statement;
 	}
 
@@ -231,7 +243,7 @@ export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
 		return statement;
 	}
 
-	visitCodeBlockOptional(ctx: CodeBlockOptionalContext|SwitchCaseContext): UCBlock {
+	visitCodeBlockOptional(ctx: CodeBlockOptionalContext|CaseClauseContext|DefaultClauseContext): UCBlock {
 		const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
 		const statementNodes = ctx.statement();
 		if (statementNodes) {

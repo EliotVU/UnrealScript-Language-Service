@@ -114,12 +114,12 @@ export class UCCallExpression extends UCExpression {
 	}
 }
 
-export class UCIndexExpression extends UCExpression {
-	public primary?: IExpression;
+export class UCElementAccessExpression extends UCExpression {
 	public expression?: IExpression;
+	public argument?: IExpression;
 
 	getMemberSymbol(): ISymbol {
-		const symbol = this.primary && this.primary.getMemberSymbol();
+		const symbol = this.expression && this.expression.getMemberSymbol();
 
 		// Try to resolve to the referred symbol's defined type.
 		if (symbol instanceof UCPropertySymbol) {
@@ -143,15 +143,15 @@ export class UCIndexExpression extends UCExpression {
 	}
 
 	getContainedSymbolAtPos(position: Position): UCSymbol {
-		if (this.primary) {
-			const symbol = this.primary.getSymbolAtPos(position);
+		if (this.expression) {
+			const symbol = this.expression.getSymbolAtPos(position);
 			if (symbol) {
 				return symbol;
 			}
 		}
 
-		if (this.expression) {
-			const symbol = this.expression.getSymbolAtPos(position);
+		if (this.argument) {
+			const symbol = this.argument.getSymbolAtPos(position);
 			if (symbol) {
 				return symbol;
 			}
@@ -159,17 +159,17 @@ export class UCIndexExpression extends UCExpression {
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		if (this.primary) this.primary.index(document, context);
 		if (this.expression) this.expression.index(document, context);
+		if (this.argument) this.argument.index(document, context);
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
-		if (this.primary) this.primary.analyze(document, context);
 		if (this.expression) this.expression.analyze(document, context);
+		if (this.argument) this.argument.analyze(document, context);
 	}
 }
 
-export class UCContextExpression extends UCExpression {
+export class UCPropertyAccessExpression extends UCExpression {
 	public left?: IExpression;
 	public member?: UCMemberExpression;
 
@@ -221,34 +221,8 @@ export class UCContextExpression extends UCExpression {
 	}
 }
 
-export class UCUnaryOperator extends UCExpression {
-	public expression: IExpression;
-
-	// TODO: Linkup?
-	public operator: UCMemberExpression;
-
-	getMemberSymbol(): ISymbol {
-		return this.expression.getMemberSymbol();
-	}
-
-	getContainedSymbolAtPos(position: Position): UCSymbol {
-		const symbol = this.expression && this.expression.getSymbolAtPos(position);
-		if (symbol) {
-			return symbol;
-		}
-	}
-
-	index(document: UCDocument, context: UCStructSymbol) {
-		if (this.expression) this.expression.index(document, context);
-	}
-
-	analyze(document: UCDocument, context: UCStructSymbol) {
-		if (this.expression) this.expression.analyze(document, context);
-	}
-}
-
-export class UCTernaryOperator extends UCExpression {
-	public condition?: IExpression;
+export class UCConditionalExpression extends UCExpression {
+	public condition: IExpression;
 	public true?: IExpression;
 	public false?: IExpression;
 
@@ -292,8 +266,36 @@ export class UCTernaryOperator extends UCExpression {
 	}
 }
 
+export class UCUnaryExpression extends UCExpression {
+	public expression: IExpression;
+
+	// TODO: Linkup?
+	public operator: UCSymbolReference;
+
+	getMemberSymbol(): ISymbol {
+		return this.expression.getMemberSymbol();
+	}
+
+	getContainedSymbolAtPos(position: Position) {
+		const symbol = this.operator.getSymbolAtPos(position);
+		if (symbol && this.operator.getReference()) {
+			return symbol;
+		}
+		return this.expression && this.expression.getSymbolAtPos(position);
+	}
+
+	index(document: UCDocument, context: UCStructSymbol) {
+		this.operator.setReference(context.findSuperSymbol(this.operator.getName().toLowerCase()), document);
+		if (this.expression) this.expression.index(document, context);
+	}
+
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		if (this.expression) this.expression.analyze(document, context);
+	}
+}
+
 // TODO: Index and match overloaded operators.
-export class UCBinaryOperator extends UCExpression {
+export class UCBinaryExpression extends UCExpression {
 	public left?: IExpression;
 	public operator: UCSymbolReference;
 	public right?: IExpression;
@@ -337,7 +339,7 @@ export class UCBinaryOperator extends UCExpression {
 	}
 }
 
-export class UCAssignmentExpression extends UCBinaryOperator {
+export class UCAssignmentExpression extends UCBinaryExpression {
 	index(document: UCDocument, context: UCStructSymbol) {
 		if (this.left) this.left.index(document, context);
 		this.operator.setReference(AssignmentOperator, document);
@@ -474,7 +476,7 @@ export class UCMemberExpression extends UCExpression {
 							// Check if we are being assigned a value.
 							// FIXME: This is very ugly and should instead be determined by passing down a more verbose context to index().
 							(this.outer instanceof UCAssignmentExpression && this.outer.left === this)
-							|| this.outer instanceof UCContextExpression
+							|| this.outer instanceof UCPropertyAccessExpression
 								&& this.outer.member === this
 								&& this.outer.outer instanceof UCAssignmentExpression
 								&& this.outer.outer.left === this.outer
@@ -494,7 +496,7 @@ export class UCMemberExpression extends UCExpression {
 }
 
 // Resolves the member for predefined specifiers such as (self, default, static, and global)
-export class UCPredefinedMember extends UCMemberExpression {
+export class UCPredefinedAccessExpression extends UCMemberExpression {
 	index(document: UCDocument, _context: UCStructSymbol) {
 		this.symbolRef.setReference(
 			document.class,
@@ -504,7 +506,7 @@ export class UCPredefinedMember extends UCMemberExpression {
 }
 
 // Resolves the context for predefined specifiers such as (default, static, and const).
-export class UCPredefinedContextMember extends UCMemberExpression {
+export class UCPredefinedPropertyAccessExpression extends UCMemberExpression {
 	index(document: UCDocument, context: UCStructSymbol) {
 		this.symbolRef.setReference(
 			context instanceof UCClassSymbol
@@ -602,7 +604,7 @@ export class UCRngLiteral extends UCStructLiteral {
 	}
 }
 
-export class UCGenericClassCast extends UCParenthesizedExpression {
+export class UCMetaClassExpression extends UCParenthesizedExpression {
 	public classRef: UCTypeSymbol;
 
 	getMemberSymbol(): ISymbol {

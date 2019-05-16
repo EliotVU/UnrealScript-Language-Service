@@ -705,7 +705,8 @@ functionDecl:
 functionBody:
 	OPEN_BRACE
 		(constDecl | localDecl)*
-		statement*
+		// TODO: handle constDecl within statement, but this raises an issue with declaring the const symbol from within a statementVisitor.
+		(constDecl | statement)*
 	CLOSE_BRACE;
 
 nativeToken: (OPEN_PARENS INTEGER CLOSE_PARENS);
@@ -740,6 +741,7 @@ functionName: identifier | operator;
 parameters: paramDecl (COMMA paramDecl)*;
 
 paramDecl:
+	// TODO: primaryExpression?
 	paramModifier* typeDecl variable (ASSIGNMENT expression)?;
 
 // TODO: are multiple returnModifiers a thing?
@@ -748,41 +750,6 @@ returnTypeModifier
 	;
 
 returnType: typeDecl;
-
-operator
-	:
-	(
-		DOLLAR
-		| AT
-		| SHARP
-		| ASSIGNMENT
-		| BANG
-		| AMP
-		| BITWISE_OR
-		| CARET
-		| STAR
-		| MINUS
-		| PLUS
-		| DIV
-		| PERCENT
-		| TILDE
-		| LT
-		| GT
-	)
-	(
-		ASSIGNMENT
-		| AMP
-		| BITWISE_OR
-		| CARET
-		| STAR
-		| MINUS
-		| PLUS
-		| DIV
-		| LT
-		| GT
-	)?
-	GT?
-	;
 
 paramModifier
 	: kwOUT
@@ -834,8 +801,7 @@ statement
 	| labeledStatement
 
 	// We must check for expressions after ALL statements so that we don't end up capturing statement keywords as identifiers.
-	| (assignmentExpression SEMICOLON)
-	| (expression SEMICOLON) // TODO: Maybe replace with unaryExpression?
+	| expression SEMICOLON
 	;
 
 ifStatement:
@@ -865,13 +831,20 @@ switchStatement:
 	kwSWITCH (OPEN_PARENS expression CLOSE_PARENS)
 	// Switch braces are NOT optional
 	OPEN_BRACE
-		switchCase*
+		caseClause*
+		defaultClause?
 	CLOSE_BRACE;
 
-switchCase:
-	((kwCASE expression?) | kwDEFAULT) COLON
+// TODO: constDecl?
+caseClause
+	: kwCASE expression? COLON
 		statement*
-		breakStatement?
+	;
+
+// TODO: constDecl?
+defaultClause
+	: kwDEFAULT COLON
+		statement*
 	;
 
 returnStatement: kwRETURN expression?;
@@ -882,37 +855,116 @@ labeledStatement: identifier COLON;
 gotoStatement: kwGOTO (identifier | expression);
 assertStatement: kwASSERT (OPEN_PARENS expression CLOSE_PARENS);
 
-assignmentOperator: /* '+=' | '-=' | '/=' | '*=' | '|=' | '&=' | '$=' | '@=' | */ ASSIGNMENT;
-assignmentExpression: primaryExpression assignmentOperator expression;
+assignmentOperator
+	: ASSIGNMENT
+	| ASSIGNMENT_INCR
+	| ASSIGNMENT_DECR
+	| ASSIGNMENT_AT
+	| ASSIGNMENT_DOLLAR
+	| ASSIGNMENT_AND
+	| ASSIGNMENT_OR
+	| ASSIGNMENT_STAR
+	| ASSIGNMENT_CARET
+	| ASSIGNMENT_DIV
+	;
+
+unaryOperator
+	: SHARP
+	| BANG
+	| AMP
+	| MINUS
+	| PLUS
+	| PERCENT
+	| TILDE
+	| SHARP
+	| DOLLAR
+	| AT
+	| DECR
+	| INCR
+	;
+
+operator
+	: DOLLAR
+	| AT
+	| SHARP
+	| BANG
+	| AMP
+	| BITWISE_OR
+	| CARET
+	| STAR
+	| MINUS
+	| PLUS
+	| DIV
+	| PERCENT
+	| INCR
+	| DECR
+	| TILDE
+	| EXP
+	| LSHIFT
+	| SHIFT
+	| LT
+	// FIXME:??? We don't want to capture << and >> so that our parser cannot fail at trailing arrows array<class<Object>>
+	| (GT GT | GT)
+	| GT
+	| OR
+	| AND
+	| EQ
+	| NEQ
+	| GEQ
+	| LEQ
+	| IEQ
+	| MEQ
+	| ASSIGNMENT_INCR
+	| ASSIGNMENT_DECR
+	| ASSIGNMENT_AT
+	| ASSIGNMENT_DOLLAR
+	| ASSIGNMENT_AND
+	| ASSIGNMENT_OR
+	| ASSIGNMENT_STAR
+	| ASSIGNMENT_CARET
+	| ASSIGNMENT_DIV
+	;
 
 expression
-	: expression functionName expression #binaryOperator
-	| unaryExpression #unaryOperator
+	: assignmentExpression
+	| binaryExpression
+	| conditionalExpression
+	| unaryExpression
+	;
+
+assignmentExpression
+	: primaryExpression assignmentOperator expression
+	;
+
+conditionalExpression
+	: unaryExpression INTERR expression COLON expression
+	;
+
+binaryExpression
+	: unaryExpression functionName expression
 	;
 
 unaryExpression
-	: primaryExpression #primaryOperator
-	| unaryExpression INTERR expression COLON expression #ternaryOperator
-	| primaryExpression operator #postOperator
-	| operator primaryExpression #preOperator
+	: primaryExpression
+	| primaryExpression unaryOperator
+	| unaryOperator primaryExpression
 	;
-
-// FIXME: might be more restricted, but at least "default.class" is valid code.
-classArgument: primaryExpression; // Inclusive template argument (will be parsed as a function call)
 
 primaryExpression
 	: literal 																						#literalExpression
-	| kwCLASS (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)								#genericClassCasting
-	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? classArgument 									#newExpression
+	| (OPEN_PARENS expression CLOSE_PARENS) 														#parenthesizedExpression
+	| kwCLASS (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)								#metaClassExpression
+	// FIXME: might be more restricted, but at least "default.class" is valid code.
+	// Inclusive template argument (will be parsed as a function call)
+	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? primaryExpression 								#newExpression
 	| 'arraycount' (OPEN_PARENS primaryExpression CLOSE_PARENS)										#arrayCountExpression
 	| 'super' (OPEN_PARENS identifier CLOSE_PARENS)?												#superExpression
 	| (kwDEFAULT | 'self' | 'global' | kwSTATIC) 													#specifierExpression
 	// Note any keyword must preceed identifier!
 	| identifier 																					#memberExpression
-	| (OPEN_PARENS expression CLOSE_PARENS) 														#parenthesisExpression
-	| primaryExpression DOT (classLiteralSpecifier | identifier)									#contextExpression
-	| primaryExpression (OPEN_PARENS arguments CLOSE_PARENS) 										#argumentedExpression
-	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 									#indexExpression
+	| primaryExpression DOT (classLiteralSpecifier | identifier)									#propertyAccessExpression
+	| primaryExpression (OPEN_PARENS arguments CLOSE_PARENS) 										#callExpression
+	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 									#elementAccessExpression
 	;
 
 classLiteralSpecifier

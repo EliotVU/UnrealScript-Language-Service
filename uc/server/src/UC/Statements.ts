@@ -192,7 +192,7 @@ export class UCSwitchStatement extends UCThenStatement {
 
 }
 
-export class UCSwitchCase extends UCThenStatement {
+export class UCCaseClause extends UCThenStatement {
 	public break?: IStatement;
 
 	getContainedSymbolAtPos(position: Position): UCSymbol {
@@ -219,6 +219,10 @@ export class UCSwitchCase extends UCThenStatement {
 			this.break.analyze(document, context);
 		}
 	}
+}
+
+export class UCDefaultClause extends UCCaseClause {
+
 }
 
 export class UCForStatement extends UCThenStatement {
@@ -283,5 +287,5 @@ export class UCReturnStatement extends UCExpressionStatement {
 }
 
 export class UCGotoStatement extends UCExpressionStatement {
-
+	label?: string;
 }

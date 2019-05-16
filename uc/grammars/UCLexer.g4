@@ -10,7 +10,7 @@ fragment ESC_SEQ:
 LINE_COMMENT: '//' ~[\r\n]* -> channel(HIDDEN);
 BLOCK_COMMENT: '/*' .*? '*/' -> channel(HIDDEN);
 
-DIRECTIVE: '#' ('exec'|'include'|'error'|'call'|'linenumber') .*? ~[\r\n]+ -> channel(HIDDEN);
+DIRECTIVE: '#' ID .*? ~[\r\n]+ -> channel(HIDDEN);
 // PP_TICK: '`' ~[\n] -> channel(HIDDEN);
 
 WS: [ \t\r\n\u000C]+ -> skip;
@@ -30,18 +30,17 @@ CLOSE_BRACE: '}';
 OPEN_BRACKET: '[';
 CLOSE_BRACKET: ']';
 
-LT: '<';
-GT: '>';
-
-ASSIGNMENT: '=';
-COLON: ':';
-SHARP: '#';
-INTERR: '?';
 SEMICOLON: ';';
 COMMA: ',';
+
+COLON: ':';
+INTERR: '?';
+
 SQUOT: '\'';
-MINUS: '-';
+
+SHARP: '#';
 PLUS: '+';
+MINUS: '-';
 DOT: '.';
 AT: '@';
 DOLLAR: '$';
@@ -53,6 +52,34 @@ CARET: '^';
 DIV: '/';
 PERCENT: '%';
 TILDE: '~';
+
+LT: '<';
+GT: '>';
+OR: '||';
+AND: '&&';
+EQ: '==';
+NEQ: '!=';
+GEQ: '>=';
+LEQ: '<=';
+IEQ: '~=';
+MEQ: '^^';
+
+INCR: '++';
+DECR: '--';
+EXP: '**';
+LSHIFT: '<<';
+SHIFT: '>>>';
+
+ASSIGNMENT: '=';
+ASSIGNMENT_INCR: '+=';
+ASSIGNMENT_DECR: '-=';
+ASSIGNMENT_AT: '@=';
+ASSIGNMENT_DOLLAR: '$=';
+ASSIGNMENT_AND: '&=';
+ASSIGNMENT_OR: '|=';
+ASSIGNMENT_STAR: '*=';
+ASSIGNMENT_CARET: '^=';
+ASSIGNMENT_DIV: '/=';
 
 INTEGER: (DIGIT 'x' HEX_DIGIT+) | (DIGIT+ ('f'| 'F')*);
 
