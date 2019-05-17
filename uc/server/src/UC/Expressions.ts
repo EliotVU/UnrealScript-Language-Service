@@ -355,15 +355,15 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 			if (letSymbol instanceof UCPropertySymbol) {
 				// Properties with a defined array dimension cannot be assigned!
 				if (letSymbol.arrayDim) {
-					document.nodes.push(new SemanticErrorNode(this.operator, "Can't assign static arrays!"));
+					document.nodes.push(new SemanticErrorNode(letSymbol, "Cannot assign to a static array variable."));
 				}
 
 				if (letSymbol.isConst()) {
-					document.nodes.push(new SemanticErrorNode(this.operator, "Can't assign const Variables!"));
+					document.nodes.push(new SemanticErrorNode(letSymbol, "Cannot assign to a constant variable."));
 				}
 			} else {
 				// TODO: handle case for dynamic arrays
-				// document.nodes.push(new SemanticErrorNode(this.operator, "Can only assign Variables!"));
+				// document.nodes.push(new SemanticErrorNode(letSymbol, "Cannot be assigned to, because it is not a variable."));
 			}
 		}
 	}
