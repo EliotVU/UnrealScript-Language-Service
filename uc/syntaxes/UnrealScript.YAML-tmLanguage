@@ -10,7 +10,6 @@ foldingStopMarker: ^\s*\}
 
 patterns:
   - include: '#comment'
-  - include: '#directive'
   - include: '#declarations'
 
 repository:
@@ -30,12 +29,17 @@ repository:
         end: \n
 
   directive:
-    name: string.quoted.single.uc
-    begin: (?=(^\#([_[:alpha:]][_[:alnum:]]*)))
+    name: meta.preprocessor.uc
+    begin: ^\s*(\#)\s*\b((?i)[_[:alpha:]][_[:alnum:]]*)\b
     beginCaptures:
+      '1':
+        name: punctuation.separator.hash.uc
       '2':
-        name: keyword.other.uc
-    end: (?<=\n)
+        name: keyword.preprocessor.other.uc
+    patterns:
+      - include: '#comment'
+      - include: '#expression' #technically incorrect, but this is nice to have.
+    end: (?<=$)
 
   string:
     patterns:
@@ -163,6 +167,7 @@ repository:
       - include: '#state-modifier'
       - include: '#state-declaration'
       - include: '#defaultproperties'
+      - include: '#directive'
 
   type-declarations:
     patterns:
@@ -410,6 +415,7 @@ repository:
           - include: '#type-declarations'
           - include: '#structdefaultproperties'
           - include: '#structcppblock'
+          - include: '#directive'
         end: \}
         endCaptures:
           '0':
@@ -480,7 +486,6 @@ repository:
             name: punctuation.curlybrace.open.uc
         patterns:
           - include: '#local-declaration'
-          - include: '#const-declaration'
           - include: '#statement'
         end: \}
         endCaptures:
@@ -535,30 +540,25 @@ repository:
             name: punctuation.curlybrace.open.uc
         patterns:
           - include: '#comment'
+          - include: '#const-declaration'
           - include: '#local-declaration'
-          - include: '#state-body'
+          # TODO: Must be invalid within a labeled-block
+          - begin: (\b((?i)ignores)\b)
+            beginCaptures:
+              '1':
+                name: keyword.other.ignores.uc
+            patterns:
+              - match: ([_[:alpha:]][_[:alnum:]]*)
+                name: entity.name.function.uc
+            end: (?<=\;)
+          - include: '#method-modifier'
+          - include: '#method-declaration'
+          - include: '#statement'
         end: \}
         endCaptures:
           '0':
             name: punctuation.curlybrace.close.uc
     end: (?<=\}|\;)
-
-  state-body:
-    patterns:
-      # TODO: Must be invalid within a labeled-block
-      - include: '#const-declaration'
-      - begin: (\b((?i)ignores)\b)
-        beginCaptures:
-          '1':
-            name: keyword.other.ignores.uc
-        patterns:
-          - match: ([_[:alpha:]][_[:alnum:]]*)
-            name: entity.name.function.uc
-        end: (?<=\;)
-
-      - include: '#method-modifier'
-      - include: '#method-declaration'
-      - include: '#statement'
 
   cppblock:
     begin: \b((?i)cpptext)\n
@@ -642,6 +642,8 @@ repository:
     patterns:
       - include: '#comment'
 
+      - include: '#const-declaration'
+
       - match: (([_[:alpha:]][_[:alnum:]]*)\s*(\:))
         captures:
           '1':
@@ -656,6 +658,7 @@ repository:
         match: \b((?i)return|continue|break|stop|goto)\b
 
       - include: '#expression'
+      - include: '#directive'
 
   expression:
     patterns:
@@ -808,7 +811,6 @@ repository:
           '0':
             name: punctuation.curlybrace.open.uc
         patterns:
-          - include: '#const-declaration'
           - include: '#statement'
         end: \}
         endCaptures:

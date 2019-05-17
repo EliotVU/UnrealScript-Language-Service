@@ -344,27 +344,47 @@ identifier
 // Class / Field
 qualifiedIdentifier: identifier (DOT identifier)*;
 
-program:
-	defaultpropertiesBlock | classDecl
+directive
+	: SHARP identifier
+	{
+		(() => {
+			if (!this.currentToken) {
+				return true;
+			}
 
+			const initialLine = this.currentToken.line;
+			while (this.currentToken.line === initialLine) {
+				this.consume();
+				if (!this.currentToken) {
+					return true;
+				}
+			}
+			return this.currentToken.line !== initialLine;
+		})()
+	}?
+	;
+
+program
+	: defaultpropertiesBlock
+	| classDecl
 	(
 		constDecl
-		| (enumDecl SEMICOLON?)
-		| structDecl
+		| (enumDecl SEMICOLON)
+		| (structDecl SEMICOLON)
 		| varDecl
 		| replicationBlock
 		| defaultpropertiesBlock
 		| cppText
+		| directive
 	)*
-
 	(
 		constDecl
 		| functionDecl
 		| stateDecl
 		| replicationBlock
 		| defaultpropertiesBlock
+		| directive
 	)*
-
 	EOF
 ;
 
@@ -384,7 +404,10 @@ literal
 numberLiteral: (MINUS | PLUS)? (FLOAT | INTEGER);
 stringLiteral: STRING;
 nameLiteral: NAME;
-booleanLiteral: kwTRUE | kwFALSE;
+booleanLiteral
+	: kwTRUE
+	| kwFALSE
+	;
 noneLiteral: kwNONE;
 
 // e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
@@ -514,14 +537,15 @@ structDecl
 		OPEN_BRACE
 		(
 			constDecl
-			| (enumDecl SEMICOLON?)
-			| structDecl
+			| (enumDecl SEMICOLON)
+			| (structDecl SEMICOLON)
 			| varDecl
 			// Unfortunately these can appear in any order.
 			| structCppText
 			| defaultpropertiesBlock
+			| directive
 		)*
-		CLOSE_BRACE SEMICOLON?
+		CLOSE_BRACE
 	;
 
 structModifier
@@ -694,7 +718,9 @@ functionDecl:
 	// Found in UT2004/GameProfile.uc, any function modifier can be written post functionKind, this is applied to the function during compilation.
 	functionModifier*
 	// We have to identify LPARENT in each, - to prevent a false positive 'operatorName'
-	((returnTypeModifier? returnType functionName OPEN_PARENS)? | functionName OPEN_PARENS) parameters? CLOSE_PARENS kwCONST? (SEMICOLON | (
+	((returnTypeModifier? returnType functionName OPEN_PARENS)? | functionName OPEN_PARENS) parameters? CLOSE_PARENS kwCONST?
+	// FIXME: Pass trailing semicolon in program
+	(SEMICOLON | (
 		functionBody
 		SEMICOLON?
 	));
@@ -767,17 +793,22 @@ localDecl:
 
 ignoresList: identifier (COMMA identifier)*;
 
-stateDecl: stateModifier* kwSTATE (OPEN_PARENS CLOSE_PARENS)? identifier
+stateDecl
+	: stateModifier* kwSTATE (OPEN_PARENS CLOSE_PARENS)? identifier
 		extendsClause?
 		OPEN_BRACE
-			(constDecl | localDecl)*
-			((kwIGNORES ignoresList SEMICOLON) | constDecl | functionDecl)*
+			((kwIGNORES ignoresList SEMICOLON) | constDecl | localDecl | functionDecl | directive)*
 			(labeledStatement statement*)*
-		CLOSE_BRACE SEMICOLON?;
+		CLOSE_BRACE
+		SEMICOLON? // FIXME: Only valid in UC3, but technically considered as an emptyDeclaration.
+	;
 
 stateModifier: kwAUTO | kwSIMULATED;
 
-codeBlockOptional: (OPEN_BRACE (constDecl | statement)* CLOSE_BRACE) | (constDecl | statement)?;
+codeBlockOptional
+	: (OPEN_BRACE (constDecl | statement)* CLOSE_BRACE)
+	| (constDecl | statement)?
+	;
 
 statement
 	: SEMICOLON
@@ -802,6 +833,7 @@ statement
 
 	// We must check for expressions after ALL statements so that we don't end up capturing statement keywords as identifiers.
 	| expression SEMICOLON
+	| directive
 	;
 
 ifStatement:
