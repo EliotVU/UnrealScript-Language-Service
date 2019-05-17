@@ -259,7 +259,7 @@ export class UCForStatement extends UCThenStatement {
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
-		if (this.init) this.init.index(document, context);
+		if (this.init) this.init.analyze(document, context);
 		if (this.next) this.next.analyze(document, context);
 	}
 }
