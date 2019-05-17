@@ -90,10 +90,10 @@ export function getDocumentById(qualifiedId: string): UCDocument {
 	return document;
 }
 
-export function indexDocument(document: UCDocument) {
+export function indexDocument(document: UCDocument, text?: string) {
 	try {
 		document.invalidate();
-		document.parse();
+		document.parse(text);
 
 		// send diagnostics before linking begins so that we can report syntax errors foremostly.
 		const diagnostics = document.getNodes();
@@ -102,9 +102,13 @@ export function indexDocument(document: UCDocument) {
 			diagnostics
 		});
 
-		document.link();
+		if (document.class) {
+			document.link();
+		} else {
+			console.warn("Indexed a document with no class!", document.uri);
+		}
 	} catch (err) {
-		console.error(err);
+		console.error(`An error occurred during the indexation of document ${document.uri}`, err);
 		return undefined;
 	}
 }
@@ -116,18 +120,30 @@ export function getUriById(qualifiedClassId: string): string | undefined {
 	return filePath ? URI.file(filePath).toString() : undefined;
 }
 
-// TODO: invalidate!
 const IndexedReferences = new Map<string, Set<ISymbolReference>>();
 
 export function addIndexedReference(qualifiedId: string, ref: ISymbolReference) {
-	const refs = getIndexedReferences(qualifiedId);
-	refs.add(ref);
+	const indexedRefs = getIndexedReferences(qualifiedId);
+	indexedRefs.add(ref);
 
-	IndexedReferences.set(qualifiedId, refs);
+	IndexedReferences.set(qualifiedId, indexedRefs);
 }
 
 export function getIndexedReferences(qualifiedId: string): Set<ISymbolReference> {
 	return IndexedReferences.get(qualifiedId) || new Set<ISymbolReference>();
+}
+
+export function unsetIndexedReferences(qualifiedId: string, refs: Set<ISymbolReference>) {
+	const indexedRefs = IndexedReferences.get(qualifiedId);
+	if (!indexedRefs) {
+		return;
+	}
+
+	refs.forEach(ref => indexedRefs.delete(ref));
+
+	if (indexedRefs.size === 0) {
+		IndexedReferences.delete(qualifiedId);
+	}
 }
 
 const EnumMemberMap = new Map<string, UCEnumMemberSymbol>();
@@ -143,12 +159,13 @@ export function setEnumMember(enumMember: UCEnumMemberSymbol) {
 export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {
 	public name: string;
 
-	public class?: UCClassSymbol;
-	private context?: UCStructSymbol[]; // FIXME: Type
-
 	public nodes: IDiagnosticNode[] = [];
-
 	public tokenStream: CommonTokenStream;
+
+	public class?: UCClassSymbol;
+	public indexReferencesMade = new Map<string, Set<ISymbolReference>>();
+
+	private context?: UCStructSymbol[]; // FIXME: Type
 
 	constructor(public classPackage: UCPackage, public readonly uri: string) {
 		this.name = path.basename(uri, '.uc');
@@ -214,6 +231,24 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	invalidate() {
 		delete this.class;
 		this.nodes = []; // clear
+
+		// Clear all the indexed references that we have made.
+		for (let [key, value] of this.indexReferencesMade) {
+			unsetIndexedReferences(key, value);
+		}
+
+		this.indexReferencesMade.clear();
+	}
+
+	analyze(): Diagnostic[] {
+		if (!this.class) {
+			return undefined;
+		}
+
+		const start = performance.now();
+		this.class!.analyze(this, this.class);
+		connection.console.log(this.name + ': analyzing time ' + (performance.now() - start));
+		return this.getNodes();
 	}
 
 	getNodes() {
@@ -227,13 +262,6 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 					'unrealscript'
 				);
 			});
-	}
-
-	analyze(): Diagnostic[] {
-		const start = performance.now();
-		this.class!.analyze(this, this.class);
-		connection.console.log(this.name + ': analyzing time ' + (performance.now() - start));
-		return this.getNodes();
 	}
 
 	getSymbolAtPos(position: Position): ISymbol {
@@ -593,7 +621,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 				const propSymbol = new UCLocalSymbol(
 					propIdNode.text, rangeFromBound(propIdNode.start),
-					// Stop at varCtx instead of localCtx for mulitiple variable declarations.
+					// Stop at varCtx instead of localCtx for multiple variable declarations.
 					rangeFromBounds(localNode.start, variableNode.stop)
 				);
 				propSymbol.type = typeSymbol;

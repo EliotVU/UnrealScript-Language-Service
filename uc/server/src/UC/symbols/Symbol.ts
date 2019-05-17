@@ -113,8 +113,16 @@ export abstract class UCSymbol implements ISymbol {
 	index(_document: UCDocument, _context: UCStructSymbol) {};
 	analyze(_document: UCDocument, _context: UCStructSymbol) {};
 
-	indexReference(ref: ISymbolReference) {
-		addIndexedReference(this.getQualifiedName(), ref);
+	indexReference(document: UCDocument, ref: ISymbolReference) {
+		const qualifiedId = this.getQualifiedName();
+
+		const refs = document.indexReferencesMade.get(qualifiedId) || new Set<ISymbolReference>();
+		refs.add(ref);
+
+		document.indexReferencesMade.set(qualifiedId, refs);
+
+		// TODO: Refactor this, we are pretty much duplicating this function's job.
+		addIndexedReference(qualifiedId, ref);
 	}
 
 	getUri(): string | undefined {

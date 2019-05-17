@@ -98,9 +98,7 @@ ClassNameToFilePathMap$
 		let document = getDocumentByUri(textDocument.uri);
 		try {
 			if (isDirty || !document.class) {
-				document.invalidate();
-				document.parse(textDocument.getText());
-				document.link();
+				indexDocument(document, textDocument.getText());
 
 				const diagnostics = document.analyze();
 				connection.sendDiagnostics({
