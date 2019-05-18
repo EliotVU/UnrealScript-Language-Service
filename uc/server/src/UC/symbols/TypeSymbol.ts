@@ -51,7 +51,7 @@ export class UCTypeSymbol extends UCSymbolReference {
 				break;
 
 			default:
-				const id = this.getName().toLowerCase();
+				const id = this.getId();
 				// Quick shortcut for the most common types or top level symbols.
 				let symbol = CORE_PACKAGE.findSymbol(id, false);
 				if (!symbol) {
@@ -82,7 +82,7 @@ export class UCTypeSymbol extends UCSymbolReference {
 	}
 
 	private linkToClass(document: UCDocument) {
-		const qualifiedClassId = this.getName().toLowerCase();
+		const qualifiedClassId = this.getId();
 		const symbol = SymbolsTable.findSymbol(qualifiedClassId, true);
 		if (symbol) {
 			this.setReference(symbol, document);

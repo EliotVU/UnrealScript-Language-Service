@@ -6,17 +6,22 @@ import { SymbolVisitor } from '../SymbolVisitor';
 import { UCBlock } from '../Statements';
 
 import { ISymbolContainer } from './ISymbolContainer';
-import { ISymbol, UCEnumSymbol, UCFieldSymbol, UCScriptStructSymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol, UCStateSymbol, UCReplicationBlock } from ".";
+import { ISymbol, UCFieldSymbol, UCPropertySymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol, UCStateSymbol } from ".";
 
 export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: UCTypeSymbol;
 	public super?: UCStructSymbol;
 	public children?: UCFieldSymbol;
-
-	public types?: Map<string, UCFieldSymbol>;
-
 	public block?: UCBlock;
 
+	/**
+	 * Types that are declared within this struct's body.
+	 */
+	public declaredTypes?: Map<string, UCFieldSymbol>;
+
+	/**
+	 * A cache of types that have been resolved for this scope.
+	 */
 	private cachedTypeResolves = new Map<string, UCSymbol>();
 
 	getKind(): SymbolKind {
@@ -93,11 +98,11 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 		symbol.containingStruct = this;
 		this.children = symbol;
 
-		if (symbol instanceof UCScriptStructSymbol || symbol instanceof UCEnumSymbol) {
-			if (!this.types) {
-				this.types = new Map();
+		if (symbol.isType()) {
+			if (!this.declaredTypes) {
+				this.declaredTypes = new Map();
 			}
-			this.types.set(symbol.getName().toLowerCase(), symbol);
+			this.declaredTypes.set(symbol.getId(), symbol);
 		}
 	}
 
@@ -107,7 +112,7 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 
 	findSymbol(id: string): UCSymbol {
 		for (let child = this.children; child; child = child.next) {
-			const name = child.getName().toLowerCase();
+			const name = child.getId();
 			if (name === id) {
 				return child;
 			}
@@ -116,7 +121,7 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 	}
 
 	findSuperSymbol(id: string): UCSymbol {
-		if (id === this.getName().toLowerCase()) {
+		if (id === this.getId()) {
 			return this;
 		}
 
@@ -141,18 +146,18 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 		return undefined;
 	}
 
-	findTypeSymbol(qualifiedId: string, deepSearch: boolean): UCSymbol {
-		let symbol = this.cachedTypeResolves.get(qualifiedId);
+	findTypeSymbol(id: string, deepSearch: boolean): UCSymbol {
+		let symbol = this.cachedTypeResolves.get(id);
 		if (symbol) {
 			return symbol;
 		}
 
-		if (qualifiedId === this.getName().toLowerCase()) {
+		if (id === this.getId()) {
 			return this;
 		}
 
-		if (this.types) {
-			symbol = this.types.get(qualifiedId);
+		if (this.declaredTypes) {
+			symbol = this.declaredTypes.get(id);
 			if (symbol) {
 				return symbol;
 			}
@@ -160,14 +165,14 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 
 		if (deepSearch) {
 			if (this.super) {
-				symbol = this.super.findTypeSymbol(qualifiedId, deepSearch);
+				symbol = this.super.findTypeSymbol(id, deepSearch);
 			} else if (this.outer && this.outer instanceof UCStructSymbol) {
-				symbol = this.outer.findTypeSymbol(qualifiedId, deepSearch);
+				symbol = this.outer.findTypeSymbol(id, deepSearch);
 			}
 		}
 
 		if (symbol) {
-			this.cachedTypeResolves.set(qualifiedId, symbol);
+			this.cachedTypeResolves.set(id, symbol);
 		}
 		return symbol;
 	}
@@ -183,30 +188,33 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 
 		// FIXME: Optimize. We have to index types before anything else but properties ALSO have to be indexed before any method can be indexed properly!
 		// FIXME: ReplicationBlock is also indexed before property types are linked!
-		// FIXME: EnumMembers are sometimes not found, issue in findSymbol?
 		if (this.children) {
-			// Link types before any child so that a child that referes one of our types can be linked properly!
-			if (this.types) {
-				for (let type of this.types.values()) {
+			// Link types before any child so that a child that referrers one of our types can be linked properly!
+			if (this.declaredTypes) {
+				for (let type of this.declaredTypes.values()) {
 					type.index(document, this);
 				}
 			}
 
+			// Index all properties foremost as we need their resolved types.
 			for (let child = this.children; child; child = child.next) {
-				if (child instanceof UCScriptStructSymbol
-					|| child instanceof UCEnumSymbol
-					|| child instanceof UCMethodSymbol
-					|| child instanceof UCReplicationBlock) {
+				if (child instanceof UCPropertySymbol) {
+					child.index(document, this);
+				}
+			}
+
+			for (let child = this.children; child; child = child.next) {
+				if (child instanceof UCMethodSymbol) {
+					child.index(document, this);
+				}
+			}
+
+			for (let child = this.children; child; child = child.next) {
+				if (child.isType()) {
 					continue;
 				}
 
 				child.index(document, this);
-			}
-
-			for (let child = this.children; child; child = child.next) {
-				if (child instanceof UCMethodSymbol || child instanceof UCReplicationBlock) {
-					child.index(document, this);
-				}
 			}
 		}
 

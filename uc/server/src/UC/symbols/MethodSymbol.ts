@@ -9,7 +9,7 @@ import { ISymbol, IWithReference } from './ISymbol';
 
 export class UCMethodSymbol extends UCStructSymbol {
 	public returnType?: UCTypeSymbol;
-	public overridenMethod?: UCMethodSymbol;
+	public overriddenMethod?: UCMethodSymbol;
 	public params?: UCParamSymbol[];
 
 	// TODO: reflect parsed modifier.
@@ -48,8 +48,8 @@ export class UCMethodSymbol extends UCStructSymbol {
 			return doc;
 		}
 
-		if (this.overridenMethod) {
-			return this.overridenMethod.getDocumentation(undefined);
+		if (this.overriddenMethod) {
+			return this.overriddenMethod.getDocumentation(undefined);
 		}
 	}
 
@@ -76,14 +76,14 @@ export class UCMethodSymbol extends UCStructSymbol {
 		}
 
 		if (context.super) {
-			const method = context.super.findSuperSymbol(this.getName().toLowerCase()) as UCMethodSymbol;
+			const method = context.super.findSuperSymbol(this.getId()) as UCMethodSymbol;
 			if (method) {
 				method.indexReference(document, {
 					location: Location.create(document.uri, this.getNameRange()),
 					symbol: this
 				});
 			}
-			this.overridenMethod = method;
+			this.overriddenMethod = method;
 		}
 	}
 
@@ -93,7 +93,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 			this.returnType.analyze(document, context);
 		}
 
-		if (this.overridenMethod) {
+		if (this.overriddenMethod) {
 			// TODO: check difference
 		}
 	}
@@ -103,7 +103,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getTypeTooltip(): string {
-		return this.overridenMethod && '(override)';
+		return this.overriddenMethod && '(override)';
 	}
 
 	getKindText(): string {

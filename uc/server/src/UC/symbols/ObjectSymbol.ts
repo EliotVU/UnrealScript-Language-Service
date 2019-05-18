@@ -33,7 +33,7 @@ export class UCObjectSymbol extends UCStructSymbol {
 	index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
 		for (let ref of this.symbolRefs.values()) {
-			const symbol = context.findSuperSymbol(ref.getName().toLowerCase());
+			const symbol = context.findSuperSymbol(ref.getId());
 			if (!symbol) {
 				continue;
 			}

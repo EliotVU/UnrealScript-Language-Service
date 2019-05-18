@@ -57,6 +57,10 @@ export abstract class UCSymbol implements ISymbol {
 		return NO_NAME;
 	}
 
+	getId(): string {
+		return this.getName().toLowerCase();
+	}
+
 	getQualifiedName(): string {
 		if (this.outer) {
 			return this.outer.getQualifiedName() + '.' + this.getName();

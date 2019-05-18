@@ -58,7 +58,7 @@ export class UCReplicationBlock extends UCFieldSymbol {
 	index(document: UCDocument, context: UCStructSymbol) {
 		this.block && this.block.index(document, context);
 		for (let ref of this.symbolRefs.values()) {
-			const symbol = context.findSuperSymbol(ref.getName().toLowerCase());
+			const symbol = context.findSuperSymbol(ref.getId());
 			if (!symbol) {
 				continue;
 			}

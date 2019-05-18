@@ -285,7 +285,7 @@ export class UCUnaryExpression extends UCExpression {
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		this.operator.setReference(context.findSuperSymbol(this.operator.getName().toLowerCase()), document);
+		this.operator.setReference(context.findSuperSymbol(this.operator.getId()), document);
 		if (this.expression) this.expression.index(document, context);
 	}
 
@@ -327,7 +327,7 @@ export class UCBinaryExpression extends UCExpression {
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		this.operator.setReference(context.findSuperSymbol(this.operator.getName().toLowerCase()), document);
+		this.operator.setReference(context.findSuperSymbol(this.operator.getId()), document);
 
 		if (this.left) this.left.index(document, context);
 		if (this.right) this.right.index(document, context);
@@ -341,9 +341,11 @@ export class UCBinaryExpression extends UCExpression {
 
 export class UCAssignmentExpression extends UCBinaryExpression {
 	index(document: UCDocument, context: UCStructSymbol) {
-		if (this.left) this.left.index(document, context);
-		this.operator.setReference(AssignmentOperator, document);
-		if (this.right) this.right.index(document, context);
+		super.index(document, context);
+
+		if (!this.operator.getReference()) {
+			this.operator.setReference(AssignmentOperator, document);
+		}
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
@@ -401,12 +403,12 @@ export class UCClassLiteral extends UCExpression {
 	}
 
 	index(document: UCDocument, _context: UCStructSymbol) {
-		const castSymbol = SymbolsTable.findSymbol(this.classCastingRef.getName().toLowerCase(), true);
+		const castSymbol = SymbolsTable.findSymbol(this.classCastingRef.getId(), true);
 		if (castSymbol) {
 			this.classCastingRef.setReference(castSymbol, document);
 		}
 
-		const symbol = SymbolsTable.findSymbol(this.objectRef.getName().toLowerCase(), true);
+		const symbol = SymbolsTable.findSymbol(this.objectRef.getId(), true);
 		if (symbol) {
 			this.objectRef.setReference(symbol, document);
 		}
@@ -450,7 +452,7 @@ export class UCMemberExpression extends UCExpression {
 		}
 
 		try {
-			const id = this.symbolRef.getName().toLowerCase();
+			const id = this.symbolRef.getId();
 			// First try to match a class or struct (e.g. a casting).
 			const hasArguments = this.outer instanceof UCCallExpression;
 			if (hasArguments) {
@@ -465,7 +467,7 @@ export class UCMemberExpression extends UCExpression {
 
 			let symbol: ISymbol = context.findSuperSymbol(id);
 			if (!symbol) {
-				// FIXME: only lookup an enumember if the context value is either an enum, byte, or int.
+				// FIXME: only lookup an enumMember if the context value is either an enum, byte, or int.
 				symbol = getEnumMember(id);
 			}
 
@@ -550,10 +552,10 @@ export class UCSuperExpression extends UCExpression {
 }
 
 export class UCNewExpression extends UCCallExpression {
-	// TODO: Implement psuedo new operator for hover info?
+	// TODO: Implement pseudo new operator for hover info?
 }
 
-// Struct literals are hardcode limited to Vector, Rotator, and Range.
+// Struct literals are limited to Vector, Rotator, and Range.
 export abstract class UCStructLiteral extends UCExpression {
 	structType: UCSymbolReference;
 
@@ -571,7 +573,7 @@ export abstract class UCStructLiteral extends UCExpression {
 			return;
 		}
 
-		const symbol = context.findTypeSymbol(this.structType.getName().toLowerCase(), true);
+		const symbol = context.findTypeSymbol(this.structType.getId(), true);
 		this.structType['nameRange'] = this.range; // HACK!
 		symbol && this.structType.setReference(symbol, document);
 	}

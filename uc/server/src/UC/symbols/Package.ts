@@ -9,7 +9,7 @@ import { ISymbol, UCStructSymbol } from ".";
 import { SymbolVisitor } from '../SymbolVisitor';
 
 // Holds class symbols, solely used for traversing symbols in a package.
-export class UCPackage implements ISymbolContainer<ISymbol> {
+export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 	public outer = null;
 
 	protected symbols = new Map<string, ISymbol>();
@@ -21,6 +21,10 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 
 	getName(): string {
 		return this.name;
+	}
+
+	getId(): string {
+		return this.name.toLowerCase();
 	}
 
 	getQualifiedName(): string {
@@ -51,7 +55,7 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 
 	addSymbol(symbol: ISymbol) {
 		symbol.outer = this;
-		this.symbols.set(symbol.getName().toLowerCase(), symbol);
+		this.symbols.set(symbol.getId(), symbol);
 	}
 
 	getSymbol(id: string): ISymbol {
@@ -59,7 +63,7 @@ export class UCPackage implements ISymbolContainer<ISymbol> {
 	}
 
 	/**
-	 * Looks up a symbol by a qualified identifier in the current package or its subpackages.
+	 * Looks up a symbol by a qualified identifier in the current package or its subPackages.
 	 * @param qualifiedId any valid qualified id e.g. Engine.Actor.EDrawType in lowercase.
 	 * @param deepSearch
 	 */

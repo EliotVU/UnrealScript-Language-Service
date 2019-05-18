@@ -65,6 +65,11 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return false;
 	}
 
+	// Returns true if this is a symbol that declares a type like a struct or enum.
+	isType(): boolean {
+		return false;
+	}
+
 	acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
 		// TODO: Does not match the language's behavior yet!
 		if (this.isPrivate()) {

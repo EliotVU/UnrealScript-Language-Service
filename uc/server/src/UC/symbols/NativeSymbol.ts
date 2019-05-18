@@ -15,6 +15,10 @@ export class UCNativeSymbol implements ISymbol {
 		return this.name;
 	}
 
+	getId(): string {
+		return this.getName().toLowerCase();
+	}
+
 	getQualifiedName(): string {
 		return this.outer.getQualifiedName() + '.' + this.getName();
 	}

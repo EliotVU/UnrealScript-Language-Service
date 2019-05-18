@@ -6,6 +6,7 @@ import { SymbolVisitor } from '../SymbolVisitor';
 export interface ISymbol {
 	outer?: ISymbol;
 	getName(): string;
+	getId(): string;
 	getQualifiedName(): string;
 	getKind(): SymbolKind;
 	getTooltip(): string;

@@ -13,6 +13,10 @@ export class UCKeyword implements ISymbol, CompletionItem {
 		return this.label;
 	}
 
+	getId(): string {
+		return this.label;
+	}
+
 	getKind(): SymbolKind {
 		return this.kind;
 	}

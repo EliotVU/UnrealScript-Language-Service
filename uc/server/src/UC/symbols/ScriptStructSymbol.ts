@@ -10,6 +10,10 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return true;
 	}
 
+	isType(): boolean {
+		return true;
+	}
+
 	getKind(): SymbolKind {
 		return SymbolKind.Struct;
 	}
