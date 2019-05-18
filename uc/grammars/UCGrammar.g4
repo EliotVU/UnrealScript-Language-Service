@@ -26,7 +26,8 @@ kwEVENT: 'event';
 kwSTATE: 'state';
 
 kwMAP: 'map';
-kwDEFAULTPROPERTIES: 'defaultproperties' | 'structdefaultproperties';
+kwDEFAULTPROPERTIES: 'defaultproperties';
+kwSTRUCTDEFAULTPROPERTIES: 'structdefaultproperties';
 
 kwFOR: 'for';
 kwFOREACH: 'foreach';
@@ -344,6 +345,7 @@ identifier
 // Class / Field
 qualifiedIdentifier: identifier (DOT identifier)*;
 
+// FIXME: Consumes atleast one token after "#error"
 directive
 	: SHARP identifier
 	{
@@ -365,15 +367,20 @@ directive
 	;
 
 program
-	: defaultpropertiesBlock
-	| classDecl
+	:
+	// Directives and defaultproperties can precede a class declaration in any order.
+	(
+		directive | defaultPropertiesBlock
+	)*
+
+	classDecl
 	(
 		constDecl
 		| (enumDecl SEMICOLON)
 		| (structDecl SEMICOLON)
 		| varDecl
 		| replicationBlock
-		| defaultpropertiesBlock
+		| defaultPropertiesBlock
 		| cppText
 		| directive
 	)*
@@ -382,7 +389,7 @@ program
 		| functionDecl
 		| stateDecl
 		| replicationBlock
-		| defaultpropertiesBlock
+		| defaultPropertiesBlock
 		| directive
 	)*
 	EOF
@@ -542,7 +549,7 @@ structDecl
 			| varDecl
 			// Unfortunately these can appear in any order.
 			| structCppText
-			| defaultpropertiesBlock
+			| structDefaultPropertiesBlock
 			| directive
 		)*
 		CLOSE_BRACE
@@ -1007,9 +1014,18 @@ classLiteralSpecifier
 
 arguments: (COMMA* expression)*;
 
-defaultpropertiesBlock
+defaultPropertiesBlock
 	:
 		kwDEFAULTPROPERTIES
+		// UnrealScriptBug: Must be on the line after keyword!
+		OPEN_BRACE
+			(objectDecl | defaultVariable)*
+		CLOSE_BRACE
+	;
+
+structDefaultPropertiesBlock
+	:
+		kwSTRUCTDEFAULTPROPERTIES
 		// UnrealScriptBug: Must be on the line after keyword!
 		OPEN_BRACE
 			(objectDecl | defaultVariable)*

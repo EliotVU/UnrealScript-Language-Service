@@ -95,7 +95,7 @@ export function indexDocument(document: UCDocument, text?: string) {
 		document.invalidate();
 		document.parse(text);
 
-		// send diagnostics before linking begins so that we can report syntax errors foremostly.
+		// send diagnostics before linking begins so that we can report syntax errors early on
 		const diagnostics = document.getNodes();
 		connection.sendDiagnostics({
 			uri: document.uri,
@@ -153,7 +153,7 @@ export function getEnumMember(enumMember: string): UCEnumMemberSymbol {
 }
 
 export function setEnumMember(enumMember: UCEnumMemberSymbol) {
-	EnumMemberMap.set(enumMember.getName().toLowerCase(), enumMember);
+	EnumMemberMap.set(enumMember.getId(), enumMember);
 }
 
 export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {
@@ -492,7 +492,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			const varIdNode = variableNode.identifier();
 
 			const property = new UCPropertySymbol(varIdNode.start.text, rangeFromBound(varIdNode.start),
-				// Stop at varCtx instead of ctx for mulitiple variable declarations.
+				// Stop at varCtx instead of ctx for multiple variable declarations.
 				rangeFromBounds(ctx.start, variableNode.stop)
 			);
 			property.context = variableNode;
@@ -678,7 +678,19 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.pop();
 	}
 
-	enterDefaultpropertiesBlock(ctx: UCParser.DefaultpropertiesBlockContext) {
+	enterStructDefaultPropertiesBlock(ctx: UCParser.StructDefaultPropertiesBlockContext) {
+		const nameNode = ctx.kwSTRUCTDEFAULTPROPERTIES();
+		const defaultsBlock = new UCDefaultPropertiesBlock(
+			nameNode.text, rangeFromBound(nameNode.start),
+			rangeFromBounds(ctx.start, ctx.stop)
+		);
+		defaultsBlock.context = ctx;
+
+		this.declare(defaultsBlock);
+		this.push(defaultsBlock);
+	}
+
+	enterDefaultPropertiesBlock(ctx: UCParser.DefaultPropertiesBlockContext) {
 		const nameNode = ctx.kwDEFAULTPROPERTIES();
 		const defaultsBlock = new UCDefaultPropertiesBlock(
 			nameNode.text, rangeFromBound(nameNode.start),
@@ -751,7 +763,11 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.pop();
 	}
 
-	exitDefaultpropertiesBlock(ctx: UCParser.DefaultpropertiesBlockContext) {
+	exitStructDefaultPropertiesBlock(ctx: UCParser.StructDefaultPropertiesBlockContext) {
+		this.pop();
+	}
+
+	exitDefaultPropertiesBlock(ctx: UCParser.DefaultPropertiesBlockContext) {
 		this.pop();
 	}
 }
