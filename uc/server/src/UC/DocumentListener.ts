@@ -426,8 +426,13 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	private visitClassType(classTypeNode: UCParser.ClassTypeContext): UCTypeSymbol {
-		const typeNode = classTypeNode.type();
-		return new UCTypeSymbol(typeNode.text,rangeFromBounds(typeNode.start, typeNode.stop), undefined, UCTypeKind.Class);
+		const typeNode = classTypeNode.identifier();
+		if (!typeNode) {
+			// e.g. "var class Class;" with no class delimiter.
+			return undefined;
+		}
+
+		return new UCTypeSymbol(typeNode.text, rangeFromBounds(typeNode.start, typeNode.stop), undefined, UCTypeKind.Class);
 	}
 
 	private visitTypeDecl(typeDeclNode: UCParser.TypeDeclContext): UCTypeSymbol {
@@ -435,7 +440,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		let typeIdRange: Range;
 		let innerTypeSymbol: UCTypeSymbol;
 
-		const typeNode = typeDeclNode.type();
+		const typeNode = typeDeclNode.predefinedType() || typeDeclNode.qualifiedIdentifier();
 		if (typeNode) {
 			typeIdText = typeNode.text;
 			typeIdRange = rangeFromBounds(typeNode.start, typeNode.stop);

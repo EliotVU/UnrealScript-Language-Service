@@ -343,7 +343,7 @@ identifier
 // Package.Class.Field
 // Class.Field
 // Class / Field
-qualifiedIdentifier: identifier (DOT identifier)*;
+qualifiedIdentifier: identifier (DOT qualifiedIdentifier)?;
 
 // FIXME: Consumes atleast one token after "#error"
 directive
@@ -483,7 +483,7 @@ classModifier: identifier modifierArguments?;
 	// ; //ID (LPARENT ID (COMMA ID)* RPARENT)?
 
 modifierValue
-	: qualifiedIdentifier
+	: identifier
 	| numberLiteral
 	;
 modifierArgument: OPEN_PARENS modifierValue CLOSE_PARENS;
@@ -654,11 +654,12 @@ variableModifier
 	;
 
 typeDecl
-	: arrayType
+	: predefinedType
 	| classType
+	| arrayType
 	| delegateType
 	| mapType
-	| type
+	| qualifiedIdentifier
 	;
 
 inlinedDeclTypes
@@ -679,15 +680,10 @@ predefinedType
 	| kwDELEGATE
 	; // This is actually a reference but this is necessary because it's a "reserved" keyword.
 
-type
-	: predefinedType
-	| qualifiedIdentifier
-	;
-
 // Note: inlinedDeclTypes includes another arrayGeneric!
 arrayType: kwARRAY LT inlinedDeclTypes GT;
-classType: kwCLASS LT type GT;
-delegateType: kwDELEGATE LT identifier GT;
+classType: kwCLASS (LT identifier GT)?;
+delegateType: kwDELEGATE LT identifier GT; // TODO: Can a delegate be declared without a delimiter?
 mapType: kwMAP /* nativeMapType */;
 
 cppText
