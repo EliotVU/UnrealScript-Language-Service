@@ -208,14 +208,25 @@ export class UCPropertyAccessExpression extends UCExpression {
 		if (!symbol) {
 			connection.console.log("Couldn't resolve context " + this.left.context.text);
 		}
-		// Resolve properties to its defined type e.g. given property "local array<Vector> Foo;" will be resolved to array or Vector (in an index expression, handled elsewhere).
+
+		// Resolve properties to its defined type
+		// e.g. given property "local array<Vector> Foo;"
+		// -- will be resolved to array or Vector (in an index expression, handled elsewhere).
 		if (symbol instanceof UCPropertySymbol) {
-			// TODO: handle properties of type class<DamageType>.
-			return symbol.type && symbol.type.getReference() as UCStructSymbol;
+			if (symbol.type) {
+				return (symbol.type.baseType
+					? symbol.type.baseType.getReference()
+					: symbol.type.getReference()) as UCStructSymbol;
+			}
+			return undefined;
 		}
 		if (symbol instanceof UCMethodSymbol) {
-			// TODO: handle properties of type class<DamageType>.
-			return symbol.returnType && symbol.returnType.getReference() as UCStructSymbol;
+			if (symbol.returnType) {
+				return (symbol.returnType.baseType
+					? symbol.returnType.baseType.getReference()
+					: symbol.returnType.getReference()) as UCStructSymbol;
+			}
+			return undefined;
 		}
 		return symbol as UCStructSymbol;
 	}
