@@ -121,28 +121,18 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 	}
 
 	findSuperSymbol(id: string): UCSymbol {
-		if (id === this.getId()) {
-			return this;
-		}
-
-		let symbol = this.findSymbol(id);
+		const symbol = this.findSymbol(id) || (this.super && this.super.findSuperSymbol(id));
 		if (symbol) {
 			return symbol;
 		}
 
-		// FIXME: Disable for methods?
-		if (this.super && !(this instanceof UCMethodSymbol)) {
-			symbol = this.super.findSuperSymbol(id);
-			if (symbol) {
-				return symbol;
-			}
+		// We should check for ourselves as LAST
+		// -- e.g. consider that we have a class named Pickup, and within that class we have a state named Pickup,
+		// -- and another state that extends Pickup, then this would return "this" before we get to match the state named "Pickup".
+		if (id === this.getId()) {
+			return this;
 		}
 
-		// Check for symbols in the outer of a function or state.
-		// TODO: Refactor, add a getInheritedContext method to return the proper inherited symbols table.
-		if ((this instanceof UCMethodSymbol || this instanceof UCStateSymbol) && this.outer && this.outer instanceof UCStructSymbol) {
-			return this.outer.findSuperSymbol(id);
-		}
 		return undefined;
 	}
 

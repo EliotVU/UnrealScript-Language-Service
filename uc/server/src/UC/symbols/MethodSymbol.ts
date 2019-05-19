@@ -63,6 +63,11 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return super.getContainedSymbolAtPos(position);
 	}
 
+	findSuperSymbol(id: string): UCSymbol {
+		return this.findSymbol(id)
+			|| (this.outer instanceof UCStructSymbol && this.outer.findSuperSymbol(id));
+	}
+
 	findTypeSymbol(qualifiedId: string, deepSearch: boolean): UCSymbol {
 		// Redirect to outer, because Methods are never supposed to have any type members!
 		return (this.outer as UCStructSymbol).findTypeSymbol(qualifiedId, deepSearch);
@@ -76,14 +81,14 @@ export class UCMethodSymbol extends UCStructSymbol {
 		}
 
 		if (context.super) {
-			const method = context.super.findSuperSymbol(this.getId()) as UCMethodSymbol;
-			if (method) {
-				method.indexReference(document, {
+			const overriddenMethod = context.super.findSuperSymbol(this.getId());
+			if (overriddenMethod instanceof UCMethodSymbol) {
+				overriddenMethod.indexReference(document, {
 					location: Location.create(document.uri, this.getNameRange()),
 					symbol: this
 				});
+				this.overriddenMethod = overriddenMethod;
 			}
-			this.overriddenMethod = method;
 		}
 	}
 
