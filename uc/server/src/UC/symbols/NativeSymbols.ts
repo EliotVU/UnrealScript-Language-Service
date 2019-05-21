@@ -1,13 +1,18 @@
-import { UCPackage, UCNativeSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCMethodLikeSymbol, UCTypeSymbol, UCParamSymbol, SymbolsTable } from ".";
+import {
+	UCPackage,
+	UCNativeSymbol,
+	UCStructSymbol,
+	UCClassSymbol,
+	UCPropertySymbol,
+	UCMethodSymbol,
+	UCMethodLikeSymbol,
+	UCTypeSymbol,
+	UCParamSymbol,
+	SymbolsTable
+} from ".";
 import { UCTypeKind } from './TypeKind';
 
-export const CORE_PACKAGE = new UCPackage('Core');
-
-// A Class type instance has all the members of an object.
-export const NativeClass = new UCClassSymbol('Class');
-NativeClass.extendsType = new UCTypeSymbol('Object', undefined, undefined, UCTypeKind.Class);
-CORE_PACKAGE.addSymbol(NativeClass);
-
+export const ObjectType = new UCTypeSymbol('Object', undefined, undefined, UCTypeKind.Class);
 export const ArgumentType = new UCTypeSymbol('Argument', undefined);
 export const IntType = new UCTypeSymbol('int', undefined);
 export const FloatType = new UCTypeSymbol('float', undefined);
@@ -16,8 +21,14 @@ export const VectorType = new UCTypeSymbol('Vector', undefined);
 export const RotatorType = new UCTypeSymbol('Rotator', undefined);
 export const RangeType = new UCTypeSymbol('Range', undefined);
 
-export const NativeArray = new UCClassSymbol('Array');
-CORE_PACKAGE.addSymbol(NativeArray);
+// A Class type instance has all the members of an object.
+export const NativeClass = new UCClassSymbol('Class');
+NativeClass.extendsType = ObjectType;
+
+// Not really a class, but valid as an object literal where enum is given as the class? e.g. Enum'ENetRole'
+export const NativeEnum = new UCClassSymbol('Enum');
+
+export const NativeArray = new UCStructSymbol('Array');
 
 	const LengthProperty = new UCPropertySymbol('Length');
 	LengthProperty.type = new UCTypeSymbol('int', undefined);
@@ -56,25 +67,6 @@ CORE_PACKAGE.addSymbol(NativeArray);
 
 	const SortFunction = new UCMethodSymbol('Sort');
 	NativeArray.addSymbol(SortFunction);
-
-const NATIVE_SYMBOLS = [
-	new UCNativeSymbol('byte'),
-	new UCNativeSymbol('float'),
-	new UCNativeSymbol('int'),
-	new UCNativeSymbol('string'),
-	new UCNativeSymbol('name'),
-	new UCNativeSymbol('bool'),
-	new UCNativeSymbol('pointer'),
-	new UCNativeSymbol('map'),
-	new UCNativeSymbol('Delegate'),
-	new UCNativeSymbol('button')
-];
-
-NATIVE_SYMBOLS.forEach(symbol => {
-	CORE_PACKAGE.addSymbol(symbol);
-});
-
-SymbolsTable.addSymbol(CORE_PACKAGE);
 
 export const VectMethodLike = new UCMethodLikeSymbol('vect');
 	VectMethodLike.returnType = VectorType;
@@ -124,7 +116,6 @@ export const RngMethodLike = new UCMethodLikeSymbol('rng');
 	RngMethodLike.params = [MinParam, MaxParam];
 
 export const AssignmentOperator = new UCMethodLikeSymbol('=', 'operator');
-
 	const AParam = new UCParamSymbol('variable');
 	AParam.type = PropertyType;
 	AssignmentOperator.addSymbol(AParam);
@@ -134,3 +125,23 @@ export const AssignmentOperator = new UCMethodLikeSymbol('=', 'operator');
 	AssignmentOperator.addSymbol(BParam);
 
 	AssignmentOperator.params = [AParam, BParam];
+
+export const CORE_PACKAGE = new UCPackage('Core');
+
+// IMPORTANT: This package must be added before adding anything to the CORE_PACKAGE!
+SymbolsTable.addSymbol(CORE_PACKAGE);
+
+	CORE_PACKAGE.addSymbol(NativeClass);
+	CORE_PACKAGE.addSymbol(NativeEnum);
+	CORE_PACKAGE.addSymbol(NativeArray);
+	CORE_PACKAGE.addSymbol(new UCNativeSymbol('byte'));
+	CORE_PACKAGE.addSymbol(new UCNativeSymbol('float'));
+	CORE_PACKAGE.addSymbol(new UCNativeSymbol('int'));
+	CORE_PACKAGE.addSymbol(new UCNativeSymbol('string'));
+	CORE_PACKAGE.addSymbol(new UCNativeSymbol('name'));
+	CORE_PACKAGE.addSymbol(new UCNativeSymbol('bool'));
+	CORE_PACKAGE.addSymbol(new UCNativeSymbol('pointer'));
+	CORE_PACKAGE.addSymbol(new UCNativeSymbol('map'));
+	CORE_PACKAGE.addSymbol(new UCNativeSymbol('Delegate'));
+	CORE_PACKAGE.addSymbol(new UCNativeSymbol('button'));
+	CORE_PACKAGE.addSymbol(PropertyType);
