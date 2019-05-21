@@ -6,8 +6,25 @@ import { UCDocument, getEnumMember } from './DocumentListener';
 import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode } from './diagnostics/diagnostics';
 import { intersectsWith, rangeFromBounds } from './helpers';
 
-import { UCStructSymbol, UCSymbol, UCPropertySymbol, UCSymbolReference, SymbolsTable, UCMethodSymbol, UCClassSymbol, NativeClass, VectMethodLike, RotMethodLike, RngMethodLike, VectorType, RotatorType, RangeType, UCTypeSymbol, AssignmentOperator } from './Symbols';
+import {
+	UCSymbol,
+	UCTypeSymbol,
+	UCStructSymbol,
+	UCPropertySymbol,
+	UCSymbolReference,
+	UCMethodSymbol,
+	UCClassSymbol,
+	NativeClass,
+	VectorType, RotatorType, RangeType,
+	VectMethodLike, RotMethodLike, RngMethodLike,
+	AssignmentOperator,
+	SymbolsTable,
+	NativeArray,
+	NativeEnum,
+	UCEnumSymbol,
+} from './Symbols';
 import { ISymbolContext, ISymbol } from './Symbols/ISymbol';
+import { UCTypeKind } from './Symbols/TypeKind';
 
 export interface IExpression {
 	outer: IExpression;
@@ -42,6 +59,10 @@ export abstract class UCExpression implements IExpression {
 
 	getMemberSymbol(): ISymbol {
 		return undefined;
+	}
+
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Error;
 	}
 
 	abstract getContainedSymbolAtPos(position: Position): ISymbol;
@@ -214,7 +235,7 @@ export class UCPropertyAccessExpression extends UCExpression {
 		// -- will be resolved to array or Vector (in an index expression, handled elsewhere).
 		if (symbol instanceof UCPropertySymbol) {
 			if (symbol.type) {
-				return (symbol.type.baseType
+				return ((symbol.type.getReference() !== NativeArray && symbol.type.baseType)
 					? symbol.type.baseType.getReference()
 					: symbol.type.getReference()) as UCStructSymbol;
 			}
@@ -395,50 +416,57 @@ export class UCLiteral extends UCExpression {
 	analyze(_document: UCDocument, _context: UCStructSymbol): void {}
 }
 
-export class UCClassLiteral extends UCExpression {
-	public classCastingRef: UCSymbolReference;
+export class UCObjectLiteral extends UCExpression {
+	public castRef: UCSymbolReference;
 	public objectRef: UCSymbolReference;
 
 	getMemberSymbol(): ISymbol {
-		return this.objectRef.getReference() || this.classCastingRef.getReference() || NativeClass;
+		return this.objectRef.getReference() || this.castRef.getReference() || NativeClass;
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		if (intersectsWith(this.objectRef.getSpanRange(), position)) {
-			return this.objectRef.getReference() && this.objectRef;
+		if (intersectsWith(this.castRef.getSpanRange(), position)) {
+			return this.castRef.getReference() && this.castRef;
 		}
 
-		if (intersectsWith(this.classCastingRef.getSpanRange(), position)) {
-			return this.classCastingRef.getReference() && this.classCastingRef;
+		if (intersectsWith(this.objectRef.getSpanRange(), position)) {
+			return this.objectRef.getReference() && this.objectRef;
 		}
 	}
 
 	index(document: UCDocument, _context: UCStructSymbol) {
-		const castSymbol = SymbolsTable.findSymbol(this.classCastingRef.getId(), true);
+		const castSymbol = SymbolsTable.findSymbol(this.castRef.getId(), true);
 		if (castSymbol) {
-			this.classCastingRef.setReference(castSymbol, document);
+			this.castRef.setReference(castSymbol, document);
 		}
 
-		const symbol = SymbolsTable.findSymbol(this.objectRef.getId(), true);
-		if (symbol) {
-			this.objectRef.setReference(symbol, document);
+		const objectSymbol = castSymbol !== NativeEnum
+			? SymbolsTable.findSymbol(this.objectRef.getId(), true)
+			// FIXME: This is wrong, does not support subgroups.
+			// Might need to add enum declarations to the SymbolsTable instead.
+			: _context.findTypeSymbol(this.objectRef.getId(), true);
+		if (objectSymbol) {
+			this.objectRef.setReference(objectSymbol, document);
 		}
 	}
 
 	// TODO: verify class type by inheritance
 	analyze(document: UCDocument, _context: UCStructSymbol) {
-		const castedClass = this.classCastingRef.getReference();
-		const classSymbol = this.objectRef.getReference();
+		const castSymbol = this.castRef.getReference();
+		const objectSymbol = this.objectRef.getReference();
 
-		if (!classSymbol) {
+		if (!objectSymbol) {
 			document.nodes.push(new UnrecognizedFieldNode(this.objectRef));
 		}
-		else if (castedClass === NativeClass && !(classSymbol instanceof UCClassSymbol)) {
-			document.nodes.push(new SemanticErrorNode(this.objectRef, `Type of '${classSymbol.getQualifiedName()}' is not a valid class!`));
+		else if (castSymbol === NativeClass && !(objectSymbol instanceof UCClassSymbol)) {
+			document.nodes.push(new SemanticErrorNode(this.objectRef, `Type of '${objectSymbol.getQualifiedName()}' is not a class!`));
+		}
+		else if (castSymbol === NativeEnum && !(objectSymbol instanceof UCEnumSymbol)) {
+			document.nodes.push(new SemanticErrorNode(this.objectRef, `Type of '${objectSymbol.getQualifiedName()}' is not an enum!`));
 		}
 
-		if (!castedClass) {
-			document.nodes.push(new UnrecognizedTypeNode(this.classCastingRef));
+		if (!castSymbol) {
+			document.nodes.push(new UnrecognizedTypeNode(this.castRef));
 		}
 	}
 }
@@ -469,7 +497,9 @@ export class UCMemberExpression extends UCExpression {
 			if (hasArguments) {
 				// look for a predefined or struct/class type.
 				// FIXME: What about casting a byte to an ENUM type?
-				const type = SymbolsTable.findSymbol(id, true) || context.findTypeSymbol(id, true);
+				const type = SymbolsTable.findSymbol(id, true);
+				// Disabled, i don't think this reflects the correct lookup behavior as the UnrealScript-compiler.
+				// || context.findTypeSymbol(id, true);
 				if (type) {
 					this.symbolRef.setReference(type, document);
 					return;
@@ -497,7 +527,7 @@ export class UCMemberExpression extends UCExpression {
 					this.symbolRef.setReference(symbol, document, contextInfo);
 			}
 		} catch (err) {
-			connection.console.error('An unexpected indexing error occurred ' + JSON.stringify(err));
+			connection.console.error('(' + document.uri + ')' + ' An unexpected indexing error occurred ' + JSON.stringify(err));
 		}
 	}
 

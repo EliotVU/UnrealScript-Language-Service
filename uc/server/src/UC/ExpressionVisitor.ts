@@ -1,9 +1,9 @@
 import { ParserRuleContext } from 'antlr4ts';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ConditionalExpressionContext, PropertyAccessExpressionContext, MemberExpressionContext, CallExpressionContext, ElementAccessExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ParenthesizedExpressionContext, MetaClassExpressionContext, VectTokenContext, RotTokenContext, RngTokenContext, ClassLiteralContext, LiteralContext, ArrayCountExpressionContext, SuperExpressionContext, BinaryExpressionContext, UnaryOperatorContext, UnaryExpressionContext, ExpressionContext } from '../antlr/UCGrammarParser';
+import { OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ConditionalExpressionContext, PropertyAccessExpressionContext, MemberExpressionContext, CallExpressionContext, ElementAccessExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ParenthesizedExpressionContext, MetaClassExpressionContext, VectTokenContext, RotTokenContext, RngTokenContext, ObjectLiteralContext, LiteralContext, ArrayCountExpressionContext, SuperExpressionContext, BinaryExpressionContext, UnaryOperatorContext, UnaryExpressionContext, ExpressionContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference, UCTypeSymbol } from './Symbols';
-import { UCMemberExpression, UCUnaryExpression, UCAssignmentExpression, UCPropertyAccessExpression, UCBinaryExpression, UCConditionalExpression, UCCallExpression, UCElementAccessExpression, UCParenthesizedExpression, UCPredefinedPropertyAccessExpression, IExpression, UCLiteral, UCClassLiteral, UCNewExpression, UCPredefinedAccessExpression, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCMetaClassExpression, UCSuperExpression } from './Expressions';
+import { UCMemberExpression, UCUnaryExpression, UCAssignmentExpression, UCPropertyAccessExpression, UCBinaryExpression, UCConditionalExpression, UCCallExpression, UCElementAccessExpression, UCParenthesizedExpression, UCPredefinedPropertyAccessExpression, IExpression, UCLiteral, UCObjectLiteral, UCNewExpression, UCPredefinedAccessExpression, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCMetaClassExpression, UCSuperExpression } from './Expressions';
 import { rangeFromBounds, rangeFromBound } from './helpers';
 import { UCTypeKind } from './Symbols/TypeKind';
 
@@ -300,16 +300,16 @@ export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
 		return literal;
 	}
 
-	visitClassLiteral(ctx: ClassLiteralContext) {
+	visitObjectLiteral(ctx: ObjectLiteralContext) {
+		const expression = new UCObjectLiteral(rangeFromBounds(ctx.start, ctx.stop));
+		expression.context = ctx;
+
 		const classIdNode = ctx.identifier();
-		const classCastingRef = new UCSymbolReference(classIdNode.text, rangeFromBounds(classIdNode.start, classIdNode.stop));
+		const castRef = new UCSymbolReference(classIdNode.text, rangeFromBounds(classIdNode.start, classIdNode.stop));
+		expression.castRef = castRef;
 
 		const objectIdNode = ctx.NAME();
 		const objectRef = new UCSymbolReference(objectIdNode.text.replace(/'|\s/g, ""), rangeFromBound(objectIdNode.symbol));
-
-		const expression = new UCClassLiteral(rangeFromBounds(ctx.start, ctx.stop));
-		expression.context = ctx;
-		expression.classCastingRef = classCastingRef;
 		expression.objectRef = objectRef;
 		return expression;
 	}

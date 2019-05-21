@@ -400,7 +400,7 @@ literal
 	| booleanLiteral
 	| numberLiteral
 	| stringLiteral
-	| classLiteral
+	| objectLiteral
 	| nameLiteral
 	| vectToken
 	| rotToken
@@ -419,7 +419,7 @@ noneLiteral: kwNONE;
 
 // e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
 // TODO: rename as objectLiteral?
-classLiteral: identifier NAME;
+objectLiteral: identifier NAME;
 
 classDecl
 	:
@@ -495,7 +495,7 @@ constValue
 	| booleanLiteral
 	| numberLiteral
 	| stringLiteral
-	| classLiteral
+	| objectLiteral
 	| nameLiteral
 	| vectToken
 	| rotToken
@@ -1066,7 +1066,7 @@ defaultLiteral
 	| booleanLiteral
 	| numberLiteral
 	| stringLiteral
-	| classLiteral
+	| objectLiteral
 	| qualifiedIdentifier
 	;
 
