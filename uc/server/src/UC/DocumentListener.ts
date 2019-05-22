@@ -144,9 +144,8 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	public class?: UCClassSymbol;
 
+	private context?: ISymbolContainer<ISymbol>[];
 	private indexReferencesMade = new Map<string, Set<ISymbolReference>>();
-
-	private context?: UCStructSymbol[]; // FIXME: Type
 
 	constructor(public classPackage: UCPackage, public readonly uri: string) {
 		this.name = path.basename(uri, '.uc');
@@ -175,10 +174,11 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.context.pop();
 	}
 
-	get(): ISymbolContainer<ISymbol> {
-		return this.context.length > 0
-			? this.context[this.context.length - 1]
-			: this.classPackage;
+	get<T extends ISymbolContainer<ISymbol>>(): T {
+		if (this.context.length === 0) {
+			return <T>(this.classPackage as unknown);
+		}
+		return <T>this.context[this.context.length - 1];
 	}
 
 	declare(symbol: UCSymbol) {
@@ -466,7 +466,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		}
 
 		const typeSymbol = new UCTypeSymbol(typeIdText, typeIdRange, rangeFromBounds(typeDeclNode.start, typeDeclNode.stop));
-		typeSymbol.outer = this.get() as UCStructSymbol;
+		typeSymbol.outer = this.get<UCStructSymbol>();
 		typeSymbol.baseType = innerTypeSymbol;
 		if (innerTypeSymbol) {
 			innerTypeSymbol.outer = typeSymbol;
@@ -684,6 +684,20 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		}
 	}
 
+	enterIgnoresList(ctx: UCParser.IgnoresListContext) {
+		const identifierNodes = ctx.identifier();
+
+		const state = this.get<UCStateSymbol>();
+		if (!state.ignoreRefs) {
+			state.ignoreRefs = [];
+		}
+
+		for (const idNode of identifierNodes) {
+			const ref = new UCSymbolReference(idNode.text, rangeFromBounds(idNode.start, idNode.stop));
+			state.ignoreRefs.push(ref);
+		}
+	}
+
 	exitStateDecl(ctx: UCParser.StateDeclContext) {
 		this.pop();
 	}
@@ -727,7 +741,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		const idNode = ctx.defaultId();
 		const symbolRef = new UCSymbolReference(idNode.text, rangeFromBound(ctx.start));
 
-		const context = this.get() as UCObjectSymbol;
+		const context = this.get<UCObjectSymbol>();
 		symbolRef.outer = context;
 
 		const propNameLC = idNode.text.toLowerCase();
