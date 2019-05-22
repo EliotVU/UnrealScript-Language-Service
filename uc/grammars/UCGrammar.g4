@@ -376,20 +376,29 @@ program
 	classDecl
 	(
 		constDecl
+
 		| (enumDecl SEMICOLON)
 		| (structDecl SEMICOLON)
 		| varDecl
+
 		| replicationBlock
 		| defaultPropertiesBlock
 		| cppText
 		| directive
 	)*
+
+	// functions and states are not allowed to precede var, struct, or enum declarations.
+	// FIXME: Allow any declaration as does the UnrealScript compiler,
+	// -- but instead set an allow/dissalow flag to create a more human-readable error, for when a declaration is in the wrong order.
 	(
 		constDecl
+
 		| functionDecl
 		| stateDecl
+
 		| replicationBlock
 		| defaultPropertiesBlock
+		| cppText
 		| directive
 	)*
 	EOF
@@ -571,7 +580,8 @@ structModifier
 	;
 
 arrayDim
-	: OPEN_BRACKET (INTEGER | qualifiedIdentifier) CLOSE_BRACKET
+	: INTEGER
+	| qualifiedIdentifier
 	;
 
 // var (GROUP)
@@ -582,11 +592,9 @@ varDecl: kwVAR (OPEN_PARENS categoryList? CLOSE_PARENS)?
 	variable (COMMA variable)* SEMICOLON;
 
 // id[5] {DWORD} <Order=1>
-variable:
-	identifier
-	arrayDim?
+variable: identifier (OPEN_BRACKET arrayDim? CLOSE_BRACKET)?
 	/* cppcode? */ // nativeTypeDecl
-	/* metaTuple? */
+	/* metaData? */
 	;
 
 // UC3 <UIMin=0.0|UIMax=1.0|Toolip=Hello world!>
