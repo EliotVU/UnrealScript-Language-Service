@@ -5,10 +5,10 @@ import { UCDocument } from '../DocumentListener';
 import { SymbolVisitor } from '../SymbolVisitor';
 import { UCBlock } from '../Statements';
 
+import { ISymbol, UCFieldSymbol, UCPropertySymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol } from ".";
 import { ISymbolContainer } from './ISymbolContainer';
-import { ISymbol, UCFieldSymbol, UCPropertySymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol, UCStateSymbol } from ".";
 
-export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
+export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: UCTypeSymbol;
 	public super?: UCStructSymbol;
 	public children?: UCFieldSymbol;
@@ -18,11 +18,6 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 	 * Types that are declared within this struct's body.
 	 */
 	public declaredTypes?: Map<string, UCFieldSymbol>;
-
-	/**
-	 * A cache of types that have been resolved for this scope.
-	 */
-	private cachedTypeResolves = new Map<string, UCSymbol>();
 
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
@@ -92,7 +87,7 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 		return undefined;
 	}
 
-	addSymbol(symbol: UCFieldSymbol) {
+	addSymbol(symbol: UCFieldSymbol): string {
 		symbol.outer = this;
 		symbol.next = this.children;
 		symbol.containingStruct = this;
@@ -102,8 +97,14 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 			if (!this.declaredTypes) {
 				this.declaredTypes = new Map();
 			}
-			this.declaredTypes.set(symbol.getId(), symbol);
+
+			const key = symbol.getId();
+			this.declaredTypes.set(key, symbol);
+			return key;
 		}
+
+		// No key
+		return undefined;
 	}
 
 	getSymbol(id: string): UCSymbol {
@@ -137,34 +138,13 @@ export abstract class UCStructSymbol extends UCFieldSymbol implements ISymbolCon
 	}
 
 	findTypeSymbol(id: string, deepSearch: boolean): UCSymbol {
-		let symbol = this.cachedTypeResolves.get(id);
-		if (symbol) {
-			return symbol;
-		}
-
-		if (id === this.getId()) {
-			return this;
-		}
-
 		if (this.declaredTypes) {
-			symbol = this.declaredTypes.get(id);
+			const symbol = this.declaredTypes.get(id);
 			if (symbol) {
 				return symbol;
 			}
 		}
-
-		if (deepSearch) {
-			if (this.super) {
-				symbol = this.super.findTypeSymbol(id, deepSearch);
-			} else if (this.outer && this.outer instanceof UCStructSymbol) {
-				symbol = this.outer.findTypeSymbol(id, deepSearch);
-			}
-		}
-
-		if (symbol) {
-			this.cachedTypeResolves.set(id, symbol);
-		}
-		return symbol;
+		return this.super && this.super.findTypeSymbol(id, deepSearch);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {

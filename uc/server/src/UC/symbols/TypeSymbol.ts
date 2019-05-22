@@ -3,9 +3,12 @@ import { Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../DocumentListener';
 import { UnrecognizedTypeNode, SemanticErrorNode } from '../diagnostics/diagnostics';
 
+import { QualifiedIdentifierContext } from '../../antlr/UCGrammarParser';
+
 import {
 	UCSymbol,
 	UCSymbolReference,
+	UCPackage,
 	UCStructSymbol,
 	UCClassSymbol,
 	UCStateSymbol,
@@ -13,10 +16,43 @@ import {
 	UCMethodSymbol,
 	UCEnumSymbol,
 	SymbolsTable,
-	CORE_PACKAGE
 } from '.';
 import { UCTypeKind } from './TypeKind';
 import { ISymbol } from './ISymbol';
+
+/**
+ * Represents a qualified identifier type reference such as "extends Core.Object",
+ * -- where "Core" is assigned to @left and "Object" to @type.
+ */
+export class UCQualifiedType extends UCSymbol {
+	public left?: UCQualifiedType;
+	public type: UCTypeSymbol;
+
+	getTooltip(): string {
+		return this.type.getTooltip();
+	}
+
+	getContainedSymbolAtPos(position: Position): UCSymbol {
+		if (this.left) {
+			return this.left.getSymbolAtPos(position);
+		}
+		return this.type.getSymbolAtPos(position);
+	}
+
+	index(document: UCDocument, context: UCStructSymbol) {
+		this.left && this.left.index(document, context);
+		this.type.index(document, context);
+	}
+
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		this.left && this.left.analyze(document, context);
+		this.type.analyze(document, context);
+	}
+
+	visit(ctx: QualifiedIdentifierContext) {
+		this.context = ctx;
+	}
+}
 
 export class UCTypeSymbol extends UCSymbolReference {
 	public baseType?: UCTypeSymbol;
@@ -83,15 +119,18 @@ export class UCTypeSymbol extends UCSymbolReference {
 			}
 
 			default: {
-				// Quick shortcut for the most common types or top level symbols.
-				symbol = CORE_PACKAGE.findSymbol(id, false)
-					// Note: Classes have to be compared first!
-					|| SymbolsTable.findSymbol(id, true)
-					|| context.findTypeSymbol(id, true);
+				// First try to match upper level symbols such as a class.
+				symbol = SymbolsTable.findSymbol(id, true) || context.findTypeSymbol(id, true);
 			}
 		}
 
+
 		if (symbol) {
+			// Ignore, never match a package when a type is expected,
+			// but we'd like to keep the package match in @findSymbol, so that we can properly link object literals.
+			if (symbol instanceof UCPackage) {
+				return;
+			}
 			this.setReference(symbol, document);
 		}
 
@@ -101,11 +140,12 @@ export class UCTypeSymbol extends UCSymbolReference {
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
+		if (this.baseType) {
+			this.baseType.analyze(document, context);
+		}
+
 		const symbol = this.getReference();
 		if (symbol) {
-			if (this.baseType) {
-				this.baseType.analyze(document, context);
-			}
 
 			switch (this.typeKind) {
 				case UCTypeKind.Class: {

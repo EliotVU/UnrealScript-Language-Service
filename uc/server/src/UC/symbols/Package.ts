@@ -3,14 +3,14 @@ import * as path from 'path';
 import { SymbolKind, CompletionItem } from 'vscode-languageserver-types';
 
 import { UCDocument, getDocumentById, indexDocument } from '../DocumentListener';
-
-import { ISymbolContainer } from './ISymbolContainer';
-import { ISymbol, UCStructSymbol } from ".";
 import { SymbolVisitor } from '../SymbolVisitor';
+
+import { ISymbol, UCStructSymbol } from ".";
+import { ISymbolContainer } from './ISymbolContainer';
 
 // Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
-	public outer = null;
+	public outer: UCPackage = null;
 
 	protected symbols = new Map<string, ISymbol>();
 	private name: string;
@@ -53,9 +53,14 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 		return undefined;
 	}
 
-	addSymbol(symbol: ISymbol) {
+	addSymbol(symbol: ISymbol): string {
+		const key = this.outer
+			? this.outer.addSymbol(symbol)
+			: symbol.getId();
+
+		this.symbols.set(key, symbol);
 		symbol.outer = this;
-		this.symbols.set(symbol.getId(), symbol);
+		return key;
 	}
 
 	getSymbol(id: string): ISymbol {
@@ -64,31 +69,48 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 
 	/**
 	 * Looks up a symbol by a qualified identifier in the current package or its subPackages.
-	 * @param qualifiedId any valid qualified id e.g. Engine.Actor.EDrawType in lowercase.
+	 * @param qualifiedId any valid qualified id e.g. Engine.Actor or Actor.EDrawType in lowercase.
 	 * @param deepSearch
 	 */
 	findSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol {
-		if (qualifiedId.indexOf('.') === -1) {
-			return this.symbols.get(qualifiedId);
-		}
+		if (qualifiedId.indexOf('.') !== -1) {
+			const ids = qualifiedId.split('.');
 
-		const ids = qualifiedId.split('.');
-		const id = ids.shift();
+			const id = ids.shift();
 
-		let symbol = this.symbols.get(id);
-		if (!symbol) {
-			return undefined;
-		}
+			let symbol = this.symbols.get(id);
+			if (!symbol) {
+				return undefined;
+			}
 
-		if (ids.length == 0) {
-			return symbol;
-		}
+			if (ids.length == 0) {
+				return symbol;
+			}
 
-		const nextQualifiedId = ids.join('.');
-		if (symbol instanceof UCStructSymbol) {
-			return symbol.findTypeSymbol(nextQualifiedId, deepSearch);
+			const nextQualifiedId = ids.join('.');
+			if (symbol instanceof UCStructSymbol) {
+				// TODO: Use findSymbol?, so that we can match invalid types, and report a warning/error.
+				return symbol.findTypeSymbol(nextQualifiedId, true);
+			} else if (symbol instanceof UCPackage) {
+				return symbol.findSymbol(nextQualifiedId, false);
+			}
 		}
-		return this.findSymbol(nextQualifiedId, deepSearch);
+		else {
+			const symbol = this.getSymbol(qualifiedId);
+			if (symbol) {
+				return symbol;
+			}
+
+			if (deepSearch) {
+				const document = getDocumentById(qualifiedId);
+				if (document) {
+					if (!document.class) {
+						indexDocument(document);
+					}
+					return document.class;
+				}
+			}
+		}
 	}
 
 	accept<Result>(visitor: SymbolVisitor<Result>): Result {
@@ -97,22 +119,14 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 }
 
 class UCWorkspace extends UCPackage {
-	findSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol {
-		for (let packageSymbol of (this.symbols as Map<string, UCPackage>).values()) {
-			const symbol = packageSymbol.findSymbol(qualifiedId, deepSearch);
-			if (symbol) {
-				return symbol;
-			}
+	// Don't register, just map it for quick lookups!
+	addSymbol(symbol: ISymbol): string {
+		const key = symbol.getId();
+		this.symbols.set(key, symbol);
+		if (symbol instanceof UCPackage) {
+			symbol.outer = this;
 		}
-
-		const document = getDocumentById(qualifiedId);
-		if (document) {
-			if (!document.class) {
-				indexDocument(document);
-			}
-			return document.class;
-		}
-		return this.getSymbol(qualifiedId);
+		return key;
 	}
 }
 

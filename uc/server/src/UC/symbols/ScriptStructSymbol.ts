@@ -43,4 +43,9 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 	acceptCompletion(_document: UCDocument, context: UCSymbol): boolean {
 		return (context instanceof UCPropertySymbol || context instanceof UCMethodSymbol);
 	}
+
+	findTypeSymbol(id: string, deepSearch: boolean): UCSymbol {
+		return super.findTypeSymbol(id, deepSearch)
+			|| (this.outer as UCStructSymbol).findTypeSymbol(id, deepSearch);
+	}
 }

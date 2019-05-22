@@ -58,7 +58,7 @@ export class UCSymbolReference extends UCSymbol implements IWithReference {
 				symbol: this,
 				context
 			};
-			symbol.indexReference(document, ref);
+			document.indexReference(symbol, ref);
 		}
 	}
 

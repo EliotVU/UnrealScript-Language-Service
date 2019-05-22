@@ -38,44 +38,44 @@ import { UCBlock } from './Statements';
 export const ExpressionVisitor = new UCExpressionVisitor();
 export const StatementVisitor = new UCStatementVisitor();
 
-const PathPackageMap = new Map<string, UCPackage>();
-function getPackageByUri(uri: string): UCPackage {
-	const dir = path.parse(uri).dir;
-	let packageSymbol: UCPackage = PathPackageMap.get(dir);
-	if (packageSymbol) {
-		return packageSymbol;
-	}
-
-	const dirs = dir.split('/');
-	for (let i = dirs.length - 1; i >= 0; -- i) {
-		if (i > 0 && dirs[i].toLowerCase() === 'classes') {
-			const packageName = dirs[i - 1];
-
-			packageSymbol = SymbolsTable.getSymbol(packageName.toLowerCase()) as UCPackage;
-			if (packageSymbol) {
-				PathPackageMap.set(dir, packageSymbol);
-				return packageSymbol;
-			}
-
-			packageSymbol = new UCPackage(packageName);
-			PathPackageMap.set(dir, packageSymbol);
-			SymbolsTable.addSymbol(packageSymbol);
-			return packageSymbol;
+function findPackageNameInDir(dir: string): string {
+	const directories = dir.split('/');
+	for (let i = directories.length - 1; i >= 0; -- i) {
+		if (i > 0 && directories[i].toLowerCase() === 'classes') {
+			return directories[i - 1];
 		}
 	}
-	return SymbolsTable;
+	return undefined;
 }
 
-const ClassNameToDocumentMap: Map<string, UCDocument> = new Map<string, UCDocument>();
+const DirPackageMap = new Map<string, UCPackage>();
+function getPackageByUri(documentUri: string): UCPackage {
+	const dir = path.parse(documentUri).dir;
+	let pkg: UCPackage = DirPackageMap.get(dir);
+	if (pkg) {
+		return pkg;
+	}
+
+	const packageName = findPackageNameInDir(dir);
+	if (!packageName) {
+		return SymbolsTable;
+	}
+
+	pkg = new UCPackage(packageName);
+	SymbolsTable.addSymbol(pkg);
+	DirPackageMap.set(dir, pkg);
+	return pkg;
+}
+
+export const ClassNameToDocumentMap: Map<string, UCDocument> = new Map<string, UCDocument>();
 export function getDocumentByUri(uri: string): UCDocument {
 	let document: UCDocument = ClassNameToDocumentMap.get(uri);
 	if (document) {
 		return document;
 	}
 
-	const packageTable = getPackageByUri(uri);
-
-	document = new UCDocument(packageTable, uri);
+	const pkg = getPackageByUri(uri);
+	document = new UCDocument(pkg, uri);
 	ClassNameToDocumentMap.set(uri, document);
 	return document;
 }
@@ -122,28 +122,8 @@ export function getUriById(qualifiedClassId: string): string | undefined {
 
 const IndexedReferences = new Map<string, Set<ISymbolReference>>();
 
-export function addIndexedReference(qualifiedId: string, ref: ISymbolReference) {
-	const indexedRefs = getIndexedReferences(qualifiedId);
-	indexedRefs.add(ref);
-
-	IndexedReferences.set(qualifiedId, indexedRefs);
-}
-
 export function getIndexedReferences(qualifiedId: string): Set<ISymbolReference> {
 	return IndexedReferences.get(qualifiedId) || new Set<ISymbolReference>();
-}
-
-export function unsetIndexedReferences(qualifiedId: string, refs: Set<ISymbolReference>) {
-	const indexedRefs = IndexedReferences.get(qualifiedId);
-	if (!indexedRefs) {
-		return;
-	}
-
-	refs.forEach(ref => indexedRefs.delete(ref));
-
-	if (indexedRefs.size === 0) {
-		IndexedReferences.delete(qualifiedId);
-	}
 }
 
 const EnumMemberMap = new Map<string, UCEnumMemberSymbol>();
@@ -163,12 +143,28 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	public tokenStream: CommonTokenStream;
 
 	public class?: UCClassSymbol;
-	public indexReferencesMade = new Map<string, Set<ISymbolReference>>();
+
+	private indexReferencesMade = new Map<string, Set<ISymbolReference>>();
 
 	private context?: UCStructSymbol[]; // FIXME: Type
 
 	constructor(public classPackage: UCPackage, public readonly uri: string) {
 		this.name = path.basename(uri, '.uc');
+	}
+
+	indexReference(symbol: ISymbol, ref: ISymbolReference) {
+		const key = symbol.getQualifiedName();
+
+		const refs = this.indexReferencesMade.get(key) || new Set<ISymbolReference>();
+		refs.add(ref);
+
+		this.indexReferencesMade.set(key, refs);
+
+		// TODO: Refactor this, we are pretty much duplicating this function's job.
+		const indexedRefs = getIndexedReferences(key);
+		indexedRefs.add(ref);
+
+		IndexedReferences.set(key, indexedRefs);
 	}
 
 	push(newContext: UCStructSymbol) {
@@ -234,7 +230,16 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 		// Clear all the indexed references that we have made.
 		for (let [key, value] of this.indexReferencesMade) {
-			unsetIndexedReferences(key, value);
+			const indexedRefs = IndexedReferences.get(key);
+			if (!indexedRefs) {
+				return;
+			}
+
+			value.forEach(ref => indexedRefs.delete(ref));
+
+			if (indexedRefs.size === 0) {
+				IndexedReferences.delete(key);
+			}
 		}
 
 		this.indexReferencesMade.clear();
@@ -355,7 +360,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.push(classSymbol);
 	}
 
- 	enterConstDecl(ctx: UCParser.ConstDeclContext) {
+	enterConstDecl(ctx: UCParser.ConstDeclContext) {
 		const idNode = ctx.identifier();
 		if (!idNode) {
 			return;

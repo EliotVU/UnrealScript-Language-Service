@@ -1,6 +1,6 @@
 import { ISymbol } from '.';
 
 export interface ISymbolContainer<T> {
-	addSymbol(symbol: T): void;
+	addSymbol(symbol: T): string;
 	getSymbol(id: string): ISymbol;
 }

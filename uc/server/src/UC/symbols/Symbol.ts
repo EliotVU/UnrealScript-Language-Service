@@ -1,11 +1,11 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Position } from 'vscode-languageserver-types';
 import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
 
-import { UCDocument, addIndexedReference } from "../DocumentListener";
+import { UCDocument } from "../DocumentListener";
 import { UCGrammarParser } from '../../antlr/UCGrammarParser';
 
-import { ISymbol, ISymbolReference } from './ISymbol';
-import { UCStructSymbol, UCPackage } from ".";
+import { ISymbol } from './ISymbol';
+import { UCStructSymbol } from ".";
 import { SymbolVisitor } from '../SymbolVisitor';
 
 export const COMMENT_TYPES = new Set([UCGrammarParser.LINE_COMMENT, UCGrammarParser.BLOCK_COMMENT]);
@@ -114,20 +114,8 @@ export abstract class UCSymbol implements ISymbol {
 		return true;
 	}
 
-	index(_document: UCDocument, _context: UCStructSymbol) {};
-	analyze(_document: UCDocument, _context: UCStructSymbol) {};
-
-	indexReference(document: UCDocument, ref: ISymbolReference) {
-		const qualifiedId = this.getQualifiedName();
-
-		const refs = document.indexReferencesMade.get(qualifiedId) || new Set<ISymbolReference>();
-		refs.add(ref);
-
-		document.indexReferencesMade.set(qualifiedId, refs);
-
-		// TODO: Refactor this, we are pretty much duplicating this function's job.
-		addIndexedReference(qualifiedId, ref);
-	}
+	index(_document: UCDocument, _context: UCStructSymbol) {}
+	analyze(_document: UCDocument, _context: UCStructSymbol) {}
 
 	getUri(): string | undefined {
 		return this.outer instanceof UCSymbol && this.outer.getUri();
@@ -147,15 +135,6 @@ export abstract class UCSymbol implements ISymbol {
 		item.kind = this.getCompletionItemKind();
 		item.data = this.getQualifiedName();
 		return item;
-	}
-
-	findTypeSymbol(id: string, deepSearch: boolean): ISymbol {
-		if (this.outer instanceof UCSymbol) {
-			return this.outer.findTypeSymbol(id, deepSearch);
-		} else if (this.outer instanceof UCPackage) {
-			return this.outer.findSymbol(id, deepSearch);
-		}
-		return undefined;
 	}
 
 	accept<Result>(visitor: SymbolVisitor<Result>): Result {
