@@ -530,13 +530,13 @@ sizeOfToken
 	;
 
 enumDecl:
-	kwENUM identifier
+	kwENUM identifier metaData?
 	OPEN_BRACE
 		enumMember*
 	CLOSE_BRACE
 	;
 
-enumMember: identifier metaTuple? COMMA?;
+enumMember: identifier metaData? COMMA?;
 
 structDecl
 	:	kwSTRUCT // (OPEN_BRACE .*? CLOSE_BRACE)? // parses native type like "struct {DOUBLE}"
@@ -591,8 +591,8 @@ variable:
 
 // UC3 <UIMin=0.0|UIMax=1.0|Toolip=Hello world!>
 // FIXME: This is incorrect, any value is allowed.
-metaTuple: LT (metaAssignment BITWISE_OR?)* GT;
-metaAssignment: identifier ASSIGNMENT .*?;
+metaData: LT (metaTag BITWISE_OR?)* GT;
+metaTag: identifier ASSIGNMENT .*?;
 
 categoryList: identifier (COMMA identifier)*;
 
