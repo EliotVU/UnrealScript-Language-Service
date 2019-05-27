@@ -348,8 +348,7 @@ qualifiedIdentifier: identifier (DOT qualifiedIdentifier)?;
 // FIXME: Consumes atleast one token after "#error"
 directive
 	: SHARP identifier
-	{
-		(() => {
+	{((): boolean => {
 			if (!this.currentToken) {
 				return true;
 			}
@@ -362,8 +361,7 @@ directive
 				}
 			}
 			return this.currentToken.line !== initialLine;
-		})()
-	}?
+	})()}?
 	;
 
 program

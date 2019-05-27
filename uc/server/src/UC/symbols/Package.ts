@@ -10,7 +10,7 @@ import { ISymbolContainer } from './ISymbolContainer';
 
 // Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
-	public outer: UCPackage = null;
+	public outer?: UCPackage;
 
 	protected symbols = new Map<string, ISymbol>();
 	private name: string;
@@ -50,7 +50,7 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 
 	// TODO: implement
 	toCompletionItem(_document: UCDocument): CompletionItem {
-		return undefined;
+		return CompletionItem.create(this.getName());
 	}
 
 	addSymbol(symbol: ISymbol): string {
@@ -63,7 +63,7 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 		return key;
 	}
 
-	getSymbol(id: string): ISymbol {
+	getSymbol(id: string): ISymbol | undefined {
 		return this.symbols.get(id);
 	}
 
@@ -72,11 +72,15 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 	 * @param qualifiedId any valid qualified id e.g. Engine.Actor or Actor.EDrawType in lowercase.
 	 * @param deepSearch
 	 */
-	findSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol {
+	findSymbol(qualifiedId: string, deepSearch?: boolean): ISymbol | undefined {
 		if (qualifiedId.indexOf('.') !== -1) {
 			const ids = qualifiedId.split('.');
 
 			const id = ids.shift();
+			if (!id) {
+				// e.g. "Actor."
+				return undefined;
+			}
 
 			let symbol = this.symbols.get(id);
 			if (!symbol) {

@@ -40,7 +40,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		return this.getChildSymbolAtPos(position);
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol {
+	getContainedSymbolAtPos(position: Position) {
 		if (this.extendsType && this.extendsType.getSymbolAtPos(position)) {
 			return this.extendsType;
 		}
@@ -71,7 +71,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
-	getCompletionContext(position: Position): UCSymbol {
+	getCompletionContext(position: Position) {
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
 			if (intersectsWith(symbol.getSpanRange(), position)) {
 				return symbol.getCompletionContext(position);
@@ -140,10 +140,10 @@ export class UCDocumentClassSymbol extends UCClassSymbol {
 	public document?: UCDocument;
 
 	getUri(): string {
-		return this.document.uri;
+		return this.document!.uri;
 	}
 
-	index(document: UCDocument, context: UCClassSymbol = document.class) {
+	index(document: UCDocument, context: UCClassSymbol = document.class!) {
 		if (this.document) {
 			return;
 		}

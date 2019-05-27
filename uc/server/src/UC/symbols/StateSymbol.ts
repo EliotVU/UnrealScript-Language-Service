@@ -4,11 +4,11 @@ import { UCDocument } from '../DocumentListener';
 import { SymbolVisitor } from '../SymbolVisitor';
 import { SemanticErrorNode, UnrecognizedFieldNode } from '../diagnostics/diagnostics';
 
-import { UCStructSymbol, UCMethodSymbol, UCSymbol } from ".";
+import { UCStructSymbol, UCMethodSymbol } from ".";
 import { UCSymbolReference } from './SymbolReference';
 
 export class UCStateSymbol extends UCStructSymbol {
-	public ignoreRefs: UCSymbolReference[];
+	public ignoreRefs?: UCSymbolReference[];
 
 	isProtected(): boolean {
 		return true;
@@ -22,7 +22,7 @@ export class UCStateSymbol extends UCStructSymbol {
 		return `state ${this.getQualifiedName()}`;
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol {
+	getContainedSymbolAtPos(position: Position) {
 		if (this.ignoreRefs) {
 			const symbol = this.ignoreRefs.find(ref => !!(ref.getSymbolAtPos(position)));
 			if (symbol) {
@@ -32,12 +32,12 @@ export class UCStateSymbol extends UCStructSymbol {
 		return this.getChildSymbolAtPos(position);
 	}
 
-	findSuperSymbol(id: string): UCSymbol {
-		return super.findSuperSymbol(id)
-			|| (this.outer instanceof UCStructSymbol && this.outer.findSuperSymbol(id));
+	findSuperSymbol(id: string) {
+		const symbol = super.findSuperSymbol(id) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id);
+		return symbol;
 	}
 
-	findTypeSymbol(id: string, deepSearch: boolean): UCSymbol {
+	findTypeSymbol(id: string, deepSearch: boolean) {
 		return (this.outer as UCStructSymbol).findTypeSymbol(id, deepSearch);
 	}
 

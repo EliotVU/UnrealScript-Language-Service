@@ -18,12 +18,14 @@ import {
 	CompletionContext
 } from 'vscode-languageserver';
 
-import { UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable } from './Symbols';
+import { UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable, UCFieldSymbol } from './Symbols';
 import { getDocumentByUri, ClassNameToFilePathMap$, getIndexedReferences } from "./DocumentListener";
 import { Token } from 'antlr4ts';
 import { IWithReference, ISymbol } from './Symbols/ISymbol';
 
 export function rangeFromBound(token: Token): Range {
+	const length = token.text!.length;
+
 	const start: Position = {
 		line: token.line - 1,
 		character: token.charPositionInLine
@@ -31,12 +33,14 @@ export function rangeFromBound(token: Token): Range {
 
 	const end: Position = {
 		line: token.line - 1,
-		character: token.charPositionInLine + token.text.length
+		character: token.charPositionInLine + length
 	};
 	return { start, end };
 }
 
-export function rangeFromBounds(startToken: Token, stopToken: Token): Range {
+export function rangeFromBounds(startToken: Token, stopToken: Token = startToken): Range {
+	const length = stopToken.text!.length;
+
 	return {
 		start: {
 			line: startToken.line - 1,
@@ -44,7 +48,7 @@ export function rangeFromBounds(startToken: Token, stopToken: Token): Range {
 		},
 		end: {
 			line: stopToken.line - 1,
-			character: stopToken.charPositionInLine + stopToken.text.length
+			character: stopToken.charPositionInLine + length
 		}
 	};
 }
@@ -96,11 +100,13 @@ async function buildClassesFilePathsMap(workspace: RemoteWorkspace): Promise<Map
 
 	const filePaths = new Map<string, string>();
 	const folders = await workspace.getWorkspaceFolders();
-	for (let folder of folders) {
-		const folderPath = URI.parse(folder.uri).fsPath;
-		await scanPath(folderPath, (filePath => {
-			filePaths.set(path.basename(filePath, '.uc').toLowerCase(), filePath);
-		}));
+	if (folders) {
+		for (let folder of folders) {
+			const folderPath = URI.parse(folder.uri).fsPath;
+			await scanPath(folderPath, (filePath => {
+				filePaths.set(path.basename(filePath, '.uc').toLowerCase(), filePath);
+			}));
+		}
 	}
 	return filePaths;
 }
@@ -122,7 +128,7 @@ export async function initWorkspace(connection: Connection) {
 	ClassNameToFilePathMap$.next(filePathMap);
 }
 
-export async function getHover(uri: string, position: Position): Promise<Hover> {
+export async function getHover(uri: string, position: Position): Promise<Hover | undefined> {
 	const document = getDocumentByUri(uri);
 	const symbol = document && document.getSymbolAtPos(position);
 	if (!symbol) {
@@ -144,7 +150,7 @@ export async function getHover(uri: string, position: Position): Promise<Hover> 
 	}
 }
 
-export async function getDefinition(uri: string, position: Position): Promise<Definition> {
+export async function getDefinition(uri: string, position: Position): Promise<Definition | undefined> {
 	const document = getDocumentByUri(uri);
 	const symbol = document && document.getSymbolAtPos(position) as unknown as IWithReference;
 	if (!symbol) {
@@ -153,19 +159,25 @@ export async function getDefinition(uri: string, position: Position): Promise<De
 
 	const reference = symbol.getReference && symbol.getReference();
 	if (reference instanceof UCSymbol) {
-		return Location.create(reference.getUri(), reference.getNameRange());
+		const uri = reference.getUri();
+		// This shouldn't happen, except for non UCSymbol objects.
+		if (!uri) {
+			console.warn('No uri for referred symbol', reference);
+			return undefined;
+		}
+		return Location.create(uri, reference.getNameRange());
 	}
 	return undefined;
 }
 
-export async function getSymbols(uri: string): Promise<SymbolInformation[]> {
+export async function getSymbols(uri: string): Promise<SymbolInformation[] | undefined> {
 	const document = getDocumentByUri(uri);
 	if (!document || !document.class) {
 		return undefined;
 	}
 
-	var contextSymbols = [];
-	var buildSymbolsList = (container: UCStructSymbol) => {
+	const contextSymbols: SymbolInformation[] = [];
+	const buildSymbolsList = (container: UCStructSymbol) => {
 		for (let child = container.children; child; child = child.next) {
 			contextSymbols.push(child.toSymbolInfo());
 			if (child instanceof UCStructSymbol) {
@@ -178,7 +190,7 @@ export async function getSymbols(uri: string): Promise<SymbolInformation[]> {
 	return contextSymbols;
 }
 
-export async function getReferences(uri: string, position: Position): Promise<Location[]> {
+export async function getReferences(uri: string, position: Position): Promise<Location[] | undefined> {
 	const document = getDocumentByUri(uri);
 	const symbol = document && document.getSymbolAtPos(position) as ISymbol;
 	if (!symbol) {
@@ -197,7 +209,7 @@ export async function getReferences(uri: string, position: Position): Promise<Lo
 		.map(ref => ref.location);
 }
 
-export async function getHighlights(uri: string, position: Position): Promise<DocumentHighlight[]> {
+export async function getHighlights(uri: string, position: Position): Promise<DocumentHighlight[] | undefined> {
 	const document = getDocumentByUri(uri);
 	const symbol = document && document.getSymbolAtPos(position);
 	if (!symbol) {
@@ -222,7 +234,7 @@ export async function getHighlights(uri: string, position: Position): Promise<Do
 		));
 }
 
-export async function getCompletionItems(uri: string, position: Position, context: CompletionContext): Promise<CompletionItem[]> {
+export async function getCompletionItems(uri: string, position: Position, context: CompletionContext | undefined): Promise<CompletionItem[] | undefined> {
 	const document = getDocumentByUri(uri);
 	if (!document || !document.class) {
 		return undefined;
@@ -230,7 +242,7 @@ export async function getCompletionItems(uri: string, position: Position, contex
 
 	-- position.character;
 	// Temp workaround for context expressions that haven't yet been parsed as such.
-	if (context.triggerCharacter === '.') {
+	if (context && context.triggerCharacter === '.') {
 		-- position.character;
 	}
 
@@ -242,10 +254,13 @@ export async function getCompletionItems(uri: string, position: Position, contex
 	if (!symbol) {
 		return undefined;
 	}
-	const symbols = symbol.getCompletionSymbols(document);
-	const contextCompletions = symbols.map(symbol => symbol.toCompletionItem(document));
-	// TODO: Add context sensitive keywords
-	return contextCompletions;
+
+	if (symbol instanceof UCFieldSymbol) {
+		const symbols = symbol.getCompletionSymbols(document);
+		const contextCompletions = symbols.map(symbol => symbol.toCompletionItem(document));
+		// TODO: Add context sensitive keywords
+		return contextCompletions;
+	}
 }
 
 export async function getFullCompletionItem(item: CompletionItem): Promise<CompletionItem> {
@@ -255,7 +270,13 @@ export async function getFullCompletionItem(item: CompletionItem): Promise<Compl
 			return item;
 		}
 
-		const tokenStream = getDocumentByUri(symbol.getUri()).tokenStream;
+		const uri = symbol.getUri();
+		if (!uri) {
+			console.warn("no uri for symbol", symbol);
+			return item;
+		}
+
+		const tokenStream = getDocumentByUri(uri).tokenStream;
 		item.documentation = symbol.getDocumentation(tokenStream);
 	}
 	return item;

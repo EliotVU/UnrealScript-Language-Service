@@ -27,7 +27,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return CompletionItemKind.Module;
 	}
 
-	getCompletionSymbols(document: UCDocument): ISymbol[] {
+	getCompletionSymbols(document: UCDocument) {
 		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
 			if (child.acceptCompletion(document, this)) {
@@ -46,7 +46,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return symbols;
 	}
 
-	getCompletionContext(position: Position): UCSymbol {
+	getCompletionContext(position: Position) {
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
 			if (intersectsWith(symbol.getSpanRange(), position)) {
 				return symbol.getCompletionContext(position);
@@ -62,7 +62,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return this;
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol {
+	getContainedSymbolAtPos(position: Position) {
 		if (this.extendsType && this.extendsType.getSymbolAtPos(position)) {
 			return this.extendsType;
 		}
@@ -77,7 +77,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return this.getChildSymbolAtPos(position);
 	}
 
-	getChildSymbolAtPos(position: Position): UCSymbol {
+	getChildSymbolAtPos(position: Position) {
 		for (let child = this.children; child; child = child.next) {
 			const innerSymbol = child.getSymbolAtPos(position);
 			if (innerSymbol) {
@@ -87,7 +87,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	addSymbol(symbol: UCFieldSymbol): string {
+	addSymbol(symbol: UCFieldSymbol): string | undefined {
 		symbol.outer = this;
 		symbol.next = this.children;
 		symbol.containingStruct = this;
@@ -107,11 +107,11 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	getSymbol(id: string): UCSymbol {
+	getSymbol(id: string): UCSymbol | undefined {
 		return this.findSymbol(id);
 	}
 
-	findSymbol(id: string): UCSymbol {
+	findSymbol(id: string): UCSymbol | undefined {
 		for (let child = this.children; child; child = child.next) {
 			const name = child.getId();
 			if (name === id) {
@@ -121,8 +121,8 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	findSuperSymbol(id: string): UCSymbol {
-		const symbol = this.findSymbol(id) || (this.super && this.super.findSuperSymbol(id));
+	findSuperSymbol(id: string): UCSymbol | undefined {
+		const symbol = this.findSymbol(id) || this.super && this.super.findSuperSymbol(id);
 		if (symbol) {
 			return symbol;
 		}
@@ -137,7 +137,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	findTypeSymbol(id: string, deepSearch: boolean): UCSymbol {
+	findTypeSymbol(id: string, deepSearch: boolean): UCSymbol | undefined {
 		if (this.declaredTypes) {
 			const symbol = this.declaredTypes.get(id);
 			if (symbol) {
@@ -167,19 +167,19 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			}
 
 			// Index all properties foremost as we need their resolved types.
-			for (let child = this.children; child; child = child.next) {
+			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
 				if (child instanceof UCPropertySymbol) {
 					child.index(document, this);
 				}
 			}
 
-			for (let child = this.children; child; child = child.next) {
+			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
 				if (child instanceof UCMethodSymbol) {
 					child.index(document, this);
 				}
 			}
 
-			for (let child = this.children; child; child = child.next) {
+			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
 				if (child.isType()) {
 					continue;
 				}

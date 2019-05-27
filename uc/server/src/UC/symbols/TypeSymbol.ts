@@ -34,7 +34,10 @@ export class UCQualifiedType extends UCSymbol {
 
 	getContainedSymbolAtPos(position: Position): UCSymbol {
 		if (this.left) {
-			return this.left.getSymbolAtPos(position);
+			const symbol = this.left.getSymbolAtPos(position);
+			if (symbol) {
+				return symbol;
+			}
 		}
 		return this.type.getSymbolAtPos(position);
 	}
@@ -79,7 +82,7 @@ export class UCTypeSymbol extends UCSymbolReference {
 		return this.getName();
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol {
+	getContainedSymbolAtPos(position: Position) {
 		if (this.baseType) {
 			return this.baseType.getSymbolAtPos(position);
 		}
@@ -94,8 +97,7 @@ export class UCTypeSymbol extends UCSymbolReference {
 		}
 
 		const id = this.getId();
-		let symbol: ISymbol;
-
+		let symbol: ISymbol | undefined;
 		switch (this.typeKind) {
 			case UCTypeKind.Class: {
 				// TODO: flatten this look up by using a globally defined classesMap.
@@ -139,14 +141,13 @@ export class UCTypeSymbol extends UCSymbolReference {
 		}
 	}
 
-	analyze(document: UCDocument, context: UCStructSymbol) {
+	analyze(document: UCDocument, context?: UCStructSymbol) {
 		if (this.baseType) {
 			this.baseType.analyze(document, context);
 		}
 
 		const symbol = this.getReference();
 		if (symbol) {
-
 			switch (this.typeKind) {
 				case UCTypeKind.Class: {
 					if (!(symbol instanceof UCClassSymbol)) {

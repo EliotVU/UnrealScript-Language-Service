@@ -21,7 +21,7 @@ export class UCReplicationBlock extends UCFieldSymbol {
 		return this.getName();
 	}
 
-	getCompletionContext(position: Position): UCSymbol {
+	getCompletionContext(position: Position) {
 		if (this.block) {
 			const symbol = this.block.getSymbolAtPos(position);
 			if (symbol) {
@@ -32,12 +32,12 @@ export class UCReplicationBlock extends UCFieldSymbol {
 	}
 
 	getCompletionSymbols(_document: UCDocument): ISymbol[] {
-		return this.containingStruct
+		return this.containingStruct!
 			.getCompletionSymbols(_document)
 			.concat(ReliableKeyword, UnreliableKeyword);
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol {
+	getContainedSymbolAtPos(position: Position) {
 		if (this.block) {
 			const symbol = this.block.getSymbolAtPos(position);
 			if (symbol) {
@@ -80,7 +80,7 @@ export class UCReplicationBlock extends UCFieldSymbol {
 				if (symbol.outer !== this.outer) {
 					const errorNode = new SemanticErrorNode(
 						symbolRef,
-						`Variable or Function '${symbol.getQualifiedName()}' needs to be declared in class '${this.outer.getQualifiedName()}'!`
+						`Variable or Function '${symbol.getQualifiedName()}' needs to be declared in class '${this.outer!.getQualifiedName()}'!`
 					);
 					document.nodes.push(errorNode);
 				}

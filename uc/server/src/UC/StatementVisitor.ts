@@ -1,31 +1,40 @@
+import { ParserRuleContext } from 'antlr4ts';
+import { ParseTree } from 'antlr4ts/tree/ParseTree';
+import { RuleNode } from 'antlr4ts/tree/RuleNode';
+import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
+import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
+
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
+import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, AssertStatementContext, CaseClauseContext, DefaultClauseContext, ExpressionContext } from '../antlr/UCGrammarParser';
 
 import { rangeFromBounds } from './helpers';
 import { ExpressionVisitor } from './DocumentListener';
 
-import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, AssertStatementContext, CaseClauseContext, DefaultClauseContext, ExpressionContext } from '../antlr/UCGrammarParser';
 import { UCExpressionStatement, UCIfStatement, UCDoUntilStatement, UCWhileStatement, UCSwitchStatement, UCCaseClause, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCReturnStatement, UCGotoStatement, UCAssertStatement, UCBlock, UCDefaultClause } from './Statements';
-import { ParserRuleContext } from 'antlr4ts';
 
 export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
-	visitTerminal(ctx) {
-		return undefined;
+	visit(tree: ParseTree): IStatement {
+		return undefined!;
 	}
 
-	visitErrorNode(ctx) {
-		return undefined;
+	visitChildren(node: RuleNode): IStatement {
+		return undefined!;
 	}
 
-	visit(ctx) {
-		return undefined;
+	visitTerminal(node: TerminalNode): IStatement {
+		return undefined!;
 	}
 
-	visitChildren(ctx) {
-		return undefined;
+	visitErrorNode(node: ErrorNode): IStatement {
+		return undefined!;
 	}
 
-	visitStatement(ctx: StatementContext): IStatement {
-		return ctx.childCount !== 0 && ctx.getChild(0).accept(this);
+	visitStatement(ctx: StatementContext) {
+		if (ctx.childCount === 0) {
+			return undefined!;
+		}
+
+		return ctx.getChild(0).accept(this);
 	}
 
 	visitExpression(ctx: ExpressionContext) {

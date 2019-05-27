@@ -3,9 +3,10 @@ import { SymbolKind, CompletionItemKind, Position, Location } from 'vscode-langu
 import { FunctionDeclContext } from '../../antlr/UCGrammarParser';
 import { UCDocument, getDocumentByUri } from '../DocumentListener';
 
-import { UCSymbol, UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
+import { UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
 import { SymbolVisitor } from '../SymbolVisitor';
 import { ISymbol, IWithReference } from './ISymbol';
+import { DEFAULT_RANGE } from './Symbol';
 
 export class UCMethodSymbol extends UCStructSymbol {
 	public returnType?: UCTypeSymbol;
@@ -53,7 +54,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 		}
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol {
+	getContainedSymbolAtPos(position: Position) {
 		if (this.returnType) {
 			const returnSymbol = this.returnType.getSymbolAtPos(position);
 			if (returnSymbol) {
@@ -63,12 +64,11 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return super.getContainedSymbolAtPos(position);
 	}
 
-	findSuperSymbol(id: string): UCSymbol {
-		return this.findSymbol(id)
-			|| (this.outer instanceof UCStructSymbol && this.outer.findSuperSymbol(id));
+	findSuperSymbol(id: string) {
+		return this.findSymbol(id) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id);
 	}
 
-	findTypeSymbol(qualifiedId: string, deepSearch: boolean): UCSymbol {
+	findTypeSymbol(qualifiedId: string, deepSearch: boolean) {
 		// Redirect to outer, because Methods are never supposed to have any type members!
 		return (this.outer as UCStructSymbol).findTypeSymbol(qualifiedId, deepSearch);
 	}
@@ -107,7 +107,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return visitor.visitMethod(this);
 	}
 
-	getTypeTooltip(): string {
+	getTypeTooltip(): string | undefined {
 		return this.overriddenMethod && '(override)';
 	}
 
@@ -118,7 +118,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getTooltip(): string {
-		const text: string[] = [];
+		const text: Array<string | undefined> = [];
 
 		text.push(this.getTypeTooltip());
 
@@ -147,21 +147,21 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	// TODO: Print return modifiers? (e.g. coerce)
-	protected buildReturnType(): string {
+	protected buildReturnType(): string | undefined {
 		return this.returnType && this.returnType.getTypeText();
 	}
 
 	// TODO: Print param modifiers?
 	protected buildParameters(): string {
 		return this.params
-			? `(${this.params.map(f => f.type.getTypeText() + ' ' + f.getName()).join(', ')})`
+			? `(${this.params.map(f => (f.type ? f.type.getTypeText() + ' ' : '') + f.getName()).join(', ')})`
 			: '()';
 	}
 }
 
 export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference {
 	constructor(name: string, protected kind?: string) {
-		super(name);
+		super(name, DEFAULT_RANGE, DEFAULT_RANGE);
 	}
 
 	isStatic() {
@@ -184,7 +184,7 @@ export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference
 		return this.kind || 'function'; // placeholder
 	}
 
-	getReference(): ISymbol {
+	getReference(): ISymbol | undefined {
 		return this.returnType && this.returnType.getReference();
 	}
 }

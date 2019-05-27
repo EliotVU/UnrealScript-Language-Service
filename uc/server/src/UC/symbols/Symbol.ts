@@ -12,6 +12,9 @@ export const COMMENT_TYPES = new Set([UCGrammarParser.LINE_COMMENT, UCGrammarPar
 
 export const NO_NAME = '';
 
+export const DEFAULT_POSITION = Position.create(0, 0);
+export const DEFAULT_RANGE = Range.create(DEFAULT_POSITION, DEFAULT_POSITION);
+
 /**
  * A symbol that resides in a document, holding an id and range.
  */
@@ -26,7 +29,7 @@ export abstract class UCSymbol implements ISymbol {
 		return undefined;
 	}
 
-	getTooltip(): string | undefined {
+	getTooltip(): string {
 		return this.getQualifiedName();
 	}
 
@@ -36,11 +39,11 @@ export abstract class UCSymbol implements ISymbol {
 		}
 
 		const leadingComment = tokenStream
-			.getHiddenTokensToRight(this.context.stop.tokenIndex)
+			.getHiddenTokensToRight(this.context.stop!.tokenIndex)
 			.filter(token => COMMENT_TYPES.has(token.type) && token.charPositionInLine !== 0);
 
 		if (leadingComment && leadingComment.length > 0) {
-			return leadingComment.shift().text;
+			return leadingComment.shift()!.text;
 		}
 
 		const headerComment = tokenStream
@@ -90,15 +93,15 @@ export abstract class UCSymbol implements ISymbol {
 			&& position.character >= range.start.character && position.character < range.end.character;
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol {
+	getSymbolAtPos(position: Position): UCSymbol | undefined {
 		return this.intersectsWithName(position) && this.getContainedSymbolAtPos(position) || this;
 	}
 
-	protected getContainedSymbolAtPos(_position: Position): UCSymbol {
+	protected getContainedSymbolAtPos(_position: Position): UCSymbol | undefined {
 		return undefined;
 	}
 
-	getOuter<T extends ISymbol>(): ISymbol {
+	getOuter<T extends ISymbol>(): ISymbol | undefined {
 		for (let outer = this.outer; outer; outer = outer.outer) {
 			if (<T>(outer)) {
 				return outer;
@@ -117,15 +120,15 @@ export abstract class UCSymbol implements ISymbol {
 	index(_document: UCDocument, _context: UCStructSymbol) {}
 	analyze(_document: UCDocument, _context: UCStructSymbol) {}
 
-	getUri(): string | undefined {
-		return this.outer instanceof UCSymbol && this.outer.getUri();
+	getUri(): string {
+		return this.outer instanceof UCSymbol && this.outer.getUri() || '';
 	}
 
 	toSymbolInfo(): SymbolInformation {
 		return SymbolInformation.create(
 			this.getName(), this.getKind(),
 			this.getSpanRange(), undefined,
-			this.outer.getName()
+			this.outer && this.outer.getName()
 		);
 	}
 

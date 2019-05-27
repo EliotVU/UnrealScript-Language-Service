@@ -44,8 +44,7 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return (context instanceof UCPropertySymbol || context instanceof UCMethodSymbol);
 	}
 
-	findTypeSymbol(id: string, deepSearch: boolean): UCSymbol {
-		return super.findTypeSymbol(id, deepSearch)
-			|| (this.outer as UCStructSymbol).findTypeSymbol(id, deepSearch);
+	findTypeSymbol(id: string, deepSearch: boolean) {
+		return super.findTypeSymbol(id, deepSearch) || (<UCStructSymbol>(this.outer)).findTypeSymbol(id, deepSearch);
 	}
 }

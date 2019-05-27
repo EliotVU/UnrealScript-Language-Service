@@ -6,7 +6,7 @@ import { UCSymbol, UCTypeSymbol, UCFieldSymbol, UCStructSymbol } from '.';
 import { SymbolVisitor } from '../SymbolVisitor';
 
 export class UCPropertySymbol extends UCFieldSymbol {
-	public type: UCTypeSymbol;
+	public type?: UCTypeSymbol;
 
 	// Array dimension if specified, string may represent a number or a qualified identifier e.g. a const.
 	public arrayDim?: string;
@@ -19,15 +19,15 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return CompletionItemKind.Property;
 	}
 
-	getTypeTooltip(): string {
+	getTypeTooltip() {
 		return 'var';
 	}
 
-	getTooltip(): string {
+	getTooltip() {
 		return `${this.getTypeTooltip()} ${this.type!.getTypeText()} ${this.getQualifiedName()}`;
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol {
+	getContainedSymbolAtPos(position: Position) {
 		if (this.type) {
 			return this.type.getSymbolAtPos(position);
 		}

@@ -40,5 +40,5 @@ export interface ISymbolReference {
 }
 
 export interface IWithReference extends ISymbol {
-	getReference(): ISymbol;
+	getReference(): ISymbol | undefined;
 }

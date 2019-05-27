@@ -9,7 +9,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;
 	public containingStruct?: UCStructSymbol;
 
-	constructor(private name: string, nameRange?: Range, private spanRange?: Range) {
+	constructor(private name: string, nameRange: Range, private spanRange: Range) {
 		super(nameRange);
 	}
 
@@ -25,7 +25,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return this.spanRange;
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol {
+	getSymbolAtPos(position: Position) {
 		if (!intersectsWith(this.getSpanRange(), position)) {
 			return undefined;
 		}
@@ -36,7 +36,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return this.getContainedSymbolAtPos(position);
 	}
 
-	getCompletionContext(_position: Position): UCSymbol {
+	getCompletionContext(_position: Position): ISymbol | undefined {
 		return this;
 	}
 
