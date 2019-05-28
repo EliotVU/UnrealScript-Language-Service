@@ -5,7 +5,7 @@ import { connection } from '../server';
 
 import { getEnumMember } from './indexer';
 import { intersectsWith, rangeFromBounds } from './helpers';
-import { UCDocument } from './DocumentListener';
+import { UCDocument } from './document';
 import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode } from './diagnostics/diagnostics';
 import {
 	UCTypeSymbol,

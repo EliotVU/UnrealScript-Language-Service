@@ -1,6 +1,6 @@
 import { CompletionItem, CompletionItemKind, SymbolKind } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../DocumentListener';
+import { UCDocument } from '../document';
 import { ISymbol } from './ISymbol';
 import { SymbolWalker } from '../symbolWalker';
 

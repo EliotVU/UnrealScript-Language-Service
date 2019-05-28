@@ -1,9 +1,8 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../DocumentListener';
+import { UCDocument } from '../document';
 
-import { UCStructSymbol, UCSymbol, UCMethodSymbol, UCPropertySymbol } from '.';
-import { ISymbol } from './ISymbol';
+import { ISymbol, UCStructSymbol, UCSymbol, UCMethodSymbol, UCPropertySymbol } from '.';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
 	isProtected(): boolean {

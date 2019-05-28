@@ -1,9 +1,9 @@
 import { Position, Range } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../DocumentListener';
-import { UnrecognizedTypeNode, SemanticErrorNode } from '../diagnostics/diagnostics';
-
 import { QualifiedIdentifierContext } from '../../antlr/UCGrammarParser';
+
+import { UCDocument } from '../document';
+import { UnrecognizedTypeNode, SemanticErrorNode } from '../diagnostics/diagnostics';
 
 import {
 	UCSymbol,

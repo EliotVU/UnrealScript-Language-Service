@@ -1,7 +1,7 @@
 import { SymbolKind, Position } from 'vscode-languageserver-types';
 
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
-import { UCDocument } from '../DocumentListener';
+import { UCDocument } from '../document';
 
 import { UCSymbol, UCSymbolReference, UCStructSymbol, UCPropertySymbol } from '.';
 

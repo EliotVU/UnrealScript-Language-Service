@@ -4,7 +4,7 @@ import URI from 'vscode-uri';
 import { BehaviorSubject } from 'rxjs';
 
 import { ISymbolReference, UCPackage, SymbolsTable, UCEnumMemberSymbol } from './Symbols';
-import { UCDocument } from './DocumentListener';
+import { UCDocument } from './document';
 
 function findPackageNameInDir(dir: string): string {
 	const directories = dir.split('/');

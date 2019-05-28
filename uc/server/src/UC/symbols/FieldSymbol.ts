@@ -1,7 +1,7 @@
 import { Range, Position, Location } from 'vscode-languageserver-types';
 
 import { intersectsWith } from '../helpers';
-import { UCDocument } from '../DocumentListener';
+import { UCDocument } from '../document';
 
 import { ISymbol, UCSymbol, UCStructSymbol, UCClassSymbol } from '.';
 

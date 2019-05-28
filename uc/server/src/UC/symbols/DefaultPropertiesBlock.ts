@@ -1,5 +1,5 @@
 import { UCObjectSymbol, UCSymbol, UCClassSymbol, UCScriptStructSymbol } from '.';
-import { UCDocument } from '../DocumentListener';
+import { UCDocument } from '../document';
 
 export class UCDefaultPropertiesBlock extends UCObjectSymbol {
 	acceptCompletion(_document: UCDocument, context: UCSymbol): boolean {

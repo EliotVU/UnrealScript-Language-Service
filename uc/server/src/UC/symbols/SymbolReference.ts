@@ -1,6 +1,6 @@
 import { Location, Range, Position } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../DocumentListener';
+import { UCDocument } from '../document';
 import { intersectsWith } from '../helpers';
 
 import { ISymbol, ISymbolReference, ISymbolContext, IWithReference } from './ISymbol';

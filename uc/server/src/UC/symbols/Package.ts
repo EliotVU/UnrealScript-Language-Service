@@ -2,7 +2,7 @@ import * as path from 'path';
 
 import { SymbolKind, CompletionItem } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../DocumentListener';
+import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { getDocumentById, indexDocument } from '../indexer';
 

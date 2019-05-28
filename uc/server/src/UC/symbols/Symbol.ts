@@ -1,7 +1,7 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Position } from 'vscode-languageserver-types';
 import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
 
-import { UCDocument } from "../DocumentListener";
+import { UCDocument } from "../document";
 import { UCGrammarParser } from '../../antlr/UCGrammarParser';
 
 import { ISymbol } from './ISymbol';

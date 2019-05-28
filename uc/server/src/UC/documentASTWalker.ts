@@ -1,26 +1,19 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import { Range } from 'vscode-languageserver-types';
 
-import URI from 'vscode-uri';
-import { performance } from 'perf_hooks';
-import { Diagnostic, Range, Position } from 'vscode-languageserver-types';
-
-import { ANTLRErrorListener, RecognitionException, Recognizer, Token, CommonTokenStream, ParserRuleContext } from 'antlr4ts';
+import { ANTLRErrorListener, RecognitionException, Recognizer, Token, ParserRuleContext } from 'antlr4ts';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 import { ParseTreeWalker } from 'antlr4ts/tree/ParseTreeWalker';
 
 import * as UCParser from '../antlr/UCGrammarParser';
 import { UCGrammarListener } from '../antlr/UCGrammarListener';
-import { UCGrammarLexer } from '../antlr/UCGrammarLexer';
-import { connection } from '../server';
 
 import { rangeFromBounds, rangeFromBound } from './helpers';
 
 import { ISymbolContainer } from './Symbols/ISymbolContainer';
 import {
-	ISymbol, ISymbolReference, UCClassSymbol, UCConstSymbol, UCDefaultPropertiesBlock,
+	ISymbol, UCConstSymbol, UCDefaultPropertiesBlock,
 	UCEnumMemberSymbol, UCEnumSymbol, UCMethodSymbol,
-	UCLocalSymbol, UCObjectSymbol, UCPackage, UCParamSymbol,
+	UCLocalSymbol, UCObjectSymbol, UCParamSymbol,
 	UCPropertySymbol, UCScriptStructSymbol, UCStateSymbol,
 	UCStructSymbol, UCSymbol, UCSymbolReference,
 	UCTypeSymbol,
@@ -28,42 +21,18 @@ import {
 } from './Symbols';
 import { UCTypeKind } from './Symbols/TypeKind';
 
-import { IDiagnosticNode, SyntaxErrorNode } from './diagnostics/diagnostics';
-import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
-import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
+import { SyntaxErrorNode } from './diagnostics/diagnostics';
 
 import { UCBlock, IStatement } from './statements';
-import { setEnumMember, IndexedReferences } from './indexer';
+import { setEnumMember } from './indexer';
 import { StatementVisitor } from './statementWalker';
+import { UCDocument } from './document';
 
-export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {
-	public readonly fileName: string;
-
-	public nodes: IDiagnosticNode[] = [];
-	public tokenStream: CommonTokenStream;
-
-	public class?: UCClassSymbol;
-
+export class DocumentASTWalker implements UCGrammarListener, ANTLRErrorListener<Token> {
 	private scopes: ISymbolContainer<ISymbol>[] = [];
-	private readonly indexReferencesMade = new Map<string, Set<ISymbolReference>>();
 
-	constructor(public classPackage: UCPackage, public readonly uri: string) {
-		this.fileName = path.basename(uri, '.uc');
-		this.scopes.push(classPackage);
-	}
-
-	indexReference(symbol: ISymbol, ref: ISymbolReference) {
-		const key = symbol.getQualifiedName();
-
-		const refs = this.indexReferencesMade.get(key) || new Set<ISymbolReference>();
-		refs.add(ref);
-
-		this.indexReferencesMade.set(key, refs);
-
-		// TODO: Refactor this, we are pretty much duplicating this function's job.
-		const indexedRefs = IndexedReferences.get(key) || new Set<ISymbolReference>();
-		indexedRefs.add(ref);
-		IndexedReferences.set(key, indexedRefs);
+	constructor(private document: UCDocument) {
+		this.scopes.push(document.classPackage);
 	}
 
 	push(newContext: UCStructSymbol) {
@@ -86,94 +55,6 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		scope.addSymbol(symbol);
 	}
 
-	parse(text?: string) {
-		const startParsing = performance.now();
-		connection.console.log('parsing document ' + this.fileName);
-
-		const lexer = new UCGrammarLexer(new CaseInsensitiveStream(text || this.readText()));
-		lexer.removeErrorListeners();
-		lexer.addErrorListener(this as ANTLRErrorListener<number>);
-
-		const stream = this.tokenStream = new CommonTokenStream(lexer);
-		const parser = new UCParser.UCGrammarParser(stream);
-		parser.errorHandler = ERROR_STRATEGY;
-		parser.removeErrorListeners();
-		parser.addErrorListener(this);
-
-		connection.console.log(this.fileName + ': parsing time ' + (performance.now() - startParsing));
-
-		const startWalking = performance.now();
-		try {
-			const programCtx = parser.program();
-			ParseTreeWalker.DEFAULT.walk(this, programCtx);
-			this.scopes = [this.classPackage]; // clear for next-parse
-		} catch (err) {
-			console.error('Error walking document', this.uri, err);
-		}
-		connection.console.log(this.fileName + ': Walking time ' + (performance.now() - startWalking));
-	}
-
-	readText(): string {
-		const filePath = URI.parse(this.uri).fsPath;
-		const text = fs.readFileSync(filePath).toString();
-		return text;
-	}
-
-	link() {
-		const start = performance.now();
-		this.class!.index(this, this.class!);
-		connection.console.log(this.fileName + ': linking time ' + (performance.now() - start));
-	}
-
-	invalidate() {
-		delete this.class;
-		this.nodes = []; // clear
-
-		// Clear all the indexed references that we have made.
-		for (let [key, value] of this.indexReferencesMade) {
-			const indexedRefs = IndexedReferences.get(key);
-			if (!indexedRefs) {
-				return;
-			}
-
-			value.forEach(ref => indexedRefs.delete(ref));
-
-			if (indexedRefs.size === 0) {
-				IndexedReferences.delete(key);
-			}
-		}
-
-		this.indexReferencesMade.clear();
-	}
-
-	analyze(): Diagnostic[] {
-		if (!this.class) {
-			return [];
-		}
-
-		const start = performance.now();
-		this.class!.analyze(this, this.class);
-		connection.console.log(this.fileName + ': analyzing time ' + (performance.now() - start));
-		return this.getNodes();
-	}
-
-	getNodes() {
-		return this.nodes
-			.map(node => {
-				return Diagnostic.create(
-					node.getRange(),
-					node.toString(),
-					undefined,
-					undefined,
-					'unrealscript'
-				);
-			});
-	}
-
-	getSymbolAtPos(position: Position): ISymbol | undefined {
-		return this.class && this.class.getSymbolAtPos(position);
-	}
-
 	syntaxError(_recognizer: Recognizer<Token, any>,
 		offendingSymbol: Token | undefined,
 		_line: number,
@@ -188,12 +69,16 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			range = rangeFromBound(offendingSymbol!);
 		}
 		const node = new SyntaxErrorNode(range, msg);
-		this.nodes.push(node);
+		this.document.nodes.push(node);
+	}
+
+	visitProgram(ctx: UCParser.ProgramContext) {
+		ParseTreeWalker.DEFAULT.walk(this, ctx);
 	}
 
 	visitErrorNode(errNode: ErrorNode) {
 		const node = new SyntaxErrorNode(rangeFromBound(errNode.symbol), '(ANTLR Node Error) ' + errNode.text);
-		this.nodes.push(node);
+		this.document.nodes.push(node);
 	}
 
 	visitExtendsClause(extendsCtx: UCParser.ExtendsClauseContext | UCParser.WithinClauseContext, _type: UCTypeKind): UCTypeSymbol {
@@ -205,7 +90,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		const classIdNode = ctx.identifier();
 		const classSymbol = new UCDocumentClassSymbol(classIdNode.text, rangeFromBound(classIdNode.start), rangeFromBounds(ctx.start, ctx.stop));
 		classSymbol.context = ctx;
-		this.class = classSymbol; // Important!, must be assigned before further parsing.
+		this.document.class = classSymbol; // Important!, must be assigned before further parsing.
 
 		const extendsNode = ctx.extendsClause();
 		if (extendsNode) {
@@ -263,7 +148,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		constSymbol.context = ctx;
 
 		// Ensure that all constant declarations are always declared as a top level field (i.e. class)
-		this.class!.addSymbol(constSymbol);
+		this.document.class!.addSymbol(constSymbol);
 
 		const valueNode = ctx.constValue();
 		if (valueNode) {
@@ -439,7 +324,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 			if (idNodes) for (const idNode of idNodes) {
 				const identifier = idNode.text;
 				const symbolRef = new UCSymbolReference(identifier, rangeFromBound(idNode.start));
-				symbolRef.outer = this.class;
+				symbolRef.outer = this.document.class;
 				replicationBlock.symbolRefs.set(identifier.toLowerCase(), symbolRef);
 			}
 		}

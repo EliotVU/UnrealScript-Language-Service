@@ -3,7 +3,7 @@ import { SymbolKind, CompletionItemKind, Position, Location } from 'vscode-langu
 import { FunctionDeclContext } from '../../antlr/UCGrammarParser';
 
 import { getDocumentByUri } from '../indexer';
-import { UCDocument } from '../DocumentListener';
+import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 
 import { UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';

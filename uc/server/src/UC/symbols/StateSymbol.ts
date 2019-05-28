@@ -1,11 +1,10 @@
 import { SymbolKind, Position } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../DocumentListener';
+import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { SemanticErrorNode, UnrecognizedFieldNode } from '../diagnostics/diagnostics';
 
-import { UCStructSymbol, UCMethodSymbol } from ".";
-import { UCSymbolReference } from './SymbolReference';
+import { UCSymbolReference, UCStructSymbol, UCMethodSymbol } from ".";
 
 export class UCStateSymbol extends UCStructSymbol {
 	public ignoreRefs?: UCSymbolReference[];

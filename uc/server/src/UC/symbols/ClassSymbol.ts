@@ -1,6 +1,6 @@
 import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../DocumentListener';
+import { UCDocument } from '../document';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 import { intersectsWith } from '../helpers';
 

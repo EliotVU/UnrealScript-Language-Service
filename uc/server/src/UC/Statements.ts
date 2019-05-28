@@ -2,7 +2,7 @@ import { Position, Range } from 'vscode-languageserver';
 import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
 import { intersectsWith, rangeFromBounds } from './helpers';
-import { UCDocument } from './DocumentListener';
+import { UCDocument } from './document';
 
 import { UCStructSymbol, ISymbol } from './Symbols';
 import { IExpression } from './expressions';
