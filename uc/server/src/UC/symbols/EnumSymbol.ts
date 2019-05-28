@@ -3,7 +3,7 @@ import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 import { UCDocument } from '../DocumentListener';
 
 import { UCStructSymbol, ISymbol } from '.';
-import { SymbolVisitor } from '../SymbolVisitor';
+import { SymbolWalker } from '../symbolWalker';
 
 export class UCEnumSymbol extends UCStructSymbol {
 	isProtected(): boolean {
@@ -37,7 +37,7 @@ export class UCEnumSymbol extends UCStructSymbol {
 	}
 
 
-	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitEnum(this);
 	}
 }

@@ -1,7 +1,7 @@
 import { SymbolKind, CompletionItemKind, CompletionItem } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../DocumentListener';
-import { SymbolVisitor } from '../SymbolVisitor';
+import { SymbolWalker } from '../symbolWalker';
 
 import { ISymbol } from './ISymbol';
 
@@ -40,7 +40,7 @@ export class UCNativeSymbol implements ISymbol {
 		return CompletionItem.create(this.name);
 	}
 
-	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visit(this);
 	}
 }

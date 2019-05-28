@@ -4,7 +4,7 @@ import { FunctionDeclContext } from '../../antlr/UCGrammarParser';
 import { UCDocument, getDocumentByUri } from '../DocumentListener';
 
 import { UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
-import { SymbolVisitor } from '../SymbolVisitor';
+import { SymbolWalker } from '../symbolWalker';
 import { ISymbol, IWithReference } from './ISymbol';
 import { DEFAULT_RANGE } from './Symbol';
 
@@ -103,7 +103,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 		}
 	}
 
-	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitMethod(this);
 	}
 

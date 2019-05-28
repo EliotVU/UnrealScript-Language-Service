@@ -1,7 +1,7 @@
 import { SymbolKind, Location, CompletionItem } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../DocumentListener';
-import { SymbolVisitor } from '../SymbolVisitor';
+import { SymbolWalker } from '../symbolWalker';
 
 export interface ISymbol {
 	outer?: ISymbol;
@@ -13,7 +13,7 @@ export interface ISymbol {
 
 	toCompletionItem(document: UCDocument): CompletionItem;
 
-	accept<Result>(visitor: SymbolVisitor<Result>): Result;
+	accept<Result>(visitor: SymbolWalker<Result>): Result;
 }
 
 export interface ISymbolContext {

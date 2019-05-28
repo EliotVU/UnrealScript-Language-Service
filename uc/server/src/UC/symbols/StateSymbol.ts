@@ -1,7 +1,7 @@
 import { SymbolKind, Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../DocumentListener';
-import { SymbolVisitor } from '../SymbolVisitor';
+import { SymbolWalker } from '../symbolWalker';
 import { SemanticErrorNode, UnrecognizedFieldNode } from '../diagnostics/diagnostics';
 
 import { UCStructSymbol, UCMethodSymbol } from ".";
@@ -67,7 +67,7 @@ export class UCStateSymbol extends UCStructSymbol {
 		}
 	}
 
-	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitState(this);
 	}
 }

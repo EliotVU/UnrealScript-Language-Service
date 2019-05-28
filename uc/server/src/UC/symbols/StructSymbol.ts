@@ -2,7 +2,7 @@ import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-
 
 import { intersectsWith } from '../helpers';
 import { UCDocument } from '../DocumentListener';
-import { SymbolVisitor } from '../SymbolVisitor';
+import { SymbolWalker } from '../symbolWalker';
 import { UCBlock } from '../Statements';
 
 import { ISymbol, UCFieldSymbol, UCPropertySymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol } from ".";
@@ -203,7 +203,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		if (this.block) this.block.analyze(document, this);
 	}
 
-	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitStruct(this);
 	}
 }

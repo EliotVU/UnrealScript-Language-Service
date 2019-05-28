@@ -32,7 +32,7 @@ import {
 import { rangeFromBounds, rangeFromBound } from './helpers';
 import { UCTypeKind } from './Symbols/TypeKind';
 
-export class UCExpressionVisitor implements UCGrammarVisitor<IExpression> {
+export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 	visit(tree: ParseTree): IExpression {
 		return undefined!;
 	}

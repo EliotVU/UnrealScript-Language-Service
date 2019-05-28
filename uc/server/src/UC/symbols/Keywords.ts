@@ -2,7 +2,7 @@ import { CompletionItem, CompletionItemKind, SymbolKind } from 'vscode-languages
 
 import { UCDocument } from '../DocumentListener';
 import { ISymbol } from './ISymbol';
-import { SymbolVisitor } from '../SymbolVisitor';
+import { SymbolWalker } from '../symbolWalker';
 
 export class UCKeyword implements ISymbol, CompletionItem {
 	kind: CompletionItemKind = CompletionItemKind.Keyword;
@@ -33,7 +33,7 @@ export class UCKeyword implements ISymbol, CompletionItem {
 		return this;
 	}
 
-	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visit(this);
 	}
 }

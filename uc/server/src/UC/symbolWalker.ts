@@ -9,7 +9,7 @@ import {
 	UCStateSymbol,
 } from './Symbols';
 
-export abstract class SymbolVisitor<T> {
+export abstract class SymbolWalker<T> {
 	abstract visit(symbol: ISymbol): T;
 	abstract visitStruct(symbol: UCStructSymbol): T;
 	abstract visitClass(symbol: UCClassSymbol): T;

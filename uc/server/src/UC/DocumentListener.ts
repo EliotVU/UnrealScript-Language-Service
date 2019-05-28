@@ -30,14 +30,14 @@ import {
 } from './Symbols';
 import { UCTypeKind } from './Symbols/TypeKind';
 import { IDiagnosticNode, SyntaxErrorNode } from './diagnostics/diagnostics';
-import { UCExpressionVisitor } from './ExpressionVisitor';
-import { UCStatementVisitor } from './StatementVisitor';
+import { ExpressionWalker } from './expressionWalker';
+import { StatementWalker } from './statementWalker';
 import { ISymbolReference } from './Symbols/ISymbol';
 import { UCBlock, IStatement } from './Statements';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 
-export const ExpressionVisitor = new UCExpressionVisitor();
-export const StatementVisitor = new UCStatementVisitor();
+export const ExpressionVisitor = new ExpressionWalker();
+export const StatementVisitor = new StatementWalker();
 
 function findPackageNameInDir(dir: string): string {
 	const directories = dir.split('/');
@@ -138,19 +138,19 @@ export function setEnumMember(enumMember: UCEnumMemberSymbol) {
 }
 
 export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {
-	public readonly name: string;
+	public readonly fileName: string;
 
 	public nodes: IDiagnosticNode[] = [];
 	public tokenStream: CommonTokenStream;
 
 	public class?: UCClassSymbol;
 
-	private context: ISymbolContainer<ISymbol>[] = [];
+	private scopes: ISymbolContainer<ISymbol>[] = [];
 	private readonly indexReferencesMade = new Map<string, Set<ISymbolReference>>();
 
 	constructor(public classPackage: UCPackage, public readonly uri: string) {
-		this.name = path.basename(uri, '.uc');
-		this.context.push(classPackage);
+		this.fileName = path.basename(uri, '.uc');
+		this.scopes.push(classPackage);
 	}
 
 	indexReference(symbol: ISymbol, ref: ISymbolReference) {
@@ -169,28 +169,28 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	push(newContext: UCStructSymbol) {
-		this.context.push(newContext);
+		this.scopes.push(newContext);
 	}
 
 	pop() {
-		this.context.pop();
+		this.scopes.pop();
 	}
 
-	get<T extends ISymbolContainer<ISymbol>>(): T {
-		return <T>this.context[this.context.length - 1];
+	scope<T extends ISymbolContainer<ISymbol>>(): T {
+		return <T>this.scopes[this.scopes.length - 1];
 	}
 
 	declare(symbol: UCSymbol) {
-		const context = this.get();
-		if (!context) {
-			throw "Adding symbol without context!";
+		const scope = this.scope();
+		if (!scope) {
+			throw "Tried adding a symbol without a scope!";
 		}
-		context.addSymbol(symbol);
+		scope.addSymbol(symbol);
 	}
 
 	parse(text?: string) {
 		const startParsing = performance.now();
-		connection.console.log('parsing document ' + this.name);
+		connection.console.log('parsing document ' + this.fileName);
 
 		const lexer = new UCGrammarLexer(new CaseInsensitiveStream(text || this.readText()));
 		lexer.removeErrorListeners();
@@ -202,17 +202,17 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		parser.removeErrorListeners();
 		parser.addErrorListener(this);
 
-		connection.console.log(this.name + ': parsing time ' + (performance.now() - startParsing));
+		connection.console.log(this.fileName + ': parsing time ' + (performance.now() - startParsing));
 
 		const startWalking = performance.now();
 		try {
 			const programCtx = parser.program();
 			ParseTreeWalker.DEFAULT.walk(this, programCtx);
-			this.context = [this.classPackage]; // clear for next-parse
+			this.scopes = [this.classPackage]; // clear for next-parse
 		} catch (err) {
 			console.error('Error walking document', this.uri, err);
 		}
-		connection.console.log(this.name + ': Walking time ' + (performance.now() - startWalking));
+		connection.console.log(this.fileName + ': Walking time ' + (performance.now() - startWalking));
 	}
 
 	readText(): string {
@@ -224,7 +224,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	link() {
 		const start = performance.now();
 		this.class!.index(this, this.class!);
-		connection.console.log(this.name + ': linking time ' + (performance.now() - start));
+		connection.console.log(this.fileName + ': linking time ' + (performance.now() - start));
 	}
 
 	invalidate() {
@@ -255,7 +255,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 		const start = performance.now();
 		this.class!.analyze(this, this.class);
-		connection.console.log(this.name + ': analyzing time ' + (performance.now() - start));
+		connection.console.log(this.fileName + ': analyzing time ' + (performance.now() - start));
 		return this.getNodes();
 	}
 
@@ -461,7 +461,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		}
 
 		const typeSymbol = new UCTypeSymbol(typeIdText!, typeIdRange!, rangeFromBounds(typeDeclNode.start, typeDeclNode.stop));
-		typeSymbol.outer = this.get<UCStructSymbol>();
+		typeSymbol.outer = this.scope<UCStructSymbol>();
 		typeSymbol.baseType = innerTypeSymbol;
 		if (innerTypeSymbol) {
 			innerTypeSymbol.outer = typeSymbol;
@@ -658,6 +658,10 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.pop();
 	}
 
+	enterIdentifier(ctx) {
+		connection.console.log('id!');
+	}
+
 	enterStateDecl(ctx: UCParser.StateDeclContext) {
 		const stateIdNode = ctx.identifier();
 		if (!stateIdNode) {
@@ -687,7 +691,7 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	enterIgnoresList(ctx: UCParser.IgnoresListContext) {
 		const identifierNodes = ctx.identifier();
 
-		const state = this.get<UCStateSymbol>();
+		const state = this.scope<UCStateSymbol>();
 		if (!state.ignoreRefs) {
 			state.ignoreRefs = [];
 		}
@@ -727,22 +731,22 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 	}
 
 	enterObjectDecl(ctx: UCParser.ObjectDeclContext) {
-		const objectSymbol = new UCObjectSymbol(
+		const archetype = new UCObjectSymbol(
 			'', rangeFromBound(ctx.start),
 			rangeFromBounds(ctx.start, ctx.stop)
 		);
-		objectSymbol.context = ctx;
+		archetype.context = ctx;
 
-		this.declare(objectSymbol);
-		this.push(objectSymbol);
+		this.declare(archetype);
+		this.push(archetype);
 	}
 
 	enterDefaultVariable(ctx: UCParser.DefaultVariableContext) {
 		const idNode = ctx.defaultId();
 		const symbolRef = new UCSymbolReference(idNode.text, rangeFromBound(ctx.start));
 
-		const context = this.get<UCObjectSymbol>();
-		symbolRef.outer = context;
+		const archetype = this.scope<UCObjectSymbol>();
+		symbolRef.outer = archetype;
 
 		const propNameLC = idNode.text.toLowerCase();
 		switch (propNameLC) {
@@ -755,11 +759,11 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 					symbolRef.getName(), rangeFromBounds(idNode.start, idNode.stop), undefined,
 					UCTypeKind.Class
 				);
-				typeSymbol.outer = context;
-				context.extendsType = typeSymbol;
+				typeSymbol.outer = archetype;
+				archetype.extendsType = typeSymbol;
 			}
 		}
-		context.symbolRefs.set(propNameLC, symbolRef);
+		archetype.symbolRefs.set(propNameLC, symbolRef);
 
 		const valueNode = ctx.defaultValue();
 		if (valueNode) {

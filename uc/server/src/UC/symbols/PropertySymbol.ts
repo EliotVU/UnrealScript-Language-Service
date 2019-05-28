@@ -3,7 +3,7 @@ import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-
 import { UCDocument } from '../DocumentListener';
 
 import { UCSymbol, UCTypeSymbol, UCFieldSymbol, UCStructSymbol } from '.';
-import { SymbolVisitor } from '../SymbolVisitor';
+import { SymbolWalker } from '../symbolWalker';
 
 export class UCPropertySymbol extends UCFieldSymbol {
 	public type?: UCTypeSymbol;
@@ -47,7 +47,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		}
 	}
 
-	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitProperty(this);
 	}
 }

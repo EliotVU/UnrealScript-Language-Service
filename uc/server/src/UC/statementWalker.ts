@@ -12,7 +12,7 @@ import { ExpressionVisitor } from './DocumentListener';
 
 import { UCExpressionStatement, UCIfStatement, UCDoUntilStatement, UCWhileStatement, UCSwitchStatement, UCCaseClause, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCReturnStatement, UCGotoStatement, UCAssertStatement, UCBlock, UCDefaultClause } from './Statements';
 
-export class UCStatementVisitor implements UCGrammarVisitor<IStatement> {
+export class StatementWalker implements UCGrammarVisitor<IStatement> {
 	visit(tree: ParseTree): IStatement {
 		return undefined!;
 	}

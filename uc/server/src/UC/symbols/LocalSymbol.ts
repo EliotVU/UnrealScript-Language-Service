@@ -1,7 +1,7 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
 import { UCPropertySymbol } from '.';
-import { SymbolVisitor } from '../SymbolVisitor';
+import { SymbolWalker } from '../symbolWalker';
 
 export class UCLocalSymbol extends UCPropertySymbol {
 	isPrivate(): boolean {
@@ -24,7 +24,7 @@ export class UCLocalSymbol extends UCPropertySymbol {
 		return `${this.getTypeTooltip()} ${this.type!.getTypeText()} ${this.getName()}`;
 	}
 
-	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitLocal(this);
 	}
 }

@@ -5,7 +5,7 @@ import { SemanticErrorNode } from '../diagnostics/diagnostics';
 import { intersectsWith } from '../helpers';
 
 import { UCSymbol, UCStructSymbol, UCTypeSymbol } from '.';
-import { SymbolVisitor } from '../SymbolVisitor';
+import { SymbolWalker } from '../symbolWalker';
 
 export class UCClassSymbol extends UCStructSymbol {
 	public withinType?: UCTypeSymbol;
@@ -105,10 +105,10 @@ export class UCClassSymbol extends UCStructSymbol {
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		const className = this.getName();
-		if (className.toLowerCase() != document.name.toLowerCase()) {
+		if (className.toLowerCase() != document.fileName.toLowerCase()) {
 			const errorNode = new SemanticErrorNode(
 				this,
-				`Class name '${className}' must be equal to its file name ${document.name}!`,
+				`Class name '${className}' must be equal to its file name ${document.fileName}!`,
 			);
 			document.nodes.push(errorNode);
 		}
@@ -131,7 +131,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		super.analyze(document, context);
 	}
 
-	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitClass(this);
 	}
 }

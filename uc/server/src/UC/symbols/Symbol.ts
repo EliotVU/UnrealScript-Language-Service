@@ -6,7 +6,7 @@ import { UCGrammarParser } from '../../antlr/UCGrammarParser';
 
 import { ISymbol } from './ISymbol';
 import { UCStructSymbol } from ".";
-import { SymbolVisitor } from '../SymbolVisitor';
+import { SymbolWalker } from '../symbolWalker';
 
 export const COMMENT_TYPES = new Set([UCGrammarParser.LINE_COMMENT, UCGrammarParser.BLOCK_COMMENT]);
 
@@ -140,7 +140,7 @@ export abstract class UCSymbol implements ISymbol {
 		return item;
 	}
 
-	accept<Result>(visitor: SymbolVisitor<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visit(this);
 	}
 }
