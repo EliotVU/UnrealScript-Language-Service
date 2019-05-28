@@ -148,6 +148,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
+		super.index(document, context);
 		if (this.extendsType) {
 			this.extendsType.index(document, context);
 			// Ensure that we don't overwrite super assignment from our descendant class.
