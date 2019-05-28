@@ -5,7 +5,7 @@
 	"author": "Eliot van Uytfanghe",
 	"license": "",
 	"dependencies": {
-		"rxjs": "^6.5.1",
+		"rxjs": "^6.5.2",
 		"vscode-languageserver": "^4.4.2"
 	}
 }
