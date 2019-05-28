@@ -43,7 +43,7 @@ export function getDocumentByUri(uri: string): UCDocument {
 	}
 
 	const pkg = getPackageByUri(uri);
-	document = new UCDocument(pkg, uri);
+	document = new UCDocument(uri, pkg);
 	ClassNameToDocumentMap.set(uri, document);
 	return document;
 }
@@ -58,18 +58,17 @@ export function getDocumentById(qualifiedId: string): UCDocument | undefined {
 	return document;
 }
 
-export function indexDocument(document: UCDocument, text?: string) {
+export function indexDocument(document: UCDocument, text?: string): UCDocument | undefined {
 	try {
-		document.invalidate();
-		document.parse(text);
-
+		document.build(text);
 		if (document.class) {
 			document.link();
 		} else {
-			console.warn("Indexed a document with no class!", document.uri);
+			console.warn("Indexed a document with no class!", document.filePath);
 		}
+		return document;
 	} catch (err) {
-		console.error(`An error occurred during the indexation of document ${document.uri}`, err);
+		console.error(`An error occurred during the indexation of document ${document.filePath}`, err);
 		return undefined;
 	}
 }

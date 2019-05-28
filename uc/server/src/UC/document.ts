@@ -29,25 +29,18 @@ export class UCDocument {
 	public class?: UCClassSymbol;
 	private readonly indexReferencesMade = new Map<string, Set<ISymbolReference>>();
 
-	constructor(public classPackage: UCPackage, public readonly uri: string) {
-		this.fileName = path.basename(uri, '.uc');
+	constructor(public readonly filePath: string, public classPackage: UCPackage) {
+		this.fileName = path.basename(filePath, '.uc');
 	}
 
-	indexReference(symbol: ISymbol, ref: ISymbolReference) {
-		const key = symbol.getQualifiedName();
-
-		const refs = this.indexReferencesMade.get(key) || new Set<ISymbolReference>();
-		refs.add(ref);
-
-		this.indexReferencesMade.set(key, refs);
-
-		// TODO: Refactor this, we are pretty much duplicating this function's job.
-		const indexedRefs = IndexedReferences.get(key) || new Set<ISymbolReference>();
-		indexedRefs.add(ref);
-		IndexedReferences.set(key, indexedRefs);
+	public getSymbolAtPos(position: Position): ISymbol | undefined {
+		return this.class && this.class.getSymbolAtPos(position);
 	}
 
-	parse(text?: string) {
+	public build(text?: string) {
+		if (this.class) {
+			this.invalidate();
+		}
 		const startParsing = performance.now();
 		connection.console.log('parsing document ' + this.fileName);
 
@@ -57,6 +50,7 @@ export class UCDocument {
 
 		const stream = this.tokenStream = new CommonTokenStream(lexer);
 		const parser = new UCGrammarParser(stream);
+
 		parser.errorHandler = ERROR_STRATEGY;
 		parser.removeErrorListeners();
 		connection.console.log(this.fileName + ': parsing time ' + (performance.now() - startParsing));
@@ -67,26 +61,26 @@ export class UCDocument {
 			parser.addErrorListener(walker);
 			walker.visitProgram(parser.program());
 		} catch (err) {
-			console.error('Error walking document', this.uri, err);
+			console.error('Error walking document', this.filePath, err);
 		}
 		finally {
 			connection.console.log(this.fileName + ': Walking time ' + (performance.now() - startWalking));
 		}
 	}
 
-	readText(): string {
-		const filePath = URI.parse(this.uri).fsPath;
+	private readText(): string {
+		const filePath = URI.parse(this.filePath).fsPath;
 		const text = fs.readFileSync(filePath).toString();
 		return text;
 	}
 
-	link() {
+	public link() {
 		const start = performance.now();
 		this.class!.index(this, this.class!);
 		connection.console.log(this.fileName + ': linking time ' + (performance.now() - start));
 	}
 
-	invalidate() {
+	private invalidate() {
 		delete this.class;
 		this.nodes = []; // clear
 
@@ -107,7 +101,7 @@ export class UCDocument {
 		this.indexReferencesMade.clear();
 	}
 
-	analyze(): Diagnostic[] {
+	public analyze(): Diagnostic[] {
 		if (!this.class) {
 			return [];
 		}
@@ -118,7 +112,7 @@ export class UCDocument {
 		return this.getNodes();
 	}
 
-	getNodes() {
+	private getNodes() {
 		return this.nodes
 			.map(node => {
 				return Diagnostic.create(
@@ -131,7 +125,17 @@ export class UCDocument {
 			});
 	}
 
-	getSymbolAtPos(position: Position): ISymbol | undefined {
-		return this.class && this.class.getSymbolAtPos(position);
+	indexReference(symbol: ISymbol, ref: ISymbolReference) {
+		const key = symbol.getQualifiedName();
+
+		const refs = this.indexReferencesMade.get(key) || new Set<ISymbolReference>();
+		refs.add(ref);
+
+		this.indexReferencesMade.set(key, refs);
+
+		// TODO: Refactor this, we are pretty much duplicating this function's job.
+		const indexedRefs = IndexedReferences.get(key) || new Set<ISymbolReference>();
+		indexedRefs.add(ref);
+		IndexedReferences.set(key, indexedRefs);
 	}
 }

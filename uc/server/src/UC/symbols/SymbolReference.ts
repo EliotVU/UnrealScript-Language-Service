@@ -54,7 +54,7 @@ export class UCSymbolReference extends UCSymbol implements IWithReference {
 		this.reference = symbol;
 		if (symbol && symbol instanceof UCSymbol) {
 			const ref: ISymbolReference = {
-				location: Location.create(document.uri, this.getNameRange()),
+				location: Location.create(document.filePath, this.getNameRange()),
 				symbol: this,
 				context
 			};

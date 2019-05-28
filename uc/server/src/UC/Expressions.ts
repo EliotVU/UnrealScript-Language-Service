@@ -524,7 +524,7 @@ export class UCMemberExpression extends UCExpression {
 					this.symbolRef.setReference(symbol, document, contextInfo);
 			}
 		} catch (err) {
-			connection.console.error('(' + document.uri + ')' + ' An unexpected indexing error occurred ' + JSON.stringify(err));
+			connection.console.error('(' + document.filePath + ')' + ' An unexpected indexing error occurred ' + JSON.stringify(err));
 		}
 	}
 

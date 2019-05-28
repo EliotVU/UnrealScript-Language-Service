@@ -140,7 +140,7 @@ export class UCDocumentClassSymbol extends UCClassSymbol {
 	public document?: UCDocument;
 
 	getUri(): string {
-		return this.document!.uri;
+		return this.document!.filePath;
 	}
 
 	index(document: UCDocument, context: UCClassSymbol = document.class!) {

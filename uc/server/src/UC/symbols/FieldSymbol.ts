@@ -80,7 +80,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 
 	index(document: UCDocument, _context: UCStructSymbol) {
 		document.indexReference(this, {
-			location: Location.create(document.uri, this.getNameRange()),
+			location: Location.create(document.filePath, this.getNameRange()),
 			symbol: this,
 			context: {
 				inAssignment: true

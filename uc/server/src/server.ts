@@ -77,7 +77,7 @@ connection.onInitialized(async () => {
 
 					const diagnostics = document.analyze();
 					connection.sendDiagnostics({
-						uri: document.uri,
+						uri: document.filePath,
 						diagnostics
 					});
 				}
@@ -124,7 +124,7 @@ connection.onInitialized(async () => {
 					});
 			})
 		)
-		.subscribe((classes => {
+		.subscribe(((classes) => {
 			if (!currentSettings.indexAllDocuments) {
 				isIndexReady$.next(true);
 				return;
@@ -138,7 +138,9 @@ connection.onInitialized(async () => {
 				if (!document || document.class) {
 					return;
 				}
+
 				indexDocument(document);
+				connection.console.log("Indexing file " + document.fileName);
 			});
 
 			isIndexReady$.next(true);
