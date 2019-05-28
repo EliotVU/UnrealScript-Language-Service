@@ -1,10 +1,12 @@
 import { SymbolKind, CompletionItemKind, Position, Location } from 'vscode-languageserver-types';
 
 import { FunctionDeclContext } from '../../antlr/UCGrammarParser';
-import { UCDocument, getDocumentByUri } from '../DocumentListener';
+
+import { getDocumentByUri } from '../indexer';
+import { UCDocument } from '../DocumentListener';
+import { SymbolWalker } from '../symbolWalker';
 
 import { UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
-import { SymbolWalker } from '../symbolWalker';
 import { ISymbol, IWithReference } from './ISymbol';
 import { DEFAULT_RANGE } from './Symbol';
 

@@ -3,7 +3,7 @@ import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-
 import { intersectsWith } from '../helpers';
 import { UCDocument } from '../DocumentListener';
 import { SymbolWalker } from '../symbolWalker';
-import { UCBlock } from '../Statements';
+import { UCBlock } from '../statements';
 
 import { ISymbol, UCFieldSymbol, UCPropertySymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol } from ".";
 import { ISymbolContainer } from './ISymbolContainer';

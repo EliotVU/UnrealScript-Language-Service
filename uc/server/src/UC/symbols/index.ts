@@ -1,4 +1,4 @@
-export { ISymbol } from './ISymbol';
+export { ISymbol, ISymbolReference, IWithReference } from './ISymbol';
 export { UCSymbol } from "./Symbol";
 export { UCSymbolReference } from './SymbolReference';
 export { UCTypeSymbol } from './TypeSymbol';

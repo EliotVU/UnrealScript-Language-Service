@@ -3,7 +3,7 @@ import { SymbolKind, Position } from 'vscode-languageserver-types';
 import { UCDocument } from '../DocumentListener';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 
-import { UCBlock } from '../Statements';
+import { UCBlock } from '../statements';
 
 import { ISymbol, UCFieldSymbol, UCSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCStructSymbol, UCSymbolReference } from '.';
 import { ReliableKeyword, UnreliableKeyword } from './Keywords';

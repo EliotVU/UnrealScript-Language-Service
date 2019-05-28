@@ -1,141 +1,40 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+import URI from 'vscode-uri';
 import { performance } from 'perf_hooks';
 import { Diagnostic, Range, Position } from 'vscode-languageserver-types';
-import URI from 'vscode-uri';
-
-import { BehaviorSubject } from 'rxjs';
 
 import { ANTLRErrorListener, RecognitionException, Recognizer, Token, CommonTokenStream, ParserRuleContext } from 'antlr4ts';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 import { ParseTreeWalker } from 'antlr4ts/tree/ParseTreeWalker';
 
-import { UCGrammarListener } from '../antlr/UCGrammarListener';
 import * as UCParser from '../antlr/UCGrammarParser';
+import { UCGrammarListener } from '../antlr/UCGrammarListener';
 import { UCGrammarLexer } from '../antlr/UCGrammarLexer';
 import { connection } from '../server';
 
-import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 import { rangeFromBounds, rangeFromBound } from './helpers';
+
 import { ISymbolContainer } from './Symbols/ISymbolContainer';
 import {
-	ISymbol, UCClassSymbol, UCConstSymbol, UCDefaultPropertiesBlock,
+	ISymbol, ISymbolReference, UCClassSymbol, UCConstSymbol, UCDefaultPropertiesBlock,
 	UCEnumMemberSymbol, UCEnumSymbol, UCMethodSymbol,
-	UCLocalSymbol, UCObjectSymbol, UCPackage, SymbolsTable, UCParamSymbol,
+	UCLocalSymbol, UCObjectSymbol, UCPackage, UCParamSymbol,
 	UCPropertySymbol, UCScriptStructSymbol, UCStateSymbol,
 	UCStructSymbol, UCSymbol, UCSymbolReference,
 	UCTypeSymbol,
 	UCDocumentClassSymbol, UCReplicationBlock
 } from './Symbols';
 import { UCTypeKind } from './Symbols/TypeKind';
+
 import { IDiagnosticNode, SyntaxErrorNode } from './diagnostics/diagnostics';
-import { ExpressionWalker } from './expressionWalker';
-import { StatementWalker } from './statementWalker';
-import { ISymbolReference } from './Symbols/ISymbol';
-import { UCBlock, IStatement } from './Statements';
+import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 
-export const ExpressionVisitor = new ExpressionWalker();
-export const StatementVisitor = new StatementWalker();
-
-function findPackageNameInDir(dir: string): string {
-	const directories = dir.split('/');
-	for (let i = directories.length - 1; i >= 0; -- i) {
-		if (i > 0 && directories[i].toLowerCase() === 'classes') {
-			return directories[i - 1];
-		}
-	}
-	return '';
-}
-
-const DirPackageMap = new Map<string, UCPackage>();
-function getPackageByUri(documentUri: string): UCPackage {
-	const dir = path.parse(documentUri).dir;
-	let pkg = DirPackageMap.get(dir);
-	if (pkg) {
-		return pkg;
-	}
-
-	const packageName = findPackageNameInDir(dir);
-	if (!packageName) {
-		return SymbolsTable;
-	}
-
-	pkg = new UCPackage(packageName);
-	SymbolsTable.addSymbol(pkg);
-	DirPackageMap.set(dir, pkg);
-	return pkg;
-}
-
-export const ClassNameToDocumentMap: Map<string, UCDocument> = new Map<string, UCDocument>();
-export function getDocumentByUri(uri: string): UCDocument {
-	let document = ClassNameToDocumentMap.get(uri);
-	if (document) {
-		return document;
-	}
-
-	const pkg = getPackageByUri(uri);
-	document = new UCDocument(pkg, uri);
-	ClassNameToDocumentMap.set(uri, document);
-	return document;
-}
-
-export function getDocumentById(qualifiedId: string): UCDocument | undefined {
-	const uri = getUriById(qualifiedId);
-	if (!uri) {
-		return undefined;
-	}
-
-	const document: UCDocument = getDocumentByUri(uri);
-	return document;
-}
-
-export function indexDocument(document: UCDocument, text?: string) {
-	try {
-		document.invalidate();
-		document.parse(text);
-
-		// send diagnostics before linking begins so that we can report syntax errors early on
-		const diagnostics = document.getNodes();
-		connection.sendDiagnostics({
-			uri: document.uri,
-			diagnostics
-		});
-
-		if (document.class) {
-			document.link();
-		} else {
-			console.warn("Indexed a document with no class!", document.uri);
-		}
-	} catch (err) {
-		console.error(`An error occurred during the indexation of document ${document.uri}`, err);
-		return undefined;
-	}
-}
-
-export const ClassNameToFilePathMap$ = new BehaviorSubject(new Map<string, string>());
-
-export function getUriById(qualifiedClassId: string): string | undefined {
-	const filePath = ClassNameToFilePathMap$.getValue().get(qualifiedClassId);
-	return filePath ? URI.file(filePath).toString() : undefined;
-}
-
-const IndexedReferences = new Map<string, Set<ISymbolReference>>();
-
-export function getIndexedReferences(qualifiedId: string): Set<ISymbolReference> {
-	return IndexedReferences.get(qualifiedId) || new Set<ISymbolReference>();
-}
-
-const EnumMemberMap = new Map<string, UCEnumMemberSymbol>();
-
-export function getEnumMember(enumMember: string): UCEnumMemberSymbol | undefined {
-	return EnumMemberMap.get(enumMember);
-}
-
-export function setEnumMember(enumMember: UCEnumMemberSymbol) {
-	EnumMemberMap.set(enumMember.getId(), enumMember);
-}
+import { UCBlock, IStatement } from './statements';
+import { setEnumMember, IndexedReferences } from './indexer';
+import { StatementVisitor } from './statementWalker';
 
 export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> {
 	public readonly fileName: string;
@@ -162,9 +61,8 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		this.indexReferencesMade.set(key, refs);
 
 		// TODO: Refactor this, we are pretty much duplicating this function's job.
-		const indexedRefs = getIndexedReferences(key);
+		const indexedRefs = IndexedReferences.get(key) || new Set<ISymbolReference>();
 		indexedRefs.add(ref);
-
 		IndexedReferences.set(key, indexedRefs);
 	}
 
@@ -656,10 +554,6 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 
 	exitFunctionDecl(ctx: UCParser.FunctionDeclContext) {
 		this.pop();
-	}
-
-	enterIdentifier(ctx) {
-		connection.console.log('id!');
 	}
 
 	enterStateDecl(ctx: UCParser.StateDeclContext) {

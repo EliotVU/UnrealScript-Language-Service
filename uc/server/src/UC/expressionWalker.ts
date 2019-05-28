@@ -28,7 +28,7 @@ import {
 	UCRngLiteral,
 	UCMetaClassExpression,
 	UCSuperExpression
-} from './Expressions';
+} from './expressions';
 import { rangeFromBounds, rangeFromBound } from './helpers';
 import { UCTypeKind } from './Symbols/TypeKind';
 
@@ -380,3 +380,5 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 		return expression;
 	}
 }
+
+export const ExpressionVisitor = new ExpressionWalker();

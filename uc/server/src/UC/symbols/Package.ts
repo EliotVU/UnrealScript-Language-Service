@@ -2,8 +2,9 @@ import * as path from 'path';
 
 import { SymbolKind, CompletionItem } from 'vscode-languageserver-types';
 
-import { UCDocument, getDocumentById, indexDocument } from '../DocumentListener';
+import { UCDocument } from '../DocumentListener';
 import { SymbolWalker } from '../symbolWalker';
+import { getDocumentById, indexDocument } from '../indexer';
 
 import { ISymbol, UCStructSymbol } from ".";
 import { ISymbolContainer } from './ISymbolContainer';

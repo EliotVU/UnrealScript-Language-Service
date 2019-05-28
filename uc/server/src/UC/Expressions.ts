@@ -2,10 +2,11 @@ import { Position, Range } from 'vscode-languageserver';
 import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
 import { connection } from '../server';
-import { UCDocument, getEnumMember } from './DocumentListener';
-import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode } from './diagnostics/diagnostics';
-import { intersectsWith, rangeFromBounds } from './helpers';
 
+import { getEnumMember } from './indexer';
+import { intersectsWith, rangeFromBounds } from './helpers';
+import { UCDocument } from './DocumentListener';
+import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode } from './diagnostics/diagnostics';
 import {
 	UCTypeSymbol,
 	UCStructSymbol,

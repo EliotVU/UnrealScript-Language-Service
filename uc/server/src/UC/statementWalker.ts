@@ -8,9 +8,9 @@ import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 import { StatementContext, IfStatementContext, CodeBlockOptionalContext, ReplicationStatementContext, WhileStatementContext, ReturnStatementContext, GotoStatementContext, ElseStatementContext, DoStatementContext, SwitchStatementContext, ForStatementContext, ForeachStatementContext, LabeledStatementContext, AssertStatementContext, CaseClauseContext, DefaultClauseContext, ExpressionContext } from '../antlr/UCGrammarParser';
 
 import { rangeFromBounds } from './helpers';
-import { ExpressionVisitor } from './DocumentListener';
 
-import { UCExpressionStatement, UCIfStatement, UCDoUntilStatement, UCWhileStatement, UCSwitchStatement, UCCaseClause, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCReturnStatement, UCGotoStatement, UCAssertStatement, UCBlock, UCDefaultClause } from './Statements';
+import { UCExpressionStatement, UCIfStatement, UCDoUntilStatement, UCWhileStatement, UCSwitchStatement, UCCaseClause, UCForStatement, UCForEachStatement, UCLabeledStatement, IStatement, UCReturnStatement, UCGotoStatement, UCAssertStatement, UCBlock, UCDefaultClause } from './statements';
+import { ExpressionVisitor } from './expressionWalker';
 
 export class StatementWalker implements UCGrammarVisitor<IStatement> {
 	visit(tree: ParseTree): IStatement {
@@ -265,3 +265,5 @@ export class StatementWalker implements UCGrammarVisitor<IStatement> {
 		return block;
 	}
 }
+
+export const StatementVisitor = new StatementWalker();

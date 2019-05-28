@@ -17,11 +17,10 @@ import {
 	DocumentHighlightKind,
 	CompletionContext
 } from 'vscode-languageserver';
-
-import { UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable, UCFieldSymbol } from './Symbols';
-import { getDocumentByUri, ClassNameToFilePathMap$, getIndexedReferences } from "./DocumentListener";
 import { Token } from 'antlr4ts';
-import { IWithReference, ISymbol } from './Symbols/ISymbol';
+
+import { IWithReference, ISymbol, UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable, UCFieldSymbol } from './Symbols';
+import { getDocumentByUri, ClassNameToFilePathMap$, getIndexedReferences } from "./indexer";
 
 export function rangeFromBound(token: Token): Range {
 	const length = token.text!.length;

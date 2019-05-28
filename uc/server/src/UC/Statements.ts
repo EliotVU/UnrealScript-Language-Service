@@ -5,7 +5,7 @@ import { intersectsWith, rangeFromBounds } from './helpers';
 import { UCDocument } from './DocumentListener';
 
 import { UCStructSymbol, ISymbol } from './Symbols';
-import { IExpression } from './Expressions';
+import { IExpression } from './expressions';
 
 export interface IStatement {
 	// Not in use atm, but might be needed later to traverse where an expression is contained.
