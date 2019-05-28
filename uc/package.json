@@ -60,7 +60,8 @@
 					"unrealscript"
 				],
 				"extensions": [
-					".uc", ".uci"
+					".uc",
+					".uci"
 				],
 				"configuration": "./language-configuration.json"
 			}
