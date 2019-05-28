@@ -34,6 +34,7 @@ import { UCExpressionVisitor } from './ExpressionVisitor';
 import { UCStatementVisitor } from './StatementVisitor';
 import { ISymbolReference } from './Symbols/ISymbol';
 import { UCBlock, IStatement } from './Statements';
+import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 
 export const ExpressionVisitor = new UCExpressionVisitor();
 export const StatementVisitor = new UCStatementVisitor();
@@ -196,8 +197,8 @@ export class UCDocument implements UCGrammarListener, ANTLRErrorListener<Token> 
 		lexer.addErrorListener(this as ANTLRErrorListener<number>);
 
 		const stream = this.tokenStream = new CommonTokenStream(lexer);
-
 		const parser = new UCParser.UCGrammarParser(stream);
+		parser.errorHandler = ERROR_STRATEGY;
 		parser.removeErrorListeners();
 		parser.addErrorListener(this);
 
