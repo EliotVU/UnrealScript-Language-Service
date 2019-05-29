@@ -87,7 +87,7 @@
 		"watch": "tsc -b -w",
 		"postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
 		"test": "sh ./scripts/e2e.sh",
-		"compile:grammar": "antlr4ts -visitor grammars/UCGrammar.g4 -o server/src/antlr"
+		"compile:grammar": "antlr4ts -visitor -no-listener grammars/UCGrammar.g4 -o server/src/antlr"
 	},
 	"devDependencies": {
 		"@types/mocha": "^5.2.6",

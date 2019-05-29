@@ -64,6 +64,10 @@ export class UCTypeSymbol extends UCSymbolReference {
 		super(typeName, typeRange);
 	}
 
+	setTypeKind(kind: UCTypeKind) {
+		this.typeKind = kind;
+	}
+
 	getSpanRange(): Range {
 		return this.spanRange || this.getNameRange();
 	}

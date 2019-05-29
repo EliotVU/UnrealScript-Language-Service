@@ -549,17 +549,19 @@ structDecl
 	:	kwSTRUCT // (OPEN_BRACE .*? CLOSE_BRACE)? // parses native type like "struct {DOUBLE}"
 			structModifier* identifier extendsClause?
 		OPEN_BRACE
-		(
-			constDecl
-			| (enumDecl SEMICOLON)
-			| (structDecl SEMICOLON)
-			| varDecl
-			// Unfortunately these can appear in any order.
-			| structCppText
-			| structDefaultPropertiesBlock
-			| directive
-		)*
+			structMember*
 		CLOSE_BRACE
+	;
+
+structMember
+	: constDecl
+	| (enumDecl SEMICOLON)
+	| (structDecl SEMICOLON)
+	| varDecl
+	// Unfortunately these can appear in any order.
+	| structCppText
+	| structDefaultPropertiesBlock
+	| directive
 	;
 
 structModifier
@@ -730,19 +732,21 @@ functionDecl:
 	((returnTypeModifier? returnType functionName OPEN_PARENS)? | functionName OPEN_PARENS) parameters? CLOSE_PARENS kwCONST?
 	// FIXME: Pass trailing semicolon in program
 	(SEMICOLON | (
-		functionBody
+		OPEN_BRACE
+			functionMember*
+			// TODO: handle constDecl within statement, but this raises an issue with declaring the const symbol from within a statementVisitor.
+			statement*
+		CLOSE_BRACE
 		SEMICOLON?
 	));
 
 /* Parses:
  * { local Actor test, test2; return test.Class; }
  */
-functionBody:
-	OPEN_BRACE
-		(constDecl | localDecl)*
-		// TODO: handle constDecl within statement, but this raises an issue with declaring the const symbol from within a statementVisitor.
-		(constDecl | statement)*
-	CLOSE_BRACE;
+functionMember
+	: constDecl
+	| localDecl
+	;
 
 nativeToken: (OPEN_PARENS INTEGER CLOSE_PARENS);
 
@@ -806,13 +810,21 @@ stateDecl
 	: stateModifier* kwSTATE (OPEN_PARENS CLOSE_PARENS)? identifier
 		extendsClause?
 		OPEN_BRACE
-			((kwIGNORES ignoresList SEMICOLON) | constDecl | localDecl | functionDecl | directive)*
+			stateMember*
 			(labeledStatement statement*)*
 		CLOSE_BRACE
 		SEMICOLON? // FIXME: Only valid in UC3, but technically considered as an emptyDeclaration.
 	;
 
 stateModifier: kwAUTO | kwSIMULATED;
+
+stateMember
+	: constDecl
+	| localDecl
+	| (kwIGNORES ignoresList SEMICOLON)
+	| functionDecl
+	| directive
+	;
 
 codeBlockOptional
 	: (OPEN_BRACE (constDecl | statement)* CLOSE_BRACE)
@@ -1021,7 +1033,7 @@ defaultPropertiesBlock
 		kwDEFAULTPROPERTIES
 		// UnrealScriptBug: Must be on the line after keyword!
 		OPEN_BRACE
-			(objectDecl | defaultVariable)*
+			defaultStatement*
 		CLOSE_BRACE
 	;
 
@@ -1030,15 +1042,20 @@ structDefaultPropertiesBlock
 		kwSTRUCTDEFAULTPROPERTIES
 		// UnrealScriptBug: Must be on the line after keyword!
 		OPEN_BRACE
-			(objectDecl | defaultVariable)*
+			defaultStatement*
 		CLOSE_BRACE
+	;
+
+defaultStatement
+	: objectDecl
+	| defaultVariable
 	;
 
 objectDecl
 	:
 		// UnrealScriptBug: name= and class= are required to be on the same line as the keyword!
 		kwBEGIN kwOBJECT
-			(objectDecl | defaultVariable)*
+			defaultStatement*
 		kwEND kwOBJECT
 	;
 

@@ -5,7 +5,7 @@ import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 import { ParseTreeWalker } from 'antlr4ts/tree/ParseTreeWalker';
 
 import * as UCParser from '../antlr/UCGrammarParser';
-import { UCGrammarListener } from '../antlr/UCGrammarListener';
+import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 
 import { rangeFromBounds, rangeFromBound } from './helpers';
 
@@ -13,7 +13,7 @@ import { ISymbolContainer } from './Symbols/ISymbolContainer';
 import {
 	ISymbol, UCConstSymbol, UCDefaultPropertiesBlock,
 	UCEnumMemberSymbol, UCEnumSymbol, UCMethodSymbol,
-	UCLocalSymbol, UCObjectSymbol, UCParamSymbol,
+	UCLocalSymbol, UCObjectSymbol,
 	UCPropertySymbol, UCScriptStructSymbol, UCStateSymbol,
 	UCStructSymbol, UCSymbol, UCSymbolReference,
 	UCTypeSymbol,
@@ -27,8 +27,11 @@ import { UCBlock, IStatement } from './statements';
 import { setEnumMember } from './indexer';
 import { StatementVisitor } from './statementWalker';
 import { UCDocument } from './document';
+import { ParseTree } from 'antlr4ts/tree/ParseTree';
+import { RuleNode } from 'antlr4ts/tree/RuleNode';
+import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 
-export class DocumentASTWalker implements UCGrammarListener, ANTLRErrorListener<Token> {
+export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined>, ANTLRErrorListener<Token> {
 	private scopes: ISymbolContainer<ISymbol>[] = [];
 
 	constructor(private document: UCDocument) {
@@ -72,143 +75,43 @@ export class DocumentASTWalker implements UCGrammarListener, ANTLRErrorListener<
 		this.document.nodes.push(node);
 	}
 
-	visitProgram(ctx: UCParser.ProgramContext) {
-		ParseTreeWalker.DEFAULT.walk(this, ctx);
+	visit(tree: ParseTree) {
+		return undefined!;
+	}
+
+	visitChildren(node: RuleNode) {
+		for (let i = 0; i < node.childCount; ++ i) {
+			node.getChild(i).accept<any>(this);
+		}
+		return undefined;
+	}
+
+	visitTerminal(node: TerminalNode) {
+		return undefined!;
 	}
 
 	visitErrorNode(errNode: ErrorNode) {
 		const node = new SyntaxErrorNode(rangeFromBound(errNode.symbol), '(ANTLR Node Error) ' + errNode.text);
 		this.document.nodes.push(node);
+		return undefined!;
 	}
 
-	visitExtendsClause(extendsCtx: UCParser.ExtendsClauseContext | UCParser.WithinClauseContext, _type: UCTypeKind): UCTypeSymbol {
-		const idNode = extendsCtx.qualifiedIdentifier();
-		return new UCTypeSymbol(idNode.text, rangeFromBounds(idNode.start, idNode.stop!), undefined, _type);
+	visitProgram(ctx: UCParser.ProgramContext) {
+		ParseTreeWalker.DEFAULT.walk(this, ctx);
+		if (!ctx.children) {
+			return undefined;
+		}
+
+		for (let child of ctx.children) {
+			const symbol = child.accept<any>(this);
+			// if (symbol instanceof UCSymbol) {
+			// 	this.declare(symbol);
+			// }
+		}
+		return undefined;
 	}
 
-	enterClassDecl(ctx: UCParser.ClassDeclContext) {
-		const classIdNode = ctx.identifier();
-		const classSymbol = new UCDocumentClassSymbol(classIdNode.text, rangeFromBound(classIdNode.start), rangeFromBounds(ctx.start, ctx.stop));
-		classSymbol.context = ctx;
-		this.document.class = classSymbol; // Important!, must be assigned before further parsing.
-
-		const extendsNode = ctx.extendsClause();
-		if (extendsNode) {
-			classSymbol.extendsType = this.visitExtendsClause(extendsNode, UCTypeKind.Class);
-			classSymbol.extendsType.outer = classSymbol;
-		}
-
-		const withinNode = ctx.withinClause();
-		if (withinNode) {
-			classSymbol.withinType = this.visitExtendsClause(withinNode, UCTypeKind.Class);
-			classSymbol.withinType.outer = classSymbol;
-		}
-
-		const modifierNodes = ctx.classModifier();
-		for (let modifierNode of modifierNodes) {
-			const idNode = modifierNode.identifier();
-			const modifierArgumentNodes = modifierNode.modifierArguments();
-			switch (idNode.text.toLowerCase()) {
-				case 'dependson': {
-					if (modifierArgumentNodes) {
-						if (!classSymbol.dependsOnTypes) {
-							classSymbol.dependsOnTypes = [];
-						}
-						for (let valueNode of modifierArgumentNodes.modifierValue()) {
-							const typeSymbol = new UCTypeSymbol(valueNode.text, rangeFromBounds(valueNode.start, valueNode.stop), undefined, UCTypeKind.Class);
-							classSymbol.dependsOnTypes.push(typeSymbol);
-						}
-					}
-				}
-				case 'implements': {
-					if (modifierArgumentNodes) {
-						if (!classSymbol.implementsTypes) {
-							classSymbol.implementsTypes = [];
-						}
-						for (let valueNode of modifierArgumentNodes.modifierValue()) {
-							const typeSymbol = new UCTypeSymbol(valueNode.text, rangeFromBounds(valueNode.start, valueNode.stop), undefined, UCTypeKind.Class);
-							classSymbol.implementsTypes.push(typeSymbol);
-						}
-					}
-				}
-			}
-		}
-
-		this.declare(classSymbol); // push to package
-		this.push(classSymbol);
-	}
-
-	enterConstDecl(ctx: UCParser.ConstDeclContext) {
-		const idNode = ctx.identifier();
-		if (!idNode) {
-			return;
-		}
-
-		const constSymbol = new UCConstSymbol(idNode.text, rangeFromBound(idNode.start), rangeFromBounds(ctx.start, ctx.stop));
-		constSymbol.context = ctx;
-
-		// Ensure that all constant declarations are always declared as a top level field (i.e. class)
-		this.document.class!.addSymbol(constSymbol);
-
-		const valueNode = ctx.constValue();
-		if (valueNode) {
-			constSymbol.value = valueNode.text;
-		}
-	}
-
-	enterEnumDecl(ctx: UCParser.EnumDeclContext) {
-		const idNode = ctx.identifier();
-		if (!idNode) {
-			return;
-		}
-
-		const enumSymbol = new UCEnumSymbol(idNode.text, rangeFromBound(idNode.start), rangeFromBounds(ctx.start, ctx.stop));
-		enumSymbol.context = ctx;
-		this.declare(enumSymbol);
-		this.push(enumSymbol);
-
-		var count = 0;
-		const memberNodes = ctx.enumMember();
-		for (const memberNode of memberNodes) {
-			const range = rangeFromBound(memberNode.start);
-			const memberIdNode = memberNode.identifier();
-			const memberSymbol = new UCEnumMemberSymbol(memberIdNode.text, range, range);
-			this.declare(memberSymbol);
-			// HACK: overwrite define() outer let.
-			memberSymbol.outer = enumSymbol;
-			memberSymbol.value = count ++;
-
-			setEnumMember(memberSymbol);
-		}
-	}
-
-	exitEnumDecl(ctx: UCParser.EnumDeclContext) {
-		this.pop();
-	}
-
-	enterStructDecl(ctx: UCParser.StructDeclContext) {
-		const idNode = ctx.identifier();
-		if (!idNode) {
-			return;
-		}
-
-		const structSymbol = new UCScriptStructSymbol(idNode.text, rangeFromBound(idNode.start), rangeFromBounds(ctx.start, ctx.stop));
-		structSymbol.context = ctx;
-
-		const extendsNode = ctx.extendsClause();
-		if (extendsNode) {
-			structSymbol.extendsType = this.visitExtendsClause(extendsNode, UCTypeKind.Struct);
-		}
-
-		this.declare(structSymbol);
-		this.push(structSymbol);
-	}
-
-	exitStructDecl(ctx: UCParser.StructDeclContext) {
-		this.pop();
-	}
-
-	private visitClassType(classTypeNode: UCParser.ClassTypeContext): UCTypeSymbol | undefined {
+	visitClassType(classTypeNode: UCParser.ClassTypeContext): UCTypeSymbol | undefined {
 		const typeNode = classTypeNode.identifier();
 		if (!typeNode) {
 			// e.g. "var class Class;" with no class delimiter.
@@ -218,7 +121,7 @@ export class DocumentASTWalker implements UCGrammarListener, ANTLRErrorListener<
 		return new UCTypeSymbol(typeNode.text, rangeFromBounds(typeNode.start, typeNode.stop), undefined, UCTypeKind.Class);
 	}
 
-	private visitTypeDecl(typeDeclNode: UCParser.TypeDeclContext): UCTypeSymbol {
+	visitTypeDecl(typeDeclNode: UCParser.TypeDeclContext): UCTypeSymbol {
 		let typeIdText: string;
 		let typeIdRange: Range;
 		let innerTypeSymbol: UCTypeSymbol | undefined;
@@ -252,15 +155,17 @@ export class DocumentASTWalker implements UCGrammarListener, ANTLRErrorListener<
 		return typeSymbol;
 	}
 
-	private visitInlinedDeclTypes(inlinedTypeCtx: UCParser.InlinedDeclTypesContext): UCTypeSymbol | undefined {
+	visitInlinedDeclTypes(inlinedTypeCtx: UCParser.InlinedDeclTypesContext): UCTypeSymbol | undefined {
 		const structDeclNode = inlinedTypeCtx.structDecl();
 		if (structDeclNode) {
+			structDeclNode.accept<any>(this);
 			const structIdNode = structDeclNode.identifier();
 			return new UCTypeSymbol(structIdNode.text, rangeFromBounds(structIdNode.start, structIdNode.stop), undefined, UCTypeKind.Struct);
 		}
 
 		const enumDeclNode = inlinedTypeCtx.enumDecl();
 		if (enumDeclNode) {
+			enumDeclNode.accept<any>(this);
 			const enumIdNode = enumDeclNode.identifier();
 			return new UCTypeSymbol(enumIdNode.text, rangeFromBounds(enumIdNode.start, enumIdNode.stop), undefined, UCTypeKind.Enum);
 		}
@@ -272,42 +177,148 @@ export class DocumentASTWalker implements UCGrammarListener, ANTLRErrorListener<
 		return undefined;
 	}
 
-	enterVarDecl(ctx: UCParser.VarDeclContext) {
-		const declTypeNode = ctx.inlinedDeclTypes();
-		if (!declTypeNode) {
-			return;
-		}
-
-		const typeSymbol = this.visitInlinedDeclTypes(declTypeNode);
-
-		const varNodes = ctx.variable();
-		if (varNodes) for (const variableNode of varNodes) {
-			const varIdNode = variableNode.identifier();
-
-			const property = new UCPropertySymbol(varIdNode!.start.text!, rangeFromBound(varIdNode.start),
-				// Stop at varCtx instead of ctx for multiple variable declarations.
-				rangeFromBounds(ctx.start, variableNode.stop)
-			);
-			property.context = variableNode;
-			property.type = typeSymbol;
-			const arrayDimNode = variableNode.arrayDim();
-			if (arrayDimNode) {
-				property.arrayDim = arrayDimNode.text;
-			}
-			this.declare(property);
-
-			if (typeSymbol) {
-				typeSymbol.outer = property.outer; // FIXME: Assign to current context instead.
-			}
-		}
+	visitExtendsClause(ctx: UCParser.ExtendsClauseContext) {
+		const idNode = ctx.qualifiedIdentifier();
+		const symbol = new UCTypeSymbol(idNode.text, rangeFromBounds(idNode.start, idNode.stop!), undefined, UCTypeKind.Class);
+		return symbol;
 	}
 
-	enterReplicationBlock(ctx: UCParser.ReplicationBlockContext) {
-		const nameNode = ctx.kwREPLICATION();
-		const replicationBlock = new UCReplicationBlock(nameNode.text, rangeFromBound(nameNode.start), rangeFromBounds(ctx.start, ctx.stop));
-		replicationBlock.context = ctx;
+	visitWithinClause(ctx: UCParser.WithinClauseContext) {
+		const idNode = ctx.qualifiedIdentifier();
+		const symbol = new UCTypeSymbol(idNode.text, rangeFromBounds(idNode.start, idNode.stop!), undefined, UCTypeKind.Class);
+		return symbol;
+	}
 
-		this.declare(replicationBlock);
+	visitClassDecl(ctx: UCParser.ClassDeclContext) {
+		const classIdNode = ctx.identifier();
+		const symbol = new UCDocumentClassSymbol(classIdNode.text, rangeFromBound(classIdNode.start), rangeFromBounds(ctx.start, ctx.stop));
+		symbol.context = ctx;
+		this.document.class = symbol; // Important!, must be assigned before further parsing.
+
+		const extendsNode = ctx.extendsClause();
+		if (extendsNode) {
+			symbol.extendsType = extendsNode.accept<any>(this);
+			symbol.extendsType!.outer = symbol;
+		}
+
+		const withinNode = ctx.withinClause();
+		if (withinNode) {
+			symbol.withinType = withinNode.accept<any>(this);
+			symbol.withinType!.outer = symbol;
+		}
+
+		const modifierNodes = ctx.classModifier();
+		for (let modifierNode of modifierNodes) {
+			const idNode = modifierNode.identifier();
+			const modifierArgumentNodes = modifierNode.modifierArguments();
+			switch (idNode.text.toLowerCase()) {
+				case 'dependson': {
+					if (modifierArgumentNodes) {
+						if (!symbol.dependsOnTypes) {
+							symbol.dependsOnTypes = [];
+						}
+						for (let valueNode of modifierArgumentNodes.modifierValue()) {
+							const typeSymbol = new UCTypeSymbol(valueNode.text, rangeFromBounds(valueNode.start, valueNode.stop), undefined, UCTypeKind.Class);
+							symbol.dependsOnTypes.push(typeSymbol);
+						}
+					}
+				}
+				case 'implements': {
+					if (modifierArgumentNodes) {
+						if (!symbol.implementsTypes) {
+							symbol.implementsTypes = [];
+						}
+						for (let valueNode of modifierArgumentNodes.modifierValue()) {
+							const typeSymbol = new UCTypeSymbol(valueNode.text, rangeFromBounds(valueNode.start, valueNode.stop), undefined, UCTypeKind.Class);
+							symbol.implementsTypes.push(typeSymbol);
+						}
+					}
+				}
+			}
+		}
+
+		this.declare(symbol); // push to package
+		this.push(symbol);
+
+		return symbol;
+	}
+
+	visitConstDecl(ctx: UCParser.ConstDeclContext) {
+		const idNode = ctx.identifier();
+		const symbol = new UCConstSymbol(idNode.text, rangeFromBound(idNode.start), rangeFromBounds(ctx.start, ctx.stop));
+		symbol.context = ctx;
+
+		// Ensure that all constant declarations are always declared as a top level field (i.e. class)
+		this.document.class!.addSymbol(symbol);
+
+		// TODO: create a constantToken walker similar to what we do with expressions.
+		const valueNode = ctx.constValue();
+		if (valueNode) {
+			symbol.value = valueNode.text;
+		}
+
+		return symbol;
+	}
+
+	visitEnumDecl(ctx: UCParser.EnumDeclContext) {
+		const idNode = ctx.identifier();
+		const symbol = new UCEnumSymbol(idNode.text, rangeFromBound(idNode.start), rangeFromBounds(ctx.start, ctx.stop));
+		symbol.context = ctx;
+
+		this.declare(symbol);
+
+		this.push(symbol);
+		var count = 0;
+		const memberNodes = ctx.enumMember();
+		for (const memberNode of memberNodes) {
+			const memberSymbol = memberNode.accept(this);
+			// HACK: overwrite define() outer let.
+			memberSymbol.outer = symbol;
+			memberSymbol.value = count ++;
+		}
+		this.pop();
+		return symbol;
+	}
+
+	visitEnumMember(ctx: UCParser.EnumMemberContext) {
+		const idNode = ctx.identifier();
+		const range = rangeFromBound(ctx.start);
+		const symbol = new UCEnumMemberSymbol(idNode.text, range, range);
+		this.declare(symbol);
+		setEnumMember(symbol);
+		return symbol;
+	}
+
+	visitStructDecl(ctx: UCParser.StructDeclContext) {
+		const idNode = ctx.identifier();
+		const symbol = new UCScriptStructSymbol(idNode.text, rangeFromBound(idNode.start), rangeFromBounds(ctx.start, ctx.stop));
+		symbol.context = ctx;
+
+		const extendsNode = ctx.extendsClause();
+		if (extendsNode) {
+			const extendsType = this.visitExtendsClause(extendsNode);
+			extendsType.setTypeKind(UCTypeKind.Struct);
+			symbol.extendsType = extendsType;
+		}
+
+		this.declare(symbol);
+
+		this.push(symbol);
+		const members = ctx.structMember();
+		if (members) for (const member of members) {
+			member.accept<any>(this);
+		}
+		this.pop();
+
+		return symbol;
+	}
+
+	visitReplicationBlock(ctx: UCParser.ReplicationBlockContext) {
+		const nameNode = ctx.kwREPLICATION();
+		const symbol = new UCReplicationBlock(nameNode.text, rangeFromBound(nameNode.start), rangeFromBounds(ctx.start, ctx.stop));
+		symbol.context = ctx;
+
+		this.declare(symbol);
 
 		const statementNodes = ctx.replicationStatement();
 		if (!statementNodes) {
@@ -325,106 +336,131 @@ export class DocumentASTWalker implements UCGrammarListener, ANTLRErrorListener<
 				const identifier = idNode.text;
 				const symbolRef = new UCSymbolReference(identifier, rangeFromBound(idNode.start));
 				symbolRef.outer = this.document.class;
-				replicationBlock.symbolRefs.set(identifier.toLowerCase(), symbolRef);
+				symbol.symbolRefs.set(identifier.toLowerCase(), symbolRef);
 			}
 		}
-		replicationBlock.block = block;
+		symbol.block = block;
+		return symbol;
 	}
 
-	enterFunctionDecl(ctx: UCParser.FunctionDeclContext) {
-		const nameNode = ctx.functionName();
-		if (!nameNode) {
-			return;
-		}
-
-		const methodSymbol = new UCMethodSymbol(
+	visitFunctionDecl(ctx: UCParser.FunctionDeclContext) {
+		const idNode = ctx.functionName();
+		const symbol = new UCMethodSymbol(
 			// We need start and stop for functions with special symbols (which are made of multiple tokens)
-			nameNode.text, rangeFromBounds(nameNode.start, nameNode.stop),
+			idNode!.text, rangeFromBounds(idNode!.start, idNode!.stop),
 			rangeFromBounds(ctx.start, ctx.stop)
 		);
-		methodSymbol.context = ctx;
-		this.declare(methodSymbol);
-		this.push(methodSymbol);
+		symbol.context = ctx;
+
+		this.declare(symbol);
 
 		const returnTypeNode = ctx.returnType();
 		if (returnTypeNode) {
-			methodSymbol.returnType = this.visitTypeDecl(returnTypeNode.typeDecl());
+			symbol.returnType = this.visitTypeDecl(returnTypeNode.typeDecl());
 		}
 
+		this.push(symbol);
 		const paramsNode = ctx.parameters();
 		if (paramsNode) {
-			methodSymbol.params = [];
+			// TODO: do away with member @params
+			symbol.params = [];
 			const paramNodes = paramsNode.paramDecl();
 			for (const paramNode of paramNodes) {
-				if (!paramNode) {
-					break;
-				}
-
-				const variableNode = paramNode.variable();
-				const propIdNode = variableNode.identifier();
-				if (!propIdNode) {
-					continue;
-				}
-
-				const propSymbol = new UCParamSymbol(
-					propIdNode.text, rangeFromBound(propIdNode.start),
-					rangeFromBounds(paramNode.start, paramNode.stop)
-				);
-
-				const propTypeNode = paramNode.typeDecl();
-				propSymbol.type = this.visitTypeDecl(propTypeNode);
-
-				const arrayDimNode = variableNode.arrayDim();
-				if (arrayDimNode) {
-					propSymbol.arrayDim = arrayDimNode.text;
-				}
-
-				methodSymbol.params.push(propSymbol);
-				this.declare(propSymbol);
+				const propSymbol = paramNode.accept<any>(this);
+				symbol.params.push(propSymbol);
 			}
 		}
 
-		const bodyNode = ctx.functionBody();
-		if (bodyNode) {
-			const localNodes = bodyNode.localDecl();
-			if (localNodes) this.visitLocals(bodyNode, localNodes);
-
-			const statementNodes = bodyNode.statement();
-			if (statementNodes) {
-				methodSymbol.block = this.visitStatements(bodyNode, statementNodes);
-			}
+		const members = ctx.functionMember();
+		if (members) for (const member of members) {
+			member.accept<any>(this);
 		}
+
+		const statementNodes = ctx.statement();
+		if (statementNodes) {
+			symbol.block = this.visitStatements(ctx, statementNodes);
+		}
+		this.pop();
+		return symbol;
 	}
 
-	visitLocals(ctx: ParserRuleContext, nodes: UCParser.LocalDeclContext[]) {
-		for (const localNode of nodes) {
-			if (!localNode) {
-				break;
-			}
+	visitFunctionMember(ctx: UCParser.FunctionMemberContext) {
+		const symbol = ctx.getChild(0).accept(this);
+		return symbol;
+	}
 
-			const propTypeNode = localNode.typeDecl();
-			const typeSymbol = this.visitTypeDecl(propTypeNode);
+	visitStateMember(ctx: UCParser.StateMemberContext) {
+		const symbol = ctx.getChild(0).accept(this);
+		return symbol;
+	}
 
-			const varNodes = localNode.variable();
-			for (const variableNode of varNodes) {
-				const propIdNode = variableNode.identifier();
-				if (!propIdNode) {
-					continue;
-				}
+	visitStructMember(ctx: UCParser.StructMemberContext) {
+		const symbol = ctx.getChild(0).accept(this);
+		return symbol;
+	}
 
-				const propSymbol = new UCLocalSymbol(
-					propIdNode.text, rangeFromBound(propIdNode.start),
-					// Stop at varCtx instead of localCtx for multiple variable declarations.
-					rangeFromBounds(localNode.start, variableNode.stop)
-				);
-				propSymbol.type = typeSymbol;
-				const arrayDimNode = variableNode.arrayDim();
-				if (arrayDimNode) {
-					propSymbol.arrayDim = arrayDimNode.text;
-				}
-				this.declare(propSymbol);
+	visitParamDecl(ctx: UCParser.ParamDeclContext) {
+		const propTypeNode = ctx.typeDecl();
+		const typeSymbol = this.visitTypeDecl(propTypeNode);
+
+		const varNode = ctx.variable();
+		const symbol = varNode.accept<any>(this);
+		symbol.type = typeSymbol;
+		this.declare(symbol);
+		return symbol;
+	}
+
+	visitLocalDecl(ctx: UCParser.LocalDeclContext) {
+		const propTypeNode = ctx.typeDecl();
+		const typeSymbol = this.visitTypeDecl(propTypeNode);
+
+		const varNodes = ctx.variable();
+		for (const varNode of varNodes) {
+			const symbol = varNode.accept<any>(this);
+			symbol.type = typeSymbol;
+			this.declare(symbol);
+		}
+		return undefined;
+	}
+
+	visitVarDecl(ctx: UCParser.VarDeclContext) {
+		const declTypeNode = ctx.inlinedDeclTypes();
+		if (!declTypeNode) {
+			return;
+		}
+
+		const typeSymbol = this.visitInlinedDeclTypes(declTypeNode);
+
+		const varNodes = ctx.variable();
+		if (varNodes) for (const varNode of varNodes) {
+			const symbol = varNode.accept<any>(this);
+			symbol.context = varNode;
+			symbol.type = typeSymbol;
+			this.declare(symbol);
+
+			// FIXME: is this still necessary?
+			if (typeSymbol) {
+				typeSymbol.outer = symbol.outer; // FIXME: Assign to current context instead.
 			}
 		}
+		return undefined!;
+	}
+
+	visitVariable(ctx: UCParser.VariableContext) {
+		const idNode = ctx.identifier();
+
+		const scope = this.scope();
+		const type = scope instanceof UCMethodSymbol ? UCLocalSymbol : UCPropertySymbol;
+		const symbol = new type(
+			idNode.text, rangeFromBound(idNode.start),
+			// Stop at varCtx instead of localCtx for multiple variable declarations.
+			rangeFromBounds(ctx.parent!.start, ctx.stop)
+		);
+		const arrayDimNode = ctx.arrayDim();
+		if (arrayDimNode) {
+			symbol.arrayDim = arrayDimNode.text;
+		}
+		return symbol;
 	}
 
 	visitStatements(ctx: ParserRuleContext, nodes: UCParser.StatementContext[]) {
@@ -437,95 +473,112 @@ export class DocumentASTWalker implements UCGrammarListener, ANTLRErrorListener<
 		return block;
 	}
 
-	exitFunctionDecl(ctx: UCParser.FunctionDeclContext) {
-		this.pop();
-	}
-
-	enterStateDecl(ctx: UCParser.StateDeclContext) {
+	visitStateDecl(ctx: UCParser.StateDeclContext) {
 		const stateIdNode = ctx.identifier();
-		if (!stateIdNode) {
-			return;
-		}
 
-		const stateSymbol = new UCStateSymbol(stateIdNode.text, rangeFromBound(stateIdNode.start), rangeFromBounds(ctx.start, ctx.stop));
-		stateSymbol.context = ctx;
+		const symbol = new UCStateSymbol(stateIdNode.text, rangeFromBound(stateIdNode.start), rangeFromBounds(ctx.start, ctx.stop));
+		symbol.context = ctx;
 
 		const extendsNode = ctx.extendsClause();
 		if (extendsNode) {
-			stateSymbol.extendsType = this.visitExtendsClause(extendsNode, UCTypeKind.State);
+			const extendsType = this.visitExtendsClause(extendsNode);
+			extendsType.setTypeKind(UCTypeKind.State);
+			symbol.extendsType = extendsType;
 		}
 
-		const localNodes = ctx.localDecl();
-		if (localNodes) this.visitLocals(ctx, localNodes);
+		this.declare(symbol);
 
-		this.declare(stateSymbol);
-		this.push(stateSymbol);
+		this.push(symbol);
+		const members = ctx.stateMember();
+		if (members) for (const member of members) {
+			member.accept<any>(this);
+		}
 
 		const statementNodes = ctx.statement();
 		if (statementNodes) {
-			stateSymbol.block = this.visitStatements(ctx, statementNodes);
+			symbol.block = this.visitStatements(ctx, statementNodes);
 		}
-	}
-
-	enterIgnoresList(ctx: UCParser.IgnoresListContext) {
-		const identifierNodes = ctx.identifier();
-
-		const state = this.scope<UCStateSymbol>();
-		if (!state.ignoreRefs) {
-			state.ignoreRefs = [];
-		}
-
-		for (const idNode of identifierNodes) {
-			const ref = new UCSymbolReference(idNode.text, rangeFromBounds(idNode.start, idNode.stop));
-			state.ignoreRefs.push(ref);
-		}
-	}
-
-	exitStateDecl(ctx: UCParser.StateDeclContext) {
 		this.pop();
+
+		return symbol;
 	}
 
-	enterStructDefaultPropertiesBlock(ctx: UCParser.StructDefaultPropertiesBlockContext) {
+	visitIgnoresList(ctx: UCParser.IgnoresListContext) {
+		const scope = this.scope<UCStateSymbol>();
+		if (!scope.ignoreRefs) {
+			scope.ignoreRefs = [];
+		}
+		const idNodes = ctx.identifier();
+		for (const idNode of idNodes) {
+			const ref = new UCSymbolReference(idNode.text, rangeFromBounds(idNode.start, idNode.stop));
+			scope.ignoreRefs.push(ref);
+		}
+		return undefined;
+	}
+
+	visitDefaultStatement(ctx: UCParser.DefaultStatementContext) {
+		return this.visitChildren(ctx);
+	}
+
+	visitStructDefaultPropertiesBlock(ctx: UCParser.StructDefaultPropertiesBlockContext) {
 		const nameNode = ctx.kwSTRUCTDEFAULTPROPERTIES();
-		const defaultsBlock = new UCDefaultPropertiesBlock(
+		const symbol = new UCDefaultPropertiesBlock(
 			nameNode.text, rangeFromBound(nameNode.start),
 			rangeFromBounds(ctx.start, ctx.stop)
 		);
-		defaultsBlock.context = ctx;
+		symbol.context = ctx;
 
-		this.declare(defaultsBlock);
-		this.push(defaultsBlock);
+		this.declare(symbol);
+		this.push(symbol);
+		const members = ctx.defaultStatement();
+		if (members) for (const member of members) {
+			member.accept<any>(this);
+		}
+		this.pop();
+		return symbol;
 	}
 
-	enterDefaultPropertiesBlock(ctx: UCParser.DefaultPropertiesBlockContext) {
+	visitDefaultPropertiesBlock(ctx: UCParser.DefaultPropertiesBlockContext) {
 		const nameNode = ctx.kwDEFAULTPROPERTIES();
-		const defaultsBlock = new UCDefaultPropertiesBlock(
+		const symbol = new UCDefaultPropertiesBlock(
 			nameNode.text, rangeFromBound(nameNode.start),
 			rangeFromBounds(ctx.start, ctx.stop)
 		);
-		defaultsBlock.context = ctx;
+		symbol.context = ctx;
 
-		this.declare(defaultsBlock);
-		this.push(defaultsBlock);
+		this.declare(symbol);
+		this.push(symbol);
+		const members = ctx.defaultStatement();
+		if (members) for (const member of members) {
+			member.accept<any>(this);
+		}
+		this.pop();
+		return symbol;
 	}
 
-	enterObjectDecl(ctx: UCParser.ObjectDeclContext) {
-		const archetype = new UCObjectSymbol(
+	visitObjectDecl(ctx: UCParser.ObjectDeclContext) {
+		const symbol = new UCObjectSymbol(
 			'', rangeFromBound(ctx.start),
 			rangeFromBounds(ctx.start, ctx.stop)
 		);
-		archetype.context = ctx;
+		symbol.context = ctx;
 
-		this.declare(archetype);
-		this.push(archetype);
+		this.declare(symbol);
+		this.push(symbol);
+		const members = ctx.defaultStatement();
+		if (members) for (const member of members) {
+			member.accept<any>(this);
+		}
+		this.pop();
+		return symbol;
 	}
 
-	enterDefaultVariable(ctx: UCParser.DefaultVariableContext) {
+	visitDefaultVariable(ctx: UCParser.DefaultVariableContext) {
 		const idNode = ctx.defaultId();
-		const symbolRef = new UCSymbolReference(idNode.text, rangeFromBound(ctx.start));
+		const scope = this.scope<UCObjectSymbol>();
 
-		const archetype = this.scope<UCObjectSymbol>();
-		symbolRef.outer = archetype;
+		const symbolRef = new UCSymbolReference(idNode.text, rangeFromBound(ctx.start));
+		symbolRef.outer = scope;
 
 		const propNameLC = idNode.text.toLowerCase();
 		switch (propNameLC) {
@@ -538,43 +591,33 @@ export class DocumentASTWalker implements UCGrammarListener, ANTLRErrorListener<
 					symbolRef.getName(), rangeFromBounds(idNode.start, idNode.stop), undefined,
 					UCTypeKind.Class
 				);
-				typeSymbol.outer = archetype;
-				archetype.extendsType = typeSymbol;
+				typeSymbol.outer = scope;
+				scope.extendsType = typeSymbol;
 			}
 		}
-		archetype.symbolRefs.set(propNameLC, symbolRef);
+		scope.symbolRefs.set(propNameLC, symbolRef);
 
 		const valueNode = ctx.defaultValue();
 		if (valueNode) {
-			const literal = valueNode.defaultLiteral();
-			const structCtx = literal!.structLiteral();
-			if (structCtx) {
-				const subSymbol = new UCObjectSymbol(
-					// Use the same name as the assigned var's name.
-					idNode.text, rangeFromBound(structCtx.start),
-					rangeFromBounds(structCtx.start, structCtx.stop)
-				);
-				this.push(subSymbol);
+			const literalNode = valueNode.defaultLiteral();
+			const structNode = literalNode!.structLiteral();
+			if (structNode) {
+				const objSymbol = structNode.accept(this);
+				objSymbol.outer = scope;
 			}
 		}
+		return scope;
 	}
 
-	exitDefaultVariable(ctx: UCParser.DefaultVariableContext) {
-		const valueNode = ctx.defaultValue();
-		if (valueNode && valueNode.defaultLiteral()!.structLiteral()) {
-			this.pop();
-		}
-	}
-
-	exitObjectDecl(ctx: UCParser.ObjectDeclContext) {
+	visitStructLiteral(ctx: UCParser.StructLiteralContext) {
+		const symbol = new UCObjectSymbol(
+			// Use the same name as the assigned var's name.
+			'', rangeFromBound(ctx.start),
+			rangeFromBounds(ctx.start, ctx.stop)
+		);
+		this.push(symbol);
+		// TODO: members
 		this.pop();
-	}
-
-	exitStructDefaultPropertiesBlock(ctx: UCParser.StructDefaultPropertiesBlockContext) {
-		this.pop();
-	}
-
-	exitDefaultPropertiesBlock(ctx: UCParser.DefaultPropertiesBlockContext) {
-		this.pop();
+		return symbol;
 	}
 }
