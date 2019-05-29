@@ -355,12 +355,17 @@ directive
 
 			const initialLine = this.currentToken.line;
 			while (this.currentToken.line === initialLine) {
+				if (this.matchedEOF) {
+					break;
+				}
+
 				this.consume();
-				if (!this.currentToken) {
-					return true;
+				// FIXME!
+				if (!this.currentToken || this.currentToken.text === '<EOF>') {
+					break;
 				}
 			}
-			return this.currentToken.line !== initialLine;
+			return true;
 	})()}?
 	;
 
