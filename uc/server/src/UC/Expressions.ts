@@ -550,7 +550,7 @@ export class UCPredefinedAccessExpression extends UCMemberExpression {
 	index(document: UCDocument, _context?: UCStructSymbol) {
 		this.symbolRef.setReference(
 			document.class!,
-			document
+			document, undefined, true
 		);
 	}
 }
@@ -563,7 +563,7 @@ export class UCPredefinedPropertyAccessExpression extends UCMemberExpression {
 				context instanceof UCClassSymbol
 					? context
 					: document.class!,
-				document
+				document, undefined, true
 			);
 		}
 	}

@@ -50,8 +50,12 @@ export class UCSymbolReference extends UCSymbol implements IWithReference {
 		}
 	}
 
-	setReference(symbol: ISymbol, document: UCDocument, context?: ISymbolContext) {
+	setReference(symbol: ISymbol, document: UCDocument, context?: ISymbolContext, noIndex?: boolean) {
 		this.reference = symbol;
+		if (noIndex) {
+			return;
+		}
+
 		if (symbol && symbol instanceof UCSymbol) {
 			const ref: ISymbolReference = {
 				location: Location.create(document.filePath, this.getNameRange()),
