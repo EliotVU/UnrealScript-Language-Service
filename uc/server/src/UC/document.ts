@@ -14,7 +14,7 @@ import { connection } from '../server';
 import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage } from './Symbols';
 
 import { IDiagnosticNode } from './diagnostics/diagnostics';
-import { IndexedReferences } from './indexer';
+import { IndexedReferencesMap } from './indexer';
 
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
@@ -27,7 +27,7 @@ export class UCDocument {
 	public tokenStream: CommonTokenStream;
 
 	public class?: UCClassSymbol;
-	private readonly indexReferencesMade = new Map<string, Set<ISymbolReference>>();
+	private readonly indexReferencesMade = new Map<string, ISymbolReference | ISymbolReference[]>();
 
 	constructor(public readonly filePath: string, public classPackage: UCPackage) {
 		this.fileName = path.basename(filePath, '.uc');
@@ -86,15 +86,19 @@ export class UCDocument {
 
 		// Clear all the indexed references that we have made.
 		for (let [key, value] of this.indexReferencesMade) {
-			const indexedRefs = IndexedReferences.get(key);
+			const indexedRefs = IndexedReferencesMap.get(key);
 			if (!indexedRefs) {
 				return;
 			}
 
-			value.forEach(ref => indexedRefs.delete(ref));
+			if (value instanceof Array) {
+				value.forEach(ref => indexedRefs.delete(ref));
+			} else {
+				indexedRefs.delete(value);
+			}
 
 			if (indexedRefs.size === 0) {
-				IndexedReferences.delete(key);
+				IndexedReferencesMap.delete(key);
 			}
 		}
 
@@ -128,14 +132,20 @@ export class UCDocument {
 	indexReference(symbol: ISymbol, ref: ISymbolReference) {
 		const key = symbol.getQualifiedName();
 
-		const refs = this.indexReferencesMade.get(key) || new Set<ISymbolReference>();
-		refs.add(ref);
-
-		this.indexReferencesMade.set(key, refs);
+		let value = this.indexReferencesMade.get(key);
+		if (value) {
+			if (value instanceof Array) {
+				value.push(ref);
+			} else {
+				this.indexReferencesMade.set(key, [value, ref]);
+			}
+		} else {
+			this.indexReferencesMade.set(key, ref);
+		}
 
 		// TODO: Refactor this, we are pretty much duplicating this function's job.
-		const indexedRefs = IndexedReferences.get(key) || new Set<ISymbolReference>();
-		indexedRefs.add(ref);
-		IndexedReferences.set(key, indexedRefs);
+		const gRefs = IndexedReferencesMap.get(key) || new Set<ISymbolReference>();
+		gRefs.add(ref);
+		IndexedReferencesMap.set(key, gRefs);
 	}
 }

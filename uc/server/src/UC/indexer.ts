@@ -80,10 +80,10 @@ export function getUriById(qualifiedClassId: string): string | undefined {
 	return filePath ? URI.file(filePath).toString() : undefined;
 }
 
-export const IndexedReferences = new Map<string, Set<ISymbolReference>>();
+export const IndexedReferencesMap = new Map<string, Set<ISymbolReference>>();
 
 export function getIndexedReferences(qualifiedId: string) {
-	return IndexedReferences.get(qualifiedId);
+	return IndexedReferencesMap.get(qualifiedId);
 }
 
 const EnumMemberMap = new Map<string, UCEnumMemberSymbol>();
