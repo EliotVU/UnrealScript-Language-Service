@@ -181,7 +181,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			}
 
 			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
-				if (child.isType()) {
+				if (child.isType() || child instanceof UCPropertySymbol || child instanceof UCMethodSymbol) {
 					continue;
 				}
 
