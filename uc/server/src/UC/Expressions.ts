@@ -211,15 +211,23 @@ export class UCPropertyAccessExpression extends UCExpression {
 
 	index(document: UCDocument, context?: UCStructSymbol) {
 		if (this.left) this.left.index(document, context);
-		if (this.member) this.member.index(document, this.getContextType());
+
+		const memberContext = this.getContextType();
+		if (this.member && memberContext instanceof UCStructSymbol) {
+			this.member.index(document, memberContext);
+		}
 	}
 
 	analyze(document: UCDocument, context?: UCStructSymbol) {
 		if (this.left) this.left.analyze(document, context);
-		if (this.member) this.member.analyze(document, this.getContextType());
+
+		const memberContext = this.getContextType();
+		if (this.member) {
+			this.member.analyze(document, memberContext as UCStructSymbol);
+		}
 	}
 
-	getContextType(): UCStructSymbol | undefined {
+	getContextType(): ISymbol | undefined {
 		const symbol = this.left && this.left.getMemberSymbol();
 		if (!symbol) {
 			connection.console.log("Couldn't resolve context " + this.context.text);
@@ -232,7 +240,7 @@ export class UCPropertyAccessExpression extends UCExpression {
 			if (symbol.type) {
 				return ((symbol.type.getReference() !== NativeArray && symbol.type.baseType)
 					? symbol.type.baseType.getReference()
-					: symbol.type.getReference()) as UCStructSymbol;
+					: symbol.type.getReference());
 			}
 			return undefined;
 		}
@@ -240,11 +248,11 @@ export class UCPropertyAccessExpression extends UCExpression {
 			if (symbol.returnType) {
 				return (symbol.returnType.baseType
 					? symbol.returnType.baseType.getReference()
-					: symbol.returnType.getReference()) as UCStructSymbol;
+					: symbol.returnType.getReference());
 			}
 			return undefined;
 		}
-		return symbol as UCStructSymbol;
+		return symbol;
 	}
 }
 
@@ -528,8 +536,10 @@ export class UCMemberExpression extends UCExpression {
 		}
 	}
 
-	analyze(document: UCDocument, context?: UCStructSymbol) {
-		if (!this.getMemberSymbol()) {
+	analyze(document: UCDocument, context?: UCStructSymbol | ISymbol) {
+		if (context && !(context instanceof UCStructSymbol)) {
+			document.nodes.push(new SemanticErrorNode(this.symbolRef, `'${context.getQualifiedName()}' is an inaccessible type!`));
+		} else if (!context || !this.getMemberSymbol()) {
 			document.nodes.push(new UnrecognizedFieldNode(this.symbolRef, context));
 		}
 	}
