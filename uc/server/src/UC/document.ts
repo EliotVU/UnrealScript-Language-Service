@@ -38,22 +38,25 @@ export class UCDocument {
 	}
 
 	public build(text?: string) {
+		connection.console.log('building document ' + this.fileName);
+
 		if (this.class) {
 			this.invalidate();
 		}
-		const startParsing = performance.now();
-		connection.console.log('parsing document ' + this.fileName);
 
+		const startLexing = performance.now();
 		const lexer = new UCGrammarLexer(new CaseInsensitiveStream(text || this.readText()));
 		lexer.removeErrorListeners();
 		lexer.addErrorListener(this as ANTLRErrorListener<number>);
-
 		const stream = this.tokenStream = new CommonTokenStream(lexer);
+		connection.console.info(this.fileName + ': lexing time ' + (performance.now() - startLexing));
+
+		const startParsing = performance.now();
 		const parser = new UCGrammarParser(stream);
 
 		parser.errorHandler = ERROR_STRATEGY;
+		connection.console.info(this.fileName + ': parsing time ' + (performance.now() - startParsing));
 		parser.removeErrorListeners();
-		connection.console.log(this.fileName + ': parsing time ' + (performance.now() - startParsing));
 
 		const startWalking = performance.now();
 		try {
@@ -61,10 +64,9 @@ export class UCDocument {
 			parser.addErrorListener(walker);
 			walker.visitProgram(parser.program());
 		} catch (err) {
-			console.error('Error walking document', this.filePath, err);
-		}
-		finally {
-			connection.console.log(this.fileName + ': Walking time ' + (performance.now() - startWalking));
+			connection.console.error(`Error walking document ${this.filePath} ${err}`);
+		} finally {
+			connection.console.info(this.fileName + ': Walking time ' + (performance.now() - startWalking));
 		}
 	}
 
@@ -77,7 +79,7 @@ export class UCDocument {
 	public link() {
 		const start = performance.now();
 		this.class!.index(this, this.class!);
-		connection.console.log(this.fileName + ': linking time ' + (performance.now() - start));
+		connection.console.info(this.fileName + ': linking time ' + (performance.now() - start));
 	}
 
 	private invalidate() {
@@ -112,7 +114,7 @@ export class UCDocument {
 
 		const start = performance.now();
 		this.class!.analyze(this, this.class);
-		connection.console.log(this.fileName + ': analyzing time ' + (performance.now() - start));
+		connection.console.info(this.fileName + ': analyzing time ' + (performance.now() - start));
 		return this.getNodes();
 	}
 
