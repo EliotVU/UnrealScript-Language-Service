@@ -724,7 +724,7 @@ repository:
             name: punctuation.parenthesis.close.uc
 
       # new operator
-      - begin: ((?i)new)\s*(\()
+      - begin: ((?i)new)\s*(\()?
         beginCaptures:
           '0':
             name: new.expr.uc
@@ -734,7 +734,7 @@ repository:
             name: punctuation.parenthesis.open.uc
         patterns:
           - include: '#expression'
-        end: \)
+        end: \)|\;
         endCaptures:
           '0':
             name: punctuation.parenthesis.close.uc
