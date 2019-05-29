@@ -1,5 +1,6 @@
 import { Range } from 'vscode-languageserver-types';
 import { UCSymbol, UCSymbolReference } from "../Symbols";
+import { IExpression } from '../expressions';
 
 export interface IDiagnosticNode {
 	getRange(): Range;
@@ -11,6 +12,19 @@ export class SyntaxErrorNode implements IDiagnosticNode {
 
 	getRange(): Range {
 		return this.range;
+	}
+
+	toString(): string {
+		return this.error;
+	}
+}
+
+export class ExpressionErrorNode implements IDiagnosticNode {
+	constructor(private symbol: IExpression, private error: string) {
+	}
+
+	getRange(): Range {
+		return this.symbol.getRange()!;
 	}
 
 	toString(): string {

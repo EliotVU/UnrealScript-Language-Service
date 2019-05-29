@@ -409,8 +409,9 @@ program
 
 literal
 	: noneLiteral
-	| booleanLiteral
-	| numberLiteral
+	| boolLiteral
+	| floatLiteral
+	| intLiteral
 	| stringLiteral
 	| objectLiteral
 	| nameLiteral
@@ -420,10 +421,13 @@ literal
 	| nameOfToken
 	;
 
+floatLiteral: (MINUS | PLUS)? (FLOAT);
+intLiteral: (MINUS | PLUS)? (INTEGER);
+
 numberLiteral: (MINUS | PLUS)? (FLOAT | INTEGER);
 stringLiteral: STRING;
 nameLiteral: NAME;
-booleanLiteral
+boolLiteral
 	: kwTRUE
 	| kwFALSE
 	;
@@ -504,8 +508,9 @@ modifierArguments: OPEN_PARENS (modifierValue COMMA?)+ CLOSE_PARENS;
 constDecl: kwCONST identifier ASSIGNMENT constValue SEMICOLON;
 constValue
 	: noneLiteral
-	| booleanLiteral
-	| numberLiteral
+	| boolLiteral
+	| intLiteral
+	| floatLiteral
 	| stringLiteral
 	| objectLiteral
 	| nameLiteral
@@ -1091,7 +1096,7 @@ defaultArguments
 defaultLiteral
 	: structLiteral
 	| noneLiteral
-	| booleanLiteral
+	| boolLiteral
 	| numberLiteral
 	| stringLiteral
 	| objectLiteral

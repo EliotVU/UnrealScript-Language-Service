@@ -4,7 +4,7 @@ import { RuleNode } from 'antlr4ts/tree/RuleNode';
 import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ConditionalExpressionContext, PropertyAccessExpressionContext, MemberExpressionContext, CallExpressionContext, ElementAccessExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ParenthesizedExpressionContext, MetaClassExpressionContext, VectTokenContext, RotTokenContext, RngTokenContext, ObjectLiteralContext, LiteralContext, ArrayCountExpressionContext, SuperExpressionContext, BinaryExpressionContext, UnaryOperatorContext, UnaryExpressionContext, ExpressionContext } from '../antlr/UCGrammarParser';
+import { OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ConditionalExpressionContext, PropertyAccessExpressionContext, MemberExpressionContext, CallExpressionContext, ElementAccessExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ParenthesizedExpressionContext, MetaClassExpressionContext, VectTokenContext, RotTokenContext, RngTokenContext, ObjectLiteralContext, LiteralContext, ArrayCountExpressionContext, SuperExpressionContext, BinaryExpressionContext, UnaryOperatorContext, UnaryExpressionContext, ExpressionContext, StringLiteralContext, NameLiteralContext, BoolLiteralContext, NumberLiteralContext, NoneLiteralContext, NameOfTokenContext, IntLiteralContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference, UCTypeSymbol } from './Symbols';
 import {
@@ -27,7 +27,14 @@ import {
 	UCRotLiteral,
 	UCRngLiteral,
 	UCMetaClassExpression,
-	UCSuperExpression
+	UCSuperExpression,
+	UCStringLiteral,
+	UCNameLiteral,
+	UCBoolLiteral,
+	UCFloatLiteral,
+	UCNoneLiteral,
+	UCNameOfLiteral,
+	UCIntLiteral
 } from './expressions';
 import { rangeFromBounds, rangeFromBound } from './helpers';
 import { UCTypeKind } from './Symbols/TypeKind';
@@ -336,13 +343,49 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 
 	visitLiteral(ctx: LiteralContext): IExpression {
 		const literal = ctx.getChild(0).accept<IExpression>(this);
-		// TODO: Deprecate as soon as all literals are supported!
-		if (!literal) {
-			const expression = new UCLiteral(rangeFromBounds(ctx.start, ctx.stop));
-			expression.context = ctx;
-			return expression;
-		}
 		return literal;
+	}
+
+	visitNoneLiteral(ctx: NoneLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCNoneLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitStringLiteral(ctx: StringLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCStringLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitNameLiteral(ctx: NameLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCNameLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitBoolLiteral(ctx: BoolLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCBoolLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitFloatLiteral(ctx: NumberLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCFloatLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitIntLiteral(ctx: IntLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCIntLiteral(range);
+		expression.context = ctx;
+		return expression;
 	}
 
 	visitObjectLiteral(ctx: ObjectLiteralContext) {
@@ -377,6 +420,17 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const expression = new UCRngLiteral(range);
 		expression.context = ctx;
+		return expression;
+	}
+
+	visitNameOfToken(ctx: NameOfTokenContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCNameOfLiteral(range);
+		expression.context = ctx;
+		const idNode = ctx.identifier();
+		if (idNode) {
+			expression.memberRef = new UCSymbolReference(idNode.text, rangeFromBounds(idNode.start, idNode.stop));
+		}
 		return expression;
 	}
 }
