@@ -531,7 +531,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 		return symbol;
 	}
 
-	visitIgnoresList(ctx: UCParser.IgnoresListContext) {
+	visitIgnoresDecl(ctx: UCParser.IgnoresDeclContext) {
 		const scope = this.scope<UCStateSymbol>();
 		if (!scope.ignoreRefs) {
 			scope.ignoreRefs = [];

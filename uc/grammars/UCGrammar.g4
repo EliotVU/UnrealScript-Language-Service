@@ -814,8 +814,6 @@ localDecl:
 	// UnrealScriptBug: Can have multiple semicolons which is inconsistent with all other declaration kinds.
 	SEMICOLON+;
 
-ignoresList: identifier (COMMA identifier)*;
-
 stateDecl
 	: stateModifier* kwSTATE (OPEN_PARENS CLOSE_PARENS)? identifier
 		extendsClause?
@@ -831,9 +829,13 @@ stateModifier: kwAUTO | kwSIMULATED;
 stateMember
 	: constDecl
 	| localDecl
-	| (kwIGNORES ignoresList SEMICOLON)
+	| ignoresDecl
 	| functionDecl
 	| directive
+	;
+
+ignoresDecl
+	: kwIGNORES (identifier (COMMA identifier)*) SEMICOLON
 	;
 
 codeBlockOptional
