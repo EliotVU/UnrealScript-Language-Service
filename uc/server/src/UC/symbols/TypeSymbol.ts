@@ -18,7 +18,7 @@ import {
 	SymbolsTable,
 } from '.';
 import { UCTypeKind } from './TypeKind';
-import { ISymbol } from './ISymbol';
+import { ISymbol, Identifier } from './ISymbol';
 
 /**
  * Represents a qualified identifier type reference such as "extends Core.Object",
@@ -60,16 +60,16 @@ export class UCQualifiedType extends UCSymbol {
 export class UCTypeSymbol extends UCSymbolReference {
 	public baseType?: UCTypeSymbol;
 
-	constructor(typeName: string, typeRange: Range, private spanRange?: Range, private typeKind?: UCTypeKind) {
-		super(typeName, typeRange);
+	constructor(id: Identifier, private range: Range = id.range, private typeKind?: UCTypeKind) {
+		super(id);
 	}
 
 	setTypeKind(kind: UCTypeKind) {
 		this.typeKind = kind;
 	}
 
-	getSpanRange(): Range {
-		return this.spanRange || this.getNameRange();
+	getRange(): Range {
+		return this.range;
 	}
 
 	getTooltip(): string {

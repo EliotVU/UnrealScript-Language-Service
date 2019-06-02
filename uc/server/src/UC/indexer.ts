@@ -1,6 +1,8 @@
+import * as fs from 'fs';
 import * as path from 'path';
-import URI from 'vscode-uri';
 
+import URI from 'vscode-uri';
+import { CompletionItem, CompletionItemKind, RemoteWorkspace, Connection } from 'vscode-languageserver';
 import { BehaviorSubject } from 'rxjs';
 
 import { ISymbolReference, UCPackage, SymbolsTable, UCEnumMemberSymbol } from './Symbols';
@@ -75,6 +77,18 @@ export function indexDocument(document: UCDocument, text?: string): UCDocument |
 
 export const ClassNameToFilePathMap$ = new BehaviorSubject(new Map<string, string>());
 
+let ClassCompletionItems: CompletionItem[] = [];
+
+ClassNameToFilePathMap$.subscribe(classesMap => {
+	ClassCompletionItems = Array.from(classesMap.values())
+		.map(value => {
+			return {
+				label: path.basename(value, '.uc'),
+				kind: CompletionItemKind.Class
+			};
+		});
+});
+
 export function getUriById(qualifiedClassId: string): string | undefined {
 	const filePath = ClassNameToFilePathMap$.getValue().get(qualifiedClassId);
 	return filePath ? URI.file(filePath).toString() : undefined;
@@ -94,4 +108,48 @@ export function getEnumMember(enumMember: string): UCEnumMemberSymbol | undefine
 
 export function setEnumMember(enumMember: UCEnumMemberSymbol) {
 	EnumMemberMap.set(enumMember.getId(), enumMember);
+}
+
+async function buildClassesFilePathsMap(workspace: RemoteWorkspace): Promise<Map<string, string>> {
+	function scanPath(filePath: string, cb: (filePath: string) => void): Promise<boolean> {
+		const promise = new Promise<boolean>((resolve) => {
+			if (!fs.existsSync(filePath)) {
+				resolve(false);
+				return;
+			}
+
+			fs.lstat(filePath, (err, stats) => {
+				if (stats.isDirectory()) {
+					fs.readdir(filePath, (err, filePaths) => {
+						for (let fileName of filePaths) {
+							resolve(scanPath(path.join(filePath, fileName), cb));
+						}
+					});
+				} else {
+					if (path.extname(filePath) === '.uc') {
+						cb(filePath);
+					}
+					resolve(true);
+				}
+			});
+		});
+		return promise;
+	}
+
+	const filePaths = new Map<string, string>();
+	const folders = await workspace.getWorkspaceFolders();
+	if (folders) {
+		for (let folder of folders) {
+			const folderPath = URI.parse(folder.uri).fsPath;
+			await scanPath(folderPath, (filePath => {
+				filePaths.set(path.basename(filePath, '.uc').toLowerCase(), filePath);
+			}));
+		}
+	}
+	return filePaths;
+}
+
+export async function initWorkspace(connection: Connection) {
+	const filePathMap = await buildClassesFilePathsMap(connection.workspace);
+	ClassNameToFilePathMap$.next(filePathMap);
 }

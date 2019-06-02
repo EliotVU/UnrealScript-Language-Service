@@ -14,8 +14,8 @@ import {
 } from 'vscode-languageserver';
 import URI from 'vscode-uri';
 
-import { initWorkspace, getCompletionItems, getReferences, getDefinition, getSymbols, getHover, getHighlights, getFullCompletionItem } from './UC/helpers';
-import { ClassNameToFilePathMap$, getDocumentByUri, indexDocument } from './UC/indexer';
+import { getCompletionItems, getReferences, getDefinition, getSymbols, getHover, getHighlights, getFullCompletionItem } from './UC/helpers';
+import { initWorkspace, ClassNameToFilePathMap$, getDocumentByUri, indexDocument } from './UC/indexer';
 import { UCSettings, defaultSettings } from './settings';
 
 const isIndexReady$ = new Subject<boolean>();

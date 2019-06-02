@@ -6,7 +6,7 @@ import { connection } from '../server';
 import { getEnumMember } from './indexer';
 import { intersectsWith, rangeFromBounds } from './helpers';
 import { UCDocument } from './document';
-import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, SyntaxErrorNode, ExpressionErrorNode } from './diagnostics/diagnostics';
+import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode } from './diagnostics/diagnostics';
 import {
 	UCTypeSymbol,
 	UCStructSymbol,
@@ -467,7 +467,7 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 
 export class UCMemberExpression extends UCExpression {
 	constructor (protected symbolRef: UCSymbolReference) {
-		super(symbolRef.getNameRange());
+		super(symbolRef.getRange());
 	}
 
 	getMemberSymbol() {
@@ -676,11 +676,11 @@ export class UCObjectLiteral extends UCExpression {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		if (intersectsWith(this.castRef.getSpanRange(), position)) {
+		if (intersectsWith(this.castRef.getRange(), position)) {
 			return this.castRef.getReference() && this.castRef;
 		}
 
-		if (intersectsWith(this.objectRef.getSpanRange(), position)) {
+		if (intersectsWith(this.objectRef.getRange(), position)) {
 			return this.objectRef.getReference() && this.objectRef;
 		}
 	}
@@ -745,8 +745,7 @@ export abstract class UCStructLiteral extends UCExpression {
 		}
 
 		const symbol = context!.findTypeSymbol(this.structType.getId(), true);
-		this.structType['nameRange'] = this.range!; // HACK!
-		symbol && this.structType.setReference(symbol, document);
+		symbol && this.structType.setReference(symbol, document, undefined, undefined, this.getRange());
 	}
 
 	analyze(_document: UCDocument, _context?: UCStructSymbol): void {

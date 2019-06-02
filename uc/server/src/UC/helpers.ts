@@ -1,16 +1,9 @@
-import * as path from 'path';
-import * as fs from 'fs';
-
-import URI from 'vscode-uri';
 import {
 	CompletionItem,
-	CompletionItemKind,
-	RemoteWorkspace,
 	Hover,
 	Location,
 	Definition,
 	SymbolInformation,
-	Connection,
 	Position,
 	Range,
 	DocumentHighlight,
@@ -20,7 +13,7 @@ import {
 import { Token } from 'antlr4ts';
 
 import { IWithReference, ISymbol, UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable, UCFieldSymbol } from './Symbols';
-import { getDocumentByUri, ClassNameToFilePathMap$, getIndexedReferences } from "./indexer";
+import { getDocumentByUri, getIndexedReferences } from "./indexer";
 
 export function rangeFromBound(token: Token): Range {
 	const length = token.text!.length;
@@ -71,100 +64,49 @@ export function intersectsWith(range: Range, position: Position): boolean {
 	return true;
 }
 
-async function buildClassesFilePathsMap(workspace: RemoteWorkspace): Promise<Map<string, string>> {
-	function scanPath(filePath: string, cb: (filePath: string) => void): Promise<boolean> {
-		const promise = new Promise<boolean>((resolve) => {
-			if (!fs.existsSync(filePath)) {
-				resolve(false);
-				return;
-			}
-
-			fs.lstat(filePath, (err, stats) => {
-				if (stats.isDirectory()) {
-					fs.readdir(filePath, (err, filePaths) => {
-						for (let fileName of filePaths) {
-							resolve(scanPath(path.join(filePath, fileName), cb));
-						}
-					});
-				} else {
-					if (path.extname(filePath) === '.uc') {
-						cb(filePath);
-					}
-					resolve(true);
-				}
-			});
-		});
-		return promise;
-	}
-
-	const filePaths = new Map<string, string>();
-	const folders = await workspace.getWorkspaceFolders();
-	if (folders) {
-		for (let folder of folders) {
-			const folderPath = URI.parse(folder.uri).fsPath;
-			await scanPath(folderPath, (filePath => {
-				filePaths.set(path.basename(filePath, '.uc').toLowerCase(), filePath);
-			}));
-		}
-	}
-	return filePaths;
-}
-
-let ClassCompletionItems: CompletionItem[] = [];
-
-ClassNameToFilePathMap$.subscribe(classesMap => {
-	ClassCompletionItems = Array.from(classesMap.values())
-		.map(value => {
-			return {
-				label: path.basename(value, '.uc'),
-				kind: CompletionItemKind.Class
-			};
-		});
-});
-
-export async function initWorkspace(connection: Connection) {
-	const filePathMap = await buildClassesFilePathsMap(connection.workspace);
-	ClassNameToFilePathMap$.next(filePathMap);
+export function intersectsWithRange(position: Position, range: Range): boolean {
+	return position.line >= range.start.line && position.line <= range.end.line
+		&& position.character >= range.start.character && position.character < range.end.character;
 }
 
 export async function getHover(uri: string, position: Position): Promise<Hover | undefined> {
 	const document = getDocumentByUri(uri);
-	const symbol = document && document.getSymbolAtPos(position);
-	if (!symbol) {
+	const ref = document && document.getSymbolAtPos(position);
+	if (!ref) {
 		return undefined;
 	}
 
-	if (symbol instanceof UCSymbol) {
-		const contents = [{ language: 'unrealscript', value: symbol.getTooltip()}];
+	if (ref instanceof UCSymbol) {
+		const contents = [{ language: 'unrealscript', value: ref.getTooltip()}];
 
-		const documentation = symbol.getDocumentation(document.tokenStream);
+		const documentation = ref.getDocumentation(document.tokenStream);
 		if (documentation) {
 			contents.push({ language: 'unrealscript', value: documentation });
 		}
 
 		return {
 			contents,
-			range: symbol.getNameRange()
+			range: ref.id.range
 		};
 	}
 }
 
 export async function getDefinition(uri: string, position: Position): Promise<Definition | undefined> {
 	const document = getDocumentByUri(uri);
-	const symbol = document && document.getSymbolAtPos(position) as unknown as IWithReference;
-	if (!symbol) {
+	const ref = document && document.getSymbolAtPos(position) as unknown as IWithReference;
+	if (!ref) {
 		return undefined;
 	}
 
-	const reference = symbol.getReference && symbol.getReference();
-	if (reference instanceof UCSymbol) {
-		const uri = reference.getUri();
+	const symbol = ref.getReference && ref.getReference();
+	if (symbol instanceof UCSymbol) {
+		const uri = symbol.getUri();
 		// This shouldn't happen, except for non UCSymbol objects.
 		if (!uri) {
-			console.warn('No uri for referred symbol', reference);
+			console.warn('No uri for referred symbol', symbol);
 			return undefined;
 		}
-		return Location.create(uri, reference.getNameRange());
+		return Location.create(uri, symbol.id.range);
 	}
 	return undefined;
 }

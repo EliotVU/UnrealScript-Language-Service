@@ -4,9 +4,10 @@ import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
 import { UCDocument } from "../document";
 import { UCGrammarParser } from '../../antlr/UCGrammarParser';
 
-import { ISymbol } from './ISymbol';
+import { ISymbol, Identifier } from './ISymbol';
 import { UCStructSymbol } from ".";
 import { SymbolWalker } from '../symbolWalker';
+import { intersectsWithRange } from '../helpers';
 
 export const COMMENT_TYPES = new Set([UCGrammarParser.LINE_COMMENT, UCGrammarParser.BLOCK_COMMENT]);
 
@@ -16,13 +17,30 @@ export const DEFAULT_POSITION = Position.create(0, 0);
 export const DEFAULT_RANGE = Range.create(DEFAULT_POSITION, DEFAULT_POSITION);
 
 /**
- * A symbol that resides in a document, holding an id and range.
+ * A symbol build from a AST context.
  */
 export abstract class UCSymbol implements ISymbol {
 	public outer?: ISymbol;
 	public context?: ParserRuleContext;
 
-	constructor(private nameRange: Range) {
+	constructor(public readonly id: Identifier) {
+
+	}
+
+	getName(): string {
+		return this.id.name;
+	}
+
+	// TODO: Names need to be hash-mapped to a global non-case-sensitive map.
+	getId(): string {
+		return this.id.name.toLowerCase();
+	}
+
+	/**
+	 * Returns the whole range this symbol encompasses i.e. for a struct this should be inclusive of the entire block.
+	 */
+	getRange(): Range {
+		return this.id.range;
 	}
 
 	getTypeTooltip(): string | undefined {
@@ -56,14 +74,6 @@ export abstract class UCSymbol implements ISymbol {
 		return undefined;
 	}
 
-	getName(): string {
-		return NO_NAME;
-	}
-
-	getId(): string {
-		return this.getName().toLowerCase();
-	}
-
 	getQualifiedName(): string {
 		if (this.outer) {
 			return this.outer.getQualifiedName() + '.' + this.getName();
@@ -79,22 +89,8 @@ export abstract class UCSymbol implements ISymbol {
 		return CompletionItemKind.Text;
 	}
 
-	getNameRange(): Range {
-		return this.nameRange;
-	}
-
-	getSpanRange(): Range {
-		return this.nameRange;
-	}
-
-	protected intersectsWithName(position: Position): boolean {
-		var range = this.getNameRange();
-		return position.line >= range.start.line && position.line <= range.end.line
-			&& position.character >= range.start.character && position.character < range.end.character;
-	}
-
 	getSymbolAtPos(position: Position): UCSymbol | undefined {
-		return this.intersectsWithName(position) && this.getContainedSymbolAtPos(position) || this;
+		return intersectsWithRange(position, this.getRange()) && this.getContainedSymbolAtPos(position) || this;
 	}
 
 	protected getContainedSymbolAtPos(_position: Position): UCSymbol | undefined {
@@ -127,7 +123,7 @@ export abstract class UCSymbol implements ISymbol {
 	toSymbolInfo(): SymbolInformation {
 		return SymbolInformation.create(
 			this.getName(), this.getKind(),
-			this.getSpanRange(), undefined,
+			this.getRange(), undefined,
 			this.outer && this.outer.getName()
 		);
 	}

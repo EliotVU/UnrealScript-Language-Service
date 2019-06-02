@@ -2,7 +2,7 @@ import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-
 
 import { UCDocument } from '../document';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
-import { intersectsWith } from '../helpers';
+import { intersectsWith, intersectsWithRange } from '../helpers';
 
 import { UCSymbol, UCStructSymbol, UCTypeSymbol } from '.';
 import { SymbolWalker } from '../symbolWalker';
@@ -30,8 +30,8 @@ export class UCClassSymbol extends UCStructSymbol {
 	}
 
 	getSymbolAtPos(position: Position): UCSymbol {
-		if (intersectsWith(this.getSpanRange(), position)) {
-			if (this.intersectsWithName(position)) {
+		if (intersectsWith(this.getRange(), position)) {
+			if (intersectsWithRange(position, this.id.range)) {
 				return this;
 			}
 			return this.getContainedSymbolAtPos(position);
@@ -73,7 +73,7 @@ export class UCClassSymbol extends UCStructSymbol {
 
 	getCompletionContext(position: Position) {
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
-			if (intersectsWith(symbol.getSpanRange(), position)) {
+			if (intersectsWith(symbol.getRange(), position)) {
 				return symbol.getCompletionContext(position);
 			}
 		}

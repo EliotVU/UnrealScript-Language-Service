@@ -33,11 +33,12 @@ export class ExpressionErrorNode implements IDiagnosticNode {
 }
 
 export class SemanticErrorNode implements IDiagnosticNode {
+	// FIXME: just accept a range
 	constructor(private symbol: UCSymbol | UCSymbolReference, private error: string) {
 	}
 
 	getRange(): Range {
-		return this.symbol.getNameRange();
+		return this.symbol.id.range;
 	}
 
 	toString(): string {
@@ -50,7 +51,7 @@ export class UnrecognizedTypeNode implements IDiagnosticNode {
 	}
 
 	getRange(): Range {
-		return this.symbol.getNameRange();
+		return this.symbol.id.range;
 	}
 
 	toString(): string {
@@ -63,7 +64,7 @@ export class UnrecognizedFieldNode implements IDiagnosticNode {
 	}
 
 	getRange(): Range {
-		return this.symbol.getNameRange();
+		return this.symbol.id.range;
 	}
 
 	toString(): string {

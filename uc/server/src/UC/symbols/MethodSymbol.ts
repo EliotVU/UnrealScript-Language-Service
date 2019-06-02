@@ -86,7 +86,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 			const overriddenMethod = context.super.findSuperSymbol(this.getId());
 			if (overriddenMethod instanceof UCMethodSymbol) {
 				document.indexReference(overriddenMethod, {
-					location: Location.create(document.filePath, this.getNameRange()),
+					location: Location.create(document.filePath, this.id.range),
 					symbol: this
 				});
 				this.overriddenMethod = overriddenMethod;
@@ -163,7 +163,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 
 export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference {
 	constructor(name: string, protected kind?: string) {
-		super(name, DEFAULT_RANGE, DEFAULT_RANGE);
+		super({ name, range: DEFAULT_RANGE });
 	}
 
 	isStatic() {

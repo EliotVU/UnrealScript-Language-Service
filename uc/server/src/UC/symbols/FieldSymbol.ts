@@ -1,36 +1,33 @@
 import { Range, Position, Location } from 'vscode-languageserver-types';
 
-import { intersectsWith } from '../helpers';
+import { intersectsWith, intersectsWithRange } from '../helpers';
 import { UCDocument } from '../document';
 
 import { ISymbol, UCSymbol, UCStructSymbol, UCClassSymbol } from '.';
+import { Identifier } from './ISymbol';
 
 export abstract class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;
 	public containingStruct?: UCStructSymbol;
 
-	constructor(private name: string, nameRange: Range, private spanRange: Range) {
-		super(nameRange);
+	constructor(id: Identifier, private readonly range: Range = id.range) {
+		super(id);
 	}
 
-	getName(): string {
-		return this.name;
+	getRange(): Range {
+		return this.range;
 	}
 
 	getTooltip(): string {
 		return this.getQualifiedName();
 	}
 
-	getSpanRange(): Range {
-		return this.spanRange;
-	}
-
 	getSymbolAtPos(position: Position) {
-		if (!intersectsWith(this.getSpanRange(), position)) {
+		if (!intersectsWith(this.getRange(), position)) {
 			return undefined;
 		}
 
-		if (this.intersectsWithName(position)) {
+		if (intersectsWithRange(position, this.id.range)) {
 			return this;
 		}
 		return this.getContainedSymbolAtPos(position);
@@ -79,12 +76,14 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	}
 
 	index(document: UCDocument, _context: UCStructSymbol) {
+		this.indexDeclaration(document);
+	}
+
+	private indexDeclaration(document: UCDocument) {
 		document.indexReference(this, {
-			location: Location.create(document.filePath, this.getNameRange()),
+			location: Location.create(document.filePath, this.id.range),
 			symbol: this,
-			context: {
-				inAssignment: true
-			}
+			context: { inAssignment: true }
 		});
 	}
 

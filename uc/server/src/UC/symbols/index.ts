@@ -1,6 +1,7 @@
-export { ISymbol, ISymbolReference, IWithReference } from './ISymbol';
+export { ISymbol, ISymbolReference, IWithReference, Identifier } from './ISymbol';
 export { UCSymbol } from "./Symbol";
 export { UCSymbolReference } from './SymbolReference';
+export { UCTypeKind } from "./TypeKind";
 export { UCTypeSymbol } from './TypeSymbol';
 export { UCPackage, SymbolsTable } from './Package';
 export { UCFieldSymbol } from './FieldSymbol';

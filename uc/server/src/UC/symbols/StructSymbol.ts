@@ -48,7 +48,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 
 	getCompletionContext(position: Position) {
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
-			if (intersectsWith(symbol.getSpanRange(), position)) {
+			if (intersectsWith(symbol.getRange(), position)) {
 				return symbol.getCompletionContext(position);
 			}
 		}

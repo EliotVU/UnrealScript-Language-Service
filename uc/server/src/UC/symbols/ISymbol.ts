@@ -1,4 +1,4 @@
-import { SymbolKind, Location, CompletionItem } from 'vscode-languageserver-types';
+import { SymbolKind, Location, CompletionItem, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
@@ -41,4 +41,9 @@ export interface ISymbolReference {
 
 export interface IWithReference extends ISymbol {
 	getReference(): ISymbol | undefined;
+}
+
+export interface Identifier {
+	readonly name: string;
+	readonly range: Range;
 }

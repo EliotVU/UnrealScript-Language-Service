@@ -6,7 +6,7 @@ import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 import { OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ConditionalExpressionContext, PropertyAccessExpressionContext, MemberExpressionContext, CallExpressionContext, ElementAccessExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ParenthesizedExpressionContext, MetaClassExpressionContext, VectTokenContext, RotTokenContext, RngTokenContext, ObjectLiteralContext, LiteralContext, ArrayCountExpressionContext, SuperExpressionContext, BinaryExpressionContext, UnaryOperatorContext, UnaryExpressionContext, ExpressionContext, StringLiteralContext, NameLiteralContext, BoolLiteralContext, NumberLiteralContext, NoneLiteralContext, NameOfTokenContext, IntLiteralContext } from '../antlr/UCGrammarParser';
 
-import { UCSymbolReference, UCTypeSymbol } from './Symbols';
+import { UCSymbolReference, UCTypeSymbol, UCTypeKind, Identifier } from './Symbols';
 import {
 	UCMemberExpression,
 	UCUnaryExpression,
@@ -19,7 +19,6 @@ import {
 	UCParenthesizedExpression,
 	UCPredefinedPropertyAccessExpression,
 	IExpression,
-	UCLiteral,
 	UCObjectLiteral,
 	UCNewExpression,
 	UCPredefinedAccessExpression,
@@ -37,7 +36,7 @@ import {
 	UCIntLiteral
 } from './expressions';
 import { rangeFromBounds, rangeFromBound } from './helpers';
-import { UCTypeKind } from './Symbols/TypeKind';
+import { createIdentifierFrom } from './documentASTWalker';
 
 export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 	visit(tree: ParseTree): IExpression {
@@ -79,7 +78,7 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 		}
 
 		const operatorNode = ctx.assignmentOperator();
-		expression.operator = new UCSymbolReference(operatorNode.text, rangeFromBounds(operatorNode.start, operatorNode.stop));
+		expression.operator = new UCSymbolReference(createIdentifierFrom(operatorNode));
 
 		const exprNode = ctx.expression();
 		if (exprNode) {
@@ -124,7 +123,7 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 		}
 
 		const operatorNode = ctx.functionName();
-		expression.operator = new UCSymbolReference(operatorNode.text, rangeFromBounds(operatorNode.start, operatorNode.stop));
+		expression.operator = new UCSymbolReference(createIdentifierFrom(operatorNode));
 
 		const rightNode = ctx.expression();
 		if (rightNode) {
@@ -142,7 +141,7 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 			expression.context = ctx;
 			expression.expression = primaryNode.accept<IExpression>(this);
 			expression.expression.outer = expression;
-			expression.operator = new UCSymbolReference(operatorNode.text, rangeFromBounds(operatorNode.start, operatorNode.stop));
+			expression.operator = new UCSymbolReference(createIdentifierFrom(operatorNode));
 			return expression;
 		}
 		return primaryNode.accept<IExpression>(this);
@@ -253,7 +252,7 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 
 		const classIdNode = ctx.identifier();
 		if (classIdNode) {
-			expression.classRef = new UCTypeSymbol(classIdNode.text, rangeFromBounds(classIdNode.start, classIdNode.stop), undefined, UCTypeKind.Class);
+			expression.classRef = new UCTypeSymbol(createIdentifierFrom(classIdNode), undefined, UCTypeKind.Class);
 		}
 
 		const exprNode = ctx.expression();
@@ -271,42 +270,39 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 
 		const classIdNode = ctx.identifier();
 		if (classIdNode) {
-			expression.classRef = new UCTypeSymbol(classIdNode.text, rangeFromBounds(classIdNode.start, classIdNode.stop), undefined, UCTypeKind.Class);
+			expression.classRef = new UCTypeSymbol(createIdentifierFrom(classIdNode), undefined, UCTypeKind.Class);
 		}
 		return expression;
 	}
 
 	visitSpecifierExpression(ctx: SpecifierExpressionContext) {
-		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCPredefinedAccessExpression(new UCSymbolReference(ctx.text, range));
+		const expression = new UCPredefinedAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
 		expression.context = ctx;
 		return expression;
 	}
 
 	visitClassLiteralSpecifier(ctx: ClassLiteralSpecifierContext) {
-		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCPredefinedPropertyAccessExpression(new UCSymbolReference(ctx.text, range));
+		const expression = new UCPredefinedPropertyAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
 		expression.context = ctx;
 		return expression;
 	}
 
 	visitIdentifier(ctx: ParserRuleContext): UCMemberExpression {
-		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCMemberExpression(new UCSymbolReference(ctx.text, range));
+		const expression = new UCMemberExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
 		expression.context = ctx;
 		return expression;
 	}
 
 	visitOperator(ctx: OperatorContext): UCMemberExpression {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCMemberExpression(new UCSymbolReference(ctx.text, range));
+		const expression = new UCMemberExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
 		expression.context = ctx;
 		return expression;
 	}
 
 	visitUnaryOperator(ctx: UnaryOperatorContext) {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCMemberExpression(new UCSymbolReference(ctx.text, range));
+		const expression = new UCMemberExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
 		expression.context = ctx;
 		return expression;
 	}
@@ -393,11 +389,15 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 		expression.context = ctx;
 
 		const classIdNode = ctx.identifier();
-		const castRef = new UCSymbolReference(classIdNode.text, rangeFromBounds(classIdNode.start, classIdNode.stop));
+		const castRef = new UCSymbolReference(createIdentifierFrom(classIdNode));
 		expression.castRef = castRef;
 
 		const objectIdNode = ctx.NAME();
-		const objectRef = new UCSymbolReference(objectIdNode.text.replace(/'|\s/g, ""), rangeFromBound(objectIdNode.symbol));
+		const objectIdentifier: Identifier = {
+			name: objectIdNode.text.replace(/'|\s/g, ""),
+			range: rangeFromBound(objectIdNode.symbol)
+		};
+		const objectRef = new UCSymbolReference(objectIdentifier);
 		expression.objectRef = objectRef;
 		return expression;
 	}
@@ -429,7 +429,7 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 		expression.context = ctx;
 		const idNode = ctx.identifier();
 		if (idNode) {
-			expression.memberRef = new UCSymbolReference(idNode.text, rangeFromBounds(idNode.start, idNode.stop));
+			expression.memberRef = new UCSymbolReference(createIdentifierFrom(idNode));
 		}
 		return expression;
 	}
