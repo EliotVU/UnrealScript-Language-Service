@@ -48,8 +48,12 @@ export abstract class UCExpression implements IExpression {
 	constructor(protected range?: Range) {
 	}
 
-	getRange(): Range | undefined {
-		return this.range;
+	getRange(): Range {
+		if (!this.range && this.context) {
+			this.range = rangeFromBounds(this.context.start, this.context.stop);
+		}
+
+		return this.range!;
 	}
 
 	getMemberSymbol(): ISymbol | undefined {
@@ -61,11 +65,7 @@ export abstract class UCExpression implements IExpression {
 	}
 
 	getSymbolAtPos(position: Position): ISymbol | undefined {
-		if (!this.range && this.context) {
-			this.range = rangeFromBounds(this.context.start, this.context.stop);
-		}
-
-		if (!intersectsWith(this.range!, position)) {
+		if (!intersectsWith(this.getRange(), position)) {
 			return undefined;
 		}
 		const symbol = this.getContainedSymbolAtPos(position);
@@ -455,7 +455,12 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 				document.nodes.push(new ExpressionErrorNode(this.left!, `Cannot assign to expression (type: '${UCTypeKind[letType]}'), because it is not a variable.`));
 			}
 		} else {
-			document.nodes.push(new ExpressionErrorNode(this.left!, `Cannot assign to expression (type: '${UCTypeKind[letType]}'), because it is not a variable.`));
+			if (letType === UCTypeKind.Object) {
+				// TODO:
+			}
+			else {
+				document.nodes.push(new ExpressionErrorNode(this.left!, `Cannot assign to expression (type: '${UCTypeKind[letType]}'), because it is not a variable.`));
+			}
 		}
 
 		if (!this.right) {
