@@ -2,11 +2,12 @@ import { SymbolKind, Location, CompletionItem, Range } from 'vscode-languageserv
 
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
+import { Name } from '../names';
 
 export interface ISymbol {
 	outer?: ISymbol;
 	getName(): string;
-	getId(): string;
+	getId(): Name;
 	getQualifiedName(): string;
 	getKind(): SymbolKind;
 	getTooltip(): string;
@@ -44,6 +45,6 @@ export interface IWithReference extends ISymbol {
 }
 
 export interface Identifier {
-	readonly name: string;
+	readonly name: Name;
 	readonly range: Range;
 }

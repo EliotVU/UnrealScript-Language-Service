@@ -1,20 +1,23 @@
 import { CompletionItem, CompletionItemKind, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { ISymbol } from './ISymbol';
 import { SymbolWalker } from '../symbolWalker';
+import { Name, toName } from '../names';
+
+import { ISymbol } from './ISymbol';
 
 export class UCKeyword implements ISymbol, CompletionItem {
 	kind: CompletionItemKind = CompletionItemKind.Keyword;
 
-	constructor(public label: string) {}
+	constructor(public name: Name, public label: string = name.toString()) {
+	}
 
-	getName() {
+	getName(): string {
 		return this.label;
 	}
 
-	getId(): string {
-		return this.label;
+	getId(): Name {
+		return this.name;
 	}
 
 	getKind(): SymbolKind {
@@ -38,5 +41,5 @@ export class UCKeyword implements ISymbol, CompletionItem {
 	}
 }
 
-export const ReliableKeyword = new UCKeyword('reliable');
-export const UnreliableKeyword = new UCKeyword('unreliable');
+export const ReliableKeyword = new UCKeyword(toName('reliable'));
+export const UnreliableKeyword = new UCKeyword(toName('unreliable'));

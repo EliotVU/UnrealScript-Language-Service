@@ -1,13 +1,15 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Position } from 'vscode-languageserver-types';
 import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
 
-import { UCDocument } from "../document";
 import { UCGrammarParser } from '../../antlr/UCGrammarParser';
+
+import { UCDocument } from "../document";
+import { SymbolWalker } from '../symbolWalker';
+import { intersectsWithRange } from '../helpers';
+import { Name } from '../names';
 
 import { ISymbol, Identifier } from './ISymbol';
 import { UCStructSymbol } from ".";
-import { SymbolWalker } from '../symbolWalker';
-import { intersectsWithRange } from '../helpers';
 
 export const COMMENT_TYPES = new Set([UCGrammarParser.LINE_COMMENT, UCGrammarParser.BLOCK_COMMENT]);
 
@@ -28,12 +30,7 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getName(): string {
-		return this.id.name;
-	}
-
-	// TODO: Names need to be hash-mapped to a global non-case-sensitive map.
-	getId(): string {
-		return this.id.name.toLowerCase();
+		return this.id.name.toString();
 	}
 
 	/**
@@ -43,35 +40,8 @@ export abstract class UCSymbol implements ISymbol {
 		return this.id.range;
 	}
 
-	getTypeTooltip(): string | undefined {
-		return undefined;
-	}
-
-	getTooltip(): string {
-		return this.getQualifiedName();
-	}
-
-	getDocumentation(tokenStream: CommonTokenStream): string | undefined {
-		if (!this.context) {
-			return undefined;
-		}
-
-		const leadingComment = tokenStream
-			.getHiddenTokensToRight(this.context.stop!.tokenIndex)
-			.filter(token => COMMENT_TYPES.has(token.type) && token.charPositionInLine !== 0);
-
-		if (leadingComment && leadingComment.length > 0) {
-			return leadingComment.shift()!.text;
-		}
-
-		const headerComment = tokenStream
-			.getHiddenTokensToLeft(this.context.start.tokenIndex)
-			.filter(token => COMMENT_TYPES.has(token.type) && token.charPositionInLine === 0);
-
-		if (headerComment && headerComment.length > 0) {
-			return headerComment.map(comment => comment.text).join('\n');
-		}
-		return undefined;
+	getId(): Name {
+		return this.id.name;
 	}
 
 	getQualifiedName(): string {
@@ -83,6 +53,13 @@ export abstract class UCSymbol implements ISymbol {
 
 	getKind(): SymbolKind {
 		return SymbolKind.Field;
+	}
+	getTooltip(): string {
+		return this.getQualifiedName();
+	}
+
+	getTypeTooltip(): string | undefined {
+		return undefined;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
@@ -118,6 +95,29 @@ export abstract class UCSymbol implements ISymbol {
 
 	getUri(): string {
 		return this.outer instanceof UCSymbol && this.outer.getUri() || '';
+	}
+
+	getDocumentation(tokenStream: CommonTokenStream): string | undefined {
+		if (!this.context) {
+			return undefined;
+		}
+
+		const leadingComment = tokenStream
+			.getHiddenTokensToRight(this.context.stop!.tokenIndex)
+			.filter(token => COMMENT_TYPES.has(token.type) && token.charPositionInLine !== 0);
+
+		if (leadingComment && leadingComment.length > 0) {
+			return leadingComment.shift()!.text;
+		}
+
+		const headerComment = tokenStream
+			.getHiddenTokensToLeft(this.context.start.tokenIndex)
+			.filter(token => COMMENT_TYPES.has(token.type) && token.charPositionInLine === 0);
+
+		if (headerComment && headerComment.length > 0) {
+			return headerComment.map(comment => comment.text).join('\n');
+		}
+		return undefined;
 	}
 
 	toSymbolInfo(): SymbolInformation {

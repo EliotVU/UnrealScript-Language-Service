@@ -90,7 +90,6 @@
 		"compile:grammar": "antlr4ts -visitor -no-listener grammars/UCGrammar.g4 -o server/src/antlr"
 	},
 	"devDependencies": {
-		"@types/mocha": "^5.2.6",
 		"@types/node": "^8.10.46",
 		"antlr4ts-cli": "^0.5.0-alpha.3",
 		"gulp": "^4.0.1",

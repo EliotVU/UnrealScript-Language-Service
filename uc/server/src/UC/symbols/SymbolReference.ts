@@ -16,14 +16,14 @@ export class UCSymbolReference extends UCSymbol implements IWithReference {
 	getName(): string {
 		return this.reference
 			? this.reference.getName()
-			: this.id.name;
+			: this.id.name.toString();
 	}
 
 	getQualifiedName(): string {
 		if (this.reference) {
 			return this.reference.getQualifiedName();
 		}
-		return this.id.name;
+		return this.id.name.toString();
 	}
 
 	getTooltip(): string {

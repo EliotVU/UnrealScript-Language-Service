@@ -37,6 +37,7 @@ import {
 } from './expressions';
 import { rangeFromBounds, rangeFromBound } from './helpers';
 import { createIdentifierFrom } from './documentASTWalker';
+import { toName } from './names';
 
 export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 	visit(tree: ParseTree): IExpression {
@@ -392,9 +393,10 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 		const castRef = new UCSymbolReference(createIdentifierFrom(classIdNode));
 		expression.castRef = castRef;
 
+		// TODO: refactor as a QualifiedIdentifier.
 		const objectIdNode = ctx.NAME();
 		const objectIdentifier: Identifier = {
-			name: objectIdNode.text.replace(/'|\s/g, ""),
+			name: toName(objectIdNode.text.replace(/'|\s/g, "")),
 			range: rangeFromBound(objectIdNode.symbol)
 		};
 		const objectRef = new UCSymbolReference(objectIdentifier);

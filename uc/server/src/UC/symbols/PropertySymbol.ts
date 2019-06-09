@@ -1,9 +1,9 @@
 import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
+import { SymbolWalker } from '../symbolWalker';
 
 import { UCSymbol, UCTypeSymbol, UCFieldSymbol, UCStructSymbol } from '.';
-import { SymbolWalker } from '../symbolWalker';
 
 export class UCPropertySymbol extends UCFieldSymbol {
 	public type?: UCTypeSymbol;

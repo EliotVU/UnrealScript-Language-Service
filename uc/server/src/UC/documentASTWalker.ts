@@ -3,11 +3,15 @@ import { Range } from 'vscode-languageserver-types';
 import { ANTLRErrorListener, RecognitionException, Recognizer, Token, ParserRuleContext } from 'antlr4ts';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 import { ParseTreeWalker } from 'antlr4ts/tree/ParseTreeWalker';
+import { ParseTree } from 'antlr4ts/tree/ParseTree';
+import { RuleNode } from 'antlr4ts/tree/RuleNode';
+import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 
 import * as UCParser from '../antlr/UCGrammarParser';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 
 import { rangeFromBounds, rangeFromBound } from './helpers';
+import { toName, NAME_CLASS, NAME_ARRAY, NAME_REPLICATION, NAME_STRUCTDEFAULTPROPERTIES, NAME_DEFAULTPROPERTIES, NAME_NONE, NAME_NAME } from './names';
 
 import { ISymbolContainer } from './Symbols/ISymbolContainer';
 import {
@@ -25,16 +29,15 @@ import { SyntaxErrorNode } from './diagnostics/diagnostics';
 
 import { UCBlock, IStatement } from './statements';
 import { setEnumMember } from './indexer';
+
 import { StatementVisitor } from './statementWalker';
 import { UCDocument } from './document';
-import { ParseTree } from 'antlr4ts/tree/ParseTree';
-import { RuleNode } from 'antlr4ts/tree/RuleNode';
-import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
+
 import { Identifier } from './Symbols/ISymbol';
 
 export function createIdentifierFrom(ctx: ParserRuleContext) {
 	const identifier: Identifier = {
-		name: ctx.text,
+		name: toName(ctx.text),
 		range: rangeFromBound(ctx.start)
 	};
 
@@ -125,7 +128,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 		const typeNode = typeDeclNode.predefinedType() || typeDeclNode.qualifiedIdentifier();
 		if (typeNode) {
 			const identifier: Identifier = {
-				name: typeNode.text,
+				name: toName(typeNode.text),
 				range: rangeFromBounds(typeNode.start, typeNode.stop)
 			};
 			const symbol = new UCTypeSymbol(identifier, rangeFromBounds(typeNode.start, typeNode.stop));
@@ -136,7 +139,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 		const classTypeNode = typeDeclNode.classType();
 		if (classTypeNode) {
 			const identifier: Identifier = {
-				name: 'Class',
+				name: NAME_CLASS,
 				range: rangeFromBound(classTypeNode.start)
 			};
 			const symbol = new UCTypeSymbol(identifier, rangeFromBounds(classTypeNode.start, classTypeNode.stop));
@@ -154,7 +157,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 		const arrayTypeNode = typeDeclNode.arrayType();
 		if (arrayTypeNode) {
 			const identifier: Identifier = {
-				name: 'Array',
+				name: NAME_ARRAY,
 				range: rangeFromBound(arrayTypeNode.start)
 			};
 			const symbol = new UCTypeSymbol(identifier, rangeFromBounds(arrayTypeNode.start, arrayTypeNode.stop));
@@ -167,7 +170,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 		}
 
 		const identifier: Identifier = {
-			name: typeDeclNode.text,
+			name: toName(typeDeclNode.text),
 			range: rangeFromBound(typeDeclNode.start)
 		};
 		const symbol = new UCTypeSymbol(identifier, rangeFromBounds(typeDeclNode.start, typeDeclNode.stop));
@@ -239,7 +242,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 						}
 						for (let valueNode of modifierArgumentNodes.modifierValue()) {
 							const identifier: Identifier = {
-								name: valueNode.text,
+								name: toName(valueNode.text),
 								range: rangeFromBounds(valueNode.start, valueNode.stop)
 							};
 							const typeSymbol = new UCTypeSymbol(identifier, undefined, UCTypeKind.Class);
@@ -254,7 +257,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 						}
 						for (let valueNode of modifierArgumentNodes.modifierValue()) {
 							const identifier: Identifier = {
-								name: valueNode.text,
+								name: toName(valueNode.text),
 								range: rangeFromBounds(valueNode.start, valueNode.stop)
 							};
 							const typeSymbol = new UCTypeSymbol(identifier, undefined, UCTypeKind.Class);
@@ -343,7 +346,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 	visitReplicationBlock(ctx: UCParser.ReplicationBlockContext) {
 		const nameNode = ctx.kwREPLICATION();
 		const identifier: Identifier = {
-			name: 'replication',
+			name: NAME_REPLICATION,
 			range: rangeFromBound(nameNode.start)
 		};
 		const symbol = new UCReplicationBlock(identifier, rangeFromBounds(ctx.start, ctx.stop));
@@ -552,7 +555,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 	visitStructDefaultPropertiesBlock(ctx: UCParser.StructDefaultPropertiesBlockContext) {
 		const nameNode = ctx.kwSTRUCTDEFAULTPROPERTIES();
 		const identifier: Identifier = {
-			name: 'structdefaultproperties',
+			name: NAME_STRUCTDEFAULTPROPERTIES,
 			range: rangeFromBound(nameNode.start)
 		};
 		const symbol = new UCDefaultPropertiesBlock(identifier, rangeFromBounds(ctx.start, ctx.stop));
@@ -571,7 +574,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 	visitDefaultPropertiesBlock(ctx: UCParser.DefaultPropertiesBlockContext) {
 		const nameNode = ctx.kwDEFAULTPROPERTIES();
 		const identifier: Identifier = {
-			name: 'defaultproperties',
+			name: NAME_DEFAULTPROPERTIES,
 			range: rangeFromBound(nameNode.start)
 		};
 
@@ -590,7 +593,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 
 	visitObjectDecl(ctx: UCParser.ObjectDeclContext) {
 		const identifier: Identifier = {
-			name: '',
+			name: NAME_NONE,
 			range: rangeFromBound(ctx.start)
 		};
 		const symbol = new UCObjectSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
@@ -615,11 +618,11 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 
 		const propId = symbolRef.getId();
 		switch (propId) {
-			case 'name': {
+			case NAME_NAME: {
 				// TODO: change name
 			}
 
-			case 'class': {
+			case NAME_CLASS: {
 				const typeSymbol = new UCTypeSymbol(identifier, undefined, UCTypeKind.Class);
 				typeSymbol.outer = scope;
 				scope.extendsType = typeSymbol;
@@ -641,7 +644,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 
 	visitStructLiteral(ctx: UCParser.StructLiteralContext) {
 		const identifier: Identifier = {
-			name: '',
+			name: NAME_NONE,
 			range: rangeFromBound(ctx.start)
 		};
 		const symbol = new UCObjectSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
@@ -659,7 +662,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 		const opNode = ctx.operator();
 		if (opNode) {
 			const identifier: Identifier = {
-				name: opNode.text,
+				name: toName(opNode.text),
 				range: rangeFromBounds(opNode.start, opNode.stop)
 			};
 			return identifier;
@@ -669,7 +672,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 
 	visitIdentifier(ctx: UCParser.IdentifierContext) {
 		const identifier: Identifier = {
-			name: ctx.text,
+			name: toName(ctx.text),
 			range: rangeFromBound(ctx.start)
 		};
 
@@ -678,7 +681,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 
 	visitQualifiedIdentifier(ctx: UCParser.QualifiedIdentifierContext) {
 		const identifier: Identifier = {
-			name: ctx.text,
+			name: toName(ctx.text),
 			range: rangeFromBounds(ctx.start, ctx.stop)
 		};
 

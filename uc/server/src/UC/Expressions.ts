@@ -3,10 +3,14 @@ import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
 import { connection } from '../server';
 
+import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode } from './diagnostics/diagnostics';
 import { getEnumMember } from './indexer';
 import { intersectsWith, rangeFromBounds } from './helpers';
 import { UCDocument } from './document';
-import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode } from './diagnostics/diagnostics';
+import { ISymbolContext, ISymbol } from './Symbols/ISymbol';
+import { UCTypeKind } from './Symbols/TypeKind';
+import { Name } from './names';
+
 import {
 	UCTypeSymbol,
 	UCStructSymbol,
@@ -22,9 +26,8 @@ import {
 	NativeArray,
 	NativeEnum,
 	UCEnumSymbol,
+	UCSymbol,
 } from './Symbols';
-import { ISymbolContext, ISymbol } from './Symbols/ISymbol';
-import { UCTypeKind } from './Symbols/TypeKind';
 
 export interface IExpression {
 	outer: IExpression;
@@ -328,6 +331,13 @@ export class UCConditionalExpression extends UCExpression {
 	}
 }
 
+function findOperatorSymbol(id: Name, scope: UCStructSymbol): UCSymbol | undefined {
+	// TODO: What about UCState? Can states properly declare operators?
+	const classContext = scope.outer;
+	// Because we only need to match operators, we can directly skip @context and look in the upper class.
+	return classContext instanceof UCStructSymbol ? classContext.findSuperSymbol(id) : undefined;
+}
+
 export class UCUnaryExpression extends UCExpression {
 	public expression: IExpression;
 
@@ -352,7 +362,7 @@ export class UCUnaryExpression extends UCExpression {
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol) {
-		const operatorSymbol = context!.findSuperSymbol(this.operator.getId());
+		const operatorSymbol = findOperatorSymbol(this.operator.getId(), context!);
 		operatorSymbol && this.operator.setReference(operatorSymbol, document);
 		if (this.expression) this.expression.index(document, context);
 	}
@@ -400,7 +410,8 @@ export class UCBinaryExpression extends UCExpression {
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol) {
-		const operatorSymbol = context!.findSuperSymbol(this.operator.getId());
+		// Because we only need to match operators, we can directly skip @context and look in the upper class.
+		const operatorSymbol = findOperatorSymbol(this.operator.getId(), context!);
 		operatorSymbol && this.operator.setReference(operatorSymbol, document);
 
 		if (this.left) this.left.index(document, context);
@@ -700,7 +711,7 @@ export class UCObjectLiteral extends UCExpression {
 			? SymbolsTable.findSymbol(this.objectRef.getId(), true)
 			// FIXME: This is wrong, does not support subgroups.
 			// Might need to add enum declarations to the SymbolsTable instead.
-			: context!.findTypeSymbol(this.objectRef.getId(), true);
+			: context!.findTypeSymbol(this.objectRef.getId());
 		if (objectSymbol) {
 			this.objectRef.setReference(objectSymbol, document);
 		}
@@ -749,7 +760,7 @@ export abstract class UCStructLiteral extends UCExpression {
 			return;
 		}
 
-		const symbol = context!.findTypeSymbol(this.structType.getId(), true);
+		const symbol = context!.findTypeSymbol(this.structType.getId());
 		symbol && this.structType.setReference(symbol, document, undefined, undefined, this.getRange());
 	}
 

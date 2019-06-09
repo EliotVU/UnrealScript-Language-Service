@@ -2,14 +2,14 @@ import { SymbolKind, Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
-
 import { UCBlock } from '../statements';
+import { Name } from '../names';
 
-import { ISymbol, UCFieldSymbol, UCSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCStructSymbol, UCSymbolReference } from '.';
 import { ReliableKeyword, UnreliableKeyword } from './Keywords';
+import { ISymbol, UCFieldSymbol, UCSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCStructSymbol, UCSymbolReference } from '.';
 
 export class UCReplicationBlock extends UCFieldSymbol {
-	public symbolRefs = new Map<string, UCSymbolReference>();
+	public symbolRefs = new Map<Name, UCSymbolReference>();
 	public block?: UCBlock;
 
 	getKind(): SymbolKind {

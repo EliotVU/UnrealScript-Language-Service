@@ -1,7 +1,7 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
-import { UCPropertySymbol } from '.';
 import { SymbolWalker } from '../symbolWalker';
+import { UCPropertySymbol } from '.';
 
 export class UCParamSymbol extends UCPropertySymbol {
 	isPrivate(): boolean {

@@ -2,21 +2,22 @@ import { SymbolKind, CompletionItemKind, CompletionItem } from 'vscode-languages
 
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
+import { Name } from '../names';
 
 import { ISymbol } from './ISymbol';
 
 export class UCNativeSymbol implements ISymbol {
 	public outer: ISymbol;
 
-	constructor(private name: string) {
+	constructor(private name: Name) {
 	}
 
 	getName(): string {
-		return this.name;
+		return this.name.toString();
 	}
 
-	getId(): string {
-		return this.getName().toLowerCase();
+	getId(): Name {
+		return this.name;
 	}
 
 	getQualifiedName(): string {
@@ -37,7 +38,7 @@ export class UCNativeSymbol implements ISymbol {
 
 	// TODO: implement
 	toCompletionItem(_document: UCDocument): CompletionItem {
-		return CompletionItem.create(this.name);
+		return CompletionItem.create(this.getName());
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

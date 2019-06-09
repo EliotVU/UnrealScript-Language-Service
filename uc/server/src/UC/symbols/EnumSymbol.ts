@@ -1,9 +1,9 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
+import { SymbolWalker } from '../symbolWalker';
 
 import { UCStructSymbol, ISymbol } from '.';
-import { SymbolWalker } from '../symbolWalker';
 
 export class UCEnumSymbol extends UCStructSymbol {
 	isProtected(): boolean {

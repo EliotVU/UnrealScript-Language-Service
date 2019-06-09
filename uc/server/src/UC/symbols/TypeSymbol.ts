@@ -120,16 +120,15 @@ export class UCTypeSymbol extends UCSymbolReference {
 				// - This however would effect the programs performance.
 				// - In fact, a struct extending a CLASS will crash the compiler, but produce no useful warning at all.
 				// - So should we match a symbol using the global table?.
-				symbol = context.findTypeSymbol(id, true);
+				symbol = context.findTypeSymbol(id);
 				break;
 			}
 
 			default: {
 				// First try to match upper level symbols such as a class.
-				symbol = SymbolsTable.findSymbol(id, true) || context.findTypeSymbol(id, true);
+				symbol = SymbolsTable.findSymbol(id, true) || context.findTypeSymbol(id);
 			}
 		}
-
 
 		if (symbol) {
 			// Ignore, never match a package when a type is expected,

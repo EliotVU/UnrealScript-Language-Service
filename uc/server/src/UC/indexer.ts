@@ -7,6 +7,7 @@ import { BehaviorSubject } from 'rxjs';
 
 import { ISymbolReference, UCPackage, SymbolsTable, UCEnumMemberSymbol } from './Symbols';
 import { UCDocument } from './document';
+import { Name } from './names';
 
 function findPackageNameInDir(dir: string): string {
 	const directories = dir.split('/');
@@ -100,9 +101,9 @@ export function getIndexedReferences(qualifiedId: string) {
 	return IndexedReferencesMap.get(qualifiedId);
 }
 
-const EnumMemberMap = new Map<string, UCEnumMemberSymbol>();
+const EnumMemberMap = new Map<Name, UCEnumMemberSymbol>();
 
-export function getEnumMember(enumMember: string): UCEnumMemberSymbol | undefined {
+export function getEnumMember(enumMember: Name): UCEnumMemberSymbol | undefined {
 	return EnumMemberMap.get(enumMember);
 }
 

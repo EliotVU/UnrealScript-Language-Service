@@ -4,9 +4,10 @@ import { intersectsWith } from '../helpers';
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { UCBlock } from '../statements';
+import { Name } from '../names';
 
-import { ISymbol, UCFieldSymbol, UCPropertySymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol } from ".";
 import { ISymbolContainer } from './ISymbolContainer';
+import { ISymbol, UCFieldSymbol, UCPropertySymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol } from ".";
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: UCTypeSymbol;
@@ -17,7 +18,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	/**
 	 * Types that are declared within this struct's body.
 	 */
-	public declaredTypes?: Map<string, UCFieldSymbol>;
+	public declaredTypes?: Map<Name, UCFieldSymbol>;
 
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
@@ -87,7 +88,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	addSymbol(symbol: UCFieldSymbol): string | undefined {
+	addSymbol(symbol: UCFieldSymbol): Name | undefined {
 		symbol.outer = this;
 		symbol.next = this.children;
 		symbol.containingStruct = this;
@@ -107,11 +108,11 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	getSymbol(id: string): UCSymbol | undefined {
+	getSymbol(id: Name): UCSymbol | undefined {
 		return this.findSymbol(id);
 	}
 
-	findSymbol(id: string): UCSymbol | undefined {
+	findSymbol(id: Name): UCSymbol | undefined {
 		for (let child = this.children; child; child = child.next) {
 			const name = child.getId();
 			if (name === id) {
@@ -121,7 +122,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	findSuperSymbol(id: string): UCSymbol | undefined {
+	findSuperSymbol(id: Name): UCSymbol | undefined {
 		const symbol = this.findSymbol(id) || this.super && this.super.findSuperSymbol(id);
 		if (symbol) {
 			return symbol;
@@ -137,14 +138,14 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	findTypeSymbol(id: string, deepSearch: boolean): UCSymbol | undefined {
+	findTypeSymbol(id: Name): UCSymbol | undefined {
 		if (this.declaredTypes) {
 			const symbol = this.declaredTypes.get(id);
 			if (symbol) {
 				return symbol;
 			}
 		}
-		return this.super && this.super.findTypeSymbol(id, deepSearch);
+		return this.super && this.super.findTypeSymbol(id);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {

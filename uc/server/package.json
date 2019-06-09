@@ -4,8 +4,19 @@
 	"version": "1.0.0",
 	"author": "Eliot van Uytfanghe",
 	"license": "",
+	"scripts": {
+		"test": "mocha -r ts-node/register src/**/test.ts"
+	},
 	"dependencies": {
+		"crc-32": "^1.2.0",
 		"rxjs": "^6.5.2",
 		"vscode-languageserver": "^4.4.2"
+	},
+	"devDependencies": {
+		"@types/chai": "^4.1.7",
+		"@types/mocha": "^5.2.7",
+		"chai": "^4.2.0",
+		"mocha": "^6.1.4",
+		"ts-node": "^8.2.0"
 	}
 }

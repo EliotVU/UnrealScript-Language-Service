@@ -1,6 +1,7 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
+import { Name } from '../names';
 
 import { ISymbol, UCStructSymbol, UCSymbol, UCMethodSymbol, UCPropertySymbol } from '.';
 
@@ -43,7 +44,7 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return (context instanceof UCPropertySymbol || context instanceof UCMethodSymbol);
 	}
 
-	findTypeSymbol(id: string, deepSearch: boolean) {
-		return super.findTypeSymbol(id, deepSearch) || (<UCStructSymbol>(this.outer)).findTypeSymbol(id, deepSearch);
+	findTypeSymbol(id: Name) {
+		return super.findTypeSymbol(id) || (<UCStructSymbol>(this.outer)).findTypeSymbol(id);
 	}
 }

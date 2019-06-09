@@ -2,6 +2,7 @@ import { SymbolKind, Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
+import { Name } from '../names';
 import { SemanticErrorNode, UnrecognizedFieldNode } from '../diagnostics/diagnostics';
 
 import { UCSymbolReference, UCStructSymbol, UCMethodSymbol } from ".";
@@ -31,13 +32,13 @@ export class UCStateSymbol extends UCStructSymbol {
 		return this.getChildSymbolAtPos(position);
 	}
 
-	findSuperSymbol(id: string) {
+	findSuperSymbol(id: Name) {
 		const symbol = super.findSuperSymbol(id) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id);
 		return symbol;
 	}
 
-	findTypeSymbol(id: string, deepSearch: boolean) {
-		return (this.outer as UCStructSymbol).findTypeSymbol(id, deepSearch);
+	findTypeSymbol(id: Name) {
+		return (this.outer as UCStructSymbol).findTypeSymbol(id);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {

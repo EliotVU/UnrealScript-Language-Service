@@ -9,6 +9,7 @@ import { SymbolWalker } from '../symbolWalker';
 import { UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
 import { ISymbol, IWithReference } from './ISymbol';
 import { DEFAULT_RANGE } from './Symbol';
+import { Name } from '../names';
 
 export class UCMethodSymbol extends UCStructSymbol {
 	public returnType?: UCTypeSymbol;
@@ -66,13 +67,13 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return super.getContainedSymbolAtPos(position);
 	}
 
-	findSuperSymbol(id: string) {
+	findSuperSymbol(id: Name) {
 		return this.findSymbol(id) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id);
 	}
 
-	findTypeSymbol(qualifiedId: string, deepSearch: boolean) {
+	findTypeSymbol(id: Name) {
 		// Redirect to outer, because Methods are never supposed to have any type members!
-		return (this.outer as UCStructSymbol).findTypeSymbol(qualifiedId, deepSearch);
+		return (this.outer as UCStructSymbol).findTypeSymbol(id);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
@@ -162,7 +163,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 }
 
 export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference {
-	constructor(name: string, protected kind?: string) {
+	constructor(name: Name, protected kind?: string) {
 		super({ name, range: DEFAULT_RANGE });
 	}
 
