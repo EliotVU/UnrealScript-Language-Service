@@ -4,7 +4,7 @@ import { RuleNode } from 'antlr4ts/tree/RuleNode';
 import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
-import { OperatorContext, AssignmentExpressionContext, StatementContext, ClassLiteralSpecifierContext, ArgumentsContext, ConditionalExpressionContext, PropertyAccessExpressionContext, MemberExpressionContext, CallExpressionContext, ElementAccessExpressionContext, NewExpressionContext, SpecifierExpressionContext, LiteralExpressionContext, ParenthesizedExpressionContext, MetaClassExpressionContext, VectTokenContext, RotTokenContext, RngTokenContext, ObjectLiteralContext, LiteralContext, ArrayCountExpressionContext, SuperExpressionContext, BinaryExpressionContext, UnaryOperatorContext, UnaryExpressionContext, ExpressionContext, StringLiteralContext, NameLiteralContext, BoolLiteralContext, NumberLiteralContext, NoneLiteralContext, NameOfTokenContext, IntLiteralContext } from '../antlr/UCGrammarParser';
+import { OperatorContext, AssignmentExpressionContext, StatementContext, ArgumentsContext, ConditionalExpressionContext, PropertyAccessExpressionContext, MemberExpressionContext, CallExpressionContext, ElementAccessExpressionContext, NewExpressionContext, LiteralExpressionContext, ParenthesizedExpressionContext, MetaClassExpressionContext, VectTokenContext, RotTokenContext, RngTokenContext, ObjectLiteralContext, LiteralContext, ArrayCountExpressionContext, SuperExpressionContext, BinaryExpressionContext, UnaryOperatorContext, UnaryExpressionContext, ExpressionContext, StringLiteralContext, NameLiteralContext, BoolLiteralContext, NumberLiteralContext, NoneLiteralContext, NameOfTokenContext, IntLiteralContext, SelfReferenceExpressionContext, DefaultReferenceExpressionContext, GlobalAccessExpressionContext, StaticAccessExpressionContext, ClassPropertyAccessSpecifierContext } from '../antlr/UCGrammarParser';
 
 import { UCSymbolReference, UCTypeSymbol, UCTypeKind, Identifier } from './Symbols';
 import {
@@ -177,15 +177,12 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 			return expression;
 		}
 
-		const specNode = ctx.classLiteralSpecifier();
+		const specNode = ctx.classPropertyAccessSpecifier();
 		if (specNode) {
-			expression.member = specNode.accept(this);
-			expression.member!.outer = expression;
-			return expression;
+			// TODO: recognize this particular kind of a propertyAccessExpression
 		}
 
 		throw "PropertyAccess with no member!";
-		return expression;
 	}
 
 	visitMemberExpression(ctx: MemberExpressionContext) {
@@ -236,7 +233,7 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 
 		const exprNode = ctx.primaryExpression();
 		if (exprNode) {
-			expression.expression = exprNode.accept<IExpression | undefined>(this);
+			expression.expression = exprNode.accept(this);
 			expression.expression!.outer = expression;
 		}
 
@@ -276,13 +273,31 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 		return expression;
 	}
 
-	visitSpecifierExpression(ctx: SpecifierExpressionContext) {
+	visitSelfReferenceExpression(ctx: SelfReferenceExpressionContext) {
 		const expression = new UCPredefinedAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
 		expression.context = ctx;
 		return expression;
 	}
 
-	visitClassLiteralSpecifier(ctx: ClassLiteralSpecifierContext) {
+	visitDefaultReferenceExpression(ctx: DefaultReferenceExpressionContext) {
+		const expression = new UCPredefinedAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitStaticAccessExpression(ctx: StaticAccessExpressionContext) {
+		const expression = new UCPredefinedAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitGlobalAccessExpression(ctx: GlobalAccessExpressionContext) {
+		const expression = new UCPredefinedAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitClassPropertyAccessSpecifier(ctx: ClassPropertyAccessSpecifierContext) {
 		const expression = new UCPredefinedPropertyAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
 		expression.context = ctx;
 		return expression;

@@ -591,7 +591,7 @@ structModifier
 
 arrayDim
 	: INTEGER
-	| qualifiedIdentifier
+	| qualifiedIdentifier // Referres a constant in class scope, or an enum's member.
 	;
 
 // var (GROUP)
@@ -992,9 +992,9 @@ operator
 
 expression
 	: assignmentExpression
+	| unaryExpression
 	| binaryExpression
 	| conditionalExpression
-	| unaryExpression
 	;
 
 assignmentExpression
@@ -1016,23 +1016,26 @@ unaryExpression
 	;
 
 primaryExpression
-	: literal 																						#literalExpression
-	| (OPEN_PARENS expression CLOSE_PARENS) 														#parenthesizedExpression
-	| kwCLASS (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)								#metaClassExpression
-	// FIXME: might be more restricted, but at least "default.class" is valid code.
+	: literal 																			#literalExpression
+	| (OPEN_PARENS expression CLOSE_PARENS) 											#parenthesizedExpression
+	| kwCLASS (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)					#metaClassExpression
 	// Inclusive template argument (will be parsed as a function call)
-	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? primaryExpression 								#newExpression
-	| 'arraycount' (OPEN_PARENS primaryExpression CLOSE_PARENS)										#arrayCountExpression
-	| 'super' (OPEN_PARENS identifier CLOSE_PARENS)?												#superExpression
-	| (kwDEFAULT | 'self' | 'global' | kwSTATIC) 													#specifierExpression
+	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? primaryExpression 					#newExpression
+	| 'arraycount' (OPEN_PARENS primaryExpression CLOSE_PARENS)							#arrayCountExpression
+	| 'super' (OPEN_PARENS identifier CLOSE_PARENS)?									#superExpression
+	| 'self'																			#selfReferenceExpression
+	| kwDEFAULT																			#defaultReferenceExpression
+	| kwSTATIC																			#staticAccessExpression
+	| kwGLOBAL																			#globalAccessExpression
 	// Note any keyword must preceed identifier!
-	| identifier 																					#memberExpression
-	| primaryExpression DOT (classLiteralSpecifier | identifier)									#propertyAccessExpression
-	| primaryExpression (OPEN_PARENS arguments CLOSE_PARENS) 										#callExpression
-	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 									#elementAccessExpression
+	| identifier 																		#memberExpression
+	| primaryExpression DOT classPropertyAccessSpecifier DOT identifier					#propertyAccessExpression
+	| primaryExpression DOT identifier													#propertyAccessExpression
+	| primaryExpression (OPEN_PARENS arguments CLOSE_PARENS) 							#callExpression
+	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 						#elementAccessExpression
 	;
 
-classLiteralSpecifier
+classPropertyAccessSpecifier
 	: kwDEFAULT
 	| kwSTATIC
 	| kwCONST
