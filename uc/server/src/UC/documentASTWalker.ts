@@ -167,6 +167,7 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 			if (baseTypeNode && (symbol.baseType = this.visitInlinedDeclTypes(baseTypeNode))) {
 				symbol.baseType.outer = symbol;
 			}
+			return symbol;
 		}
 
 		const identifier: Identifier = {
