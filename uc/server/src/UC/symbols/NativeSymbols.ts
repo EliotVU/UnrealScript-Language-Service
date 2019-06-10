@@ -1,4 +1,4 @@
-import { toName, NAME_CLASS, NAME_ARRAY } from '../names';
+import { toName, NAME_CLASS, NAME_ARRAY, NAME_INT, NAME_FLOAT, NAME_STRING, NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_MAP, NAME_DELEGATE, NAME_BUTTON, NAME_BYTE, NAME_ENUM } from '../names';
 
 import {
 	UCPackage,
@@ -17,8 +17,8 @@ import { DEFAULT_RANGE } from './Symbol';
 
 export const ObjectType = new UCTypeSymbol({ name: toName('Object'), range: DEFAULT_RANGE }, DEFAULT_RANGE, UCTypeKind.Class);
 export const ArgumentType = new UCTypeSymbol({ name: toName('Argument'), range: DEFAULT_RANGE });
-export const IntType = new UCTypeSymbol({ name: toName('int'), range: DEFAULT_RANGE });
-export const FloatType = new UCTypeSymbol({ name: toName('float'), range: DEFAULT_RANGE });
+export const IntType = new UCTypeSymbol({ name: NAME_INT, range: DEFAULT_RANGE });
+export const FloatType = new UCTypeSymbol({ name: NAME_FLOAT, range: DEFAULT_RANGE });
 export const PropertyType = new UCTypeSymbol({ name: toName('Property'), range: DEFAULT_RANGE });
 export const VectorType = new UCTypeSymbol({ name: toName('Vector'), range: DEFAULT_RANGE });
 export const RotatorType = new UCTypeSymbol({ name: toName('Rotator'), range: DEFAULT_RANGE });
@@ -29,22 +29,22 @@ export const NativeClass = new UCClassSymbol({ name: NAME_CLASS, range: DEFAULT_
 NativeClass.extendsType = ObjectType;
 
 // Not really a class, but valid as an object literal where enum is given as the class? e.g. Enum'ENetRole'
-export const NativeEnum = new UCClassSymbol({ name: toName('Enum'), range: DEFAULT_RANGE });
+export const NativeEnum = new UCClassSymbol({ name: NAME_ENUM, range: DEFAULT_RANGE });
 
 export const NativeArray = new UCStructSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });
 
 const LengthProperty = new UCPropertySymbol({ name: toName('Length'), range: DEFAULT_RANGE });
-LengthProperty.type = new UCTypeSymbol({ name: toName('int'), range: DEFAULT_RANGE });
+LengthProperty.type = IntType;
 NativeArray.addSymbol(LengthProperty);
 
 const InsertFunction = new UCMethodSymbol({ name: toName('Insert'), range: DEFAULT_RANGE });
 NativeArray.addSymbol(InsertFunction);
 
-const IndexParam = new UCParamSymbol({ name: toName('index'), range: DEFAULT_RANGE });
+const IndexParam = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE });
 IndexParam.type = IntType;
 InsertFunction.addSymbol(IndexParam);
 
-const CountParam = new UCParamSymbol({ name: toName('count'), range: DEFAULT_RANGE });
+const CountParam = new UCParamSymbol({ name: toName('Count'), range: DEFAULT_RANGE });
 CountParam.type = IntType;
 InsertFunction.addSymbol(CountParam);
 
@@ -71,7 +71,7 @@ NativeArray.addSymbol(FindFunction);
 const SortFunction = new UCMethodSymbol({ name: toName('Sort'), range: DEFAULT_RANGE });
 NativeArray.addSymbol(SortFunction);
 
-export const VectMethodLike = new UCMethodLikeSymbol(toName('vect'));
+export const VectMethodLike = new UCMethodLikeSymbol(toName('Vect'));
 VectMethodLike.returnType = VectorType;
 
 const XParam = new UCParamSymbol({ name: toName('X'), range: DEFAULT_RANGE });
@@ -88,7 +88,7 @@ VectMethodLike.addSymbol(ZParam);
 
 VectMethodLike.params = [XParam, YParam, ZParam];
 
-export const RotMethodLike = new UCMethodLikeSymbol(toName('rot'));
+export const RotMethodLike = new UCMethodLikeSymbol(toName('Rot'));
 RotMethodLike.returnType = RotatorType;
 
 const PitchParam = new UCParamSymbol({ name: toName('Pitch'), range: DEFAULT_RANGE });
@@ -105,7 +105,7 @@ RotMethodLike.addSymbol(RollParam);
 
 RotMethodLike.params = [PitchParam, YawParam, RollParam];
 
-export const RngMethodLike = new UCMethodLikeSymbol(toName('rng'));
+export const RngMethodLike = new UCMethodLikeSymbol(toName('Rng'));
 RngMethodLike.returnType = RangeType;
 
 const MinParam = new UCParamSymbol({ name: toName('Min'), range: DEFAULT_RANGE });
@@ -134,17 +134,17 @@ export const CORE_PACKAGE = new UCPackage('Core');
 // IMPORTANT: This package must be added before adding anything to the CORE_PACKAGE!
 SymbolsTable.addSymbol(CORE_PACKAGE);
 
+CORE_PACKAGE.addSymbol(new UCNativeSymbol(NAME_BYTE));
+CORE_PACKAGE.addSymbol(new UCNativeSymbol(NAME_FLOAT));
+CORE_PACKAGE.addSymbol(new UCNativeSymbol(NAME_INT));
+CORE_PACKAGE.addSymbol(new UCNativeSymbol(NAME_STRING));
+CORE_PACKAGE.addSymbol(new UCNativeSymbol(NAME_NAME));
+CORE_PACKAGE.addSymbol(new UCNativeSymbol(NAME_BOOL));
+CORE_PACKAGE.addSymbol(new UCNativeSymbol(NAME_POINTER));
+CORE_PACKAGE.addSymbol(new UCNativeSymbol(NAME_MAP));
+CORE_PACKAGE.addSymbol(new UCNativeSymbol(NAME_DELEGATE));
+CORE_PACKAGE.addSymbol(new UCNativeSymbol(NAME_BUTTON));
 CORE_PACKAGE.addSymbol(NativeClass);
 CORE_PACKAGE.addSymbol(NativeEnum);
 CORE_PACKAGE.addSymbol(NativeArray);
-CORE_PACKAGE.addSymbol(new UCNativeSymbol(toName('byte')));
-CORE_PACKAGE.addSymbol(new UCNativeSymbol(toName('float')));
-CORE_PACKAGE.addSymbol(new UCNativeSymbol(toName('int')));
-CORE_PACKAGE.addSymbol(new UCNativeSymbol(toName('string')));
-CORE_PACKAGE.addSymbol(new UCNativeSymbol(toName('name')));
-CORE_PACKAGE.addSymbol(new UCNativeSymbol(toName('bool')));
-CORE_PACKAGE.addSymbol(new UCNativeSymbol(toName('pointer')));
-CORE_PACKAGE.addSymbol(new UCNativeSymbol(toName('map')));
-CORE_PACKAGE.addSymbol(new UCNativeSymbol(toName('Delegate')));
-CORE_PACKAGE.addSymbol(new UCNativeSymbol(toName('button')));
 CORE_PACKAGE.addSymbol(PropertyType);
