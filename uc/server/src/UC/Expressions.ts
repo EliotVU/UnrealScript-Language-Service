@@ -459,11 +459,16 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 					document.nodes.push(new SemanticErrorNode(letSymbol, "Cannot assign to a constant variable."));
 				}
 			} else if (letSymbol instanceof UCMethodSymbol) {
+				// TODO: Distinguish a delegate from a regular method!
 				// TODO: throw error unless it's a delegate.
 			} else {
-				// TODO: handle case for dynamic arrays
-				// document.nodes.push(new SemanticErrorNode(letSymbol, "Cannot be assigned to, because it is not a variable."));
-				document.nodes.push(new ExpressionErrorNode(this.left!, `Cannot assign to expression (type: '${UCTypeKind[letType]}'), because it is not a variable.`));
+				// AN ElementAccessExpression does not return the property but its type that's being assigned, in this case such assignments are legal.
+				// -- but elsewhere, assigning a type is illegal!
+				if (this.left instanceof UCElementAccessExpression) {
+
+				} else {
+					document.nodes.push(new ExpressionErrorNode(this.left!, `Cannot assign to expression (type: '${UCTypeKind[letType]}'), because it is not a variable.`));
+				}
 			}
 		} else {
 			if (letType === UCTypeKind.Object) {
