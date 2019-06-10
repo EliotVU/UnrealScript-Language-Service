@@ -109,13 +109,8 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	}
 
 	getSymbol(id: Name): UCSymbol | undefined {
-		return this.findSymbol(id);
-	}
-
-	findSymbol(id: Name): UCSymbol | undefined {
 		for (let child = this.children; child; child = child.next) {
-			const name = child.getId();
-			if (name === id) {
+			if (child.getId() === id) {
 				return child;
 			}
 		}
@@ -123,19 +118,8 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	}
 
 	findSuperSymbol(id: Name): UCSymbol | undefined {
-		const symbol = this.findSymbol(id) || this.super && this.super.findSuperSymbol(id);
-		if (symbol) {
-			return symbol;
-		}
-
-		// We should check for ourselves as LAST
-		// -- e.g. consider that we have a class named Pickup, and within that class we have a state named Pickup,
-		// -- and another state that extends Pickup, then this would return "this" before we get to match the state named "Pickup".
-		if (id === this.getId()) {
-			return this;
-		}
-
-		return undefined;
+		const symbol = this.getSymbol(id) || this.super && this.super.findSuperSymbol(id);
+		return symbol;
 	}
 
 	findTypeSymbol(id: Name): UCSymbol | undefined {

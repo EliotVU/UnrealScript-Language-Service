@@ -68,7 +68,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	findSuperSymbol(id: Name) {
-		return this.findSymbol(id) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id);
+		return this.getSymbol(id) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id);
 	}
 
 	findTypeSymbol(id: Name) {
