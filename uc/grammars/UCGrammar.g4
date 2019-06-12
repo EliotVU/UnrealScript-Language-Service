@@ -2,11 +2,9 @@ grammar UCGrammar;
 
 import UCLexer;
 
-// NOTE: all class exclusive modifiers are commented out because we don't have to capture them.
 kwDEFAULT: 'default';
 kwGLOBAL: 'global';
 kwCLASS: 'class';
-
 kwINTERFACE: 'interface';
 kwWITHIN: 'within';
 kwCONST: 'const';
@@ -18,17 +16,13 @@ kwREPLICATION: 'replication';
 kwOPERATOR: 'operator';
 kwPREOPERATOR: 'preoperator';
 kwPOSTOPERATOR: 'postoperator';
-
 kwDELEGATE: 'delegate';
 kwFUNCTION: 'function';
-
 kwEVENT: 'event';
 kwSTATE: 'state';
-
 kwMAP: 'map';
 kwDEFAULTPROPERTIES: 'defaultproperties';
 kwSTRUCTDEFAULTPROPERTIES: 'structdefaultproperties';
-
 kwFOR: 'for';
 kwFOREACH: 'foreach';
 kwRETURN: 'return';
@@ -42,14 +36,12 @@ kwDO: 'do';
 kwWHILE: 'while';
 kwELSE: 'else';
 kwIF: 'if';
-
 kwIGNORES: 'ignores';
 kwUNRELIABLE: 'unreliable';
 kwRELIABLE: 'reliable';
-
-kwCPPTEXT: 'cpptext' | 'cpptexts';
-kwSTRUCTCPPTEXT: 'structcpptext' | 'cppstruct';
-
+kwCPPTEXT: 'cpptext';
+kwSTRUCTCPPTEXT: 'structcpptext';
+kwCPPSTRUCT: 'cppstruct';
 kwARRAY: 'array';
 kwBYTE: 'byte';
 kwINT: 'int';
@@ -61,9 +53,7 @@ kwNAME: 'name';
 kwTRUE: 'true';
 kwFALSE: 'false';
 kwNONE: 'none';
-
 kwEXTENDS: 'extends' | 'expands';
-
 kwPUBLIC: 'public';
 kwPROTECTED: 'protected';
 kwPROTECTEDWRITE: 'protectedwrite';
@@ -101,24 +91,11 @@ kwNONTRANSACTIONAL: 'nontransactional';
 kwSERIALIZETEXT: 'serializetext';
 kwCONFIG: 'config';
 kwGLOBALCONFIG: 'globalconfig';
-kwNATIVE: 'native' | 'intrinsic';
-// kwNATIVEREPLICATION: 'nativereplication';
-// kwNATIVEONLY: 'nativeonly';
+kwNATIVE: 'native';
+kwINTRINSIC: 'intrinsic';
 kwEXPORT: 'export';
-// kwABSTRACT: 'abstract';
-// kwPEROBJECTCONFIG: 'perobjectconfig';
-// kwPEROBJECTLOCALIZED: 'perobjectlocalized';
-// kwPLACEABLE: 'placeable';
-// kwNOUSERCREATE: 'nousercreate';
-// kwNOTPLACEABLE: 'notplaceable';
-// kwSAFEREPLACE: 'safereplace';
-// kwDEPENDSON: 'dependson';
-// kwSHOWCATEGORIES: 'showcategories';
-// kwHIDECATEGORIES: 'hidecategories';
-// kwGUID: 'guid';
 kwLONG: 'long';
 kwTRANSIENT: 'transient';
-// kwNONTRANSIENT: 'nontransient';
 kwCACHE: 'cache';
 kwINTERP: 'interp';
 kwREPRETRY: 'repretry';
@@ -131,17 +108,11 @@ kwALLOWABSTRACT: 'allowabstract';
 kwAUTOMATED: 'automated';
 kwTRAVEL: 'travel';
 kwInput: 'input';
-// kwCACHEEXEMPT: 'cacheexempt';
-// kwHIDEDROPDOWN: 'hidedropdown';
 kwINSTANCED: 'instanced';
 kwDATABINDING: 'databinding';
 kwDUPLICATETRANSIENT: 'duplicatetransient';
 kwPARSECONFIG: 'parseconfig';
-// kwEDITINLINENEW: 'editinlinenew';
-// kwNOTEDITINLINENEW: 'noteditinlinenew';
-// kwEXPORTSTRUCTS: 'exportstructs';
 kwCLASSREDIRECT: 'classredirect';
-// kwDLLBIND: 'dllbind';
 kwDEPRECATED: 'deprecated';
 kwSTRICTCONFIG: 'strictconfig';
 kwATOMIC: 'atomic';
@@ -154,17 +125,6 @@ kwCLIENT: 'client';
 kwDLLIMPORT: 'dllimport';
 kwDEMORECORDING: 'demorecording';
 
-// kwCOLLAPSECATEGORIES: 'collapsecategories';
-// kwDONTCOLLAPSECATEGORIES: 'dontcollapsecategories';
-// kwIMPLEMENTS: 'implements';
-// kwCLASSGROUP: 'classgroup';
-// kwAUTOEXPANDCATEGORIES: 'autoexpandcategories';
-// kwAUTOCOLLAPSECATEGORIES: 'autocollapsecategories';
-// kwDONTAUTOCOLLAPSECATEGORIES: 'dontautocollapsecategories';
-// kwDONTSORTCATEGORIES: 'dontsortcategories';
-// kwINHERITS: 'inherits';
-// kwFORCESCRIPTORDER: 'forcescriptorder';
-
 kwGOTO: 'goto';
 kwASSERT: 'assert';
 
@@ -172,6 +132,7 @@ kwBEGIN: 'begin';
 kwOBJECT: 'object';
 kwEND: 'end';
 
+// Class modifier keywords have been commented out, because we are not using them for parsing.
 identifier
 	: ID
 	|'default'
@@ -213,7 +174,7 @@ identifier
 	|'ignores'
 	|'unreliable'
 	|'reliable'
-	|'cpptext'|'cpptexts'
+	|'cpptext'
 	|'cppstruct'
 	|'structcpptext'
 	|'array'
@@ -428,28 +389,23 @@ numberLiteral: (MINUS | PLUS)? (FLOAT | INTEGER);
 stringLiteral: STRING;
 nameLiteral: NAME;
 boolLiteral
-	: kwTRUE
-	| kwFALSE
+	: 'true'
+	| 'false'
 	;
-noneLiteral: kwNONE;
+noneLiteral: 'none';
 
 // e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
 // TODO: rename as objectLiteral?
 objectLiteral: identifier NAME;
 
 classDecl
-	:
-		(kwCLASS | kwINTERFACE) identifier
-			(
-				extendsClause
-				// UC2+
-				withinClause?
-			)?
-			classModifier* SEMICOLON
+	: ('class' | 'interface') identifier (extendsClause withinClause?)?
+		classModifier*
+		SEMICOLON
 	;
 
-extendsClause: kwEXTENDS qualifiedIdentifier;
-withinClause: kwWITHIN qualifiedIdentifier;
+extendsClause: ('extends' | 'expands') qualifiedIdentifier;
+withinClause: 'within' qualifiedIdentifier;
 
 classModifier: identifier modifierArguments?;
 	// in UC3 a class can have a custom native name.
@@ -505,7 +461,7 @@ modifierValue
 modifierArgument: OPEN_PARENS modifierValue CLOSE_PARENS;
 modifierArguments: OPEN_PARENS (modifierValue COMMA?)+ CLOSE_PARENS;
 
-constDecl: kwCONST identifier ASSIGNMENT constValue SEMICOLON;
+constDecl: 'const' identifier ASSIGNMENT constValue SEMICOLON;
 constValue
 	: noneLiteral
 	| boolLiteral
@@ -547,7 +503,7 @@ sizeOfToken
 	;
 
 enumDecl:
-	kwENUM identifier metaData?
+	'enum' identifier metaData?
 	OPEN_BRACE
 		enumMember*
 	CLOSE_BRACE
@@ -556,7 +512,7 @@ enumDecl:
 enumMember: identifier metaData? COMMA?;
 
 structDecl
-	:	kwSTRUCT // (OPEN_BRACE .*? CLOSE_BRACE)? // parses native type like "struct {DOUBLE}"
+	:	'struct' // (OPEN_BRACE .*? CLOSE_BRACE)? // parses native type like "struct {DOUBLE}"
 			structModifier* identifier extendsClause?
 		OPEN_BRACE
 			structMember*
@@ -576,17 +532,17 @@ structMember
 
 structModifier
 	// UC2+
-	: kwNATIVE
-	| kwTRANSIENT
-	| kwEXPORT
-	| kwINIT
-	| kwLONG
+	: 'native'
+	| 'transient'
+	| 'export'
+	| 'init'
+	| 'long'
 	// UC3+
-	| kwSTRICTCONFIG
-	| kwATOMIC
-	| kwATOMICWHENCOOKED
-	| kwIMMUTABLE
-	| kwIMMUTABLEWHENCOOKED
+	| 'strictconfig'
+	| 'atomic'
+	| 'atomicwhencooked'
+	| 'immutable'
+	| 'immutablewhencooked'
 	;
 
 arrayDim
@@ -597,7 +553,7 @@ arrayDim
 // var (GROUP)
 // MODIFIER TYPE
 // VARIABLE, VARIABLE...;
-varDecl: kwVAR (OPEN_PARENS categoryList? CLOSE_PARENS)?
+varDecl: 'var' (OPEN_PARENS categoryList? CLOSE_PARENS)?
 	variableModifier* inlinedDeclTypes
 	variable (COMMA variable)* SEMICOLON;
 
@@ -622,52 +578,52 @@ nativeMapType: OPEN_BRACE .*? COMMA .*? CLOSE_BRACE; // use cppcode?
 
 variableModifier
 	: (
-		kwPUBLIC
-		| kwPROTECTED
-		| kwPROTECTEDWRITE
-		| kwPRIVATE
-		| kwPRIVATEWRITE
-		| kwLOCALIZED
-		| kwNATIVE
-		| kwCONST
-		| kwEDITCONST
-		| kwCONFIG
-		| kwGLOBALCONFIG
-		| kwTRANSIENT
-		| kwTRAVEL
-		| kwInput
+		'public'
+		| 'protected'
+		| 'protectedwrite'
+		| 'private'
+		| 'privatewrite'
+		| 'localized'
+		| 'native'
+		| 'const'
+		| 'editconst'
+		| 'config'
+		| 'globalconfig'
+		| 'transient'
+		| 'travel'
+		| 'input'
 		// UC2
-		| kwEXPORT
-		| kwNOEXPORT
-		| kwCACHE
-		| kwAUTOMATED
-		| kwEDITINLINE
-		| kwEDITINLINENOTIFY
-		| kwEDITINLINEUSE
-		| kwEDITCONSTARRAY
-		| kwEDFINDABLE
+		| 'export'
+		| 'noexport'
+		| 'noimport'
+		| 'cache'
+		| 'automated'
+		| 'editinline'
+		| 'editinilinenotify'
+		| 'editinlineuse'
+		| 'editconstarray'
+		| 'edfindable'
 		// UC3
-		| kwINIT
-		| kwEDITHIDE
-		| kwEDITFIXEDSIZE
-		| kwEDITORONLY
-		| kwEDITORTEXTBOX
-		| kwNOCLEAR
-		| kwNOIMPORT
-		| kwSERIALIZETEXT
-		| kwNONTRANSACTIONAL
-		| kwINSTANCED
-		| kwDATABINDING
-		| kwDUPLICATETRANSIENT
-		| kwREPRETRY
-		| kwREPNOTIFY
-		| kwINTERP
-		| kwDEPRECATED
-		| kwNOTFORCONSOLE
-		| kwARCHETYPE
-		| kwCROSSLEVELACTIVE
-		| kwCROSSLEVELPASSIVE
-		| kwALLOWABSTRACT
+		| 'init'
+		| 'edithide'
+		| 'editfixedsize'
+		| 'editoronly'
+		| 'editortextbox'
+		| 'noclear'
+		| 'serializetext'
+		| 'nontransactional'
+		| 'instanced'
+		| 'databinding'
+		| 'duplicatetransient'
+		| 'repretry'
+		| 'repnotify'
+		| 'interp'
+		| 'deprecated'
+		| 'notforconsole'
+		| 'archetype'
+		| 'crosslevelactive'
+		| 'crosslevelpassive'
+		| 'allowabstract'
 	) nativeTypeModifier?
 	;
 
@@ -687,49 +643,55 @@ inlinedDeclTypes
 	;
 
 predefinedType
-	: kwBYTE
-	| kwINT
-	| kwFLOAT
-	| kwBOOL
-	| kwSTRING
-	| kwNAME
-	| kwBUTTON // alias for a string with an input modifier
-	| kwCLASS
-	| kwDELEGATE
+	: 'byte'
+	| 'int'
+	| 'float'
+	| 'bool'
+	| 'string'
+	| 'name'
+	| 'button' // alias for a string with an input modifier
+	| 'class'
 	; // This is actually a reference but this is necessary because it's a "reserved" keyword.
 
 // Note: inlinedDeclTypes includes another arrayGeneric!
-arrayType: kwARRAY LT inlinedDeclTypes GT;
-classType: kwCLASS (LT identifier GT)?;
-delegateType: kwDELEGATE LT identifier GT; // TODO: Can a delegate be declared without a delimiter?
-mapType: kwMAP /* nativeMapType */;
+arrayType: 'array' (LT inlinedDeclTypes GT);
+classType: 'class' (LT identifier GT)?;
+delegateType: 'delegate' (LT identifier GT); // TODO: Can a delegate be declared without a delimiter?
+mapType: 'map' /* nativeMapType */;
 
 cppText
-	: kwCPPTEXT
+	: 'cpptext'
 	  // UnrealScriptBug: Must be on the next line after keyword!
 	  cppcode
 	;
 
 structCppText
-	: kwSTRUCTCPPTEXT
+	: ('structcpptext' | 'cppstruct')
 	  // UnrealScriptBug: Must be on the next line after keyword!
 	  cppcode
 	;
 
-cppcode: OPEN_BRACE (cppcode | .)*? CLOSE_BRACE; // UnrealScriptBug: Anything WHATSOEVER can be written after this closing brace as long as it's on the same line!
+// UnrealScriptBug: Anything WHATSOEVER can be written after this closing brace as long as it's on the same line!
+cppcode
+	: OPEN_BRACE (cppcode | .)*? CLOSE_BRACE
+	;
 
-replicationBlock:
-	kwREPLICATION
-	OPEN_BRACE
-		replicationStatement*
-	CLOSE_BRACE;
+replicationBlock
+	: 'replication'
+		OPEN_BRACE
+			replicationStatement*
+		CLOSE_BRACE
+	;
 
-replicationModifier: (kwRELIABLE | kwUNRELIABLE);
+replicationModifier
+	: 'reliable'
+	| 'unreliable'
+	;
 
-replicationStatement:
-	replicationModifier? kwIF (OPEN_PARENS expression CLOSE_PARENS) (
+replicationStatement
+	: replicationModifier? 'if' (OPEN_PARENS expression CLOSE_PARENS)
 		identifier (COMMA identifier)* SEMICOLON
-	);
+	;
 
 /* Parses:
  * public simulated function coerce class<Actor> test(optional int p1, int p2) const;
@@ -739,7 +701,7 @@ functionDecl:
 	// Found in UT2004/GameProfile.uc, any function modifier can be written post functionKind, this is applied to the function during compilation.
 	functionModifier*
 	// We have to identify LPARENT in each, - to prevent a false positive 'operatorName'
-	((returnTypeModifier? returnType functionName OPEN_PARENS)? | functionName OPEN_PARENS) parameters? CLOSE_PARENS kwCONST?
+	((returnTypeModifier? returnType functionName OPEN_PARENS)? | functionName OPEN_PARENS) parameters? CLOSE_PARENS 'const'?
 	// FIXME: Pass trailing semicolon in program
 	(SEMICOLON | (
 		OPEN_BRACE
@@ -761,61 +723,61 @@ functionMember
 nativeToken: (OPEN_PARENS INTEGER CLOSE_PARENS);
 
 functionModifier
-	: kwPUBLIC
-	| kwPROTECTED
-	| kwPRIVATE
-	| kwSIMULATED
-	| (kwNATIVE nativeToken?)
-	| kwFINAL
-	| kwLATENT
-	| kwITERATOR
-	| kwSINGULAR
-	| kwSTATIC
-	| kwEXEC
+	: 'public'
+	| 'protected'
+	| 'private'
+	| 'final'
+	| 'simulated'
+	| 'static'
+	| 'native' nativeToken?
+	| 'latent'
+	| 'singular'
+	| 'iterator'
+	| 'exec'
 	// UC3
-	| kwCONST
-	| kwNOEXPORT
-	| kwNOEXPORTHEADER
-	| kwVIRTUAL
-	| kwRELIABLE
-	| kwUNRELIABLE
-	| kwSERVER
-	| kwCLIENT
-	| kwDLLIMPORT
-	| kwDEMORECORDING
+	| 'const'
+	| 'noexport'
+	| 'noexportheader'
+	| 'virtual'
+	| 'reliable'
+	| 'unreliable'
+	| 'server'
+	| 'client'
+	| 'dllimport'
+	| 'demorecording'
 	;
 
+// TODO: implement a more restricted operator rule.
 functionName: identifier | operator;
 
 parameters: paramDecl (COMMA paramDecl)*;
 
-paramDecl:
-	// TODO: primaryExpression?
-	paramModifier* typeDecl variable (ASSIGNMENT expression)?;
+// TODO: Should this be a primaryExpression?
+paramDecl: paramModifier* typeDecl variable (ASSIGNMENT expression)?;
 
 // TODO: are multiple returnModifiers a thing?
 returnTypeModifier
-	: kwCOERCE // UC3+
+	: 'coerce' // UC3+
 	;
 
 returnType: typeDecl;
 
 paramModifier
-	: kwOUT
-	| kwOPTIONAL
-	| kwINIT
-	| kwSKIP
-	| kwCOERCE
-	| kwCONST
+	: 'out'
+	| 'optional'
+	| 'init'
+	| 'skip'
+	| 'coerce'
+	| 'const'
 	;
 
 localDecl:
-	kwLOCAL typeDecl variable (COMMA variable)*
+	'local' typeDecl variable (COMMA variable)*
 	// UnrealScriptBug: Can have multiple semicolons which is inconsistent with all other declaration kinds.
 	SEMICOLON+;
 
 stateDecl
-	: stateModifier* kwSTATE (OPEN_PARENS CLOSE_PARENS)? identifier
+	: stateModifier* 'state' (OPEN_PARENS CLOSE_PARENS)? identifier
 		extendsClause?
 		OPEN_BRACE
 			stateMember*
@@ -824,7 +786,10 @@ stateDecl
 		SEMICOLON? // FIXME: Only valid in UC3, but technically considered as an emptyDeclaration.
 	;
 
-stateModifier: kwAUTO | kwSIMULATED;
+stateModifier
+	: 'auto'
+	| 'simulated'
+	;
 
 stateMember
 	: constDecl
@@ -835,7 +800,7 @@ stateMember
 	;
 
 ignoresDecl
-	: kwIGNORES (identifier (COMMA identifier)*) SEMICOLON
+	: 'ignores' (identifier (COMMA identifier)*) SEMICOLON
 	;
 
 codeBlockOptional
@@ -869,31 +834,33 @@ statement
 	| directive
 	;
 
-ifStatement:
-	kwIF (OPEN_PARENS expression CLOSE_PARENS)
+ifStatement
+	: 'if' (OPEN_PARENS expression CLOSE_PARENS)
 		codeBlockOptional
-	elseStatement?;
+	  elseStatement?
+	;
 
-elseStatement: kwELSE codeBlockOptional;
-foreachStatement: kwFOREACH primaryExpression codeBlockOptional;
+elseStatement: 'else' codeBlockOptional;
+foreachStatement: 'foreach' primaryExpression codeBlockOptional;
 
-forStatement:
-	kwFOR (OPEN_PARENS expression? SEMICOLON expression? SEMICOLON expression? CLOSE_PARENS)
-		codeBlockOptional;
+forStatement
+	: 'for' (OPEN_PARENS expression? SEMICOLON expression? SEMICOLON expression? CLOSE_PARENS)
+		codeBlockOptional
+	;
 
 whileStatement
-	: kwWHILE (OPEN_PARENS expression CLOSE_PARENS)
+	: 'while' (OPEN_PARENS expression CLOSE_PARENS)
 		codeBlockOptional
 	;
 
 doStatement
-	: kwDO
+	: 'do'
 		codeBlockOptional
-	  kwUNTIL (OPEN_PARENS expression CLOSE_PARENS)
+	  'until' (OPEN_PARENS expression CLOSE_PARENS)
 	;
 
 switchStatement:
-	kwSWITCH (OPEN_PARENS expression CLOSE_PARENS)
+	'switch' (OPEN_PARENS expression CLOSE_PARENS)
 	// Switch braces are NOT optional
 	OPEN_BRACE
 		caseClause*
@@ -902,23 +869,23 @@ switchStatement:
 
 // TODO: constDecl?
 caseClause
-	: kwCASE expression? COLON
+	: 'case' expression? COLON
 		statement*
 	;
 
 // TODO: constDecl?
 defaultClause
-	: kwDEFAULT COLON
+	: 'default' COLON
 		statement*
 	;
 
-returnStatement: kwRETURN expression?;
-breakStatement: kwBREAK;
-continueStatement: kwCONTINUE;
-stopStatement: kwSTOP;
+returnStatement: 'return' expression?;
+breakStatement: 'break';
+continueStatement: 'continue';
+stopStatement: 'stop';
 labeledStatement: identifier COLON;
-gotoStatement: kwGOTO (identifier | expression);
-assertStatement: kwASSERT (OPEN_PARENS expression CLOSE_PARENS);
+gotoStatement: 'goto' (identifier | expression);
+assertStatement: 'assert' (OPEN_PARENS expression CLOSE_PARENS);
 
 assignmentOperator
 	: ASSIGNMENT
@@ -1018,15 +985,15 @@ unaryExpression
 primaryExpression
 	: literal 																			#literalExpression
 	| (OPEN_PARENS expression CLOSE_PARENS) 											#parenthesizedExpression
-	| kwCLASS (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)					#metaClassExpression
+	| 'class' (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)					#metaClassExpression
 	// Inclusive template argument (will be parsed as a function call)
-	| 'new' (OPEN_PARENS arguments CLOSE_PARENS)? primaryExpression 					#newExpression
-	| 'arraycount' (OPEN_PARENS primaryExpression CLOSE_PARENS)							#arrayCountExpression
-	| 'super' (OPEN_PARENS identifier CLOSE_PARENS)?									#superExpression
+	| 'new' 		(OPEN_PARENS arguments CLOSE_PARENS)? primaryExpression 			#newExpression
+	| 'arraycount' 	(OPEN_PARENS primaryExpression CLOSE_PARENS)						#arrayCountExpression
+	| 'super' 		(OPEN_PARENS identifier CLOSE_PARENS)?								#superExpression
 	| 'self'																			#selfReferenceExpression
-	| kwDEFAULT																			#defaultReferenceExpression
-	| kwSTATIC																			#staticAccessExpression
-	| kwGLOBAL																			#globalAccessExpression
+	| 'default'																			#defaultReferenceExpression
+	| 'static'																			#staticAccessExpression
+	| 'global'																			#globalAccessExpression
 	// Note any keyword must preceed identifier!
 	| identifier 																		#memberExpression
 	| primaryExpression DOT classPropertyAccessSpecifier DOT identifier					#propertyAccessExpression
@@ -1036,16 +1003,16 @@ primaryExpression
 	;
 
 classPropertyAccessSpecifier
-	: kwDEFAULT
-	| kwSTATIC
-	| kwCONST
+	: 'default'
+	| 'static'
+	| 'const'
 	;
 
 arguments: (COMMA* expression)*;
 
 defaultPropertiesBlock
 	:
-		kwDEFAULTPROPERTIES
+		'defaultproperties'
 		// UnrealScriptBug: Must be on the line after keyword!
 		OPEN_BRACE
 			defaultStatement*
@@ -1054,7 +1021,7 @@ defaultPropertiesBlock
 
 structDefaultPropertiesBlock
 	:
-		kwSTRUCTDEFAULTPROPERTIES
+		'structdefaultproperties'
 		// UnrealScriptBug: Must be on the line after keyword!
 		OPEN_BRACE
 			defaultStatement*
@@ -1069,9 +1036,9 @@ defaultStatement
 objectDecl
 	:
 		// UnrealScriptBug: name= and class= are required to be on the same line as the keyword!
-		kwBEGIN kwOBJECT
+		'begin' 'object'
 			defaultStatement*
-		kwEND kwOBJECT
+		'end' 'object'
 	;
 
 // FIXME: Use expressions pattern instead?
@@ -1116,10 +1083,10 @@ defaultValue
 operatorPrecedence: (OPEN_PARENS INTEGER CLOSE_PARENS);
 
 functionKind
-	: kwEVENT
-	| kwFUNCTION
-	| kwDELEGATE
-	| kwOPERATOR operatorPrecedence
-	| kwPREOPERATOR
-	| kwPOSTOPERATOR
+	: 'event'
+	| 'function'
+	| 'delegate'
+	| 'preoperator'
+	| 'postoperator'
+	| 'operator' operatorPrecedence
 	;

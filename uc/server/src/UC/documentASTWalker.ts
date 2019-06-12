@@ -345,10 +345,9 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 	}
 
 	visitReplicationBlock(ctx: UCParser.ReplicationBlockContext) {
-		const nameNode = ctx.kwREPLICATION();
 		const identifier: Identifier = {
 			name: NAME_REPLICATION,
-			range: rangeFromBound(nameNode.start)
+			range: rangeFromBound(ctx.start)
 		};
 		const symbol = new UCReplicationBlock(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.context = ctx;
@@ -554,10 +553,9 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 	}
 
 	visitStructDefaultPropertiesBlock(ctx: UCParser.StructDefaultPropertiesBlockContext) {
-		const nameNode = ctx.kwSTRUCTDEFAULTPROPERTIES();
 		const identifier: Identifier = {
 			name: NAME_STRUCTDEFAULTPROPERTIES,
-			range: rangeFromBound(nameNode.start)
+			range: rangeFromBound(ctx.start)
 		};
 		const symbol = new UCDefaultPropertiesBlock(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.context = ctx;
@@ -573,10 +571,9 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 	}
 
 	visitDefaultPropertiesBlock(ctx: UCParser.DefaultPropertiesBlockContext) {
-		const nameNode = ctx.kwDEFAULTPROPERTIES();
 		const identifier: Identifier = {
 			name: NAME_DEFAULTPROPERTIES,
-			range: rangeFromBound(nameNode.start)
+			range: rangeFromBound(ctx.start)
 		};
 
 		const symbol = new UCDefaultPropertiesBlock(identifier, rangeFromBounds(ctx.start, ctx.stop));
