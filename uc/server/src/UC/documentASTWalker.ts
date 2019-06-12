@@ -1,11 +1,8 @@
 import { Range } from 'vscode-languageserver-types';
 
 import { ANTLRErrorListener, RecognitionException, Recognizer, Token, ParserRuleContext } from 'antlr4ts';
+import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
-import { ParseTreeWalker } from 'antlr4ts/tree/ParseTreeWalker';
-import { ParseTree } from 'antlr4ts/tree/ParseTree';
-import { RuleNode } from 'antlr4ts/tree/RuleNode';
-import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 
 import * as UCParser from '../antlr/UCGrammarParser';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
@@ -44,10 +41,11 @@ export function createIdentifierFrom(ctx: ParserRuleContext) {
 	return identifier;
 }
 
-export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined | any>, ANTLRErrorListener<Token> {
+export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefined | any> implements UCGrammarVisitor<ISymbol | undefined | any>, ANTLRErrorListener<Token> {
 	private scopes: ISymbolContainer<ISymbol>[] = [];
 
 	constructor(private document: UCDocument) {
+		super();
 		this.scopes.push(document.classPackage);
 	}
 
@@ -88,40 +86,15 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 		this.document.nodes.push(node);
 	}
 
-	visit(tree: ParseTree) {
-		return undefined!;
-	}
-
-	visitChildren(node: RuleNode) {
-		for (let i = 0; i < node.childCount; ++ i) {
-			node.getChild(i).accept<any>(this);
-		}
-		return undefined;
-	}
-
-	visitTerminal(node: TerminalNode) {
-		return undefined!;
-	}
-
 	visitErrorNode(errNode: ErrorNode) {
 		const node = new SyntaxErrorNode(rangeFromBound(errNode.symbol), '(ANTLR Node Error) ' + errNode.text);
 		this.document.nodes.push(node);
 		return undefined!;
 	}
 
-	visitProgram(ctx: UCParser.ProgramContext) {
-		ParseTreeWalker.DEFAULT.walk(this, ctx);
-		if (!ctx.children) {
-			return undefined;
-		}
-
-		for (let child of ctx.children) {
-			const symbol = child.accept<any>(this);
-			// if (symbol instanceof UCSymbol) {
-			// 	this.declare(symbol);
-			// }
-		}
-		return undefined;
+	visitMember(ctx: UCParser.MemberContext) {
+		const symbol = ctx.getChild(0).accept<UCSymbol | undefined>(this);
+		return symbol;
 	}
 
 	visitTypeDecl(typeDeclNode: UCParser.TypeDeclContext): UCTypeSymbol {
@@ -684,5 +657,9 @@ export class DocumentASTWalker implements UCGrammarVisitor<ISymbol | undefined |
 		};
 
 		return identifier;
+	}
+
+	protected defaultResult() {
+		return undefined;
 	}
 }

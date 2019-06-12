@@ -62,7 +62,7 @@ export class UCDocument {
 		try {
 			const walker = new DocumentASTWalker(this);
 			parser.addErrorListener(walker);
-			walker.visitProgram(parser.program());
+			walker.visit(parser.program());
 		} catch (err) {
 			connection.console.error(`An error was thrown while walking document:\n "${this.filePath}", "${err.stack}"`);
 		} finally {

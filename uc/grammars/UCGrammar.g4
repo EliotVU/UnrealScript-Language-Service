@@ -330,43 +330,22 @@ directive
 	})()}?
 	;
 
-program
-	:
-	// Directives and defaultproperties can precede a class declaration in any order.
-	(
-		directive | defaultPropertiesBlock
-	)*
+program: member* EOF;
 
-	classDecl
-	(
-		constDecl
-
-		| (enumDecl SEMICOLON)
-		| (structDecl SEMICOLON)
-		| varDecl
-
-		| replicationBlock
-		| defaultPropertiesBlock
-		| cppText
-		| directive
-	)*
-
-	// functions and states are not allowed to precede var, struct, or enum declarations.
-	// FIXME: Allow any declaration as does the UnrealScript compiler,
-	// -- but instead set an allow/dissalow flag to create a more human-readable error, for when a declaration is in the wrong order.
-	(
-		constDecl
-
-		| functionDecl
-		| stateDecl
-
-		| replicationBlock
-		| defaultPropertiesBlock
-		| cppText
-		| directive
-	)*
-	EOF
-;
+member
+	: classDecl
+	| constDecl
+	| (enumDecl SEMICOLON)
+	| (structDecl SEMICOLON)
+	| varDecl
+	| cppText
+	| replicationBlock
+	| functionDecl
+	| stateDecl
+	| defaultPropertiesBlock
+	| directive
+	| SEMICOLON
+	;
 
 literal
 	: noneLiteral
@@ -524,10 +503,10 @@ structMember
 	| (enumDecl SEMICOLON)
 	| (structDecl SEMICOLON)
 	| varDecl
-	// Unfortunately these can appear in any order.
 	| structCppText
 	| structDefaultPropertiesBlock
 	| directive
+	| SEMICOLON
 	;
 
 structModifier
@@ -650,8 +629,7 @@ predefinedType
 	| 'string'
 	| 'name'
 	| 'button' // alias for a string with an input modifier
-	| 'class'
-	; // This is actually a reference but this is necessary because it's a "reserved" keyword.
+	;
 
 // Note: inlinedDeclTypes includes another arrayGeneric!
 arrayType: 'array' (LT inlinedDeclTypes GT);
@@ -718,6 +696,8 @@ functionDecl:
 functionMember
 	: constDecl
 	| localDecl
+	| directive
+	| SEMICOLON
 	;
 
 nativeToken: (OPEN_PARENS INTEGER CLOSE_PARENS);
@@ -797,6 +777,7 @@ stateMember
 	| ignoresDecl
 	| functionDecl
 	| directive
+	| SEMICOLON
 	;
 
 ignoresDecl
