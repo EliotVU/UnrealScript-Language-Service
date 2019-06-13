@@ -223,6 +223,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 							symbol.dependsOnTypes.push(typeSymbol);
 						}
 					}
+					break;
 				}
 				case 'implements': {
 					if (modifierArgumentNodes) {
@@ -238,6 +239,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 							symbol.implementsTypes.push(typeSymbol);
 						}
 					}
+					break;
 				}
 			}
 		}
