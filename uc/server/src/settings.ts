@@ -5,15 +5,15 @@ export enum UCGeneration {
 }
 
 export interface UCSettings {
-	indexAllDocuments: boolean;
 	unrealscript: {
+		indexAllDocuments: boolean;
 		generation: UCGeneration;
-	}
+	};
 }
 
 export const defaultSettings: UCSettings = {
-	indexAllDocuments: false,
 	unrealscript: {
+		indexAllDocuments: false,
 		generation: UCGeneration.UC3
 	}
-}
+};

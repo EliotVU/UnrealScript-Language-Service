@@ -21,17 +21,20 @@
 			],
 			"outFiles": [
 				"${workspaceRoot}/client/out/**/*.js"
-			]
+			],
+			"trace": true
 		},
 		{
 			"type": "node",
 			"request": "attach",
 			"name": "Attach to Server",
-			"port": 6009,
+			"port": 6010,
 			"restart": true,
 			"outFiles": [
 				"${workspaceRoot}/server/out/**/*.js"
-			]
+			],
+			"trace": true
+
 		},
 		{
 			"name": "Language Server E2E Test",

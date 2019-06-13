@@ -7,7 +7,6 @@ import {
 	TextDocument,
 	ProposedFeatures,
 	InitializeParams,
-	DidChangeConfigurationNotification,
 	Diagnostic,
 	DiagnosticSeverity,
 	Range
@@ -22,7 +21,6 @@ const isIndexReady$ = new Subject<boolean>();
 const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
 
 let documents: TextDocuments = new TextDocuments();
-let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
 let currentSettings: UCSettings = defaultSettings;
 
@@ -31,7 +29,6 @@ export let connection = createConnection(ProposedFeatures.all);
 connection.onInitialize((params: InitializeParams) => {
 	let capabilities = params.capabilities;
 
-	hasConfigurationCapability = !!(capabilities.workspace && !!capabilities.workspace.configuration);
 	hasWorkspaceFolderCapability = !!(capabilities.workspace && !!capabilities.workspace.workspaceFolders);
 
 	return {
@@ -44,18 +41,12 @@ connection.onInitialize((params: InitializeParams) => {
 			definitionProvider: true,
 			documentSymbolProvider: true,
 			documentHighlightProvider: true,
-			referencesProvider: true
+			referencesProvider: true,
 		}
 	};
 });
 
-connection.onInitialized(async () => {
-	if (hasConfigurationCapability) {
-		connection.client.register(
-			DidChangeConfigurationNotification.type,
-			undefined
-		);
-	}
+connection.onInitialized(() => {
 	if (hasWorkspaceFolderCapability) {
 		initWorkspace(connection);
 		connection.workspace.onDidChangeWorkspaceFolders(() => initWorkspace(connection));
@@ -115,6 +106,7 @@ connection.onInitialized(async () => {
 
 	ClassNameToFilePathMap$
 		.pipe(
+			filter(classesMap => !!classesMap),
 			map((classesMap) => {
 				return Array
 					.from(classesMap.values())
@@ -125,7 +117,7 @@ connection.onInitialized(async () => {
 			})
 		)
 		.subscribe(((classes) => {
-			if (!currentSettings.indexAllDocuments) {
+			if (!currentSettings.unrealscript.indexAllDocuments) {
 				isIndexReady$.next(true);
 				return;
 			}
@@ -139,8 +131,8 @@ connection.onInitialized(async () => {
 					return;
 				}
 
-				indexDocument(document);
 				connection.console.log("Indexing file " + document.fileName);
+				indexDocument(document);
 			});
 
 			isIndexReady$.next(true);
@@ -151,11 +143,9 @@ connection.onInitialized(async () => {
 	);
 });
 
-connection.onDidChangeConfiguration(async () => {
-	if (hasConfigurationCapability) {
-		currentSettings = await connection.workspace.getConfiguration() || defaultSettings;
-		isIndexReady$.next(true);
-	}
+connection.onDidChangeConfiguration((change) => {
+	currentSettings = <UCSettings>(change.settings);
+	isIndexReady$.next(true);
 });
 
 documents.onDidOpen(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: false }));

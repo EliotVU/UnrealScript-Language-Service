@@ -15,7 +15,7 @@ export function activate(context: ExtensionContext) {
 		path.join('server', 'out', 'server.js')
 	);
 
-	let debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
+	let debugOptions = { execArgv: ['--nolazy', '--inspect=6010'] };
 	let serverOptions: ServerOptions = {
 		run: { module: serverModule, transport: TransportKind.ipc },
 		debug: {
@@ -28,6 +28,7 @@ export function activate(context: ExtensionContext) {
 	let clientOptions: LanguageClientOptions = {
 		documentSelector: [{ scheme: 'file', language: 'unrealscript' }],
 		synchronize: {
+			configurationSection: 'unrealscript',
 			fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
 		},
 		outputChannelName: 'UnrealScript LS',
