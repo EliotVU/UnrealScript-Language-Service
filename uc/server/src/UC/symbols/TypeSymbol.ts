@@ -32,7 +32,7 @@ export class UCQualifiedType extends UCSymbol {
 		return this.type.getTooltip();
 	}
 
-	getContainedSymbolAtPos(position: Position): UCSymbol {
+	getContainedSymbolAtPos(position: Position) {
 		if (this.left) {
 			const symbol = this.left.getSymbolAtPos(position);
 			if (symbol) {

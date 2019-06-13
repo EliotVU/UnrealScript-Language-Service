@@ -66,11 +66,11 @@ export abstract class UCSymbol implements ISymbol {
 		return CompletionItemKind.Text;
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol | undefined {
+	getSymbolAtPos(position: Position): ISymbol | undefined {
 		return intersectsWithRange(position, this.getRange()) && this.getContainedSymbolAtPos(position) || this;
 	}
 
-	protected getContainedSymbolAtPos(_position: Position): UCSymbol | undefined {
+	protected getContainedSymbolAtPos(_position: Position): ISymbol | undefined {
 		return undefined;
 	}
 

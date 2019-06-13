@@ -29,7 +29,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		return `class ${this.getQualifiedName()}`;
 	}
 
-	getSymbolAtPos(position: Position): UCSymbol {
+	getSymbolAtPos(position: Position) {
 		if (intersectsWith(this.getRange(), position)) {
 			if (intersectsWithRange(position, this.id.range)) {
 				return this;
