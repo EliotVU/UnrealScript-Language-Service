@@ -31,6 +31,28 @@ export const NAME_BUTTON = toName('Button');
 export const NAME_ARRAY = toName('Array');
 export const NAME_CLASS = toName('Class');
 export const NAME_ENUM = toName('Enum');
+export const NAME_PACKAGE = toName('Package');
+
+export const NAME_CORE = toName('Core');
+export const NAME_ENGINE = toName('Engine');
+
+export const NAME_OBJECT = toName('Object');
+export const NAME_PROPERTY = toName('Property');
+export const NAME_BYTEPROPERTY = toName('ByteProperty');
+export const NAME_FLOATPROPERTY = toName('FloatProperty');
+export const NAME_INTPROPERTY = toName('IntProperty');
+export const NAME_NAMEPROPERTY = toName('NameProperty');
+export const NAME_STRINGPROPERTY = toName('StringProperty');
+export const NAME_STRPROPERTY = toName('StrProperty');
+export const NAME_BOOLPROPERTY = toName('BoolProperty');
+export const NAME_POINTERPROPERTY = toName('PointerProperty');
+export const NAME_MAPPROPERTY = toName('MapProperty');
+export const NAME_DELEGATEPROPERTY = toName('DelegateProperty');
+export const NAME_ARRAYPROPERTY = toName('ArrayProperty');
+export const NAME_CLASSPROPERTY = toName('ClassProperty');
+export const NAME_OBJECTPROPERTY = toName('ObjectProperty');
+export const NAME_ACTOR = toName('Actor');
+
 export const NAME_REPLICATION = toName('Replication');
 export const NAME_DEFAULTPROPERTIES = toName('DefaultProperties');
 export const NAME_STRUCTDEFAULTPROPERTIES = toName('StructDefaultProperties');

@@ -3,8 +3,7 @@ import { Range, Position, Location } from 'vscode-languageserver-types';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 import { UCDocument } from '../document';
 
-import { ISymbol, UCSymbol, UCStructSymbol, UCClassSymbol } from '.';
-import { Identifier } from './ISymbol';
+import { Identifier, ISymbol, UCSymbol, UCStructSymbol, UCClassSymbol } from '.';
 
 export abstract class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;

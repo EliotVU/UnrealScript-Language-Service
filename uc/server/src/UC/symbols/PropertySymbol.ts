@@ -3,10 +3,10 @@ import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 
-import { UCSymbol, UCTypeSymbol, UCFieldSymbol, UCStructSymbol } from '.';
+import { ITypeSymbol, UCFieldSymbol, UCStructSymbol } from '.';
 
 export class UCPropertySymbol extends UCFieldSymbol {
-	public type?: UCTypeSymbol;
+	public type?: ITypeSymbol;
 
 	// Array dimension if specified, string may represent a number or a qualified identifier e.g. a const.
 	public arrayDim?: string;

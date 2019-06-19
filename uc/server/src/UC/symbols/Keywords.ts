@@ -4,16 +4,12 @@ import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { Name, toName } from '../names';
 
-import { ISymbol } from './ISymbol';
+import { ISymbol } from '.';
 
 export class UCKeyword implements ISymbol, CompletionItem {
 	kind: CompletionItemKind = CompletionItemKind.Keyword;
 
 	constructor(public name: Name, public label: string = name.toString()) {
-	}
-
-	getName(): string {
-		return this.label;
 	}
 
 	getId(): Name {

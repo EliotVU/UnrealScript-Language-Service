@@ -9,11 +9,13 @@
 	},
 	"dependencies": {
 		"crc-32": "^1.2.0",
+		"glob": "^7.1.4",
 		"rxjs": "^6.5.2",
 		"vscode-languageserver": "^5.2.1"
 	},
 	"devDependencies": {
 		"@types/chai": "^4.1.7",
+		"@types/glob": "^7.1.1",
 		"@types/mocha": "^5.2.7",
 		"chai": "^4.2.0",
 		"mocha": "^6.1.4",

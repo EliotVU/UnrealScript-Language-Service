@@ -3,8 +3,7 @@ import { Location, Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 
-import { ISymbol, ISymbolReference, ISymbolContext, IWithReference } from './ISymbol';
-import { UCSymbol } from '.';
+import { ISymbol, ISymbolReference, ISymbolContext, IWithReference, UCSymbol } from '.';
 
 /**
  * For general symbol references, like a function's return type which cannot yet be identified.
@@ -12,25 +11,11 @@ import { UCSymbol } from '.';
 export class UCSymbolReference extends UCSymbol implements IWithReference {
 	protected reference?: ISymbol;
 
-	// Redirect name to our resolved reference, so that e.g. 'obJeCT' resolves to the properly declared name 'Object'.
-	getName(): string {
-		return this.reference
-			? this.reference.getName()
-			: this.id.name.toString();
-	}
-
-	getQualifiedName(): string {
-		if (this.reference) {
-			return this.reference.getQualifiedName();
-		}
-		return this.id.name.toString();
-	}
-
 	getTooltip(): string {
 		if (this.reference) {
 			return this.reference.getTooltip();
 		}
-		return super.getTooltip();
+		return '';
 	}
 
 	getSymbolAtPos(position: Position) {
@@ -43,7 +28,7 @@ export class UCSymbolReference extends UCSymbol implements IWithReference {
 			return symbol;
 		}
 
-		if (intersectsWithRange(position, this.id.range)) {
+		if (this.reference && intersectsWithRange(position, this.id.range)) {
 			return this;
 		}
 	}

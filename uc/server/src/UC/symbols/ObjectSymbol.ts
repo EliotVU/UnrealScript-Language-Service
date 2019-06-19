@@ -4,7 +4,7 @@ import { SemanticErrorNode } from '../diagnostics/diagnostics';
 import { UCDocument } from '../document';
 import { Name } from '../names';
 
-import { UCSymbol, UCSymbolReference, UCStructSymbol, UCPropertySymbol } from '.';
+import { UCSymbolReference, UCStructSymbol, UCPropertySymbol } from '.';
 
 /**
  * Can represent either a subobject aka archetype, or an instance of a defaultproperties declaration.
@@ -18,7 +18,7 @@ export class UCObjectSymbol extends UCStructSymbol {
 
 	// Just return the keyword identifier.
 	getTooltip(): string {
-		return this.getName();
+		return this.getId().toString();
 	}
 
 	getContainedSymbolAtPos(position: Position) {
@@ -47,7 +47,7 @@ export class UCObjectSymbol extends UCStructSymbol {
 		for (let ref of this.symbolRefs.values()) {
 			const symbol = ref.getReference();
 			if (!symbol) {
-				document.nodes.push(new SemanticErrorNode(ref, `Variable '${ref.getName()}' not found!`));
+				document.nodes.push(new SemanticErrorNode(ref, `Variable '${ref.getId()}' not found!`));
 				continue;
 			}
 			if (!(symbol instanceof UCPropertySymbol)) {

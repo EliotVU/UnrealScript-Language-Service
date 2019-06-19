@@ -5,14 +5,12 @@ import { FunctionDeclContext } from '../../antlr/UCGrammarParser';
 import { getDocumentByUri } from '../indexer';
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
-
-import { UCTypeSymbol, UCStructSymbol, UCParamSymbol } from '.';
-import { ISymbol, IWithReference } from './ISymbol';
-import { DEFAULT_RANGE } from './Symbol';
 import { Name } from '../names';
 
+import { DEFAULT_RANGE, UCStructSymbol, UCParamSymbol, ITypeSymbol, ISymbol, IWithReference } from '.';
+
 export class UCMethodSymbol extends UCStructSymbol {
-	public returnType?: UCTypeSymbol;
+	public returnType?: ITypeSymbol;
 	public overriddenMethod?: UCMethodSymbol;
 	public params?: UCParamSymbol[];
 
@@ -69,11 +67,6 @@ export class UCMethodSymbol extends UCStructSymbol {
 
 	findSuperSymbol(id: Name) {
 		return this.getSymbol(id) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id);
-	}
-
-	findTypeSymbol(id: Name) {
-		// Redirect to outer, because Methods are never supposed to have any type members!
-		return (this.outer as UCStructSymbol).findTypeSymbol(id);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
@@ -157,7 +150,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	// TODO: Print param modifiers?
 	protected buildParameters(): string {
 		return this.params
-			? `(${this.params.map(f => (f.type ? f.type.getTypeText() + ' ' : '') + f.getName()).join(', ')})`
+			? `(${this.params.map(f => (f.type ? f.type.getTypeText() + ' ' : '') + f.getId()).join(', ')})`
 			: '()';
 	}
 }

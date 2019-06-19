@@ -1,13 +1,15 @@
-import * as fs from 'fs';
 import * as path from 'path';
 
 import URI from 'vscode-uri';
-import { CompletionItem, CompletionItemKind, RemoteWorkspace, Connection } from 'vscode-languageserver';
 import { BehaviorSubject } from 'rxjs';
 
-import { ISymbolReference, UCPackage, SymbolsTable, UCEnumMemberSymbol } from './Symbols';
+import { ISymbolReference, UCPackage, PackagesTable, UCEnumMemberSymbol } from './Symbols';
 import { UCDocument } from './document';
-import { Name } from './names';
+import { Name, toName } from './names';
+
+export const FilePathByClassIdMap$ = new BehaviorSubject(new Map<string, string>());
+export const DocumentByURIMap = new Map<string, UCDocument>();
+const PackageByDirMap = new Map<string, UCPackage>();
 
 function findPackageNameInDir(dir: string): string {
 	const directories = dir.split('/');
@@ -19,46 +21,47 @@ function findPackageNameInDir(dir: string): string {
 	return '';
 }
 
-const DirPackageMap = new Map<string, UCPackage>();
-function getPackageByUri(documentUri: string): UCPackage {
-	const dir = path.parse(documentUri).dir;
-	let pkg = DirPackageMap.get(dir);
+function getPackageByUri(uri: string): UCPackage {
+	const dir = path.parse(uri).dir;
+	let pkg = PackageByDirMap.get(dir);
 	if (pkg) {
 		return pkg;
 	}
 
 	const packageName = findPackageNameInDir(dir);
 	if (!packageName) {
-		return SymbolsTable;
+		return PackagesTable;
 	}
 
-	pkg = new UCPackage(packageName);
-	SymbolsTable.addSymbol(pkg);
-	DirPackageMap.set(dir, pkg);
+	pkg = new UCPackage(toName(packageName));
+	PackagesTable.addSymbol(pkg);
+	PackageByDirMap.set(dir, pkg);
 	return pkg;
 }
 
-export const ClassNameToDocumentMap: Map<string, UCDocument> = new Map<string, UCDocument>();
 export function getDocumentByUri(uri: string): UCDocument {
-	let document = ClassNameToDocumentMap.get(uri);
+	let document = DocumentByURIMap.get(uri);
 	if (document) {
 		return document;
 	}
 
 	const pkg = getPackageByUri(uri);
 	document = new UCDocument(uri, pkg);
-	ClassNameToDocumentMap.set(uri, document);
+	DocumentByURIMap.set(uri, document);
 	return document;
 }
 
-export function getDocumentById(qualifiedId: string): UCDocument | undefined {
-	const uri = getUriById(qualifiedId);
+export function getUriById(id: string): string | undefined {
+	const filePath = FilePathByClassIdMap$.getValue().get(id);
+	return filePath ? URI.file(filePath).toString() : undefined;
+}
+
+export function getDocumentById(id: string): UCDocument | undefined {
+	const uri = getUriById(id);
 	if (!uri) {
 		return undefined;
 	}
-
-	const document: UCDocument = getDocumentByUri(uri);
-	return document;
+	return getDocumentByUri(uri);
 }
 
 export function indexDocument(document: UCDocument, text?: string): UCDocument | undefined {
@@ -76,24 +79,17 @@ export function indexDocument(document: UCDocument, text?: string): UCDocument |
 	}
 }
 
-export const ClassNameToFilePathMap$ = new BehaviorSubject(new Map<string, string>());
+// let ClassCompletionItems: CompletionItem[] = [];
 
-let ClassCompletionItems: CompletionItem[] = [];
-
-ClassNameToFilePathMap$.subscribe(classesMap => {
-	ClassCompletionItems = Array.from(classesMap.values())
-		.map(value => {
-			return {
-				label: path.basename(value, '.uc'),
-				kind: CompletionItemKind.Class
-			};
-		});
-});
-
-export function getUriById(qualifiedClassId: string): string | undefined {
-	const filePath = ClassNameToFilePathMap$.getValue().get(qualifiedClassId);
-	return filePath ? URI.file(filePath).toString() : undefined;
-}
+// ClassIdToFilePathMap$.subscribe(classesMap => {
+// 	ClassCompletionItems = Array.from(classesMap.values())
+// 		.map(value => {
+// 			return {
+// 				label: path.basename(value, '.uc'),
+// 				kind: CompletionItemKind.Class
+// 			};
+// 		});
+// });
 
 export const IndexedReferencesMap = new Map<string, Set<ISymbolReference>>();
 
@@ -109,48 +105,4 @@ export function getEnumMember(enumMember: Name): UCEnumMemberSymbol | undefined 
 
 export function setEnumMember(enumMember: UCEnumMemberSymbol) {
 	EnumMemberMap.set(enumMember.getId(), enumMember);
-}
-
-async function buildClassesFilePathsMap(workspace: RemoteWorkspace): Promise<Map<string, string>> {
-	function scanPath(filePath: string, cb: (filePath: string) => void): Promise<boolean> {
-		const promise = new Promise<boolean>((resolve) => {
-			if (!fs.existsSync(filePath)) {
-				resolve(false);
-				return;
-			}
-
-			fs.lstat(filePath, (err, stats) => {
-				if (stats.isDirectory()) {
-					fs.readdir(filePath, (err, filePaths) => {
-						for (let fileName of filePaths) {
-							resolve(scanPath(path.join(filePath, fileName), cb));
-						}
-					});
-				} else {
-					if (path.extname(filePath) === '.uc') {
-						cb(filePath);
-					}
-					resolve(true);
-				}
-			});
-		});
-		return promise;
-	}
-
-	const filePaths = new Map<string, string>();
-	const folders = await workspace.getWorkspaceFolders();
-	if (folders) {
-		for (let folder of folders) {
-			const folderPath = URI.parse(folder.uri).fsPath;
-			await scanPath(folderPath, (filePath => {
-				filePaths.set(path.basename(filePath, '.uc').toLowerCase(), filePath);
-			}));
-		}
-	}
-	return filePaths;
-}
-
-export async function initWorkspace(connection: Connection) {
-	const filePathMap = await buildClassesFilePathsMap(connection.workspace);
-	ClassNameToFilePathMap$.next(filePathMap);
 }

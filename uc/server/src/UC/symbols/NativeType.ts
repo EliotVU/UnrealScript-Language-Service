@@ -6,14 +6,8 @@ import { Name } from '../names';
 
 import { ISymbol } from './ISymbol';
 
-export class UCNativeSymbol implements ISymbol {
-	public outer: ISymbol;
-
+export class UCNativeType implements ISymbol {
 	constructor(private name: Name) {
-	}
-
-	getName(): string {
-		return this.name.toString();
 	}
 
 	getId(): Name {
@@ -21,7 +15,7 @@ export class UCNativeSymbol implements ISymbol {
 	}
 
 	getQualifiedName(): string {
-		return this.outer.getQualifiedName() + '.' + this.getName();
+		return this.getId().toString();
 	}
 
 	getKind(): SymbolKind {
@@ -33,12 +27,12 @@ export class UCNativeSymbol implements ISymbol {
 	}
 
 	getTooltip(): string {
-		return this.getQualifiedName();
+		return "type " + this.getId();
 	}
 
 	// TODO: implement
 	toCompletionItem(_document: UCDocument): CompletionItem {
-		return CompletionItem.create(this.getName());
+		return CompletionItem.create(this.getId().toString());
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

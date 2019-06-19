@@ -8,8 +8,7 @@ import { SymbolWalker } from '../symbolWalker';
 import { intersectsWithRange } from '../helpers';
 import { Name } from '../names';
 
-import { ISymbol, Identifier } from './ISymbol';
-import { UCStructSymbol } from ".";
+import { ISymbol, Identifier, UCStructSymbol } from ".";
 
 export const COMMENT_TYPES = new Set([UCGrammarParser.LINE_COMMENT, UCGrammarParser.BLOCK_COMMENT]);
 
@@ -29,10 +28,6 @@ export abstract class UCSymbol implements ISymbol {
 
 	}
 
-	getName(): string {
-		return this.id.name.toString();
-	}
-
 	/**
 	 * Returns the whole range this symbol encompasses i.e. for a struct this should be inclusive of the entire block.
 	 */
@@ -46,9 +41,9 @@ export abstract class UCSymbol implements ISymbol {
 
 	getQualifiedName(): string {
 		if (this.outer) {
-			return this.outer.getQualifiedName() + '.' + this.getName();
+			return this.outer.getQualifiedName() + '.' + this.getId();
 		}
-		return this.getName();
+		return this.getId().toString();
 	}
 
 	getKind(): SymbolKind {
@@ -122,14 +117,14 @@ export abstract class UCSymbol implements ISymbol {
 
 	toSymbolInfo(): SymbolInformation {
 		return SymbolInformation.create(
-			this.getName(), this.getKind(),
+			this.getId().toString(), this.getKind(),
 			this.getRange(), undefined,
-			this.outer && this.outer.getName()
+			this.outer && this.outer.getId().toString()
 		);
 	}
 
 	toCompletionItem(_document: UCDocument): CompletionItem {
-		const item = CompletionItem.create(this.getName());
+		const item = CompletionItem.create(this.getId().toString());
 		item.detail = this.getTooltip();
 		item.kind = this.getCompletionItemKind();
 		item.data = this.getQualifiedName();

@@ -692,7 +692,7 @@ repository:
             name: punctuation.arrow.close.uc
 
       # primitive castings
-      - begin: ((?i)int|byte|float|bool|string|name)\s*(\()
+      - begin: ((?i)byte|float|int|string|name|bool|button)\s*(\()
         beginCaptures:
           '0':
             name: cast.expr.uc

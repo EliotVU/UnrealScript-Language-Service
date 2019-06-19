@@ -3,12 +3,12 @@ import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-
 import { UCDocument } from '../document';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 import { intersectsWith, intersectsWithRange } from '../helpers';
-
-import { UCSymbol, UCStructSymbol, UCTypeSymbol } from '.';
 import { SymbolWalker } from '../symbolWalker';
 
+import { UCStructSymbol, UCTypeSymbol, ITypeSymbol, ISymbol } from '.';
+
 export class UCClassSymbol extends UCStructSymbol {
-	public withinType?: UCTypeSymbol;
+	public withinType?: ITypeSymbol;
 
 	public dependsOnTypes?: UCTypeSymbol[];
 	public implementsTypes?: UCTypeSymbol[];
@@ -41,12 +41,13 @@ export class UCClassSymbol extends UCStructSymbol {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		if (this.extendsType && this.extendsType.getSymbolAtPos(position)) {
-			return this.extendsType;
+		let symbol: ISymbol | undefined = undefined;
+		if (this.extendsType && (symbol = this.extendsType.getSymbolAtPos(position))) {
+			return symbol;
 		}
 
-		if (this.withinType && this.withinType.getSymbolAtPos(position)) {
-			return this.withinType;
+		if (this.withinType && (symbol = this.withinType.getSymbolAtPos(position))) {
+			return symbol;
 		}
 
 		if (this.dependsOnTypes) {
@@ -89,14 +90,14 @@ export class UCClassSymbol extends UCStructSymbol {
 		}
 
 		if (this.dependsOnTypes) {
-			for (let depType of this.dependsOnTypes) {
-				depType.index(document, context);
+			for (let classTypeRef of this.dependsOnTypes) {
+				classTypeRef.index(document, context);
 			}
 		}
 
 		if (this.implementsTypes) {
-			for (let depType of this.implementsTypes) {
-				depType.index(document, context);
+			for (let interfaceTypeRef of this.implementsTypes) {
+				interfaceTypeRef.index(document, context);
 			}
 		}
 
@@ -104,7 +105,7 @@ export class UCClassSymbol extends UCStructSymbol {
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
-		const className = this.getName();
+		const className = this.getId().toString();
 		if (className.toLowerCase() != document.fileName.toLowerCase()) {
 			const errorNode = new SemanticErrorNode(
 				this,
@@ -118,14 +119,14 @@ export class UCClassSymbol extends UCStructSymbol {
 		}
 
 		if (this.dependsOnTypes) {
-			for (let depType of this.dependsOnTypes) {
-				depType.analyze(document, context);
+			for (let classTypeRef of this.dependsOnTypes) {
+				classTypeRef.analyze(document, context);
 			}
 		}
 
 		if (this.implementsTypes) {
-			for (let depType of this.implementsTypes) {
-				depType.analyze(document, context);
+			for (let interfaceTypeRef of this.implementsTypes) {
+				interfaceTypeRef.analyze(document, context);
 			}
 		}
 		super.analyze(document, context);

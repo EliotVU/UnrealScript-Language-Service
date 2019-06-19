@@ -21,7 +21,7 @@ export class UCLocalSymbol extends UCPropertySymbol {
 	}
 
 	getTooltip(): string {
-		return `${this.getTypeTooltip()} ${this.type!.getTypeText()} ${this.getName()}`;
+		return `${this.getTypeTooltip()} ${this.type!.getTypeText()} ${this.getId()}`;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

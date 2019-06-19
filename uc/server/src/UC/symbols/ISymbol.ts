@@ -6,7 +6,7 @@ import { Name } from '../names';
 
 export interface ISymbol {
 	outer?: ISymbol;
-	getName(): string;
+
 	getId(): Name;
 	getQualifiedName(): string;
 	getKind(): SymbolKind;
@@ -15,6 +15,11 @@ export interface ISymbol {
 	toCompletionItem(document: UCDocument): CompletionItem;
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result;
+}
+
+export interface ISymbolContainer<T> {
+	addSymbol(symbol: T): Name | undefined;
+	getSymbol(id: Name): ISymbol | undefined;
 }
 
 export interface ISymbolContext {

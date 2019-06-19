@@ -6,19 +6,13 @@ import { SymbolWalker } from '../symbolWalker';
 import { UCBlock } from '../statements';
 import { Name } from '../names';
 
-import { ISymbolContainer } from './ISymbolContainer';
-import { ISymbol, UCFieldSymbol, UCPropertySymbol, UCSymbol, UCTypeSymbol, UCMethodSymbol } from ".";
+import { ISymbol, ISymbolContainer, UCFieldSymbol, UCPropertySymbol, UCSymbol, ITypeSymbol, UCMethodSymbol } from ".";
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
-	public extendsType?: UCTypeSymbol;
+	public extendsType?: ITypeSymbol;
 	public super?: UCStructSymbol;
 	public children?: UCFieldSymbol;
 	public block?: UCBlock;
-
-	/**
-	 * Types that are declared within this struct's body.
-	 */
-	public declaredTypes?: Map<Name, UCFieldSymbol>;
 
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
@@ -64,17 +58,14 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		if (this.extendsType && this.extendsType.getSymbolAtPos(position)) {
-			return this.extendsType;
+		let symbol: ISymbol | undefined;
+		if (this.extendsType && (symbol = this.extendsType.getSymbolAtPos(position))) {
+			return symbol;
 		}
 
-		if (this.block) {
-			const symbol = this.block.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
+		if (this.block && (symbol = this.block.getSymbolAtPos(position))) {
+			return symbol;
 		}
-
 		return this.getChildSymbolAtPos(position);
 	}
 
@@ -93,17 +84,6 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		symbol.next = this.children;
 		symbol.containingStruct = this;
 		this.children = symbol;
-
-		if (symbol.isType()) {
-			if (!this.declaredTypes) {
-				this.declaredTypes = new Map();
-			}
-
-			const key = symbol.getId();
-			this.declaredTypes.set(key, symbol);
-			return key;
-		}
-
 		// No key
 		return undefined;
 	}
@@ -118,18 +98,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	}
 
 	findSuperSymbol(id: Name): UCSymbol | undefined {
-		const symbol = this.getSymbol(id) || this.super && this.super.findSuperSymbol(id);
-		return symbol;
-	}
-
-	findTypeSymbol(id: Name): UCSymbol | undefined {
-		if (this.declaredTypes) {
-			const symbol = this.declaredTypes.get(id);
-			if (symbol) {
-				return symbol;
-			}
-		}
-		return this.super && this.super.findTypeSymbol(id);
+		return this.getSymbol(id) || this.super && this.super.findSuperSymbol(id);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
@@ -143,12 +112,11 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		}
 
 		// FIXME: Optimize. We have to index types before anything else but properties ALSO have to be indexed before any method can be indexed properly!
-		// FIXME: ReplicationBlock is also indexed before property types are linked!
 		if (this.children) {
 			// Link types before any child so that a child that referrers one of our types can be linked properly!
-			if (this.declaredTypes) {
-				for (let type of this.declaredTypes.values()) {
-					type.index(document, this);
+			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
+				if (child.isType()) {
+					child.index(document, this);
 				}
 			}
 

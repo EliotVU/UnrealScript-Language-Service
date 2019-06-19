@@ -18,7 +18,7 @@ export class UCReplicationBlock extends UCFieldSymbol {
 
 	// Just return the keyword identifier.
 	getTooltip(): string {
-		return this.getName();
+		return this.getId().toString();
 	}
 
 	getCompletionContext(position: Position) {
@@ -71,7 +71,7 @@ export class UCReplicationBlock extends UCFieldSymbol {
 		for (let symbolRef of this.symbolRefs.values()) {
 			const symbol = symbolRef.getReference();
 			if (!symbol) {
-				document.nodes.push(new SemanticErrorNode(symbolRef, `Variable '${symbolRef.getName()}' not found!`));
+				document.nodes.push(new SemanticErrorNode(symbolRef, `Variable '${symbolRef.getId()}' not found!`));
 				continue;
 			}
 
@@ -89,7 +89,7 @@ export class UCReplicationBlock extends UCFieldSymbol {
 
 			const errorNode = new SemanticErrorNode(
 				symbolRef,
-				`Type of '${symbol.getName()}' needs to be either a variable or function!`
+				`Type of '${symbol.getId()}' needs to be either a variable or function!`
 			);
 			document.nodes.push(errorNode);
 		}

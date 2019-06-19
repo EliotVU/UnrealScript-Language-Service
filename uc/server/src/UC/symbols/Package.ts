@@ -1,28 +1,17 @@
-import * as path from 'path';
-
 import { SymbolKind, CompletionItem } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { getDocumentById, indexDocument } from '../indexer';
-import { Name, toName } from '../names';
+import { Name, NAME_NONE } from '../names';
 
-import { ISymbol } from ".";
-import { ISymbolContainer } from './ISymbolContainer';
+import { ISymbol, ISymbolContainer, UCClassSymbol } from '.';
 
-// Holds class symbols, solely used for traversing symbols in a package.
 export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 	public outer?: UCPackage;
-
 	protected symbols = new Map<Name, ISymbol>();
-	private name: Name;
 
-	constructor(uri: string) {
-		this.name = toName(path.basename(uri));
-	}
-
-	getName(): string {
-		return this.name.toString();
+	constructor(private name: Name) {
 	}
 
 	getId(): Name {
@@ -30,7 +19,7 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 	}
 
 	getQualifiedName(): string {
-		return this.getName();
+		return this.getId().toString();
 	}
 
 	getKind(): SymbolKind {
@@ -38,7 +27,7 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 	}
 
 	getTooltip(): string {
-		return this.getName();
+		return 'package ' + this.getId();
 	}
 
 	// FIXME: Not setup yet!
@@ -52,7 +41,7 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 
 	// TODO: implement
 	toCompletionItem(_document: UCDocument): CompletionItem {
-		return CompletionItem.create(this.getName());
+		return CompletionItem.create(this.getId().toString());
 	}
 
 	addSymbol(symbol: ISymbol): Name {
@@ -62,6 +51,12 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 
 		this.symbols.set(key, symbol);
 		symbol.outer = this;
+
+		// Classes are top level types, need to be added to the symbols table so they can be linked to from anywhere.
+		if (symbol instanceof UCClassSymbol) {
+			SymbolsTable.addSymbol(symbol);
+		}
+
 		return key;
 	}
 
@@ -103,4 +98,13 @@ class UCWorkspace extends UCPackage {
 	}
 }
 
-export const SymbolsTable = new UCWorkspace('Workspace');
+/**
+ * The symbols table is where all Class types are supposed to be stored.
+ * This table will be used to index any class references, including any native psuedo class.
+ */
+export const SymbolsTable = new UCWorkspace(NAME_NONE);
+
+/**
+ * Contains all indexed packages, including the predefined "Core" package.
+ */
+export const PackagesTable = new UCWorkspace(NAME_NONE);

@@ -301,10 +301,10 @@ identifier
 	;
 
 // Parses the following possiblities.
-// Package.Class.Field
+// Package.Class
 // Class.Field
 // Class / Field
-qualifiedIdentifier: identifier (DOT qualifiedIdentifier)?;
+qualifiedIdentifier: identifier (DOT identifier)?;
 
 // FIXME: Consumes atleast one token after "#error"
 directive
@@ -578,7 +578,7 @@ variableModifier
 		| 'cache'
 		| 'automated'
 		| 'editinline'
-		| 'editinilinenotify'
+		| 'editinlinenotify'
 		| 'editinlineuse'
 		| 'editconstarray'
 		| 'edfindable'
@@ -626,6 +626,7 @@ predefinedType
 	| 'int'
 	| 'float'
 	| 'bool'
+	| 'pointer'
 	| 'string'
 	| 'name'
 	| 'button' // alias for a string with an input modifier

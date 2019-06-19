@@ -55,12 +55,12 @@ export class UnrecognizedTypeNode implements IDiagnosticNode {
 	}
 
 	toString(): string {
-		return `Type '${this.symbol.getName()}' not found!`;
+		return `Type '${this.symbol.getId()}' not found!`;
 	}
 }
 
 export class UnrecognizedFieldNode implements IDiagnosticNode {
-	constructor(private symbol: UCSymbolReference, private context?: UCSymbol) {
+	constructor(private symbol: UCSymbol, private context?: UCSymbol) {
 	}
 
 	getRange(): Range {
@@ -69,7 +69,7 @@ export class UnrecognizedFieldNode implements IDiagnosticNode {
 
 	toString(): string {
 		return this.context
-			? `'${this.symbol.getName()}' Does not exist on type '${this.context.getQualifiedName()}'!`
-			: `Couldn't find '${this.symbol.getName()}'!`;
+			? `'${this.symbol.getId()}' Does not exist on type '${this.context.getQualifiedName()}'!`
+			: `Couldn't find '${this.symbol.getId()}'!`;
 	}
 }

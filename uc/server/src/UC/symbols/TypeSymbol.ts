@@ -1,35 +1,56 @@
 import { Position, Range } from 'vscode-languageserver-types';
 
-import { QualifiedIdentifierContext } from '../../antlr/UCGrammarParser';
-
 import { UCDocument } from '../document';
 import { UnrecognizedTypeNode, SemanticErrorNode } from '../diagnostics/diagnostics';
+import { NAME_BYTE, NAME_FLOAT, NAME_STRING, NAME_BOOL, NAME_BUTTON, NAME_NAME, NAME_INT, NAME_POINTER } from '../names';
 
 import {
 	UCSymbol,
 	UCSymbolReference,
-	UCPackage,
 	UCStructSymbol,
 	UCClassSymbol,
 	UCStateSymbol,
 	UCScriptStructSymbol,
 	UCMethodSymbol,
 	UCEnumSymbol,
-	SymbolsTable,
+	PackagesTable, SymbolsTable,
+	ISymbol, Identifier, IWithReference,
+	UCTypeKind
 } from '.';
-import { UCTypeKind } from './TypeKind';
-import { ISymbol, Identifier } from './ISymbol';
+import {
+	PredefinedByte, PredefinedFloat, PredefinedString,
+	PredefinedBool, PredefinedButton, PredefinedName,
+	PredefinedInt, PredefinedPointer
+} from '.';
+import { UCNativeType } from './NativeType';
+
+export interface ITypeSymbol extends UCSymbol, IWithReference {
+	getTypeText(): string;
+}
 
 /**
  * Represents a qualified identifier type reference such as "extends Core.Object",
  * -- where "Core" is assigned to @left and "Object" to @type.
  */
-export class UCQualifiedType extends UCSymbol {
-	public left?: UCQualifiedType;
-	public type: UCTypeSymbol;
+export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
+	constructor(private type: UCTypeSymbol, private left?: UCQualifiedTypeSymbol) {
+		super(type.id);
+	}
+
+	public getTypeText(): string {
+		return this.type.getTypeText();
+	}
+
+	getReference(): ISymbol | undefined {
+		return this.type.getReference();
+	}
 
 	getTooltip(): string {
 		return this.type.getTooltip();
+	}
+
+	getSymbolAtPos(position: Position) {
+		return this.getContainedSymbolAtPos(position);
 	}
 
 	getContainedSymbolAtPos(position: Position) {
@@ -39,29 +60,81 @@ export class UCQualifiedType extends UCSymbol {
 				return symbol;
 			}
 		}
-		return this.type.getSymbolAtPos(position);
+		return this.type.getReference() && this.type.getSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		this.left && this.left.index(document, context);
+		if (this.left) {
+			this.left.index(document, context);
+			const leftContext = this.left.getReference();
+			context = leftContext as UCStructSymbol;
+		}
+
 		this.type.index(document, context);
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
-		this.left && this.left.analyze(document, context);
-		this.type.analyze(document, context);
-	}
+		if (this.left) {
+			this.left.analyze(document, context);
+			const leftContext = this.left.getReference();
+			context = leftContext as UCStructSymbol;
+		}
 
-	visit(ctx: QualifiedIdentifierContext) {
-		this.context = ctx;
+		this.type.analyze(document, context);
 	}
 }
 
-export class UCTypeSymbol extends UCSymbolReference {
+export class UCPredefinedTypeSymbol extends UCSymbolReference implements ITypeSymbol {
+	public getTypeText(): string {
+		return this.getId().toString();
+	}
+
+	index(document: UCDocument, context?: UCStructSymbol) {
+		let symbol: UCNativeType | undefined = undefined;
+
+		switch (this.getId()) {
+			case NAME_BYTE:
+				symbol = PredefinedByte;
+				break;
+			case NAME_FLOAT:
+				symbol = PredefinedFloat;
+				break;
+			case NAME_INT:
+				symbol = PredefinedInt;
+				break;
+			case NAME_STRING:
+				symbol = PredefinedString;
+				break;
+			case NAME_NAME:
+				symbol = PredefinedName;
+				break;
+			case NAME_BOOL:
+				symbol = PredefinedBool;
+				break;
+			case NAME_POINTER:
+				symbol = PredefinedPointer;
+				break;
+			case NAME_BUTTON:
+				symbol = PredefinedButton;
+				break;
+		}
+
+		this.setReference(symbol!, document);
+	}
+}
+
+export class UCTypeSymbol extends UCSymbolReference implements ITypeSymbol {
 	public baseType?: UCTypeSymbol;
 
 	constructor(id: Identifier, private range: Range = id.range, private typeKind?: UCTypeKind) {
 		super(id);
+	}
+
+	public getTypeText(): string {
+		if (this.baseType) {
+			return this.getId() + `<${this.baseType.getTypeText()}>`;
+		}
+		return this.getId().toString();
 	}
 
 	setTypeKind(kind: UCTypeKind) {
@@ -72,76 +145,43 @@ export class UCTypeSymbol extends UCSymbolReference {
 		return this.range;
 	}
 
-	getTooltip(): string {
-		if (this.baseType) {
-			return this.getQualifiedName() + `<${this.baseType.getTooltip()}>`;
-		}
-		return super.getTooltip();
-	}
-
-	getTypeText(): string {
-		if (this.baseType) {
-			return this.getName() + `<${this.baseType.getTypeText()}>`;
-		}
-		return this.getName();
-	}
-
 	getContainedSymbolAtPos(position: Position) {
-		if (this.baseType) {
-			return this.baseType.getSymbolAtPos(position);
-		}
-		return undefined;
+		return this.baseType && this.baseType.getSymbolAtPos(position);
 	}
 
-	index(document: UCDocument, context: UCStructSymbol) {
+	index(document: UCDocument, context?: UCStructSymbol) {
 		// In some cases where a variable declaration is declaring multiple properties we may already have initialized a reference.
 		// e.g. "local float x, y, z;"
-		if (this.reference) {
+		if (this.reference || !context) {
 			return;
 		}
 
 		const id = this.getId();
 		let symbol: ISymbol | undefined;
 		switch (this.typeKind) {
+			case UCTypeKind.Package: {
+				symbol = PackagesTable.findSymbol(id, false);
+				break;
+			}
+
 			case UCTypeKind.Class: {
-				// TODO: flatten this look up by using a globally defined classesMap.
 				symbol = SymbolsTable.findSymbol(id, true);
 				break;
 			}
 
-			case UCTypeKind.State: case UCTypeKind.Function: {
+			case UCTypeKind.Struct: case UCTypeKind.State: {
 				symbol = context.findSuperSymbol(id);
-				break;
-			}
-
-			case UCTypeKind.Struct: case UCTypeKind.Enum: {
-				// FIXME: Should use findSuperSymbol,
-				// - so that we can match invalid(non-types) symbols, and produce a useful error.
-				// - This however would effect the programs performance.
-				// - In fact, a struct extending a CLASS will crash the compiler, but produce no useful warning at all.
-				// - So should we match a symbol using the global table?.
-				symbol = context.findTypeSymbol(id);
 				break;
 			}
 
 			default: {
 				// First try to match upper level symbols such as a class.
-				symbol = SymbolsTable.findSymbol(id, true) || context.findTypeSymbol(id);
+				symbol = SymbolsTable.findSymbol(id, true) || context.findSuperSymbol(id);
 			}
 		}
 
-		if (symbol) {
-			// Ignore, never match a package when a type is expected,
-			// but we'd like to keep the package match in @findSymbol, so that we can properly link object literals.
-			if (symbol instanceof UCPackage) {
-				return;
-			}
-			this.setReference(symbol, document);
-		}
-
-		if (this.baseType) {
-			this.baseType.index(document, context);
-		}
+		symbol && this.setReference(symbol, document);
+		this.baseType && this.baseType.index(document, context);
 	}
 
 	analyze(document: UCDocument, context?: UCStructSymbol) {

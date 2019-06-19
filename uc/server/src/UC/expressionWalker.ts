@@ -35,9 +35,11 @@ import {
 	UCNameOfLiteral,
 	UCIntLiteral
 } from './expressions';
-import { rangeFromBounds, rangeFromBound } from './helpers';
+import { rangeFromBounds } from './helpers';
 import { createIdentifierFrom } from './documentASTWalker';
 import { toName } from './names';
+import { UCQualifiedTypeSymbol } from './Symbols/TypeSymbol';
+import { Range } from 'vscode-languageserver-types';
 
 export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 	visit(tree: ParseTree): IExpression {
@@ -408,14 +410,46 @@ export class ExpressionWalker implements UCGrammarVisitor<IExpression> {
 		const castRef = new UCSymbolReference(createIdentifierFrom(classIdNode));
 		expression.castRef = castRef;
 
-		// TODO: refactor as a QualifiedIdentifier.
 		const objectIdNode = ctx.NAME();
-		const objectIdentifier: Identifier = {
-			name: toName(objectIdNode.text.replace(/'|\s/g, "")),
-			range: rangeFromBound(objectIdNode.symbol)
-		};
-		const objectRef = new UCSymbolReference(objectIdentifier);
-		expression.objectRef = objectRef;
+		const str = objectIdNode.text.replace(/'|\s/g, "");
+		const ids = str.split('.');
+
+		const startLine = objectIdNode.symbol.line - 1;
+		let startChar = objectIdNode.symbol.charPositionInLine + 1;
+
+		const identifiers: Identifier[] = [];
+		for (let id of ids) {
+			const identifier: Identifier = {
+				name: toName(id),
+				range: {
+					start: {
+						line: startLine,
+						character: startChar
+					},
+					end: {
+						line: startLine,
+						character: startChar + id.length
+					}
+				} as Range
+			};
+			identifiers.push(identifier);
+
+			startChar += id.length + 1;
+		}
+
+		if (identifiers.length === 1) {
+			const type = new UCTypeSymbol(identifiers[0]);
+			expression.objectRef = type;
+		} else if (identifiers.length > 1) {
+			const get = (i: number): UCQualifiedTypeSymbol => {
+				const type = new UCTypeSymbol(identifiers[i]);
+				const leftType = i-1 > -1 ? get(-- i) : undefined;
+				return new UCQualifiedTypeSymbol(type, leftType);
+			};
+			expression.objectRef = get(identifiers.length-1);
+		} else {
+
+		}
 		return expression;
 	}
 

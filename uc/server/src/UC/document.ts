@@ -115,7 +115,10 @@ export class UCDocument {
 		const start = performance.now();
 		this.class!.analyze(this, this.class);
 		connection.console.info(this.fileName + ': analyzing time ' + (performance.now() - start));
-		return this.getNodes();
+
+		const nodes = this.getNodes();
+		this.nodes = [];
+		return nodes;
 	}
 
 	private getNodes() {

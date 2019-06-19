@@ -29,16 +29,12 @@ export class UCStateSymbol extends UCStructSymbol {
 				return symbol;
 			}
 		}
-		return this.getChildSymbolAtPos(position);
+		return super.getContainedSymbolAtPos(position);
 	}
 
 	findSuperSymbol(id: Name) {
 		const symbol = super.findSuperSymbol(id) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id);
 		return symbol;
-	}
-
-	findTypeSymbol(id: Name) {
-		return (this.outer as UCStructSymbol).findTypeSymbol(id);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
@@ -62,7 +58,7 @@ export class UCStateSymbol extends UCStructSymbol {
 					document.nodes.push(new SemanticErrorNode(ref, `Cannot ignore final functions.`));
 				}
 			} else {
-				document.nodes.push(new SemanticErrorNode(ref, `'${symbol.getName()}' is not a function.`));
+				document.nodes.push(new SemanticErrorNode(ref, `'${symbol.getId()}' is not a function.`));
 			}
 		}
 	}
