@@ -12,10 +12,13 @@
 		"vscode": "^1.29.0"
 	},
 	"categories": [
-		"Programming Languages"
+		"Programming Languages",
+		"Linters"
 	],
 	"keywords": [
-		"multi-root ready"
+		"UC",
+		"UnrealScript",
+		"IntelliSense"
 	],
 	"activationEvents": [
 		"onLanguage:unrealscript"
