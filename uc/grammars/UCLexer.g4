@@ -16,10 +16,16 @@ BLOCK_COMMENT
 	-> channel(HIDDEN)
 	;
 
-EOL
-	: '\n'
+PP_LINE
+	: PP ~'{' ~[\r\n]*
 	-> channel(HIDDEN)
 	;
+
+PP_BLOCK
+	: PP '{' ~'}'* '}'
+	-> channel(HIDDEN)
+	;
+
 WS
 	: [ \t\r\n]+
 	-> skip
@@ -41,6 +47,8 @@ FLOAT
 	: (DIGIT+ DOT DIGITF* EXPONENT?)
 	| (DIGIT+ DIGITF* EXPONENT)
 	;
+
+PP: '`';
 
 OPEN_PARENS: '(';
 CLOSE_PARENS: ')';

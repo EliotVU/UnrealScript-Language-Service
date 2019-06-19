@@ -182,6 +182,7 @@ identifier
 	|'int'
 	|'float'
 	|'string'
+	|'pointer'
 	|'button'
 	|'bool'
 	|'name'
@@ -491,8 +492,7 @@ enumDecl:
 enumMember: identifier metaData? COMMA?;
 
 structDecl
-	:	'struct' // (OPEN_BRACE .*? CLOSE_BRACE)? // parses native type like "struct {DOUBLE}"
-			structModifier* identifier extendsClause?
+	:	'struct' exportBlockText? structModifier* identifier extendsClause?
 		OPEN_BRACE
 			structMember*
 		CLOSE_BRACE
@@ -538,14 +538,14 @@ varDecl: 'var' (OPEN_PARENS categoryList? CLOSE_PARENS)?
 
 // id[5] {DWORD} <Order=1>
 variable: identifier (OPEN_BRACKET arrayDim? CLOSE_BRACKET)?
-	/* cppcode? */ // nativeTypeDecl
-	/* metaData? */
+	exportBlockText?
+	metaData?
 	;
 
 // UC3 <UIMin=0.0|UIMax=1.0|Toolip=Hello world!>
 // FIXME: This is incorrect, any value is allowed.
-metaData: LT (metaTag BITWISE_OR?)* GT;
-metaTag: identifier ASSIGNMENT .*?;
+metaData: LT metaTag* GT;
+metaTag: identifier ASSIGNMENT (~(BITWISE_OR | GT) | metaTag);
 
 categoryList: identifier (COMMA identifier)*;
 
@@ -556,54 +556,52 @@ nativeTypeModifier: OPEN_BRACE identifier CLOSE_BRACE;
 nativeMapType: OPEN_BRACE .*? COMMA .*? CLOSE_BRACE; // use cppcode?
 
 variableModifier
-	: (
-		'public'
-		| 'protected'
-		| 'protectedwrite'
-		| 'private'
-		| 'privatewrite'
-		| 'localized'
-		| 'native'
-		| 'const'
-		| 'editconst'
-		| 'config'
-		| 'globalconfig'
-		| 'transient'
-		| 'travel'
-		| 'input'
-		// UC2
-		| 'export'
-		| 'noexport'
-		| 'noimport'
-		| 'cache'
-		| 'automated'
-		| 'editinline'
-		| 'editinlinenotify'
-		| 'editinlineuse'
-		| 'editconstarray'
-		| 'edfindable'
-		// UC3
-		| 'init'
-		| 'edithide'
-		| 'editfixedsize'
-		| 'editoronly'
-		| 'editortextbox'
-		| 'noclear'
-		| 'serializetext'
-		| 'nontransactional'
-		| 'instanced'
-		| 'databinding'
-		| 'duplicatetransient'
-		| 'repretry'
-		| 'repnotify'
-		| 'interp'
-		| 'deprecated'
-		| 'notforconsole'
-		| 'archetype'
-		| 'crosslevelactive'
-		| 'crosslevelpassive'
-		| 'allowabstract'
-	) nativeTypeModifier?
+	: ('public' exportBlockText?)
+	| ('protected' exportBlockText?)
+	| ('protectedwrite' exportBlockText?)
+	| ('private' exportBlockText?)
+	| ('privatewrite' exportBlockText?)
+	| 'localized'
+	| 'native'
+	| 'const'
+	| 'editconst'
+	| 'config'
+	| 'globalconfig'
+	| 'transient'
+	| 'travel'
+	| 'input'
+	// UC2
+	| 'export'
+	| 'noexport'
+	| 'noimport'
+	| 'cache'
+	| 'automated'
+	| 'editinline'
+	| 'editinlinenotify'
+	| 'editinlineuse'
+	| 'editconstarray'
+	| 'edfindable'
+	// UC3
+	| 'init'
+	| 'edithide'
+	| 'editfixedsize'
+	| 'editoronly'
+	| 'editortextbox'
+	| 'noclear'
+	| 'serializetext'
+	| 'nontransactional'
+	| 'instanced'
+	| 'databinding'
+	| 'duplicatetransient'
+	| 'repretry'
+	| 'repnotify'
+	| 'interp'
+	| 'deprecated'
+	| 'notforconsole'
+	| 'archetype'
+	| 'crosslevelactive'
+	| 'crosslevelpassive'
+	| 'allowabstract'
 	;
 
 typeDecl
@@ -639,20 +637,16 @@ delegateType: 'delegate' (LT identifier GT); // TODO: Can a delegate be declared
 mapType: 'map' /* nativeMapType */;
 
 cppText
-	: 'cpptext'
-	  // UnrealScriptBug: Must be on the next line after keyword!
-	  cppcode
+	: 'cpptext' exportBlockText
 	;
 
 structCppText
-	: ('structcpptext' | 'cppstruct')
-	  // UnrealScriptBug: Must be on the next line after keyword!
-	  cppcode
+	: ('structcpptext' | 'cppstruct') exportBlockText
 	;
 
 // UnrealScriptBug: Anything WHATSOEVER can be written after this closing brace as long as it's on the same line!
-cppcode
-	: OPEN_BRACE (cppcode | .)*? CLOSE_BRACE
+exportBlockText
+	: OPEN_BRACE (~CLOSE_BRACE | exportBlockText)* CLOSE_BRACE
 	;
 
 replicationBlock
@@ -704,9 +698,9 @@ functionMember
 nativeToken: (OPEN_PARENS INTEGER CLOSE_PARENS);
 
 functionModifier
-	: 'public'
-	| 'protected'
-	| 'private'
+	: ('public' exportBlockText?)
+	| ('protected' exportBlockText?)
+	| ('private' exportBlockText?)
 	| 'final'
 	| 'simulated'
 	| 'static'
@@ -726,6 +720,9 @@ functionModifier
 	| 'client'
 	| 'dllimport'
 	| 'demorecording'
+	| 'k2call'
+	| 'k2pure'
+	| 'k2override'
 	;
 
 // TODO: implement a more restricted operator rule.
