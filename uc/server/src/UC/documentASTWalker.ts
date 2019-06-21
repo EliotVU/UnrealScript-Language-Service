@@ -25,13 +25,14 @@ import { UCTypeKind } from './Symbols/TypeKind';
 
 import { SyntaxErrorNode } from './diagnostics/diagnostics';
 
-import { UCBlock, IStatement } from './statements';
+import { UCBlock, IStatement, UCExpressionStatement, UCLabeledStatement, UCReturnStatement, UCGotoStatement, UCIfStatement, UCWhileStatement, UCDoUntilStatement, UCForEachStatement, UCForStatement, UCSwitchStatement, UCCaseClause, UCDefaultClause, UCAssertStatement } from './statements';
 import { setEnumMember } from './indexer';
 
-import { StatementVisitor } from './statementWalker';
 import { UCDocument } from './document';
+import { UCAssignmentExpression, IExpression, UCConditionalExpression, UCBinaryExpression, UCUnaryExpression, UCParenthesizedExpression, UCPropertyAccessExpression, UCCallExpression, UCElementAccessExpression, UCNewExpression, UCMetaClassExpression, UCSuperExpression, UCPredefinedAccessExpression, UCPredefinedPropertyAccessExpression, UCMemberExpression, UCNoneLiteral, UCStringLiteral, UCNameLiteral, UCBoolLiteral, UCFloatLiteral, UCIntLiteral, UCObjectLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCNameOfLiteral } from './expressions';
+import { UCQualifiedTypeSymbol } from './Symbols/TypeSymbol';
 
-export function createIdentifierFrom(ctx: ParserRuleContext) {
+function createIdentifierFrom(ctx: ParserRuleContext) {
 	const identifier: Identifier = {
 		name: toName(ctx.text),
 		range: rangeFromBound(ctx.start)
@@ -40,7 +41,26 @@ export function createIdentifierFrom(ctx: ParserRuleContext) {
 	return identifier;
 }
 
-export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefined | Identifier> implements UCGrammarVisitor<ISymbol | undefined | Identifier>, ANTLRErrorListener<Token> {
+function createMemberExpressionFromIdentifier(ctx: UCParser.IdentifierContext): UCMemberExpression {
+	const expression = new UCMemberExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
+	expression.context = ctx;
+	return expression;
+}
+
+function createBlockFromCode(visitor: DocumentASTWalker, ctx: UCParser.CodeBlockOptionalContext | UCParser.CaseClauseContext | UCParser.DefaultClauseContext): UCBlock {
+	const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
+	const statementNodes = ctx.statement();
+	if (statementNodes) {
+		block.statements = new Array(statementNodes.length);
+		for (var i = 0; i < statementNodes.length; ++ i) {
+			const statement: IStatement = statementNodes[i].accept(visitor);
+			block.statements[i] = statement;
+		}
+	}
+	return block;
+}
+
+export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpression | IStatement | Identifier | undefined> implements UCGrammarVisitor<any>, ANTLRErrorListener<Token> {
 	private scopes: ISymbolContainer<ISymbol>[] = [];
 
 	constructor(private document: UCDocument) {
@@ -238,14 +258,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 	visitInlinedDeclTypes(inlinedTypeCtx: UCParser.InlinedDeclTypesContext): ITypeSymbol | undefined {
 		const structDeclNode = inlinedTypeCtx.structDecl();
 		if (structDeclNode) {
-			structDeclNode.accept<any>(this);
+			structDeclNode.accept(this);
 			const structIdentifier = structDeclNode.identifier().accept(this);
 			return new UCTypeSymbol(structIdentifier, undefined, UCTypeKind.Struct);
 		}
 
 		const enumDeclNode = inlinedTypeCtx.enumDecl();
 		if (enumDeclNode) {
-			enumDeclNode.accept<any>(this);
+			enumDeclNode.accept(this);
 			const enumIdentifier = enumDeclNode.identifier().accept(this);
 			return new UCTypeSymbol(enumIdentifier, undefined, UCTypeKind.Enum);
 		}
@@ -414,7 +434,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 		const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
 		block.statements = Array(statementNodes.length);
 		for (var i = 0; i < statementNodes.length; ++ i) {
-			const statement = statementNodes[i].accept<IStatement>(StatementVisitor);
+			const statement = statementNodes[i].accept(this);
 			block.statements[i] = statement;
 
 			const idNodes = statementNodes[i].identifier();
@@ -487,7 +507,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 		const typeSymbol = this.visitTypeDecl(propTypeNode);
 
 		const varNode = ctx.variable();
-		const symbol = varNode.accept<any>(this);
+		const symbol = varNode.accept(this);
 		symbol.type = typeSymbol;
 		this.declare(symbol);
 		return symbol;
@@ -499,7 +519,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 
 		const varNodes = ctx.variable();
 		for (const varNode of varNodes) {
-			const symbol = varNode.accept<any>(this);
+			const symbol = varNode.accept(this);
 			symbol.type = typeSymbol;
 			this.declare(symbol);
 		}
@@ -516,7 +536,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 
 		const varNodes = ctx.variable();
 		if (varNodes) for (const varNode of varNodes) {
-			const symbol = varNode.accept<any>(this);
+			const symbol = varNode.accept(this);
 			symbol.context = varNode;
 			symbol.type = typeSymbol;
 			this.declare(symbol);
@@ -550,7 +570,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 		const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
 		block.statements = Array(nodes.length);
 		for (var i = 0; i < nodes.length; ++ i) {
-			const statement = nodes[i].accept(StatementVisitor);
+			const statement = nodes[i].accept(this);
 			block.statements[i] = statement;
 		}
 		return block;
@@ -572,7 +592,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 		this.push(symbol);
 		const members = ctx.stateMember();
 		if (members) for (const member of members) {
-			member.accept<any>(this);
+			member.accept(this);
 		}
 
 		const statementNodes = ctx.statement();
@@ -614,7 +634,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 		this.push(symbol);
 		const members = ctx.defaultStatement();
 		if (members) for (const member of members) {
-			member.accept<any>(this);
+			member.accept(this);
 		}
 		this.pop();
 		return symbol;
@@ -633,7 +653,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 		this.push(symbol);
 		const members = ctx.defaultStatement();
 		if (members) for (const member of members) {
-			member.accept<any>(this);
+			member.accept(this);
 		}
 		this.pop();
 		return symbol;
@@ -651,7 +671,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 		this.push(symbol);
 		const members = ctx.defaultStatement();
 		if (members) for (const member of members) {
-			member.accept<any>(this);
+			member.accept(this);
 		}
 		this.pop();
 		return symbol;
@@ -716,6 +736,630 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | undefi
 			return identifier;
 		}
 		else return ctx.identifier()!.accept(this);
+	}
+
+	visitStatement(ctx: UCParser.StatementContext) {
+		if (ctx.childCount === 0) {
+			return undefined!;
+		}
+
+		return ctx.getChild(0).accept(this);
+	}
+
+	visitExpressionStatement(ctx: UCParser.ExpressionStatementContext) {
+		const statement = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+		statement.expression = ctx.expression().accept(this);
+		return statement;
+	}
+
+	visitLabeledStatement(ctx: UCParser.LabeledStatementContext): UCLabeledStatement {
+		const statement = new UCLabeledStatement(rangeFromBounds(ctx.start, ctx.stop));
+		const idNode = ctx.identifier();
+		if (idNode) {
+			statement.label = idNode.text;
+		}
+		statement.context = ctx;
+		return statement;
+	}
+
+	visitReturnStatement(ctx: UCParser.ReturnStatementContext): IStatement {
+		const statement = new UCReturnStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(this);
+		}
+		return statement;
+	}
+
+	visitGotoStatement(ctx: UCParser.GotoStatementContext): IStatement {
+		const statement = new UCGotoStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const idNode = ctx.identifier();
+		if (idNode) {
+			statement.label = idNode.text;
+		} else {
+			const exprNode = ctx.expression();
+			if (exprNode) {
+				statement.expression = exprNode.accept(this);
+			}
+		}
+		return statement;
+	}
+
+	visitReplicationStatement(ctx: UCParser.ReplicationStatementContext): UCIfStatement {
+		const statement = new UCIfStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(this);
+		}
+		return statement;
+	}
+
+	visitWhileStatement(ctx: UCParser.WhileStatementContext): UCWhileStatement {
+		const statement = new UCWhileStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(this);
+		}
+
+		const blockNode = ctx.codeBlockOptional();
+		if (blockNode) {
+			statement.then = createBlockFromCode(this, blockNode);
+		}
+		return statement;
+	}
+
+	visitIfStatement(ctx: UCParser.IfStatementContext): UCIfStatement {
+		const statement = new UCIfStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(this);
+		}
+
+		const blockNode = ctx.codeBlockOptional();
+		if (blockNode) {
+			statement.then = createBlockFromCode(this, blockNode);
+		}
+
+		const elseStatementNode = ctx.elseStatement();
+		if (elseStatementNode) {
+			statement.else = elseStatementNode.accept(this);
+		}
+		return statement;
+	}
+
+	visitElseStatement(ctx: UCParser.ElseStatementContext) {
+		const blockNode = ctx.codeBlockOptional();
+		if (blockNode) {
+			return blockNode.accept(this);
+		}
+		return undefined;
+	}
+
+	visitDoStatement(ctx: UCParser.DoStatementContext): UCDoUntilStatement {
+		const statement = new UCDoUntilStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(this);
+		}
+
+		const blockNode = ctx.codeBlockOptional();
+		if (blockNode) {
+			statement.then = createBlockFromCode(this, blockNode);
+		}
+		return statement;
+	}
+
+	visitForeachStatement(ctx: UCParser.ForeachStatementContext): UCForEachStatement {
+		const statement = new UCForEachStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const exprNode = ctx.primaryExpression();
+		if (exprNode) {
+			statement.expression = exprNode.accept<any>(this);
+		}
+
+		const blockNode = ctx.codeBlockOptional();
+		if (blockNode) {
+			statement.then = createBlockFromCode(this, blockNode);
+		}
+		return statement;
+	}
+
+	visitForStatement(ctx: UCParser.ForStatementContext): UCForStatement {
+		const statement = new UCForStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		let exprNode = ctx.expression(0);
+		if (exprNode) {
+			statement.init = exprNode.accept(this);
+		}
+
+		exprNode = ctx.expression(1);
+		if (exprNode) {
+			statement.expression = exprNode.accept(this);
+		}
+
+		exprNode = ctx.expression(2);
+		if (exprNode) {
+			statement.next = exprNode.accept(this);
+		}
+
+		const blockNode = ctx.codeBlockOptional();
+		if (blockNode) {
+			statement.then = createBlockFromCode(this, blockNode);
+		}
+		return statement;
+	}
+
+	visitSwitchStatement(ctx: UCParser.SwitchStatementContext): IStatement {
+		const statement = new UCSwitchStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(this);
+		}
+
+		const clauseNodes: ParserRuleContext[] = ctx.caseClause() || [];
+		const defaultClauseNode = ctx.defaultClause();
+
+		if (defaultClauseNode) {
+			clauseNodes.push(defaultClauseNode);
+		}
+
+		const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
+		block.statements = Array(clauseNodes.length);
+		for (var i = 0; i < clauseNodes.length; ++ i) {
+			const caseStatement: IStatement = clauseNodes[i].accept<any>(this);
+			block.statements[i] = caseStatement;
+		}
+		statement.then = block;
+
+		return statement;
+	}
+
+	visitCaseClause(ctx: UCParser.CaseClauseContext): IStatement {
+		const statement = new UCCaseClause(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(this);
+		}
+		statement.then = createBlockFromCode(this, ctx);
+		return statement;
+	}
+
+	visitDefaultClause(ctx: UCParser.DefaultClauseContext) {
+		const statement = new UCDefaultClause(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+		statement.then = createBlockFromCode(this, ctx);
+		return statement;
+	}
+
+	visitAssertStatement(ctx: UCParser.AssertStatementContext): IStatement {
+		const statement = new UCAssertStatement(rangeFromBounds(ctx.start, ctx.stop));
+		statement.context = ctx;
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(this);
+		}
+		return statement;
+	}
+
+	visitAssignmentExpression(ctx: UCParser.AssignmentExpressionContext) {
+		const expression = new UCAssignmentExpression();
+		expression.context = ctx;
+
+		const primaryNode = ctx.primaryExpression();
+		if (primaryNode) {
+			expression.left = primaryNode.accept<any>(this);
+			expression.left!.outer = expression;
+		}
+
+		const operatorNode = ctx.assignmentOperator();
+		expression.operator = new UCSymbolReference(createIdentifierFrom(operatorNode));
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			expression.right = exprNode.accept<any>(this);
+			expression.right!.outer = expression;
+		}
+		return expression;
+	}
+
+	visitConditionalExpression(ctx: UCParser.ConditionalExpressionContext) {
+		const expression = new UCConditionalExpression();
+		expression.context = ctx;
+
+		const conditionNode = ctx.unaryExpression();
+		if (conditionNode) {
+			expression.condition = conditionNode.accept<any>(this);
+			expression.condition.outer = expression;
+		}
+
+		const leftNode = ctx.expression(0);
+		if (leftNode) {
+			expression.true = leftNode.accept<any>(this);
+			expression.true!.outer = expression;
+		}
+
+		const rightNode = ctx.expression(1);
+		if (rightNode) {
+			expression.false = rightNode.accept<any>(this);
+			expression.false!.outer = expression;
+		}
+		return expression;
+	}
+
+	visitBinaryExpression(ctx: UCParser.BinaryExpressionContext) {
+		const expression = new UCBinaryExpression();
+		expression.context = ctx;
+
+		const leftNode = ctx.unaryExpression();
+		if (leftNode) {
+			expression.left = leftNode.accept<any>(this);
+			expression.left!.outer = expression;
+		}
+
+		const operatorNode = ctx.functionName();
+		expression.operator = new UCSymbolReference(createIdentifierFrom(operatorNode));
+
+		const rightNode = ctx.expression();
+		if (rightNode) {
+			expression.right = rightNode.accept<any>(this);
+			expression.right!.outer = expression;
+		}
+		return expression;
+	}
+
+	visitUnaryExpression(ctx: UCParser.UnaryExpressionContext) {
+		const expression = new UCUnaryExpression();
+		expression.context = ctx;
+
+		const primaryNode = ctx.primaryExpression();
+		if (primaryNode) {
+			expression.expression = primaryNode.accept<any>(this);
+			expression.expression.outer = expression;
+		}
+
+		const operatorNode = ctx.unaryOperator();
+		if (operatorNode) {
+			expression.operator = new UCSymbolReference(createIdentifierFrom(operatorNode));
+		}
+		return expression;
+	}
+
+	visitParenthesizedExpression(ctx: UCParser.ParenthesizedExpressionContext) {
+		const expression = new UCParenthesizedExpression();
+		expression.context = ctx;
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			expression.expression = exprNode.accept<any>(this);
+			expression.expression!.outer = expression;
+		}
+		return expression;
+	}
+
+	visitPropertyAccessExpression(ctx: UCParser.PropertyAccessExpressionContext) {
+		const expression = new UCPropertyAccessExpression();
+		expression.context = ctx;
+
+		const primaryNode = ctx.primaryExpression();
+		if (primaryNode) {
+			expression.left = primaryNode.accept<any>(this);
+			expression.left!.outer = expression;
+		}
+
+		const idNode = ctx.identifier();
+		if (idNode) {
+			expression.member = createMemberExpressionFromIdentifier(idNode);
+			expression.member!.outer = expression;
+			return expression;
+		}
+
+		const specNode = ctx.classPropertyAccessSpecifier();
+		if (specNode) {
+			// TODO: recognize this particular kind of a propertyAccessExpression
+		}
+
+		throw "PropertyAccess with no member!";
+	}
+
+	visitMemberExpression(ctx: UCParser.MemberExpressionContext) {
+		return createMemberExpressionFromIdentifier(ctx.identifier());
+	}
+
+	visitCallExpression(ctx: UCParser.CallExpressionContext) {
+		const expression = new UCCallExpression();
+		expression.context = ctx;
+
+		// expr ( arguments )
+		const exprNode = ctx.primaryExpression();
+		if (exprNode) {
+			expression.expression = exprNode.accept<any>(this);
+			expression.expression!.outer = expression;
+		}
+
+		const exprArgumentNodes = ctx.arguments();
+		if (exprArgumentNodes) {
+			expression.arguments = this.visitExpressionArguments(exprArgumentNodes);
+		}
+		return expression;
+	}
+
+	// primaryExpression [ expression ]
+	visitElementAccessExpression(ctx: UCParser.ElementAccessExpressionContext) {
+		const expression = new UCElementAccessExpression();
+		expression.context = ctx;
+
+		const primaryNode = ctx.primaryExpression();
+		if (primaryNode) {
+			expression.expression = primaryNode.accept<any>(this);
+			expression.expression!.outer = expression;
+		}
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			expression.argument = exprNode.accept<any>(this);
+			expression.argument!.outer = expression;
+		}
+		return expression;
+	}
+
+	// new ( arguments ) classArgument
+	visitNewExpression(ctx: UCParser.NewExpressionContext) {
+		const expression = new UCNewExpression();
+		expression.context = ctx;
+
+		const exprNode = ctx.primaryExpression();
+		if (exprNode) {
+			expression.expression = exprNode.accept<any>(this);
+			expression.expression!.outer = expression;
+		}
+
+		const exprArgumentNodes = ctx.arguments();
+		if (exprArgumentNodes) {
+			expression.arguments = this.visitExpressionArguments(exprArgumentNodes);
+		}
+		return expression;
+	}
+
+	visitMetaClassExpression(ctx: UCParser.MetaClassExpressionContext) {
+		const expression = new UCMetaClassExpression(rangeFromBounds(ctx.start, ctx.stop));
+		expression.context = ctx;
+
+		const classIdNode = ctx.identifier();
+		if (classIdNode) {
+			expression.classRef = new UCTypeSymbol(createIdentifierFrom(classIdNode), undefined, UCTypeKind.Class);
+		}
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			expression.expression = exprNode.accept(this);
+			expression.expression!.outer = expression;
+		}
+		return expression;
+	}
+
+	visitSuperExpression(ctx: UCParser.SuperExpressionContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCSuperExpression(range);
+		expression.context = ctx;
+
+		const classIdNode = ctx.identifier();
+		if (classIdNode) {
+			expression.classRef = new UCTypeSymbol(createIdentifierFrom(classIdNode), undefined, UCTypeKind.Class);
+		}
+		return expression;
+	}
+
+	visitSelfReferenceExpression(ctx: UCParser.SelfReferenceExpressionContext) {
+		const expression = new UCPredefinedAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitDefaultReferenceExpression(ctx: UCParser.DefaultReferenceExpressionContext) {
+		const expression = new UCPredefinedAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitStaticAccessExpression(ctx: UCParser.StaticAccessExpressionContext) {
+		const expression = new UCPredefinedAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitGlobalAccessExpression(ctx: UCParser.GlobalAccessExpressionContext) {
+		const expression = new UCPredefinedAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitClassPropertyAccessSpecifier(ctx: UCParser.ClassPropertyAccessSpecifierContext) {
+		const expression = new UCPredefinedPropertyAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitOperator(ctx: UCParser.OperatorContext): UCMemberExpression {
+		const expression = new UCMemberExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitUnaryOperator(ctx: UCParser.UnaryOperatorContext) {
+		const expression = new UCMemberExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitExpressionArguments(ctx: UCParser.ArgumentsContext): IExpression[] | undefined {
+		const argumentNodes = ctx.expression();
+		if (!argumentNodes) {
+			return undefined;
+		}
+
+		const expressions: IExpression[] = [];
+		for (let arg of argumentNodes) {
+			expressions.push(arg.accept(this));
+		}
+		return expressions;
+	}
+
+	// TODO: Implement specialized symbol class.
+	visitArrayCountExpression(ctx: UCParser.ArrayCountExpressionContext) {
+		const expression = new UCParenthesizedExpression();
+		expression.context = ctx;
+
+		const exprNode = ctx.primaryExpression();
+		if (exprNode) {
+			expression.expression = exprNode.accept<any>(this);
+			expression.expression!.outer = expression;
+		}
+		return expression;
+	}
+
+	visitNoneLiteral(ctx: UCParser.NoneLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCNoneLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitStringLiteral(ctx: UCParser.StringLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCStringLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitNameLiteral(ctx: UCParser.NameLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCNameLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitBoolLiteral(ctx: UCParser.BoolLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCBoolLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitFloatLiteral(ctx: UCParser.NumberLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCFloatLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitIntLiteral(ctx: UCParser.IntLiteralContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCIntLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitObjectLiteral(ctx: UCParser.ObjectLiteralContext) {
+		const expression = new UCObjectLiteral(rangeFromBounds(ctx.start, ctx.stop));
+		expression.context = ctx;
+
+		const classIdNode = ctx.identifier();
+		const castRef = new UCSymbolReference(createIdentifierFrom(classIdNode));
+		expression.castRef = castRef;
+
+		const objectIdNode = ctx.NAME();
+		const str = objectIdNode.text.replace(/'|\s/g, "");
+		const ids = str.split('.');
+
+		const startLine = objectIdNode.symbol.line - 1;
+		let startChar = objectIdNode.symbol.charPositionInLine + 1;
+
+		const identifiers: Identifier[] = [];
+		for (let id of ids) {
+			const identifier: Identifier = {
+				name: toName(id),
+				range: {
+					start: {
+						line: startLine,
+						character: startChar
+					},
+					end: {
+						line: startLine,
+						character: startChar + id.length
+					}
+				} as Range
+			};
+			identifiers.push(identifier);
+
+			startChar += id.length + 1;
+		}
+
+		if (identifiers.length === 1) {
+			const type = new UCTypeSymbol(identifiers[0]);
+			expression.objectRef = type;
+		} else if (identifiers.length > 1) {
+			const get = (i: number): UCQualifiedTypeSymbol => {
+				const type = new UCTypeSymbol(identifiers[i]);
+				const leftType = i-1 > -1 ? get(-- i) : undefined;
+				return new UCQualifiedTypeSymbol(type, leftType);
+			};
+			expression.objectRef = get(identifiers.length-1);
+		} else {
+
+		}
+		return expression;
+	}
+
+	visitVectToken(ctx: UCParser.VectTokenContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCVectLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitRotToken(ctx: UCParser.RotTokenContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCRotLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitRngToken(ctx: UCParser.RngTokenContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCRngLiteral(range);
+		expression.context = ctx;
+		return expression;
+	}
+
+	visitNameOfToken(ctx: UCParser.NameOfTokenContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCNameOfLiteral(range);
+		expression.context = ctx;
+		const idNode = ctx.identifier();
+		if (idNode) {
+			expression.memberRef = new UCSymbolReference(createIdentifierFrom(idNode));
+		}
+		return expression;
 	}
 
 	protected defaultResult() {

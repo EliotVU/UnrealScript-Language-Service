@@ -64,7 +64,11 @@ export class UCDocument {
 			parser.addErrorListener(walker);
 			walker.visit(parser.program());
 		} catch (err) {
-			connection.console.error(`An error was thrown while walking document:\n "${this.filePath}", "${err.stack}"`);
+			connection.console.error(
+				`An error was thrown while walking document: "${this.filePath}",
+				\n
+				\t stack: "${err.stack}"`
+			);
 		} finally {
 			connection.console.info(this.fileName + ': Walking time ' + (performance.now() - startWalking));
 		}

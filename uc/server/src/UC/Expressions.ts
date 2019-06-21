@@ -351,9 +351,7 @@ function findOperatorSymbol(id: Name, scope: UCStructSymbol): UCSymbol | undefin
 
 export class UCUnaryExpression extends UCExpression {
 	public expression: IExpression;
-
-	// TODO: Linkup?
-	public operator: UCSymbolReference;
+	public operator?: UCSymbolReference;
 
 	getMemberSymbol() {
 		return this.expression.getMemberSymbol();
@@ -365,20 +363,23 @@ export class UCUnaryExpression extends UCExpression {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		const symbol = this.operator.getSymbolAtPos(position);
-		if (symbol && this.operator.getReference()) {
+		const symbol = this.operator && this.operator.getSymbolAtPos(position);
+		if (symbol && this.operator!.getReference()) {
 			return symbol;
 		}
 		return this.expression && this.expression.getSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol) {
-		const operatorSymbol = findOperatorSymbol(this.operator.getId(), context!);
-		operatorSymbol && this.operator.setReference(operatorSymbol, document);
+		if (this.operator) {
+			const operatorSymbol = findOperatorSymbol(this.operator.getId(), context!);
+			operatorSymbol && this.operator.setReference(operatorSymbol, document);
+		}
 		if (this.expression) this.expression.index(document, context);
 	}
 
 	analyze(document: UCDocument, context?: UCStructSymbol) {
+		// TODO: missing operator?
 		if (this.expression) this.expression.analyze(document, context);
 	}
 }

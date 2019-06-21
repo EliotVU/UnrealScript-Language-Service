@@ -809,9 +809,11 @@ statement
 	| labeledStatement
 
 	// We must check for expressions after ALL statements so that we don't end up capturing statement keywords as identifiers.
-	| expression SEMICOLON
+	| expressionStatement SEMICOLON
 	| directive
 	;
+
+expressionStatement: expression;
 
 ifStatement
 	: 'if' (OPEN_PARENS expression CLOSE_PARENS)
