@@ -450,14 +450,24 @@ repository:
 
   method-declaration:
     name: meta.method.declaration
-    begin: "\\b(((?i)function|event|delegate|preoperator|postoperator)|(((?i)operator))((\\s*\\(\\s*([0-9]*)\\s*\\))))"
+    begin: \b(((?i)(function)|(event)|(delegate)|(preoperator)|(postoperator))|(((?i)operator))((\s*\(\s*([0-9]*)\s*\))))
     end: (?<=\}|\;)
     beginCaptures:
       '2':
         name: keyword.other.method.uc
+      '3':
+        name: keyword.other.function.uc
       '4':
-        name: keyword.other.method.uc
+        name: keyword.other.event.uc
+      '5':
+        name: keyword.other.delegate.uc
+      '6':
+        name: keyword.other.operator.pre.uc
       '7':
+        name: keyword.other.operator.post.uc
+      '9':
+        name: keyword.other.operator.uc
+      '12':
         name: constant.numeric.uc
     patterns:
       - include: '#comment'
