@@ -29,13 +29,15 @@ repository:
         end: \n
 
   directive:
-    name: meta.preprocessor.uc
-    begin: ^\s*(\#)\s*\b((?i)[_[:alpha:]][_[:alnum:]]*)\b
+    name: meta.preprocessor.macro.uc
+    begin: ^\s*(\#)\s*\b(((?i)include|error)|((?i)call|exec|linenumber))\b
     beginCaptures:
       '1':
         name: punctuation.separator.hash.uc
-      '2':
-        name: keyword.preprocessor.other.uc
+      '3':
+        name: keyword.control.directive.other.uc
+      '4':
+        name: keyword.preprocessor.directive.other.uc
     patterns:
       - include: '#comment'
       - include: '#expression' #technically incorrect, but this is nice to have.
@@ -187,7 +189,7 @@ repository:
 
         # predefined alias types (Array, Class, and Delegate are excluded)
       - match: \b((?i)float|int|byte|bool|button|name|string|pointer)\b
-        name: keyword.type.uc
+        name: storage.type.primitive.uc
 
         # Delimmiter e.g. Array<string>
       - begin: \<
@@ -225,7 +227,7 @@ repository:
 
         # predefined alias types (Array, Class, and Delegate are excluded)
       - match: \b((?i)float|int|byte|bool|button|name|string|pointer)\b
-        name: keyword.type.uc
+        name: keyword.type.primitive.uc
 
         # Delimmiter e.g. Array<string>
       - begin: \<
@@ -269,7 +271,7 @@ repository:
 
         # predefined alias types (Array, Class, and Delegate are excluded)
       - match: \b((?i)float|int|byte|bool|button|name|string|pointer)\b
-        name: keyword.type.uc
+        name: keyword.type.primitive.uc
 
         # Delimmiter e.g. Array<string>
       - begin: \<
