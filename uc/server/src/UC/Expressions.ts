@@ -30,15 +30,10 @@ import {
 	RotatorTypeRef,
 	RotMethodLike,
 	RangeTypeRef,
-	RngMethodLike
+	RngMethodLike,
+	ITypeSymbol,
+	TypeCastMap
 } from './Symbols';
-
-import {
-	PredefinedByte, PredefinedFloat, PredefinedString,
-	PredefinedBool, PredefinedButton, PredefinedName,
-	PredefinedInt
-} from './Symbols';
-import { ITypeSymbol } from './Symbols/TypeSymbol';
 
 export interface IExpression {
 	outer: IExpression;
@@ -491,7 +486,7 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 }
 
 export class UCMemberExpression extends UCExpression {
-	constructor (protected symbolRef: UCSymbolReference) {
+	constructor(protected symbolRef: UCSymbolReference) {
 		super(symbolRef.getRange());
 	}
 
@@ -510,74 +505,41 @@ export class UCMemberExpression extends UCExpression {
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol) {
+		const id = this.symbolRef.getId();
+		const hasArguments = this.outer instanceof UCCallExpression;
+		if (hasArguments) {
+			// We must match a predefined type over any class or scope symbol!
+			// FIXME: What about casting a byte to an ENUM type?
+			let type: ISymbol | undefined = TypeCastMap.get(id) || SymbolsTable.findSymbol(id, true);
+			if (type) {
+				this.symbolRef.setReference(type, document);
+				return;
+			}
+		}
+
 		if (!context) {
 			return;
 		}
 
-		const id = this.symbolRef.getId();
-		try {
-			const hasArguments = this.outer instanceof UCCallExpression;
-			if (hasArguments) {
-				let type: ISymbol | undefined = undefined;
-				// We must match a predefined type over any class or scope symbol!
-				switch (id) {
-					case NAME_BYTE:
-						type = PredefinedByte;
-						break;
-					case NAME_FLOAT:
-						type = PredefinedFloat;
-						break;
-					case NAME_INT:
-						type = PredefinedInt;
-						break;
-					case NAME_STRING:
-						type = PredefinedString;
-						break;
-					case NAME_NAME:
-						type = PredefinedName;
-						break;
-					case NAME_BOOL:
-						type = PredefinedBool;
-						break;
-					// Oddly... conversion to a button is actually valid!
-					case NAME_BUTTON:
-						type = PredefinedButton;
-						break;
-				}
+		let symbol = context.findSuperSymbol(id);
+		if (!symbol) {
+			// FIXME: only lookup an enumMember if the context value is either an enum, byte, or int.
+			symbol = getEnumMember(id);
+		}
 
-				if (!type) {
-					// FIXME: What about casting a byte to an ENUM type?
-					type = SymbolsTable.findSymbol(id, true);
-				}
-
-				if (type) {
-					this.symbolRef.setReference(type, document);
-					return;
-				}
-			}
-
-			let symbol = context.findSuperSymbol(id);
-			if (!symbol) {
-				// FIXME: only lookup an enumMember if the context value is either an enum, byte, or int.
-				symbol = getEnumMember(id);
-			}
-
-			if (symbol) {
-				let contextInfo: ISymbolContext;
-					contextInfo = {
-						inAssignment:
-							// Check if we are being assigned a value.
-							// FIXME: This is very ugly and should instead be determined by passing down a more verbose context to index().
-							(this.outer instanceof UCAssignmentExpression && this.outer.left === this)
-							|| this.outer instanceof UCPropertyAccessExpression
-								&& this.outer.member === this
-								&& this.outer.outer instanceof UCAssignmentExpression
-								&& this.outer.outer.left === this.outer
-					};
-					this.symbolRef.setReference(symbol, document, contextInfo);
-			}
-		} catch (err) {
-			connection.console.error('(' + document.filePath + ')' + ' An unexpected indexing error occurred ' + JSON.stringify(err));
+		if (symbol) {
+			let contextInfo: ISymbolContext;
+			contextInfo = {
+				inAssignment:
+					// Check if we are being assigned a value.
+					// FIXME: This is very ugly and should instead be determined by passing down a more verbose context to index().
+					(this.outer instanceof UCAssignmentExpression && this.outer.left === this)
+					|| this.outer instanceof UCPropertyAccessExpression
+					&& this.outer.member === this
+					&& this.outer.outer instanceof UCAssignmentExpression
+					&& this.outer.outer.left === this.outer
+			};
+			this.symbolRef.setReference(symbol, document, contextInfo);
 		}
 	}
 
@@ -674,8 +636,8 @@ export abstract class UCLiteral extends UCExpression {
 		return undefined;
 	}
 
-	index(_document: UCDocument, _context?: UCStructSymbol): void {}
-	analyze(_document: UCDocument, _context?: UCStructSymbol): void {}
+	index(_document: UCDocument, _context?: UCStructSymbol): void { }
+	analyze(_document: UCDocument, _context?: UCStructSymbol): void { }
 }
 
 export class UCNoneLiteral extends UCLiteral {
