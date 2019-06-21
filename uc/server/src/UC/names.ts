@@ -3,8 +3,8 @@ import * as CRC32 from 'crc-32';
 export class Name {
 	static map = new Map<number, Name>();
 
-	constructor(index: number, private text: string) {
-		Name.map.set(index, this);
+	constructor(public readonly hash: number, private text: string) {
+		Name.map.set(hash, this);
 	}
 
 	toString(): string {

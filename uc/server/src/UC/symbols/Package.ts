@@ -9,7 +9,7 @@ import { ISymbol, ISymbolContainer, UCClassSymbol } from '.';
 
 export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 	public outer?: UCPackage;
-	protected symbols = new Map<Name, ISymbol>();
+	protected symbols = new WeakMap<Name, ISymbol>();
 
 	constructor(private name: Name) {
 	}
@@ -33,9 +33,9 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 	// FIXME: Not setup yet!
 	getCompletionSymbols(_document: UCDocument): ISymbol[] {
 		const symbols: ISymbol[] = [];
-		for (let symbol of this.symbols.values()) {
-			symbols.push(symbol);
-		}
+		// for (let symbol of this.symbols.values()) {
+		// 	symbols.push(symbol);
+		// }
 		return symbols;
 	}
 
