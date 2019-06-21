@@ -783,8 +783,8 @@ ignoresDecl
 	;
 
 codeBlockOptional
-	: (OPEN_BRACE (constDecl | statement)* CLOSE_BRACE)
-	| (constDecl | statement)?
+	: (OPEN_BRACE statement* CLOSE_BRACE)
+	| statement
 	;
 
 statement
@@ -810,6 +810,7 @@ statement
 
 	// We must check for expressions after ALL statements so that we don't end up capturing statement keywords as identifiers.
 	| expressionStatement SEMICOLON
+	| constDecl
 	| directive
 	;
 
