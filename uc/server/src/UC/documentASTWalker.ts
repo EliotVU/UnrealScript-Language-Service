@@ -49,13 +49,18 @@ function createMemberExpressionFromIdentifier(ctx: UCParser.IdentifierContext): 
 
 function createBlockFromCode(visitor: DocumentASTWalker, ctx: UCParser.CodeBlockOptionalContext | UCParser.CaseClauseContext | UCParser.DefaultClauseContext): UCBlock {
 	const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
-	const statementNodes = ctx.statement();
-	if (statementNodes) {
-		block.statements = new Array(statementNodes.length);
-		for (var i = 0; i < statementNodes.length; ++ i) {
-			const statement: IStatement = statementNodes[i].accept(visitor);
-			block.statements[i] = statement;
+	try {
+		const statementNodes = ctx.statement();
+		if (statementNodes) {
+			block.statements = new Array(statementNodes.length);
+			for (var i = 0; i < statementNodes.length; ++ i) {
+				const statement: IStatement = statementNodes[i].accept(visitor);
+				block.statements[i] = statement;
+			}
 		}
+	} catch (err) {
+		console.error("An errored ocurred when building statements from a codeblock!", err);
+		throw err;
 	}
 	return block;
 }
@@ -126,14 +131,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		if (idNodes.length === 2) {
 			const leftId: Identifier = idNodes[0].accept(this);
 			const leftType = new UCTypeSymbol(leftId, rangeFromBounds(idNodes[0].start, idNodes[0].stop));
-			leftType.outer = scope;
 
 			const id: Identifier = idNodes[1].accept(this);
 			const type = new UCTypeSymbol(id, rangeFromBounds(idNodes[1].start, idNodes[1].stop));
-			type.outer = scope;
 
 			const symbol = new UCQualifiedType(type, new UCQualifiedType(leftType));
-			symbol.outer = scope;
 
 			// FIXME: ugly hardcoded logic
 			if (ctx.parent instanceof UCParser.ExtendsClauseContext || ctx.parent instanceof UCParser.WithinClauseContext) {
@@ -153,7 +155,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		} else if (idNodes.length === 1) {
 			const id: Identifier = idNodes[0].accept(this);
 			const type = new UCTypeSymbol(id, rangeFromBounds(idNodes[0].start, idNodes[0].stop));
-			type.outer = scope;
 
 			// FIXME: ugly hardcoded logic
 			if (ctx.parent instanceof UCParser.ExtendsClauseContext || ctx.parent instanceof UCParser.WithinClauseContext) {
@@ -184,7 +185,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 				range: rangeFromBounds(typeNode.start, typeNode.stop)
 			};
 			const symbol = new UCPredefinedTypeSymbol(identifier);
-			symbol.outer = this.scope<UCStructSymbol>(); // FIXME: necessary?
 			return symbol;
 		}
 
@@ -201,13 +201,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 				range: rangeFromBound(classTypeNode.start)
 			};
 			const symbol = new UCTypeSymbol(identifier, rangeFromBounds(classTypeNode.start, classTypeNode.stop));
-			symbol.outer = this.scope<UCStructSymbol>();
 
 			const idNode = classTypeNode.identifier();
 			if (idNode) {
 				const identifier = idNode.accept(this);
 				symbol.baseType = new UCTypeSymbol(identifier, undefined, UCTypeKind.Class);
-				symbol.baseType.outer = symbol;
 			}
 			return symbol;
 		}
@@ -219,11 +217,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 				range: rangeFromBound(arrayTypeNode.start)
 			};
 			const symbol = new UCTypeSymbol(identifier, rangeFromBounds(arrayTypeNode.start, arrayTypeNode.stop));
-			symbol.outer = this.scope<UCStructSymbol>();
 
 			const baseTypeNode = arrayTypeNode.inlinedDeclTypes();
-			if (baseTypeNode && (symbol.baseType = this.visitInlinedDeclTypes(baseTypeNode) as UCTypeSymbol)) {
-				symbol.baseType.outer = symbol;
+			if (baseTypeNode) {
+				symbol.baseType = this.visitInlinedDeclTypes(baseTypeNode) as UCTypeSymbol;
 			}
 			return symbol;
 		}
@@ -235,13 +232,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 				range: rangeFromBound(delegateTypeNode.start)
 			};
 			const symbol = new UCTypeSymbol(identifier, rangeFromBounds(delegateTypeNode.start, delegateTypeNode.stop));
-			symbol.outer = this.scope<UCStructSymbol>();
 
 			const idNode = delegateTypeNode.identifier();
 			if (idNode) {
 				const identifier = idNode.accept(this);
 				symbol.baseType = new UCTypeSymbol(identifier, undefined, UCTypeKind.Delegate);
-				symbol.baseType.outer = symbol;
 			}
 			return symbol;
 		}
@@ -251,7 +246,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			range: rangeFromBound(typeDeclNode.start)
 		};
 		const symbol = new UCTypeSymbol(identifier, rangeFromBounds(typeDeclNode.start, typeDeclNode.stop));
-		symbol.outer = this.scope<UCStructSymbol>();
 		return symbol;
 	}
 
@@ -540,11 +534,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			symbol.context = varNode;
 			symbol.type = typeSymbol;
 			this.declare(symbol);
-
-			// FIXME: is this still necessary?
-			if (typeSymbol) {
-				typeSymbol.outer = symbol.outer; // FIXME: Assign to current context instead.
-			}
 		}
 		return undefined!;
 	}
@@ -692,7 +681,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 			case NAME_CLASS: {
 				const typeSymbol = new UCTypeSymbol(identifier, undefined, UCTypeKind.Class);
-				typeSymbol.outer = scope;
 				scope.extendsType = typeSymbol;
 			}
 		}
