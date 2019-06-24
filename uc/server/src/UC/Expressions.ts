@@ -111,9 +111,13 @@ export class UCParenthesizedExpression extends UCExpression {
 	}
 }
 
+export class UCArrayCountExpression extends UCParenthesizedExpression {
+
+}
+
 export class UCCallExpression extends UCExpression {
 	public expression?: IExpression;
-	public arguments?: IExpression[];
+	public arguments?: Array<IExpression | undefined>;
 
 	getMemberSymbol() {
 		return this.expression && this.expression.getMemberSymbol();
@@ -132,7 +136,7 @@ export class UCCallExpression extends UCExpression {
 		}
 
 		if (this.arguments) for (let arg of this.arguments) {
-			const symbol = arg.getSymbolAtPos(position);
+			const symbol = arg && arg.getSymbolAtPos(position);
 			if (symbol) {
 				return symbol;
 			}
@@ -142,14 +146,14 @@ export class UCCallExpression extends UCExpression {
 	index(document: UCDocument, context?: UCStructSymbol) {
 		if (this.expression) this.expression.index(document, context);
 		if (this.arguments) for (let arg of this.arguments) {
-			arg.index(document, context);
+			arg && arg.index(document, context);
 		}
 	}
 
 	analyze(document: UCDocument, context?: UCStructSymbol) {
 		if (this.expression) this.expression.analyze(document, context);
 		if (this.arguments) for (let arg of this.arguments) {
-			arg.analyze(document, context);
+			arg && arg.analyze(document, context);
 		}
 	}
 }

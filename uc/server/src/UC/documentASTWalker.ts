@@ -29,7 +29,7 @@ import { UCBlock, IStatement, UCExpressionStatement, UCLabeledStatement, UCRetur
 import { setEnumMember } from './indexer';
 
 import { UCDocument } from './document';
-import { UCAssignmentExpression, IExpression, UCConditionalExpression, UCBinaryExpression, UCUnaryExpression, UCParenthesizedExpression, UCPropertyAccessExpression, UCCallExpression, UCElementAccessExpression, UCNewExpression, UCMetaClassExpression, UCSuperExpression, UCPredefinedAccessExpression, UCPredefinedPropertyAccessExpression, UCMemberExpression, UCNoneLiteral, UCStringLiteral, UCNameLiteral, UCBoolLiteral, UCFloatLiteral, UCIntLiteral, UCObjectLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCNameOfLiteral } from './expressions';
+import { UCAssignmentExpression, IExpression, UCConditionalExpression, UCBinaryExpression, UCUnaryExpression, UCParenthesizedExpression, UCPropertyAccessExpression, UCCallExpression, UCElementAccessExpression, UCNewExpression, UCMetaClassExpression, UCSuperExpression, UCPredefinedAccessExpression, UCPredefinedPropertyAccessExpression, UCMemberExpression, UCNoneLiteral, UCStringLiteral, UCNameLiteral, UCBoolLiteral, UCFloatLiteral, UCIntLiteral, UCObjectLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCNameOfLiteral, UCArrayCountExpression } from './expressions';
 import { UCQualifiedTypeSymbol } from './Symbols/TypeSymbol';
 
 function createIdentifierFrom(ctx: ParserRuleContext) {
@@ -140,7 +140,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitQualifiedIdentifier(ctx: UCParser.QualifiedIdentifierContext) {
-		const scope = this.scope<UCStructSymbol>(); // FIXME: necessary?
 		const idNodes = ctx.identifier();
 		if (idNodes.length === 2) {
 			const leftId: Identifier = idNodes[0].accept(this);
@@ -727,7 +726,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitDefaultId(ctx: UCParser.DefaultIdContext) {
-		return this.visitQualifiedIdentifier(ctx.qualifiedIdentifier());
+		return createIdentifierFrom(ctx);
 	}
 
 	visitFunctionName(ctx: UCParser.FunctionNameContext) {
@@ -1097,9 +1096,35 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 		const exprArgumentNodes = ctx.arguments();
 		if (exprArgumentNodes) {
-			expression.arguments = this.visitExpressionArguments(exprArgumentNodes);
+			expression.arguments = exprArgumentNodes.accept(this);
+			if (expression.arguments) for (let i = 0; i < expression.arguments.length; ++ i) {
+				if (expression.arguments[i]) {
+					expression.arguments[i]!.outer = expression;
+				}
+			}
 		}
 		return expression;
+	}
+
+	visitArguments(ctx: UCParser.ArgumentsContext): IExpression[] | undefined {
+		const argumentNodes = ctx.argument();
+		if (!argumentNodes) {
+			return undefined;
+		}
+
+		const exprArgs = new Array(argumentNodes.length);
+		for (let i = 0; i < exprArgs.length; ++ i) {
+			exprArgs[i] = argumentNodes[i].accept(this);
+		}
+		return exprArgs;
+	}
+
+	visitArgument(ctx: UCParser.ArgumentContext) {
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			return exprNode.accept(this);
+		}
+		return undefined;
 	}
 
 	// primaryExpression [ expression ]
@@ -1134,7 +1159,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 		const exprArgumentNodes = ctx.arguments();
 		if (exprArgumentNodes) {
-			expression.arguments = this.visitExpressionArguments(exprArgumentNodes);
+			expression.arguments = exprArgumentNodes.accept(this);
+			if (expression.arguments) for (let i = 0; i < expression.arguments.length; ++ i) {
+				if (expression.arguments[i]) {
+					expression.arguments[i]!.outer = expression;
+				}
+			}
 		}
 		return expression;
 	}
@@ -1210,22 +1240,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		return expression;
 	}
 
-	visitExpressionArguments(ctx: UCParser.ArgumentsContext): IExpression[] | undefined {
-		const argumentNodes = ctx.expression();
-		if (!argumentNodes) {
-			return undefined;
-		}
-
-		const expressions: IExpression[] = [];
-		for (let arg of argumentNodes) {
-			expressions.push(arg.accept(this));
-		}
-		return expressions;
-	}
-
-	// TODO: Implement specialized symbol class.
 	visitArrayCountExpression(ctx: UCParser.ArrayCountExpressionContext) {
-		const expression = new UCParenthesizedExpression();
+		const expression = new UCArrayCountExpression();
 		expression.context = ctx;
 
 		const exprNode = ctx.primaryExpression();

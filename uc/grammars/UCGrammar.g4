@@ -934,18 +934,18 @@ assignmentExpression
 	: primaryExpression assignmentOperator expression
 	;
 
-conditionalExpression
-	: unaryExpression INTERR expression COLON expression
+unaryExpression
+	: primaryExpression
+	| primaryExpression unaryOperator
+	| unaryOperator primaryExpression
 	;
 
 binaryExpression
 	: unaryExpression functionName expression
 	;
 
-unaryExpression
-	: primaryExpression
-	| primaryExpression unaryOperator
-	| unaryOperator primaryExpression
+conditionalExpression
+	: unaryExpression INTERR expression COLON expression
 	;
 
 primaryExpression
@@ -953,7 +953,7 @@ primaryExpression
 	| (OPEN_PARENS expression CLOSE_PARENS) 											#parenthesizedExpression
 	| 'class' (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)					#metaClassExpression
 	// Inclusive template argument (will be parsed as a function call)
-	| 'new' 		(OPEN_PARENS arguments CLOSE_PARENS)? primaryExpression 			#newExpression
+	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? primaryExpression 			#newExpression
 	| 'arraycount' 	(OPEN_PARENS primaryExpression CLOSE_PARENS)						#arrayCountExpression
 	| 'super' 		(OPEN_PARENS identifier CLOSE_PARENS)?								#superExpression
 	| 'self'																			#selfReferenceExpression
@@ -964,7 +964,7 @@ primaryExpression
 	| identifier 																		#memberExpression
 	| primaryExpression DOT classPropertyAccessSpecifier DOT identifier					#propertyAccessExpression
 	| primaryExpression DOT identifier													#propertyAccessExpression
-	| primaryExpression (OPEN_PARENS arguments CLOSE_PARENS) 							#callExpression
+	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 							#callExpression
 	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 						#elementAccessExpression
 	;
 
@@ -974,7 +974,9 @@ classPropertyAccessSpecifier
 	| 'const'
 	;
 
-arguments: (COMMA* expression)*;
+// 	created(, s, test);
+argument: COMMA | expression COMMA?;
+arguments: argument+;
 
 defaultPropertiesBlock
 	:
