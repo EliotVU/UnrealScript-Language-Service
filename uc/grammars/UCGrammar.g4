@@ -375,7 +375,6 @@ boolLiteral
 noneLiteral: 'none';
 
 // e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
-// TODO: rename as objectLiteral?
 objectLiteral: identifier NAME;
 
 classDecl
@@ -543,17 +542,10 @@ variable: identifier (OPEN_BRACKET arrayDim? CLOSE_BRACKET)?
 	;
 
 // UC3 <UIMin=0.0|UIMax=1.0|Toolip=Hello world!>
-// FIXME: This is incorrect, any value is allowed.
 metaData: LT metaTag* GT;
 metaTag: identifier ASSIGNMENT (~(BITWISE_OR | GT) | metaTag);
 
 categoryList: identifier (COMMA identifier)*;
-
-// UC3 CPP specifier e.g. {public}
-nativeTypeModifier: OPEN_BRACE identifier CLOSE_BRACE;
-
-// UC3 CPP map e.g. map{FName, FLOAT}
-nativeMapType: OPEN_BRACE .*? COMMA .*? CLOSE_BRACE; // use cppcode?
 
 variableModifier
 	: ('public' exportBlockText?)
@@ -633,8 +625,8 @@ predefinedType
 // Note: inlinedDeclTypes includes another arrayGeneric!
 arrayType: 'array' (LT inlinedDeclTypes GT);
 classType: 'class' (LT identifier GT)?;
-delegateType: 'delegate' (LT identifier GT); // TODO: Can a delegate be declared without a delimiter?
-mapType: 'map' /* nativeMapType */;
+delegateType: 'delegate' (LT qualifiedIdentifier GT); // TODO: qualifiedIdentifier is hardcoded to 2 identifiers MAX.
+mapType: 'map' exportBlockText;
 
 cppText
 	: 'cpptext' exportBlockText
@@ -675,14 +667,11 @@ functionDecl:
 	functionModifier*
 	// We have to identify LPARENT in each, - to prevent a false positive 'operatorName'
 	((returnTypeModifier? returnType functionName OPEN_PARENS)? | functionName OPEN_PARENS) parameters? CLOSE_PARENS 'const'?
-	// FIXME: Pass trailing semicolon in program
 	(SEMICOLON | (
 		OPEN_BRACE
 			functionMember*
-			// TODO: handle constDecl within statement, but this raises an issue with declaring the const symbol from within a statementVisitor.
 			statement*
 		CLOSE_BRACE
-		SEMICOLON?
 	));
 
 /* Parses:
@@ -730,10 +719,8 @@ functionName: identifier | operator;
 
 parameters: paramDecl (COMMA paramDecl)*;
 
-// TODO: Should this be a primaryExpression?
 paramDecl: paramModifier* typeDecl variable (ASSIGNMENT expression)?;
 
-// TODO: are multiple returnModifiers a thing?
 returnTypeModifier
 	: 'coerce' // UC3+
 	;
@@ -749,19 +736,17 @@ paramModifier
 	| 'const'
 	;
 
-localDecl:
-	'local' typeDecl variable (COMMA variable)*
-	// UnrealScriptBug: Can have multiple semicolons which is inconsistent with all other declaration kinds.
-	SEMICOLON+;
+localDecl
+	: 'local' typeDecl variable (COMMA variable)* SEMICOLON
+	;
 
 stateDecl
 	: stateModifier* 'state' (OPEN_PARENS CLOSE_PARENS)? identifier
 		extendsClause?
 		OPEN_BRACE
 			stateMember*
-			(labeledStatement statement*)*
+			statement*
 		CLOSE_BRACE
-		SEMICOLON? // FIXME: Only valid in UC3, but technically considered as an emptyDeclaration.
 	;
 
 stateModifier
@@ -841,21 +826,20 @@ doStatement
 	  'until' (OPEN_PARENS expression CLOSE_PARENS)
 	;
 
-switchStatement:
-	'switch' (OPEN_PARENS expression CLOSE_PARENS)
-	// Switch braces are NOT optional
-	OPEN_BRACE
-		caseClause*
-		defaultClause?
-	CLOSE_BRACE;
+switchStatement
+	: 'switch' (OPEN_PARENS expression CLOSE_PARENS)
+		// Note: Switch braces are NOT optional
+		OPEN_BRACE
+			caseClause*
+			defaultClause?
+		CLOSE_BRACE
+	;
 
-// TODO: constDecl?
 caseClause
 	: 'case' expression? COLON
 		statement*
 	;
 
-// TODO: constDecl?
 defaultClause
 	: 'default' COLON
 		statement*
@@ -866,7 +850,7 @@ breakStatement: 'break';
 continueStatement: 'continue';
 stopStatement: 'stop';
 labeledStatement: identifier COLON;
-gotoStatement: 'goto' (identifier | expression);
+gotoStatement: 'goto' expression;
 assertStatement: 'assert' (OPEN_PARENS expression CLOSE_PARENS);
 
 assignmentOperator

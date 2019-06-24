@@ -285,5 +285,4 @@ export class UCReturnStatement extends UCExpressionStatement {
 }
 
 export class UCGotoStatement extends UCExpressionStatement {
-	label?: string;
 }

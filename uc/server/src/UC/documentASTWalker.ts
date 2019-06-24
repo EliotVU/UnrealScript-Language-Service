@@ -65,6 +65,20 @@ function createBlockFromCode(visitor: DocumentASTWalker, ctx: UCParser.CodeBlock
 	return block;
 }
 
+function createTypeFromIdentifiers(visitor: DocumentASTWalker, identifiers: Identifier[]): ITypeSymbol | undefined {
+	if (identifiers.length === 1) {
+		return new UCTypeSymbol(identifiers[0]);
+	} else if (identifiers.length > 1) {
+		const get = (i: number): UCQualifiedTypeSymbol => {
+			const type = new UCTypeSymbol(identifiers[i]);
+			const leftType = i-1 > -1 ? get(-- i) : undefined;
+			return new UCQualifiedTypeSymbol(type, leftType);
+		};
+		return get(identifiers.length-1);
+	}
+	return undefined;
+}
+
 export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpression | IStatement | Identifier | undefined> implements UCGrammarVisitor<any>, ANTLRErrorListener<Token> {
 	private scopes: ISymbolContainer<ISymbol>[] = [];
 
@@ -233,10 +247,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			};
 			const symbol = new UCTypeSymbol(identifier, rangeFromBounds(delegateTypeNode.start, delegateTypeNode.stop));
 
-			const idNode = delegateTypeNode.identifier();
-			if (idNode) {
-				const identifier = idNode.accept(this);
-				symbol.baseType = new UCTypeSymbol(identifier, undefined, UCTypeKind.Delegate);
+			const qualifiedNode = delegateTypeNode.qualifiedIdentifier();
+			if (qualifiedNode) {
+				const type = qualifiedNode.accept(this);
+				if (type) {
+					symbol.baseType = type;
+				}
 			}
 			return symbol;
 		}
@@ -766,14 +782,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const statement = new UCGotoStatement(rangeFromBounds(ctx.start, ctx.stop));
 		statement.context = ctx;
 
-		const idNode = ctx.identifier();
-		if (idNode) {
-			statement.label = idNode.text;
-		} else {
-			const exprNode = ctx.expression();
-			if (exprNode) {
-				statement.expression = exprNode.accept(this);
-			}
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			statement.expression = exprNode.accept(this);
 		}
 		return statement;
 	}
@@ -1302,18 +1313,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			startChar += id.length + 1;
 		}
 
-		if (identifiers.length === 1) {
-			const type = new UCTypeSymbol(identifiers[0]);
+		const type = createTypeFromIdentifiers(this, identifiers);
+		if (type) {
 			expression.objectRef = type;
-		} else if (identifiers.length > 1) {
-			const get = (i: number): UCQualifiedTypeSymbol => {
-				const type = new UCTypeSymbol(identifiers[i]);
-				const leftType = i-1 > -1 ? get(-- i) : undefined;
-				return new UCQualifiedTypeSymbol(type, leftType);
-			};
-			expression.objectRef = get(identifiers.length-1);
-		} else {
-
 		}
 		return expression;
 	}
