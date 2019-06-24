@@ -840,7 +840,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	visitElseStatement(ctx: UCParser.ElseStatementContext) {
 		const blockNode = ctx.codeBlockOptional();
 		if (blockNode) {
-			return blockNode.accept(this);
+			return createBlockFromCode(this, blockNode);
 		}
 		return undefined;
 	}
