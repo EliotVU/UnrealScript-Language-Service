@@ -96,12 +96,12 @@
 		"compile:grammar": "antlr4ts -visitor -no-listener grammars/UCGrammar.g4 -o server/src/antlr"
 	},
 	"devDependencies": {
-		"@types/node": "^12.0.8",
+		"@types/node": "^12.0.10",
 		"antlr4ts-cli": "^0.5.0-alpha.3",
 		"gulp": "^4.0.2",
 		"js-yaml": "^3.13.1",
-		"tslint": "^5.17.0",
-		"typescript": "^3.5.1"
+		"tslint": "^5.18.0",
+		"typescript": "^3.5.2"
 	},
 	"dependencies": {
 		"antlr4ts": "^0.5.0-alpha.3"
