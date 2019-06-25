@@ -10,22 +10,15 @@ export class UCMissingSemicolonException extends Error {
 
 export class UCErrorStrategy extends DefaultErrorStrategy {
 	reportError(recognizer: Parser, e: RecognitionException) {
-		if (e.expectedTokens
-			&& e.expectedTokens.contains(UCGrammarParser.SEMICOLON)
-			){
+		if (e.expectedTokens && e.expectedTokens.contains(UCGrammarParser.SEMICOLON)) {
 			const token = this.constructToken(
 				recognizer.inputStream.tokenSource,
 				UCGrammarParser.SEMICOLON, ';',
 				recognizer.currentToken
 			);
 
-			recognizer.context.addChild(recognizer.createTerminalNode(recognizer.context, token));
-
-			// this.reportMatch(recognizer);
-
-			// const error = new UCMissingSemicolonException(recognizer.context);
-			this.notifyErrorListeners(recognizer, "Missing semicolon!", e);
-			// return;
+			const errorNode = recognizer.createErrorNode(recognizer.context, token);
+			recognizer.context.addErrorNode(errorNode);
 		}
 
 		super.reportError(recognizer, e);

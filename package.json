@@ -1,13 +1,14 @@
 {
 	"name": "uc",
 	"displayName": "UnrealScript",
+	"icon": "Icon.png",
 	"description": "UnrealScript Language support",
 	"publisher": "EliotVU",
 	"homepage": "http://EliotVU.com",
 	"repository": {
 		"url": "https://github.com/EliotVU/UnrealScript-Language-Service"
 	},
-	"version": "0.2.1",
+	"version": "0.3.0",
 	"engines": {
 		"vscode": "^1.29.0"
 	},
