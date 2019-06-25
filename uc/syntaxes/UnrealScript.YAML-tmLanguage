@@ -439,7 +439,7 @@ repository:
     end: (?<=\;)
 
   method-modifier:
-    match: "(\\b((?i)static|final|simulated|public|protected|private|exec|iterator|latent|singular|const|noexport|noexportheader|virtual|reliable|unreliable|server|client|dllimport|demorecording|native|intrinsic)\\b)(\\s*\\(\\s*([0-9]*)\\s*\\))?"
+    match: "(\\b((?i)static|final|simulated|public|protected|private|exec|iterator|latent|singular|const|noexport|noexportheader|virtual|reliable|unreliable|server|client|dllimport|demorecording|native|intrinsic|k2call|k2override|k2pure)\\b)(\\s*\\(\\s*([0-9]*)\\s*\\))?"
     captures:
       '2':
         name: storage.modifier.uc
@@ -573,7 +573,7 @@ repository:
     end: (?<=\}|\;)
 
   cppblock:
-    begin: \b((?i)cpptext)\n
+    begin: \b((?i)cpptext)
     beginCaptures:
       '1':
         name: keyword.other.uc
@@ -584,7 +584,7 @@ repository:
           '0':
             name: punctuation.curlybrace.open.uc
         patterns:
-          # - include: source.c++
+          - include: source.c++
         end: \}
         endCaptures:
           '0':
@@ -592,7 +592,7 @@ repository:
     end: (?=\})
 
   structcppblock:
-    begin: \b((?i)structcpptext|cppstruct)\n
+    begin: \b((?i)structcpptext|cppstruct)
     beginCaptures:
       '1':
         name: keyword.other.uc
@@ -603,7 +603,7 @@ repository:
           '0':
             name: punctuation.curlybrace.open.uc
         patterns:
-          # - include: source.c++
+          - include: source.c++
         end: \}
         endCaptures:
           '0':
@@ -611,7 +611,7 @@ repository:
     end: (?=\})
 
   replication:
-    begin: \b((?i)replication)$
+    begin: \b((?i)replication)
     beginCaptures:
       '1':
         name: keyword.other.replication.uc
@@ -821,7 +821,7 @@ repository:
             name: punctuation.curlybrace.close.uc
 
   defaultproperties:
-    begin: \b((?i)defaultproperties)\n
+    begin: \b((?i)defaultproperties)
     beginCaptures:
       '1':
         name: keyword.other.defaultproperties.uc
@@ -840,7 +840,7 @@ repository:
     end: (?<=\})
 
   structdefaultproperties:
-    begin: \b((?i)structdefaultproperties)\n
+    begin: \b((?i)structdefaultproperties)
     beginCaptures:
       '1':
         name: keyword.other.structdefaultproperties.uc
