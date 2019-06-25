@@ -35,17 +35,21 @@ const GRAMMAR_TASK = (function(){
 	const GRAMMAR_Dir = 'grammars/';
 	const GRAMMAR_PATH = path.join(GRAMMAR_Dir, GRAMMAR_File);
 
-	gulp.task(TASK_NAME, (cb) => {
+	const GRAMMAR_File2 = 'UCLexer.g4';
+	const GRAMMAR_Dir2 = 'grammars/';
+	const GRAMMAR_PATH2 = path.join(GRAMMAR_Dir2, GRAMMAR_File2);
+
+	gulp.task(TASK_NAME, (done) => {
 		var exec = require('child_process').exec;
 		/* `cd node_modules/antlr4ts-cli && antlr4ts -visitor ${GRAMMAR_PATH} -o server/src/antlr` */
 		exec('npm run compile:grammar', (err, stdout, stderr) => {
 			console.log(stdout);
 			console.error(stderr);
-			cb(err);
+			done(err || stderr);
 		});
 	});
 
-	gulp.watch(GRAMMAR_PATH, (cb) => {
+	gulp.watch([GRAMMAR_PATH, GRAMMAR_PATH2], (cb) => {
 		return gulp.task(TASK_NAME)(cb);
 	});
 
