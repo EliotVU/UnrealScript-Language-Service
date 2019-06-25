@@ -1363,7 +1363,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		expression.context = ctx;
 		const idNode = ctx.identifier();
 		if (idNode) {
-			expression.memberRef = new UCSymbolReference(createIdentifierFrom(idNode));
+			expression.argumentRef = new UCTypeSymbol(createIdentifierFrom(idNode), undefined, UCTypeKind.Object);
 		}
 		return expression;
 	}

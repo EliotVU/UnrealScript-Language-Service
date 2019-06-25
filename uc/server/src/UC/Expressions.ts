@@ -7,7 +7,7 @@ import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, Express
 import { getEnumMember } from './indexer';
 import { intersectsWith, rangeFromBounds } from './helpers';
 import { UCDocument } from './document';
-import { Name, NAME_BYTE, NAME_FLOAT, NAME_INT, NAME_STRING, NAME_NAME, NAME_BOOL, NAME_BUTTON } from './names';
+import { Name } from './names';
 
 import { UCTypeKind } from './Symbols/TypeKind';
 
@@ -788,32 +788,32 @@ export class UCRngLiteral extends UCStructLiteral {
 }
 
 export class UCNameOfLiteral extends UCLiteral {
-	public memberRef?: UCSymbolReference;
+	public argumentRef?: ITypeSymbol;
 
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Name;
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		return this.memberRef && this.memberRef.getSymbolAtPos(position) && this.memberRef;
+		return this.argumentRef && this.argumentRef.getSymbolAtPos(position) && this.argumentRef;
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol) {
 		super.index(document, context);
-		this.memberRef && this.memberRef.index(document, context!);
+		this.argumentRef && this.argumentRef.index(document, context!);
 	}
 
 	analyze(document: UCDocument, context?: UCStructSymbol) {
 		super.analyze(document, context);
-		this.memberRef && this.memberRef.analyze(document, context!);
+		this.argumentRef && this.argumentRef.analyze(document, context!);
 	}
 }
 
 export class UCMetaClassExpression extends UCParenthesizedExpression {
-	public classRef: UCTypeSymbol;
+	public classRef?: UCTypeSymbol;
 
 	getMemberSymbol() {
-		return this.classRef.getReference() || NativeClass;
+		return this.classRef && this.classRef.getReference() || NativeClass;
 	}
 
 	getTypeKind(): UCTypeKind {
