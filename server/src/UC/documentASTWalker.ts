@@ -8,7 +8,7 @@ import * as UCParser from '../antlr/UCGrammarParser';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 
 import { rangeFromBounds, rangeFromBound } from './helpers';
-import { toName, NAME_CLASS, NAME_ARRAY, NAME_REPLICATION, NAME_STRUCTDEFAULTPROPERTIES, NAME_DEFAULTPROPERTIES, NAME_NONE, NAME_NAME, NAME_DELEGATE } from './names';
+import { toName, NAME_CLASS, NAME_ARRAY, NAME_REPLICATION, NAME_STRUCTDEFAULTPROPERTIES, NAME_DEFAULTPROPERTIES, NAME_NONE, NAME_NAME, NAME_DELEGATE, NAME_ENUMCOUNT } from './names';
 
 import {
 	Identifier, ISymbol, ISymbolContainer, UCConstSymbol, UCDefaultPropertiesBlock,
@@ -376,14 +376,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitEnumDecl(ctx: UCParser.EnumDeclContext) {
-		const identifier = ctx.identifier().accept(this);
+		const identifier: Identifier = ctx.identifier().accept(this);
 		const symbol = new UCEnumSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.context = ctx;
-
 		this.declare(symbol);
 
 		this.push(symbol);
-		var count = 0;
+
+		let count: number = 0;
 		const memberNodes = ctx.enumMember();
 		for (const memberNode of memberNodes) {
 			const memberSymbol = memberNode.accept(this);
@@ -391,12 +391,21 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			memberSymbol.outer = symbol;
 			memberSymbol.value = count ++;
 		}
+
+		// Insert the compiler-generated enum member "EnumCount".
+		// TODO: Insert another generated member, e.g. NM_MAX for ENetMode
+		const enumCountMember = new UCEnumMemberSymbol({ name: NAME_ENUMCOUNT, range: symbol.getRange() } as Identifier);
+		this.declare(enumCountMember);
+		enumCountMember.outer = symbol;
+		enumCountMember.value = count;
+
 		this.pop();
+
 		return symbol;
 	}
 
 	visitEnumMember(ctx: UCParser.EnumMemberContext) {
-		const identifier = ctx.identifier().accept(this);
+		const identifier: Identifier = ctx.identifier().accept(this);
 		const symbol = new UCEnumMemberSymbol(identifier);
 		this.declare(symbol);
 		setEnumMember(symbol);
@@ -558,15 +567,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const type = scope instanceof UCMethodSymbol ? UCLocalSymbol : UCPropertySymbol;
 
 		const identifier = ctx.identifier().accept(this);
-		const symbol = new type(
+		const symbol: UCPropertySymbol | UCLocalSymbol = new type(
 			identifier,
 			// Stop at varCtx instead of localCtx for multiple variable declarations.
 			rangeFromBounds(ctx.parent!.start, ctx.stop)
 		);
-		const arrayDimNode = ctx.arrayDim();
-		if (arrayDimNode) {
-			symbol.arrayDim = arrayDimNode.text;
-		}
+		symbol.walk(this, ctx);
 		return symbol;
 	}
 

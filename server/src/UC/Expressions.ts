@@ -454,7 +454,7 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 		if (letSymbol) {
 			if (letSymbol instanceof UCPropertySymbol) {
 				// Properties with a defined array dimension cannot be assigned!
-				if (letSymbol.arrayDim) {
+				if (letSymbol.isFixedArray()) {
 					document.nodes.push(new SemanticErrorNode(letSymbol, "Cannot assign to a static array variable."));
 				}
 

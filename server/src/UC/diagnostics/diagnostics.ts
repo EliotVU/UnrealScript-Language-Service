@@ -46,6 +46,19 @@ export class SemanticErrorNode implements IDiagnosticNode {
 	}
 }
 
+export class SemanticErrorRangeNode implements IDiagnosticNode {
+	constructor(private range: Range, private error: string) {
+	}
+
+	getRange(): Range {
+		return this.range;
+	}
+
+	toString(): string {
+		return this.error;
+	}
+}
+
 export class UnrecognizedTypeNode implements IDiagnosticNode {
 	constructor(private symbol: UCSymbolReference) {
 	}
