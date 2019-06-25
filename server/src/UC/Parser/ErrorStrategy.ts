@@ -21,11 +21,11 @@ export class UCErrorStrategy extends DefaultErrorStrategy {
 
 			recognizer.context.addChild(recognizer.createTerminalNode(recognizer.context, token));
 
-			this.reportMatch(recognizer);
+			// this.reportMatch(recognizer);
 
 			// const error = new UCMissingSemicolonException(recognizer.context);
 			this.notifyErrorListeners(recognizer, "Missing semicolon!", e);
-			return;
+			// return;
 		}
 
 		super.reportError(recognizer, e);
