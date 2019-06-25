@@ -97,10 +97,10 @@ export function getIndexedReferences(qualifiedId: string) {
 	return IndexedReferencesMap.get(qualifiedId);
 }
 
-const EnumMemberMap = new Map<Name, UCEnumMemberSymbol>();
+const EnumMemberMap = new WeakMap<Name, UCEnumMemberSymbol>();
 
-export function getEnumMember(enumMember: Name): UCEnumMemberSymbol | undefined {
-	return EnumMemberMap.get(enumMember);
+export function getEnumMember(enumName: Name): UCEnumMemberSymbol | undefined {
+	return EnumMemberMap.get(enumName);
 }
 
 export function setEnumMember(enumMember: UCEnumMemberSymbol) {
