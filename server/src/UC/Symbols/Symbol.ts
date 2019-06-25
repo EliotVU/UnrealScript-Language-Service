@@ -1,5 +1,7 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Position } from 'vscode-languageserver-types';
+
 import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
+import { ParseTree } from 'antlr4ts/tree/ParseTree';
 
 import { UCGrammarParser } from '../../antlr/UCGrammarParser';
 
@@ -7,6 +9,7 @@ import { UCDocument } from "../document";
 import { SymbolWalker } from '../symbolWalker';
 import { intersectsWithRange } from '../helpers';
 import { Name } from '../names';
+import { DocumentASTWalker } from '../documentASTWalker';
 
 import { ISymbol, Identifier, UCStructSymbol } from ".";
 
@@ -133,5 +136,8 @@ export abstract class UCSymbol implements ISymbol {
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visit(this);
+	}
+
+	walk(visitor: DocumentASTWalker, ctx: ParseTree) {
 	}
 }
