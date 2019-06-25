@@ -16,19 +16,43 @@ BLOCK_COMMENT
 	-> channel(HIDDEN)
 	;
 
-PP_LINE
-	: PP ~'{' ~[\r\n]*
-	-> channel(HIDDEN)
-	;
-
-PP_BLOCK
-	: PP '{' ~'}'* '}'
-	-> channel(HIDDEN)
-	;
-
 WS
 	: [ \t\r\n]+
 	-> skip
+	;
+
+PP: '`';
+
+PP_MACRO
+	: PP WS?
+		( MACRO_BLOCK
+		| MACRO_DEFINE
+		| MACRO_CALL
+		)
+	-> channel(HIDDEN)
+	;
+
+fragment PARENTHESES: '(' (~')' | PARENTHESES)* ')';
+
+fragment MACRO_BLOCK
+	: '{' ~'}'* '}'
+	;
+
+fragment MACRO_DEFINE
+	: 'define' WS MACRO_DEFINTION?
+	;
+
+// TODO: Multiline macros, defined by a backslash \
+fragment MACRO_DEFINTION
+	: ~[\r\n]+
+	;
+
+fragment MACRO_CALL
+	: MACRO_NAME PARENTHESES?
+	;
+
+fragment MACRO_NAME
+	: ID
 	;
 
 STRING: '"' (~["\\] | ESC_SEQ)* '"';
@@ -47,8 +71,6 @@ FLOAT
 	: (DIGIT+ DOT DIGITF* EXPONENT?)
 	| (DIGIT+ DIGITF* EXPONENT)
 	;
-
-PP: '`';
 
 OPEN_PARENS: '(';
 CLOSE_PARENS: ')';
