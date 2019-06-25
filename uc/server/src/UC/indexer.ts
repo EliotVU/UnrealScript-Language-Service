@@ -7,9 +7,9 @@ import { ISymbolReference, UCPackage, PackagesTable, UCEnumMemberSymbol } from '
 import { UCDocument } from './document';
 import { Name, toName } from './names';
 
-export const FilePathByClassIdMap$ = new BehaviorSubject(new Map<string, string>());
-export const DocumentByURIMap = new Map<string, UCDocument>();
-const PackageByDirMap = new Map<string, UCPackage>();
+export const filePathByClassIdMap$ = new BehaviorSubject(new Map<string, string>());
+export const documentByURIMap = new Map<string, UCDocument>();
+const packageByDirMap = new Map<string, UCPackage>();
 
 function findPackageNameInDir(dir: string): string {
 	const directories = dir.split('/');
@@ -23,7 +23,7 @@ function findPackageNameInDir(dir: string): string {
 
 function getPackageByUri(uri: string): UCPackage {
 	const dir = path.parse(uri).dir;
-	let pkg = PackageByDirMap.get(dir);
+	let pkg = packageByDirMap.get(dir);
 	if (pkg) {
 		return pkg;
 	}
@@ -35,24 +35,24 @@ function getPackageByUri(uri: string): UCPackage {
 
 	pkg = new UCPackage(toName(packageName));
 	PackagesTable.addSymbol(pkg);
-	PackageByDirMap.set(dir, pkg);
+	packageByDirMap.set(dir, pkg);
 	return pkg;
 }
 
 export function getDocumentByUri(uri: string): UCDocument {
-	let document = DocumentByURIMap.get(uri);
+	let document = documentByURIMap.get(uri);
 	if (document) {
 		return document;
 	}
 
 	const pkg = getPackageByUri(uri);
 	document = new UCDocument(uri, pkg);
-	DocumentByURIMap.set(uri, document);
+	documentByURIMap.set(uri, document);
 	return document;
 }
 
 export function getUriById(id: string): string | undefined {
-	const filePath = FilePathByClassIdMap$.getValue().get(id);
+	const filePath = filePathByClassIdMap$.getValue().get(id);
 	return filePath ? URI.file(filePath).toString() : undefined;
 }
 

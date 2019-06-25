@@ -1,3 +1,5 @@
+import { AsyncSubject, Subject } from 'rxjs';
+
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -19,6 +21,8 @@ import { IndexedReferencesMap } from './indexer';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import { DocumentASTWalker } from './documentASTWalker';
+
+export const documentLinked$ = new Subject<UCDocument>();
 
 export class UCDocument {
 	public readonly fileName: string;
@@ -84,6 +88,7 @@ export class UCDocument {
 		const start = performance.now();
 		this.class!.index(this, this.class!);
 		connection.console.info(this.fileName + ': linking time ' + (performance.now() - start));
+		documentLinked$.next(this);
 	}
 
 	private invalidate() {

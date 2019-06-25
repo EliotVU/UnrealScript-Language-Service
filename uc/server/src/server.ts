@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as glob from 'glob';
 
 import { interval, Subject } from 'rxjs';
-import { debounce, map, switchMapTo, filter } from 'rxjs/operators';
+import { debounce, map, switchMapTo, filter, delay } from 'rxjs/operators';
 
 import {
 	createConnection,
@@ -10,16 +10,14 @@ import {
 	TextDocument,
 	ProposedFeatures,
 	InitializeParams,
-	Diagnostic,
-	DiagnosticSeverity,
-	Range,
 	WorkspaceFolder
 } from 'vscode-languageserver';
 import URI from 'vscode-uri';
 
 import { getCompletionItems, getReferences, getDefinition, getSymbols, getHover, getHighlights, getFullCompletionItem } from './UC/helpers';
-import { FilePathByClassIdMap$, getDocumentByUri, indexDocument } from './UC/indexer';
+import { filePathByClassIdMap$, getDocumentByUri, indexDocument } from './UC/indexer';
 import { UCSettings, defaultSettings } from './settings';
+import { documentLinked$ } from './UC/document';
 
 const isIndexReady$ = new Subject<boolean>();
 const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
@@ -72,8 +70,7 @@ connection.onInitialized(async () => {
 		const folders = await connection.workspace.getWorkspaceFolders();
 		if (folders) {
 			const map = await buildClassesMapFromFolders(folders);
-			FilePathByClassIdMap$.next(map);
-
+			filePathByClassIdMap$.next(map);
 		} else {
 			connection.console.warn("No workspace folders!");
 		}
@@ -82,65 +79,42 @@ connection.onInitialized(async () => {
 			const folders = e.added;
 			if (folders.length > 0) {
 				const classesFilePathsMap = await buildClassesMapFromFolders(folders);
-				const mergedMap = new Map<string, string>([...FilePathByClassIdMap$.getValue(), ...classesFilePathsMap]);
-				FilePathByClassIdMap$.next(mergedMap);
+				const mergedMap = new Map<string, string>([...filePathByClassIdMap$.getValue(), ...classesFilePathsMap]);
+				filePathByClassIdMap$.next(mergedMap);
 			}
 		});
 	}
+
+	documentLinked$
+		.pipe(
+			delay(1000),
+		)
+		.subscribe(document => {
+			if (document) {
+				const diagnostics = document.analyze();
+				connection.sendDiagnostics({
+					uri: document.filePath,
+					diagnostics
+				});
+			}
+		}, (error) => connection.console.error(error));
 
 	isIndexReady$
 		.pipe(
 			filter((value) => !!value),
 			switchMapTo(pendingTextDocuments$),
-			debounce(() => interval(500))
+			debounce(() => interval(200))
 		)
 		.subscribe(({ textDocument, isDirty }) => {
-			connection.console.log('Validating ' + textDocument.uri + ' dirty? ' + isDirty);
+			const document = getDocumentByUri(textDocument.uri);
+			console.assert(document, 'Failed to fetch document at: ' + textDocument.uri);
 
-			let document = getDocumentByUri(textDocument.uri);
-			try {
-				if (isDirty || !document.class) {
-					indexDocument(document, textDocument.getText());
-
-					const diagnostics = document.analyze();
-					connection.sendDiagnostics({
-						uri: document.filePath,
-						diagnostics
-					});
-				}
-
-			} catch (err) {
-				connection.sendDiagnostics({
-					uri: textDocument.uri,
-					diagnostics: [
-						Diagnostic.create(Range.create(0, 0, 0, 0),
-							"Something went wrong while parsing this document! " + err,
-							DiagnosticSeverity.Warning,
-							undefined,
-							'unrealscript')
-					]
-				});
-				return;
+			if (isDirty || !document.class) {
+				indexDocument(document, textDocument.getText());
 			}
+		}, (error) => connection.console.error(error));
 
-			if (!document || document.class === null) {
-				connection.sendDiagnostics({
-					uri: textDocument.uri,
-					diagnostics: [
-						Diagnostic.create(Range.create(0, 0, 0, 0),
-							"Couldn't validate document!",
-							DiagnosticSeverity.Warning,
-							undefined,
-							'unrealscript')
-					]
-				});
-			}
-		}, (error) => {
-			connection.console.error(error);
-		}
-	);
-
-	FilePathByClassIdMap$
+	filePathByClassIdMap$
 		.pipe(
 			filter(classesMap => !!classesMap),
 			map((classesMap) => {
@@ -174,14 +148,6 @@ connection.onInitialized(async () => {
 
 				connection.console.log("Indexing file " + document.fileName);
 				indexDocument(document);
-			});
-
-			documents.forEach(document => {
-				const diagnostics = document.analyze();
-				connection.sendDiagnostics({
-					uri: document.filePath,
-					diagnostics
-				});
 			});
 
 			isIndexReady$.next(true);
