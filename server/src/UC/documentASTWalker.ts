@@ -287,12 +287,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitExtendsClause(ctx: UCParser.ExtendsClauseContext) {
-		const symbol = ctx.qualifiedIdentifier().accept(this);
+		const symbol: ISymbol | undefined = ctx.qualifiedIdentifier().accept(this);
 		return symbol;
 	}
 
 	visitWithinClause(ctx: UCParser.WithinClauseContext) {
-		const symbol = ctx.qualifiedIdentifier().accept(this);
+		const symbol: ISymbol | undefined = ctx.qualifiedIdentifier().accept(this);
 		return symbol;
 	}
 
@@ -359,7 +359,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitConstDecl(ctx: UCParser.ConstDeclContext) {
-		const identifier = ctx.identifier().accept(this);
+		const identifier: Identifier = ctx.identifier().accept(this);
 		const symbol = new UCConstSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.context = ctx;
 
@@ -413,7 +413,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitStructDecl(ctx: UCParser.StructDeclContext) {
-		const identifier = ctx.identifier().accept(this);
+		const identifier: Identifier = ctx.identifier().accept(this);
 		const symbol = new UCScriptStructSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.context = ctx;
 
@@ -525,7 +525,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const typeSymbol = this.visitTypeDecl(propTypeNode);
 
 		const varNode = ctx.variable();
-		const symbol = varNode.accept(this);
+		const symbol: UCPropertySymbol = varNode.accept(this);
 		symbol.type = typeSymbol;
 		this.declare(symbol);
 		return symbol;
@@ -566,7 +566,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const scope = this.scope();
 		const type = scope instanceof UCMethodSymbol ? UCLocalSymbol : UCPropertySymbol;
 
-		const identifier = ctx.identifier().accept(this);
+		const identifier: Identifier = ctx.identifier().accept(this);
 		const symbol: UCPropertySymbol | UCLocalSymbol = new type(
 			identifier,
 			// Stop at varCtx instead of localCtx for multiple variable declarations.
@@ -587,7 +587,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitStateDecl(ctx: UCParser.StateDeclContext) {
-		const identifier = ctx.identifier().accept(this);
+		const identifier: Identifier = ctx.identifier().accept(this);
 
 		const symbol = new UCStateSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.context = ctx;
@@ -735,7 +735,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		return createIdentifierFrom(ctx);
 	}
 
-	visitFunctionName(ctx: UCParser.FunctionNameContext) {
+	visitFunctionName(ctx: UCParser.FunctionNameContext): Identifier {
 		const opNode = ctx.operator();
 		if (opNode) {
 			const identifier: Identifier = {
@@ -1125,7 +1125,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		return exprArgs;
 	}
 
-	visitArgument(ctx: UCParser.ArgumentContext) {
+	visitArgument(ctx: UCParser.ArgumentContext): IExpression | undefined {
 		const exprNode = ctx.expression();
 		if (exprNode) {
 			return exprNode.accept(this);

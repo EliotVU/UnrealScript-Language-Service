@@ -1,11 +1,13 @@
 {
-	"name": "lsp-unrealscript-client",
+	"name": "client",
+	"displayName": "UnrealScript",
 	"description": "VSCode part for UnrealScript",
 	"author": "Eliot van Uytfanghe",
 	"license": "",
 	"version": "0.0.1",
+	"private": true,
 	"engines": {
-		"vscode": "^1.26.0"
+		"vscode": "^1.34.0"
 	},
 	"scripts": {
 		"update-vscode": "vscode-install",

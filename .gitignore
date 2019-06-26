@@ -1,5 +1,6 @@
-out
+dist
 node_modules
-client/server
-.vscode-test
 Icon.psd
+
+client/out
+server/out

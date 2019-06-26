@@ -8,47 +8,24 @@
 			"input": "grammars/test.uc",
 			"grammar": "grammars/UCGrammar.g4",
             "startRule": "program",
-			"visualParseTree": true,
-			"trace": true
+			"visualParseTree": true
         },
 		{
 			"type": "extensionHost",
 			"request": "launch",
 			"name": "Launch Client",
 			"runtimeExecutable": "${execPath}",
-			"args": [
-				"--extensionDevelopmentPath=${workspaceRoot}"
-			],
-			"outFiles": [
-				"${workspaceRoot}/client/out/**/*.js"
-			],
-			"trace": true
+			"args": ["--extensionDevelopmentPath=${workspaceRoot}"],
+			"sourceMaps": true,
+			"outFiles": ["${workspaceRoot}/dist/extension.js"]
 		},
 		{
 			"type": "node",
 			"request": "attach",
 			"name": "Attach to Server",
 			"port": 6010,
-			"restart": true,
-			"outFiles": [
-				"${workspaceRoot}/server/out/**/*.js"
-			],
-			"trace": true
-
-		},
-		{
-			"name": "Language Server E2E Test",
-			"type": "extensionHost",
-			"request": "launch",
-			"runtimeExecutable": "${execPath}",
-			"args": [
-				"--extensionDevelopmentPath=${workspaceRoot}",
-				"--extensionTestsPath=${workspaceRoot}/client/out/test",
-				"${workspaceRoot}/client/testFixture"
-			],
-			"outFiles": [
-				"${workspaceRoot}/client/out/test/**/*.js"
-			]
+			"sourceMaps": true,
+			"outFiles": ["${workspaceRoot}/dist/server.js"]
 		}
 	],
 	"compounds": [

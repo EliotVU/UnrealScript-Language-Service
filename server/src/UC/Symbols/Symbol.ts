@@ -78,6 +78,7 @@ export abstract class UCSymbol implements ISymbol {
 				return outer;
 			}
 		}
+		return undefined;
 	}
 
 	getCompletionSymbols(_document: UCDocument): ISymbol[] {
@@ -138,6 +139,6 @@ export abstract class UCSymbol implements ISymbol {
 		return visitor.visit(this);
 	}
 
-	walk(visitor: DocumentASTWalker, ctx: ParseTree) {
+	walk(_visitor: DocumentASTWalker, _ctx: ParseTree) {
 	}
 }

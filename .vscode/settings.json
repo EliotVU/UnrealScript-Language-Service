@@ -3,12 +3,12 @@
 	"typescript.tsc.autoDetect": "off",
 	"typescript.preferences.quoteStyle": "single",
 	"antlr4.generation": {
-        "language": "TypeScript",
+		"language": "TypeScript",
 		"outputDir": "grammars"
-		},
-		"typescript.tsdk": "node_modules\\typescript\\lib",
-		"cSpell.words": [
-			"Vect",
-			"antlr"
-		]
+	},
+	"typescript.tsdk": "node_modules\\typescript\\lib",
+	"cSpell.words": [
+		"Vect",
+		"antlr"
+	]
 }

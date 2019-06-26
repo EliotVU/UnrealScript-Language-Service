@@ -31,12 +31,12 @@ export function activate(context: ExtensionContext) {
 			configurationSection: 'unrealscript',
 			fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
 		},
-		outputChannelName: 'UnrealScript LS',
+		outputChannelName: 'UnrealScript',
 	};
 
 	client = new LanguageClient(
 		'ucLanguageServer',
-		'UnrealScript LS',
+		'UnrealScript',
 		serverOptions,
 		clientOptions
 	);

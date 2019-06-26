@@ -1,7 +1,9 @@
 {
-	"name": "lsp-unrealscript",
+	"name": "server",
+	"displayName": "UnrealScript",
 	"description": "A language server for UnrealScript.",
 	"version": "1.0.0",
+	"private": true,
 	"author": "Eliot van Uytfanghe",
 	"license": "",
 	"scripts": {
