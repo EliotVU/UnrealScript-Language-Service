@@ -13,7 +13,7 @@ export class UCReplicationBlock extends UCFieldSymbol {
 	public block?: UCBlock;
 
 	getKind(): SymbolKind {
-		return SymbolKind.Function;
+		return SymbolKind.Constructor;
 	}
 
 	// Just return the keyword identifier.

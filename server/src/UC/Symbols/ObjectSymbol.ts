@@ -13,7 +13,7 @@ export class UCObjectSymbol extends UCStructSymbol {
 	public symbolRefs = new Map<Name, UCSymbolReference>();
 
 	getKind(): SymbolKind {
-		return SymbolKind.Module;
+		return SymbolKind.Constructor;
 	}
 
 	// Just return the keyword identifier.

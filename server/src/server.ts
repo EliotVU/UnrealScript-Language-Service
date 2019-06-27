@@ -10,14 +10,21 @@ import {
 	TextDocument,
 	ProposedFeatures,
 	InitializeParams,
-	WorkspaceFolder
+	WorkspaceFolder,
+	WorkspaceEdit,
+	TextEdit,
+	ResponseError,
+	ErrorCodes,
+	Location,
+	SymbolKind
 } from 'vscode-languageserver';
 import URI from 'vscode-uri';
 
-import { getCompletionItems, getReferences, getDefinition, getSymbols, getHover, getHighlights, getFullCompletionItem } from './UC/helpers';
-import { filePathByClassIdMap$, getDocumentByUri, indexDocument } from './UC/indexer';
+import { getCompletionItems, getReferences, getSymbolDefinition, getSymbols, getHover, getHighlights, getFullCompletionItem, getSymbol } from './UC/helpers';
+import { filePathByClassIdMap$, getDocumentByUri, indexDocument, getIndexedReferences } from './UC/indexer';
 import { UCSettings, defaultSettings } from './settings';
 import { documentLinked$ } from './UC/document';
+import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol } from './UC/Symbols';
 
 const isIndexReady$ = new Subject<boolean>();
 const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
@@ -44,6 +51,9 @@ connection.onInitialize((params: InitializeParams) => {
 			documentSymbolProvider: true,
 			documentHighlightProvider: true,
 			referencesProvider: true,
+			renameProvider: {
+				prepareProvider: true
+			}
 		}
 	};
 });
@@ -146,7 +156,6 @@ connection.onInitialized(async () => {
 					return;
 				}
 
-				connection.console.log("Indexing file " + document.fileName);
 				indexDocument(document);
 			});
 
@@ -169,9 +178,83 @@ textDocuments.listen(connection);
 
 connection.onDocumentSymbol((e) => getSymbols(e.textDocument.uri));
 connection.onHover((e)=> getHover(e.textDocument.uri, e.position));
-connection.onDefinition((e)=> getDefinition(e.textDocument.uri, e.position));
+
+connection.onDefinition(async (e)=> {
+	const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
+	if (symbol instanceof UCSymbol) {
+		const uri = symbol.getUri();
+		// This shouldn't happen, except for non UCSymbol objects.
+		if (!uri) {
+			return undefined;
+		}
+		return Location.create(uri, symbol.id.range);
+	}
+	return undefined;
+});
+
 connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
 connection.onDocumentHighlight((e) => getHighlights(e.textDocument.uri, e.position));
+
 connection.onCompletion((e) => getCompletionItems(e.textDocument.uri, e.position, e.context));
 connection.onCompletionResolve(getFullCompletionItem);
+
+connection.onPrepareRename(async (e) => {
+	const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
+	if (!symbol) {
+		throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
+	}
+
+	if (symbol instanceof UCFieldSymbol) {
+		if (symbol instanceof UCClassSymbol) {
+			throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename a class!');
+		}
+	} else {
+		throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
+	}
+
+	if (symbol.id.range === DEFAULT_RANGE) {
+		throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
+	}
+
+	if (symbol.getKind() === SymbolKind.Constructor) {
+		throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename a constructor!');
+	}
+
+	// Disallow symbols with invalid identifiers, such as an operator.
+	if (!VALID_ID_REGEXP.test(symbol.getId().toString())){
+		throw new ResponseError(ErrorCodes.InvalidParams, 'You cannot rename this element!');
+	}
+
+	return symbol.id.range;
+});
+
+const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)|()$/);
+connection.onRenameRequest(async (e) => {
+	if (!VALID_ID_REGEXP.test(e.newName)){
+		throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid identifier!');
+	}
+
+	const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
+	if (!symbol) {
+		return undefined;
+	}
+	const qualifiedName = symbol.getQualifiedName();
+	const references = getIndexedReferences(qualifiedName);
+	const locations = references && Array
+		.from(references.values())
+		.map(ref => ref.location);
+
+	if (!locations) {
+		return undefined;
+	}
+
+	const changes = {};
+	locations.forEach(l => {
+		const ranges = changes[l.uri] || (changes[l.uri] = []);
+		ranges.push(TextEdit.replace(l.range, e.newName));
+	});
+	const result: WorkspaceEdit = {changes};
+	return result;
+});
+
 connection.listen();

@@ -91,7 +91,7 @@ export async function getHover(uri: string, position: Position): Promise<Hover |
 	}
 }
 
-export async function getDefinition(uri: string, position: Position): Promise<Definition | undefined> {
+export async function getSymbolDefinition(uri: string, position: Position): Promise<ISymbol | undefined> {
 	const document = getDocumentByUri(uri);
 	const ref = document && document.getSymbolAtPos(position) as unknown as IWithReference;
 	if (!ref) {
@@ -100,15 +100,14 @@ export async function getDefinition(uri: string, position: Position): Promise<De
 
 	const symbol = ref.getReference && ref.getReference();
 	if (symbol instanceof UCSymbol) {
-		const uri = symbol.getUri();
-		// This shouldn't happen, except for non UCSymbol objects.
-		if (!uri) {
-			console.warn('No uri for referred symbol', symbol);
-			return undefined;
-		}
-		return Location.create(uri, symbol.id.range);
+		return symbol;
 	}
-	return undefined;
+	return ref;
+}
+
+export async function getSymbol(uri: string, position: Position): Promise<ISymbol | undefined> {
+	const document = getDocumentByUri(uri);
+	return document && document.getSymbolAtPos(position);
 }
 
 export async function getSymbols(uri: string): Promise<SymbolInformation[] | undefined> {
