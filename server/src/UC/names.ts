@@ -1,10 +1,10 @@
 import * as CRC32 from 'crc-32';
 
-export class Name {
-	static map = new Map<number, Name>();
+const namesMap = {};
 
+export class Name {
 	constructor(public readonly hash: number, private text: string) {
-		Name.map.set(hash, this);
+		namesMap[hash] = this;
 	}
 
 	toString(): string {
@@ -14,7 +14,15 @@ export class Name {
 
 export function toName(text: string): Name {
 	const hash = CRC32.str(text.toLowerCase());
-	return Name.map.get(hash) || new Name(hash, text);
+	return namesMap[hash] || new Name(hash, text);
+}
+
+export function toHash(text: string): number {
+	return CRC32.str(text.toLowerCase());
+}
+
+export function fromHash(hash: number): Name | undefined {
+	return namesMap[hash];
 }
 
 export const NAME_NONE = toName('None');

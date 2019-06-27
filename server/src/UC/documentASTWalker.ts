@@ -47,19 +47,26 @@ function createMemberExpressionFromIdentifier(ctx: UCParser.IdentifierContext): 
 	return expression;
 }
 
-function createBlockFromCode(visitor: DocumentASTWalker, ctx: UCParser.CodeBlockOptionalContext | UCParser.CaseClauseContext | UCParser.DefaultClauseContext): UCBlock {
-	const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
+function createBlockFromCode(
+	visitor: DocumentASTWalker,
+	ctx: ParserRuleContext & { statement: () => UCParser.StatementContext[] }
+): UCBlock | undefined {
+	const statementNodes = ctx.statement();
+	if (!statementNodes || statementNodes.length === 0) {
+		return undefined;
+	}
+
+	const startToken = statementNodes[0].start;
+	const stopToken = statementNodes[statementNodes.length - 1].stop;
+	const block = new UCBlock(rangeFromBounds(startToken, stopToken));
 	try {
-		const statementNodes = ctx.statement();
-		if (statementNodes) {
-			block.statements = new Array(statementNodes.length);
-			for (var i = 0; i < statementNodes.length; ++ i) {
-				const statement: IStatement = statementNodes[i].accept(visitor);
-				block.statements[i] = statement;
-			}
+		block.statements = new Array(statementNodes.length);
+		for (let i = 0; i < statementNodes.length; ++i) {
+			const statement: IStatement = statementNodes[i].accept(visitor);
+			block.statements[i] = statement;
 		}
 	} catch (err) {
-		console.error("An errored ocurred when building statements from a codeblock!", err);
+		console.error(`An errored ocurred when building statements for a codeblock in scope '${visitor.scope().getQualifiedName()}'!`);
 		throw err;
 	}
 	return block;
@@ -71,10 +78,10 @@ function createTypeFromIdentifiers(visitor: DocumentASTWalker, identifiers: Iden
 	} else if (identifiers.length > 1) {
 		const get = (i: number): UCQualifiedTypeSymbol => {
 			const type = new UCTypeSymbol(identifiers[i]);
-			const leftType = i-1 > -1 ? get(-- i) : undefined;
+			const leftType = i - 1 > -1 ? get(--i) : undefined;
 			return new UCQualifiedTypeSymbol(type, leftType);
 		};
-		return get(identifiers.length-1);
+		return get(identifiers.length - 1);
 	}
 	return undefined;
 }
@@ -95,15 +102,13 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		this.scopes.pop();
 	}
 
-	scope<T extends ISymbolContainer<ISymbol>>(): T {
+	scope<T extends ISymbolContainer<ISymbol> & ISymbol>(): T {
 		return <T>this.scopes[this.scopes.length - 1];
 	}
 
 	declare(symbol: UCSymbol) {
 		const scope = this.scope();
-		if (!scope) {
-			throw "Tried adding a symbol without a scope!";
-		}
+		console.assert(scope, "Tried adding a symbol without a scope!");
 		scope.addSymbol(symbol);
 	}
 
@@ -185,10 +190,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		}
 	}
 
-	visitMember(ctx: UCParser.MemberContext) {
-		const symbol = ctx.getChild(0).accept(this);
-		return symbol;
-	}
+	// visitMember(ctx: UCParser.MemberContext) {
+	// 	const symbol = ctx.getChild(0).accept(this);
+	// 	return symbol;
+	// }
 
 	visitTypeDecl(typeDeclNode: UCParser.TypeDeclContext): ITypeSymbol {
 		const typeNode = typeDeclNode.predefinedType();
@@ -300,6 +305,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const identifier: Identifier = ctx.identifier().accept(this);
 		const symbol = new UCDocumentClassSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.context = ctx;
+		symbol.document = this.document;
 		this.document.class = symbol; // Important!, must be assigned before further parsing.
 
 		const extendsNode = ctx.extendsClause();
@@ -382,25 +388,25 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		this.declare(symbol);
 
 		this.push(symbol);
+		try {
+			let count: number = 0;
+			const memberNodes = ctx.enumMember();
+			for (const memberNode of memberNodes) {
+				const memberSymbol = memberNode.accept(this);
+				// HACK: overwrite define() outer let.
+				memberSymbol.outer = symbol;
+				memberSymbol.value = count++;
+			}
 
-		let count: number = 0;
-		const memberNodes = ctx.enumMember();
-		for (const memberNode of memberNodes) {
-			const memberSymbol = memberNode.accept(this);
-			// HACK: overwrite define() outer let.
-			memberSymbol.outer = symbol;
-			memberSymbol.value = count ++;
+			// Insert the compiler-generated enum member "EnumCount".
+			// TODO: Insert another generated member, e.g. NM_MAX for ENetMode
+			const enumCountMember = new UCEnumMemberSymbol({ name: NAME_ENUMCOUNT, range: symbol.getRange() } as Identifier);
+			this.declare(enumCountMember);
+			enumCountMember.outer = symbol;
+			enumCountMember.value = count;
+		} finally {
+			this.pop();
 		}
-
-		// Insert the compiler-generated enum member "EnumCount".
-		// TODO: Insert another generated member, e.g. NM_MAX for ENetMode
-		const enumCountMember = new UCEnumMemberSymbol({ name: NAME_ENUMCOUNT, range: symbol.getRange() } as Identifier);
-		this.declare(enumCountMember);
-		enumCountMember.outer = symbol;
-		enumCountMember.value = count;
-
-		this.pop();
-
 		return symbol;
 	}
 
@@ -425,12 +431,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		this.declare(symbol);
 
 		this.push(symbol);
-		const members = ctx.structMember();
-		if (members) for (const member of members) {
-			member.accept<any>(this);
+		try {
+			const memberNodes = ctx.structMember();
+			if (memberNodes) for (const member of memberNodes) {
+				member.accept<any>(this);
+			}
+		} finally {
+			this.pop();
 		}
-		this.pop();
-
 		return symbol;
 	}
 
@@ -451,7 +459,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 		const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
 		block.statements = Array(statementNodes.length);
-		for (var i = 0; i < statementNodes.length; ++ i) {
+		for (var i = 0; i < statementNodes.length; ++i) {
 			const statement = statementNodes[i].accept(this);
 			block.statements[i] = statement;
 
@@ -469,7 +477,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitFunctionDecl(ctx: UCParser.FunctionDeclContext) {
-		const identifier: Identifier = ctx.functionName()!.accept(this);
+		const nameNode = ctx.functionName();
+
+		const identifier: Identifier = nameNode
+			? nameNode.accept(this)
+			: ({ name: NAME_NONE, range: rangeFromBound(ctx.start) } as Identifier);
 		const symbol = new UCMethodSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.context = ctx;
 
@@ -481,44 +493,46 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		}
 
 		this.push(symbol);
-		const paramsNode = ctx.parameters();
-		if (paramsNode) {
-			// TODO: do away with member @params
-			symbol.params = [];
-			const paramNodes = paramsNode.paramDecl();
-			for (const paramNode of paramNodes) {
-				const propSymbol = paramNode.accept<any>(this);
-				symbol.params.push(propSymbol);
+		try {
+			const paramsNode = ctx.parameters();
+			if (paramsNode) {
+				// TODO: do away with member @params
+				symbol.params = [];
+				const paramNodes = paramsNode.paramDecl();
+				for (const paramNode of paramNodes) {
+					const propSymbol = paramNode.accept<any>(this);
+					symbol.params.push(propSymbol);
+				}
 			}
+
+			const memberNodes = ctx.functionMember();
+			if (memberNodes) for (const member of memberNodes) {
+				member.accept(this);
+			}
+
+			symbol.block = createBlockFromCode(this, ctx);
+		} catch (err) {
+			console.error(`Encountered an error while constructing function '${symbol.getQualifiedName()}'`, err);
+		} finally {
+			this.pop();
 		}
-
-		const members = ctx.functionMember();
-		if (members) for (const member of members) {
-			member.accept<any>(this);
-		}
-
-		const statementNodes = ctx.statement();
-		if (statementNodes) {
-			symbol.block = this.visitStatements(ctx, statementNodes);
-		}
-		this.pop();
 		return symbol;
 	}
 
-	visitFunctionMember(ctx: UCParser.FunctionMemberContext) {
-		const symbol = ctx.getChild(0).accept(this);
-		return symbol;
-	}
+	// visitFunctionMember(ctx: UCParser.FunctionMemberContext) {
+	// 	const symbol = ctx.getChild(0).accept(this);
+	// 	return symbol;
+	// }
 
-	visitStateMember(ctx: UCParser.StateMemberContext) {
-		const symbol = ctx.getChild(0).accept(this);
-		return symbol;
-	}
+	// visitStateMember(ctx: UCParser.StateMemberContext) {
+	// 	const symbol = ctx.getChild(0).accept(this);
+	// 	return symbol;
+	// }
 
-	visitStructMember(ctx: UCParser.StructMemberContext) {
-		const symbol = ctx.getChild(0).accept(this);
-		return symbol;
-	}
+	// visitStructMember(ctx: UCParser.StructMemberContext) {
+	// 	const symbol = ctx.getChild(0).accept(this);
+	// 	return symbol;
+	// }
 
 	visitParamDecl(ctx: UCParser.ParamDeclContext) {
 		const propTypeNode = ctx.typeDecl();
@@ -576,16 +590,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		return symbol;
 	}
 
-	visitStatements(ctx: ParserRuleContext, nodes: UCParser.StatementContext[]) {
-		const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
-		block.statements = Array(nodes.length);
-		for (var i = 0; i < nodes.length; ++ i) {
-			const statement = nodes[i].accept(this);
-			block.statements[i] = statement;
-		}
-		return block;
-	}
-
 	visitStateDecl(ctx: UCParser.StateDeclContext) {
 		const identifier: Identifier = ctx.identifier().accept(this);
 
@@ -600,17 +604,15 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		this.declare(symbol);
 
 		this.push(symbol);
-		const members = ctx.stateMember();
-		if (members) for (const member of members) {
-			member.accept(this);
+		try {
+			const memberNodes = ctx.stateMember();
+			if (memberNodes) for (const member of memberNodes) {
+				member.accept(this);
+			}
+			symbol.block = createBlockFromCode(this, ctx);
+		} finally {
+			this.pop();
 		}
-
-		const statementNodes = ctx.statement();
-		if (statementNodes) {
-			symbol.block = this.visitStatements(ctx, statementNodes);
-		}
-		this.pop();
-
 		return symbol;
 	}
 
@@ -642,11 +644,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 		this.declare(symbol);
 		this.push(symbol);
-		const members = ctx.defaultStatement();
-		if (members) for (const member of members) {
-			member.accept(this);
+		try {
+			const memberNodes = ctx.defaultStatement();
+			if (memberNodes) for (const member of memberNodes) {
+				member.accept(this);
+			}
+		} finally {
+			this.pop();
 		}
-		this.pop();
 		return symbol;
 	}
 
@@ -661,11 +666,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 		this.declare(symbol);
 		this.push(symbol);
-		const members = ctx.defaultStatement();
-		if (members) for (const member of members) {
-			member.accept(this);
+		try {
+			const memberNodes = ctx.defaultStatement();
+			if (memberNodes) for (const member of memberNodes) {
+				member.accept(this);
+			}
+		} finally {
+			this.pop();
 		}
-		this.pop();
 		return symbol;
 	}
 
@@ -679,11 +687,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 		this.declare(symbol);
 		this.push(symbol);
-		const members = ctx.defaultStatement();
-		if (members) for (const member of members) {
-			member.accept(this);
+		try {
+			const memberNodes = ctx.defaultStatement();
+			if (memberNodes) for (const member of memberNodes) {
+				member.accept(this);
+			}
+		} finally {
+			this.pop();
 		}
-		this.pop();
 		return symbol;
 	}
 
@@ -926,7 +937,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 		const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
 		block.statements = Array(clauseNodes.length);
-		for (var i = 0; i < clauseNodes.length; ++ i) {
+		for (var i = 0; i < clauseNodes.length; ++i) {
 			const caseStatement: IStatement = clauseNodes[i].accept<any>(this);
 			block.statements[i] = caseStatement;
 		}
@@ -1103,7 +1114,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const exprArgumentNodes = ctx.arguments();
 		if (exprArgumentNodes) {
 			expression.arguments = exprArgumentNodes.accept(this);
-			if (expression.arguments) for (let i = 0; i < expression.arguments.length; ++ i) {
+			if (expression.arguments) for (let i = 0; i < expression.arguments.length; ++i) {
 				if (expression.arguments[i]) {
 					expression.arguments[i]!.outer = expression;
 				}
@@ -1119,7 +1130,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		}
 
 		const exprArgs = new Array(argumentNodes.length);
-		for (let i = 0; i < exprArgs.length; ++ i) {
+		for (let i = 0; i < exprArgs.length; ++i) {
 			exprArgs[i] = argumentNodes[i].accept(this);
 		}
 		return exprArgs;
@@ -1166,7 +1177,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const exprArgumentNodes = ctx.arguments();
 		if (exprArgumentNodes) {
 			expression.arguments = exprArgumentNodes.accept(this);
-			if (expression.arguments) for (let i = 0; i < expression.arguments.length; ++ i) {
+			if (expression.arguments) for (let i = 0; i < expression.arguments.length; ++i) {
 				if (expression.arguments[i]) {
 					expression.arguments[i]!.outer = expression;
 				}

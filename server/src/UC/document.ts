@@ -48,18 +48,18 @@ export class UCDocument {
 			this.invalidate();
 		}
 
-		const startLexing = performance.now();
+		// const startLexing = performance.now();
 		const lexer = new UCGrammarLexer(new CaseInsensitiveStream(text || this.readText()));
 		lexer.removeErrorListeners();
 		lexer.addErrorListener(this as ANTLRErrorListener<number>);
 		const stream = this.tokenStream = new CommonTokenStream(lexer);
-		connection.console.info(this.fileName + ': lexing time ' + (performance.now() - startLexing));
+		// connection.console.info(this.fileName + ': lexing time ' + (performance.now() - startLexing));
 
-		const startParsing = performance.now();
+		// const startParsing = performance.now();
 		const parser = new UCGrammarParser(stream);
 
 		parser.errorHandler = ERROR_STRATEGY;
-		connection.console.info(this.fileName + ': parsing time ' + (performance.now() - startParsing));
+		// connection.console.info(this.fileName + ': parsing time ' + (performance.now() - startParsing));
 		parser.removeErrorListeners();
 
 		const startWalking = performance.now();
@@ -121,9 +121,9 @@ export class UCDocument {
 			return [];
 		}
 
-		const start = performance.now();
+		// const start = performance.now();
 		this.class!.analyze(this, this.class);
-		connection.console.info(this.fileName + ': analyzing time ' + (performance.now() - start));
+		// connection.console.info(this.fileName + ': analyzing time ' + (performance.now() - start));
 
 		const nodes = this.getNodes();
 		this.nodes = [];

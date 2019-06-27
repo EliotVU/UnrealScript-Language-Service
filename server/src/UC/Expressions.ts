@@ -266,7 +266,7 @@ export class UCPropertyAccessExpression extends UCExpression {
 	getContextType(): ISymbol | undefined {
 		const symbol = this.left && this.left.getMemberSymbol();
 		if (!symbol) {
-			connection.console.log("Couldn't resolve context " + this.context.text);
+			return undefined;
 		}
 
 		// Resolve properties to its defined type
