@@ -1,8 +1,6 @@
 import { Position, Range } from 'vscode-languageserver';
 import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
-import { connection } from '../server';
-
 import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode } from './diagnostics/diagnostics';
 import { getEnumMember } from './indexer';
 import { intersectsWith, rangeFromBounds } from './helpers';
@@ -32,7 +30,8 @@ import {
 	RangeTypeRef,
 	RngMethodLike,
 	ITypeSymbol,
-	TypeCastMap
+	TypeCastMap,
+	UCDelegateSymbol
 } from './Symbols';
 
 export interface IExpression {
@@ -489,9 +488,36 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 	}
 }
 
+export class UCDefaultAssignmentExpression extends UCBinaryExpression {
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Error;
+	}
+
+	analyze(document: UCDocument, context?: UCStructSymbol) {
+		const letSymbol = this.left && this.left.getMemberSymbol();
+		if (letSymbol instanceof UCSymbol) {
+			if (letSymbol instanceof UCPropertySymbol) {
+				// TODO: check right type
+			} else if (letSymbol instanceof UCDelegateSymbol) {
+				// TODO: check right type
+			} else {
+				const errorNode = new ExpressionErrorNode(this.left!, `Type of '${letSymbol.getQualifiedName()}' cannot be assigned a default value!`);
+				document.nodes.push(errorNode);
+			}
+		}
+
+		// TODO: pass valid type information
+		super.analyze(document, context);
+	}
+}
+
 export class UCMemberExpression extends UCExpression {
 	constructor(protected symbolRef: UCSymbolReference) {
 		super(symbolRef.getRange());
+	}
+
+	getId(): Name {
+		return this.symbolRef.getId();
 	}
 
 	getMemberSymbol() {
@@ -747,7 +773,7 @@ export abstract class UCStructLiteral extends UCExpression {
 
 	getContainedSymbolAtPos(_position: Position) {
 		// Only return if we have a RESOLVED reference.
-		return this.structType.getReference() && this.structType;
+		return this.structType.getReference() && this.structType as ISymbol;
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol) {
@@ -760,6 +786,35 @@ export abstract class UCStructLiteral extends UCExpression {
 	}
 
 	analyze(_document: UCDocument, _context?: UCStructSymbol): void {
+	}
+}
+
+export class UCDefaultStructLiteral extends UCExpression {
+	public arguments?: Array<IExpression | undefined>;
+
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Struct;
+	}
+	
+	getContainedSymbolAtPos(position: Position) {
+		if (this.arguments) for (let arg of this.arguments) {
+			const symbol = arg && arg.getSymbolAtPos(position);
+			if (symbol) {
+				return symbol;
+			}
+		}
+	}
+
+	index(document: UCDocument, context?: UCStructSymbol) {
+		if (this.arguments) for (let arg of this.arguments) {
+			arg && arg.index(document, context);
+		}
+	}
+
+	analyze(document: UCDocument, context?: UCStructSymbol) {
+		if (this.arguments) for (let arg of this.arguments) {
+			arg && arg.analyze(document, context);
+		}
 	}
 }
 

@@ -62,6 +62,7 @@ export const NAME_CLASSPROPERTY = toName('ClassProperty');
 export const NAME_OBJECTPROPERTY = toName('ObjectProperty');
 export const NAME_ACTOR = toName('Actor');
 
+export const NAME_DEFAULT = toName('Default');
 export const NAME_REPLICATION = toName('Replication');
 export const NAME_DEFAULTPROPERTIES = toName('DefaultProperties');
 export const NAME_STRUCTDEFAULTPROPERTIES = toName('StructDefaultProperties');

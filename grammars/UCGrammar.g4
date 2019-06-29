@@ -1000,7 +1000,19 @@ structDefaultPropertiesBlock
 
 defaultStatement
 	: objectDecl
-	| defaultVariable
+	| defaultAssignmentExpression
+	;
+
+defaultExpression
+	: identifier DOT defaultExpression 							#defaultPropertyAccessExpression
+	| identifier (OPEN_PARENS INTEGER CLOSE_PARENS)				#defaultElementAccessExpression
+	| identifier (OPEN_PARENS arguments? CLOSE_PARENS )			#defaultCallExpression
+	| identifier (OPEN_BRACKET INTEGER CLOSE_BRACKET)			#defaultElementAccessExpression
+	| identifier												#defaultMemberExpression
+	;
+
+defaultAssignmentExpression
+	: defaultExpression ASSIGNMENT ((OPEN_BRACE defaultLiteral CLOSE_BRACE) | defaultLiteral)
 	;
 
 objectDecl
@@ -1011,19 +1023,6 @@ objectDecl
 		'end' 'object'
 	;
 
-// FIXME: Use expressions pattern instead?
-defaultVariable:
-	defaultId
-	((OPEN_PARENS INTEGER CLOSE_PARENS) | (OPEN_BRACKET INTEGER CLOSE_BRACKET))?
-	(
-		ASSIGNMENT defaultValue
-		// Call parentheses are optional
-		| DOT identifier (OPEN_PARENS defaultValue CLOSE_PARENS)?
-	) SEMICOLON?
-	;
-
-defaultId: qualifiedIdentifier;
-
 // (variableList)
 structLiteral
 	: OPEN_PARENS defaultArguments? CLOSE_PARENS
@@ -1032,20 +1031,16 @@ structLiteral
 // id=literal,* or literal,*
 defaultArguments
 	: (defaultLiteral (COMMA defaultLiteral)*)
-	| (defaultVariable (COMMA defaultVariable)*)
+	| (defaultAssignmentExpression (COMMA defaultAssignmentExpression)*)
 	;
 
 defaultLiteral
 	: structLiteral
 	| noneLiteral
 	| boolLiteral
-	| numberLiteral
+	| floatLiteral
+	| intLiteral
 	| stringLiteral
 	| objectLiteral
 	| qualifiedIdentifier
-	;
-
-defaultValue
-	: defaultLiteral
-	| identifier
 	;
