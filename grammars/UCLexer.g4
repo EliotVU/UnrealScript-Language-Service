@@ -57,6 +57,15 @@ fragment MACRO_NAME
 
 STRING: '"' (~["\\] | ESC_SEQ)* '"';
 NAME: '\'' (~['\\] | ESC_SEQ)* '\'';
+
+KW_FUNCTION: 'function';
+KW_EVENT: 'event';
+KW_DELEGATE: 'delegate';
+KW_OPERATOR: 'operator';
+KW_PREOPERATOR: 'preoperator';
+KW_POSTOPERATOR: 'postoperator';
+
+// Note: Keywords must precede the ID token.
 ID:	[a-zA-Z_][a-zA-Z0-9_]*;
 // ID:	[a-z_][a-z0-9_]*;
 

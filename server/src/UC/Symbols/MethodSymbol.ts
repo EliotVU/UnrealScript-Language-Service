@@ -1,7 +1,5 @@
 import { SymbolKind, CompletionItemKind, Position, Location } from 'vscode-languageserver-types';
 
-import { FunctionDeclContext } from '../../antlr/UCGrammarParser';
-
 import { getDocumentByUri } from '../indexer';
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
@@ -9,10 +7,21 @@ import { Name } from '../names';
 
 import { DEFAULT_RANGE, UCStructSymbol, UCParamSymbol, ITypeSymbol, ISymbol, IWithReference } from '.';
 
+export enum MethodSpecifiers {
+	None = 0x0000,
+	Function = 0x0001,
+	Operator = 0x0002,
+	PreOperator = 0x0004,
+	PostOperator = 0x0008,
+	Event = 0x0010,
+	Delegate = 0x0020
+}
+
 export class UCMethodSymbol extends UCStructSymbol {
 	public returnType?: ITypeSymbol;
 	public overriddenMethod?: UCMethodSymbol;
 	public params?: UCParamSymbol[];
+	public specifiers?: MethodSpecifiers;
 
 	// TODO: reflect parsed modifier.
 	isStatic(): boolean {
@@ -108,9 +117,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getKindText(): string {
-		return this.context
-			? (this.context as FunctionDeclContext).functionKind().text.toLowerCase()
-			: 'function';
+		return 'function';
 	}
 
 	getTooltip(): string {
@@ -182,5 +189,61 @@ export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference
 
 	getReference(): ISymbol | undefined {
 		return this.returnType && this.returnType.getReference();
+	}
+}
+
+export class UCEventSymbol extends UCMethodSymbol {
+	getKind(): SymbolKind {
+		return SymbolKind.Event;
+	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Event;
+	}
+
+	getKindText(): string {
+		return 'event';
+	}
+}
+
+export class UCDelegateSymbol extends UCMethodSymbol {
+	getKind(): SymbolKind {
+		return SymbolKind.Function;
+	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Function;
+	}
+
+	getKindText(): string {
+		return 'delegate';
+	}
+}
+
+export class UCOperatorSymbol extends UCMethodSymbol {
+	precedence?: number;
+
+	getKind(): SymbolKind {
+		return SymbolKind.Operator;
+	}
+
+	getCompletionItemKind(): CompletionItemKind {
+		return CompletionItemKind.Operator;
+	}
+
+	getKindText(): string {
+		return `operator(${this.precedence})`;
+	}
+}
+
+export class UCPreOperatorSymbol extends UCOperatorSymbol {
+	getKindText(): string {
+		return 'preoperator';
+	}
+}
+
+export class UCPostOperatorSymbol extends UCOperatorSymbol {
+	getKindText(): string {
+		return 'postoperator';
 	}
 }

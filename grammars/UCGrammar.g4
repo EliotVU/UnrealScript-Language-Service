@@ -2,237 +2,231 @@ grammar UCGrammar;
 
 import UCLexer;
 
-kwDEFAULT: 'default';
-kwGLOBAL: 'global';
-kwCLASS: 'class';
-kwINTERFACE: 'interface';
-kwWITHIN: 'within';
-kwCONST: 'const';
-kwENUM: 'enum';
-kwSTRUCT: 'struct';
-kwVAR: 'var';
-kwLOCAL: 'local';
-kwREPLICATION: 'replication';
-kwOPERATOR: 'operator';
-kwPREOPERATOR: 'preoperator';
-kwPOSTOPERATOR: 'postoperator';
-kwDELEGATE: 'delegate';
-kwFUNCTION: 'function';
-kwEVENT: 'event';
-kwSTATE: 'state';
-kwMAP: 'map';
-kwDEFAULTPROPERTIES: 'defaultproperties';
-kwSTRUCTDEFAULTPROPERTIES: 'structdefaultproperties';
-kwFOR: 'for';
-kwFOREACH: 'foreach';
-kwRETURN: 'return';
-kwBREAK: 'break';
-kwCONTINUE: 'continue';
-kwSTOP: 'stop';
-kwCASE: 'case';
-kwSWITCH: 'switch';
-kwUNTIL: 'until';
-kwDO: 'do';
-kwWHILE: 'while';
-kwELSE: 'else';
-kwIF: 'if';
-kwIGNORES: 'ignores';
-kwUNRELIABLE: 'unreliable';
-kwRELIABLE: 'reliable';
-kwCPPTEXT: 'cpptext';
-kwSTRUCTCPPTEXT: 'structcpptext';
-kwCPPSTRUCT: 'cppstruct';
-kwARRAY: 'array';
-kwBYTE: 'byte';
-kwINT: 'int';
-kwFLOAT: 'float';
-kwSTRING: 'string';
-kwBUTTON: 'button';
-kwBOOL: 'bool';
-kwNAME: 'name';
-kwTRUE: 'true';
-kwFALSE: 'false';
-kwNONE: 'none';
-kwEXTENDS: 'extends' | 'expands';
-kwPUBLIC: 'public';
-kwPROTECTED: 'protected';
-kwPROTECTEDWRITE: 'protectedwrite';
-kwPRIVATE: 'private';
-kwPRIVATEWRITE: 'privatewrite';
-kwLOCALIZED: 'localized';
-kwOUT: 'out';
-kwOPTIONAL: 'optional';
-kwINIT: 'init';
-kwSKIP: 'skip';
-kwCOERCE: 'coerce';
-kwFINAL: 'final';
-kwLATENT: 'latent';
-kwSINGULAR: 'singular';
-kwSTATIC: 'static';
-kwEXEC: 'exec';
-kwITERATOR: 'iterator';
-kwSIMULATED: 'simulated';
-kwAUTO: 'auto';
-kwNOEXPORT: 'noexport';
-kwNOEXPORTHEADER: 'noexportheader';
-kwEDITCONST: 'editconst';
-kwEDFINDABLE: 'edfindable';
-kwEDITINLINE: 'editinline';
-kwEDITINLINENOTIFY: 'editinlinenotify';
-kwEDITINLINEUSE: 'editinlineuse';
-kwEDITHIDE: 'edithide';
-kwEDITCONSTARRAY: 'editconstarray';
-kwEDITFIXEDSIZE: 'editfixedsize';
-kwEDITORONLY: 'editoronly';
-kwEDITORTEXTBOX: 'editortextbox';
-kwNOCLEAR: 'noclear';
-kwNOIMPORT: 'noimport';
-kwNONTRANSACTIONAL: 'nontransactional';
-kwSERIALIZETEXT: 'serializetext';
-kwCONFIG: 'config';
-kwGLOBALCONFIG: 'globalconfig';
-kwNATIVE: 'native';
-kwINTRINSIC: 'intrinsic';
-kwEXPORT: 'export';
-kwLONG: 'long';
-kwTRANSIENT: 'transient';
-kwCACHE: 'cache';
-kwINTERP: 'interp';
-kwREPRETRY: 'repretry';
-kwREPNOTIFY: 'repnotify';
-kwNOTFORCONSOLE: 'notforconsole';
-kwARCHETYPE: 'archetype';
-kwCROSSLEVELACTIVE: 'crosslevelactive';
-kwCROSSLEVELPASSIVE: 'crosslevelpassive';
-kwALLOWABSTRACT: 'allowabstract';
-kwAUTOMATED: 'automated';
-kwTRAVEL: 'travel';
-kwInput: 'input';
-kwINSTANCED: 'instanced';
-kwDATABINDING: 'databinding';
-kwDUPLICATETRANSIENT: 'duplicatetransient';
-kwPARSECONFIG: 'parseconfig';
-kwCLASSREDIRECT: 'classredirect';
-kwDEPRECATED: 'deprecated';
-kwSTRICTCONFIG: 'strictconfig';
-kwATOMIC: 'atomic';
-kwATOMICWHENCOOKED: 'atomicwhencooked';
-kwIMMUTABLE: 'immutable';
-kwIMMUTABLEWHENCOOKED: 'immutablewhencooked';
-kwVIRTUAL: 'virtual';
-kwSERVER: 'server';
-kwCLIENT: 'client';
-kwDLLIMPORT: 'dllimport';
-kwDEMORECORDING: 'demorecording';
+// kwDEFAULT: 'default';
+// kwGLOBAL: 'global';
+// kwCLASS: 'class';
+// kwINTERFACE: 'interface';
+// kwWITHIN: 'within';
+// kwCONST: 'const';
+// kwENUM: 'enum';
+// kwSTRUCT: 'struct';
+// kwVAR: 'var';
+// kwLOCAL: 'local';
+// kwREPLICATION: 'replication';
+// kwSTATE: 'state';
+// kwMAP: 'map';
+// kwDEFAULTPROPERTIES: 'defaultproperties';
+// kwSTRUCTDEFAULTPROPERTIES: 'structdefaultproperties';
+// kwFOR: 'for';
+// kwFOREACH: 'foreach';
+// kwRETURN: 'return';
+// kwBREAK: 'break';
+// kwCONTINUE: 'continue';
+// kwSTOP: 'stop';
+// kwCASE: 'case';
+// kwSWITCH: 'switch';
+// kwUNTIL: 'until';
+// kwDO: 'do';
+// kwWHILE: 'while';
+// kwELSE: 'else';
+// kwIF: 'if';
+// kwIGNORES: 'ignores';
+// kwUNRELIABLE: 'unreliable';
+// kwRELIABLE: 'reliable';
+// kwCPPTEXT: 'cpptext';
+// kwSTRUCTCPPTEXT: 'structcpptext';
+// kwCPPSTRUCT: 'cppstruct';
+// kwARRAY: 'array';
+// kwBYTE: 'byte';
+// kwINT: 'int';
+// kwFLOAT: 'float';
+// kwSTRING: 'string';
+// kwBUTTON: 'button';
+// kwBOOL: 'bool';
+// kwNAME: 'name';
+// kwTRUE: 'true';
+// kwFALSE: 'false';
+// kwNONE: 'none';
+// kwEXTENDS: 'extends' | 'expands';
+// kwPUBLIC: 'public';
+// kwPROTECTED: 'protected';
+// kwPROTECTEDWRITE: 'protectedwrite';
+// kwPRIVATE: 'private';
+// kwPRIVATEWRITE: 'privatewrite';
+// kwLOCALIZED: 'localized';
+// kwOUT: 'out';
+// kwOPTIONAL: 'optional';
+// kwINIT: 'init';
+// kwSKIP: 'skip';
+// kwCOERCE: 'coerce';
+// kwFINAL: 'final';
+// kwLATENT: 'latent';
+// kwSINGULAR: 'singular';
+// kwSTATIC: 'static';
+// kwEXEC: 'exec';
+// kwITERATOR: 'iterator';
+// kwSIMULATED: 'simulated';
+// kwAUTO: 'auto';
+// kwNOEXPORT: 'noexport';
+// kwNOEXPORTHEADER: 'noexportheader';
+// kwEDITCONST: 'editconst';
+// kwEDFINDABLE: 'edfindable';
+// kwEDITINLINE: 'editinline';
+// kwEDITINLINENOTIFY: 'editinlinenotify';
+// kwEDITINLINEUSE: 'editinlineuse';
+// kwEDITHIDE: 'edithide';
+// kwEDITCONSTARRAY: 'editconstarray';
+// kwEDITFIXEDSIZE: 'editfixedsize';
+// kwEDITORONLY: 'editoronly';
+// kwEDITORTEXTBOX: 'editortextbox';
+// kwNOCLEAR: 'noclear';
+// kwNOIMPORT: 'noimport';
+// kwNONTRANSACTIONAL: 'nontransactional';
+// kwSERIALIZETEXT: 'serializetext';
+// kwCONFIG: 'config';
+// kwGLOBALCONFIG: 'globalconfig';
+// kwNATIVE: 'native';
+// kwINTRINSIC: 'intrinsic';
+// kwEXPORT: 'export';
+// kwLONG: 'long';
+// kwTRANSIENT: 'transient';
+// kwCACHE: 'cache';
+// kwINTERP: 'interp';
+// kwREPRETRY: 'repretry';
+// kwREPNOTIFY: 'repnotify';
+// kwNOTFORCONSOLE: 'notforconsole';
+// kwARCHETYPE: 'archetype';
+// kwCROSSLEVELACTIVE: 'crosslevelactive';
+// kwCROSSLEVELPASSIVE: 'crosslevelpassive';
+// kwALLOWABSTRACT: 'allowabstract';
+// kwAUTOMATED: 'automated';
+// kwTRAVEL: 'travel';
+// kwInput: 'input';
+// kwINSTANCED: 'instanced';
+// kwDATABINDING: 'databinding';
+// kwDUPLICATETRANSIENT: 'duplicatetransient';
+// kwPARSECONFIG: 'parseconfig';
+// kwCLASSREDIRECT: 'classredirect';
+// kwDEPRECATED: 'deprecated';
+// kwSTRICTCONFIG: 'strictconfig';
+// kwATOMIC: 'atomic';
+// kwATOMICWHENCOOKED: 'atomicwhencooked';
+// kwIMMUTABLE: 'immutable';
+// kwIMMUTABLEWHENCOOKED: 'immutablewhencooked';
+// kwVIRTUAL: 'virtual';
+// kwSERVER: 'server';
+// kwCLIENT: 'client';
+// kwDLLIMPORT: 'dllimport';
+// kwDEMORECORDING: 'demorecording';
 
-kwGOTO: 'goto';
-kwASSERT: 'assert';
+// kwGOTO: 'goto';
+// kwASSERT: 'assert';
 
-kwBEGIN: 'begin';
-kwOBJECT: 'object';
-kwEND: 'end';
+// kwBEGIN: 'begin';
+// kwOBJECT: 'object';
+// kwEND: 'end';
 
 // Class modifier keywords have been commented out, because we are not using them for parsing.
 identifier
 	: ID
-	|'default'
-	|'self'
-	|'super'
-	|'global'
-	|'class'
-	|'interface'
-	|'within'
-	|'const'
-	|'enum'
-	|'struct'
-	|'var'
-	|'local'
-	|'replication'
-	|'operator'
-	|'preoperator'
-	|'postoperator'
-	|'delegate'
-	|'function'
-	|'event'
-	|'state'
-	|'map'
-	|'defaultproperties'
-	|'structdefaultproperties'
-	|'for'
-	|'foreach'
-	|'return'
-	|'break'
-	|'continue'
-	|'stop'
-	|'case'
-	|'switch'
-	|'until'
-	|'do'
-	|'while'
-	|'else'
-	|'if'
-	|'ignores'
-	|'unreliable'
-	|'reliable'
-	|'cpptext'
-	|'cppstruct'
-	|'structcpptext'
-	|'array'
-	|'byte'
-	|'int'
-	|'float'
-	|'string'
-	|'pointer'
-	|'button'
-	|'bool'
-	|'name'
-	|'true'
-	|'false'
-	|'none'
-	|'extends'
-	|'expands'
-	|'public'
-	|'protected'
-	|'protectedwrite'
-	|'private'
-	|'privatewrite'
-	|'localized'
-	|'out'
-	|'optional'
-	|'init'
-	|'skip'
-	|'coerce'
-	|'final'
-	|'latent'
-	|'singular'
-	|'static'
-	|'exec'
-	|'iterator'
-	|'simulated'
-	|'auto'
-	|'noexport'
-	|'noexportheader'
-	|'editconst'
-	|'edfindable'
-	|'editinline'
-	|'editinlinenotify'
-	|'editinlineuse'
-	|'edithide'
-	|'editconstarray'
-	|'editfixedsize'
-	|'editoronly'
-	|'editortextbox'
-	|'noclear'
-	|'noimport'
-	|'nontransactional'
-	|'serializetext'
-	|'config'
-	|'globalconfig'
-	|'intrinsic'
-	|'native'
+	| 'default'
+	| 'self'
+	| 'super'
+	| 'global'
+	| 'class'
+	| 'interface'
+	| 'within'
+	| 'const'
+	| 'enum'
+	| 'struct'
+	| 'var'
+	| 'local'
+	| 'replication'
+	| 'operator'
+	| 'preoperator'
+	| 'postoperator'
+	| 'delegate'
+	| 'function'
+	| 'event'
+	| 'state'
+	| 'map'
+	| 'defaultproperties'
+	| 'structdefaultproperties'
+	| 'for'
+	| 'foreach'
+	| 'return'
+	| 'break'
+	| 'continue'
+	| 'stop'
+	| 'case'
+	| 'switch'
+	| 'until'
+	| 'do'
+	| 'while'
+	| 'else'
+	| 'if'
+	| 'ignores'
+	| 'unreliable'
+	| 'reliable'
+	| 'cpptext'
+	| 'cppstruct'
+	| 'structcpptext'
+	| 'array'
+	| 'byte'
+	| 'int'
+	| 'float'
+	| 'string'
+	| 'pointer'
+	| 'button'
+	| 'bool'
+	| 'name'
+	| 'true'
+	| 'false'
+	| 'none'
+	| 'extends'
+	| 'expands'
+	| 'public'
+	| 'protected'
+	| 'protectedwrite'
+	| 'private'
+	| 'privatewrite'
+	| 'localized'
+	| 'out'
+	| 'optional'
+	| 'init'
+	| 'skip'
+	| 'coerce'
+	| 'final'
+	| 'latent'
+	| 'singular'
+	| 'static'
+	| 'exec'
+	| 'iterator'
+	| 'simulated'
+	| 'auto'
+	| 'noexport'
+	| 'noexportheader'
+	| 'editconst'
+	| 'edfindable'
+	| 'editinline'
+	| 'editinlinenotify'
+	| 'editinlineuse'
+	| 'edithide'
+	| 'editconstarray'
+	| 'editfixedsize'
+	| 'editoronly'
+	| 'editortextbox'
+	| 'noclear'
+	| 'noimport'
+	| 'nontransactional'
+	| 'serializetext'
+	| 'config'
+	| 'globalconfig'
+	| 'intrinsic'
+	| 'native'
 	// |'nativereplication'
 	// |'nativeonly'
-	|'export'
+	| 'export'
 	// |'abstract'
 	// |'perobjectconfig'
 	// |'perobjectlocalized'
@@ -244,42 +238,42 @@ identifier
 	// |'showcategories'
 	// |'hidecategories'
 	// |'guid'
-	|'long'
-	|'transient'
+	| 'long'
+	| 'transient'
 	// |'nontransient'
-	|'cache'
-	|'interp'
-	|'repretry'
-	|'repnotify'
-	|'notforconsole'
-	|'archetype'
-	|'crosslevelactive'
-	|'crosslevelpassive'
-	|'allowabstract'
-	|'automated'
-	|'travel'
-	|'input'
+	| 'cache'
+	| 'interp'
+	| 'repretry'
+	| 'repnotify'
+	| 'notforconsole'
+	| 'archetype'
+	| 'crosslevelactive'
+	| 'crosslevelpassive'
+	| 'allowabstract'
+	| 'automated'
+	| 'travel'
+	| 'input'
 	// |'cacheexempt'
 	// |'hidedropdown'
-	|'instanced'
-	|'databinding'
-	|'duplicatetransient'
+	| 'instanced'
+	| 'databinding'
+	| 'duplicatetransient'
 	// |'parseconfig'
 	// |'editinlinenew'
 	// |'noteditinlinenew'
 	// |'exportstructs'
 	// |'dllbind'
-	|'deprecated'
-	|'strictconfig'
-	|'atomic'
-	|'atomicwhencooked'
-	|'immutable'
-	|'immutablewhencooked'
-	|'virtual'
-	|'server'
-	|'client'
-	|'dllimport'
-	|'demorecording'
+	| 'deprecated'
+	| 'strictconfig'
+	| 'atomic'
+	| 'atomicwhencooked'
+	| 'immutable'
+	| 'immutablewhencooked'
+	| 'virtual'
+	| 'server'
+	| 'client'
+	| 'dllimport'
+	| 'demorecording'
 	// |'collapsecategories'
 	// |'dontcollapsecategories'
 	// |'implements'
@@ -290,15 +284,15 @@ identifier
 	// |'dontsortcategories'
 	// |'inherits'
 	// |'forcescriptorder'
-	|'begin'
-	|'object'
-	|'end'
-	|'new'
-	|'goto'
-	|'assert'
-	|'vect'
-	|'rot'
-	|'rng'
+	| 'begin'
+	| 'object'
+	| 'end'
+	| 'new'
+	| 'goto'
+	| 'assert'
+	| 'vect'
+	| 'rot'
+	| 'rng'
 	;
 
 // Parses the following possiblities.
@@ -548,12 +542,7 @@ metaTag: identifier ASSIGNMENT (~(BITWISE_OR | GT) | metaTag);
 categoryList: identifier (COMMA identifier)*;
 
 variableModifier
-	: ('public' exportBlockText?)
-	| ('protected' exportBlockText?)
-	| ('protectedwrite' exportBlockText?)
-	| ('private' exportBlockText?)
-	| ('privatewrite' exportBlockText?)
-	| 'localized'
+	: ('localized'
 	| 'native'
 	| 'const'
 	| 'editconst'
@@ -593,7 +582,12 @@ variableModifier
 	| 'archetype'
 	| 'crosslevelactive'
 	| 'crosslevelpassive'
-	| 'allowabstract'
+	| 'allowabstract')
+	| ('public' exportBlockText?)
+	| ('protected' exportBlockText?)
+	| ('protectedwrite' exportBlockText?)
+	| ('private' exportBlockText?)
+	| ('privatewrite' exportBlockText?)
 	;
 
 typeDecl
@@ -625,7 +619,7 @@ predefinedType
 // Note: inlinedDeclTypes includes another arrayGeneric!
 arrayType: 'array' (LT inlinedDeclTypes GT);
 classType: 'class' (LT identifier GT)?;
-delegateType: 'delegate' (LT qualifiedIdentifier GT); // TODO: qualifiedIdentifier is hardcoded to 2 identifiers MAX.
+delegateType: KW_DELEGATE (LT qualifiedIdentifier GT); // TODO: qualifiedIdentifier is hardcoded to 2 identifiers MAX.
 mapType: 'map' exportBlockText;
 
 cppText
@@ -661,18 +655,19 @@ replicationStatement
 /* Parses:
  * public simulated function coerce class<Actor> test(optional int p1, int p2) const;
  */
-functionDecl:
-	functionModifier* functionKind
-	// Found in UT2004/GameProfile.uc, any function modifier can be written post functionKind, this is applied to the function during compilation.
-	functionModifier*
-	// We have to identify LPARENT in each, - to prevent a false positive 'operatorName'
-	((returnTypeModifier? returnType functionName OPEN_PARENS)? | functionName OPEN_PARENS) parameters? CLOSE_PARENS 'const'?
-	(SEMICOLON | (
-		OPEN_BRACE
-			functionMember*
-			statement*
-		CLOSE_BRACE
-	));
+functionDecl
+	: functionSpecifier+ (returnTypeModifier? returnType)?
+	  functionName (OPEN_PARENS parameters? CLOSE_PARENS) 'const'?
+	  functionBody
+	;
+
+functionBody
+	: SEMICOLON
+	| (OPEN_BRACE
+		functionMember*
+		statement*
+	  CLOSE_BRACE)
+	;
 
 /* Parses:
  * { local Actor test, test2; return test.Class; }
@@ -684,20 +679,19 @@ functionMember
 	| SEMICOLON
 	;
 
-nativeToken: (OPEN_PARENS INTEGER CLOSE_PARENS);
-
-functionModifier
-	: ('public' exportBlockText?)
-	| ('protected' exportBlockText?)
-	| ('private' exportBlockText?)
-	| 'final'
+functionSpecifier
+	: ('function'
 	| 'simulated'
 	| 'static'
-	| 'native' nativeToken?
+	| 'exec'
+	| 'final'
+	| 'event'
+	| 'delegate'
+	| 'preoperator'
+	| 'postoperator'
 	| 'latent'
 	| 'singular'
 	| 'iterator'
-	| 'exec'
 	// UC3
 	| 'const'
 	| 'noexport'
@@ -711,11 +705,19 @@ functionModifier
 	| 'demorecording'
 	| 'k2call'
 	| 'k2pure'
-	| 'k2override'
+	| 'k2override')
+	| ('native' (OPEN_PARENS nativeToken CLOSE_PARENS)?)
+	| ('operator' (OPEN_PARENS operatorPrecedence CLOSE_PARENS))
+	| ('public' exportBlockText?)
+	| ('protected' exportBlockText?)
+	| ('private' exportBlockText?)
 	;
 
 // TODO: implement a more restricted operator rule.
 functionName: identifier | operator;
+
+operatorPrecedence: INTEGER;
+nativeToken: INTEGER;
 
 parameters: paramDecl (COMMA paramDecl)*;
 
@@ -1046,15 +1048,4 @@ defaultLiteral
 defaultValue
 	: defaultLiteral
 	| identifier
-	;
-
-operatorPrecedence: (OPEN_PARENS INTEGER CLOSE_PARENS);
-
-functionKind
-	: 'event'
-	| 'function'
-	| 'delegate'
-	| 'preoperator'
-	| 'postoperator'
-	| 'operator' operatorPrecedence
 	;

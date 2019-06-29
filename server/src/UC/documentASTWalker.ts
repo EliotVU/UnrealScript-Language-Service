@@ -18,7 +18,8 @@ import {
 	UCStructSymbol, UCSymbol, UCSymbolReference,
 	UCTypeSymbol,
 	UCDocumentClassSymbol, UCReplicationBlock,
-	UCQualifiedType, ITypeSymbol, UCPredefinedTypeSymbol
+	UCQualifiedType, ITypeSymbol, UCPredefinedTypeSymbol,
+	MethodSpecifiers, UCEventSymbol, UCOperatorSymbol, UCDelegateSymbol, UCPostOperatorSymbol, UCPreOperatorSymbol
 } from './Symbols';
 
 import { UCTypeKind } from './Symbols/TypeKind';
@@ -189,11 +190,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			return undefined;
 		}
 	}
-
-	// visitMember(ctx: UCParser.MemberContext) {
-	// 	const symbol = ctx.getChild(0).accept(this);
-	// 	return symbol;
-	// }
 
 	visitTypeDecl(typeDeclNode: UCParser.TypeDeclContext): ITypeSymbol {
 		const typeNode = typeDeclNode.predefinedType();
@@ -477,13 +473,71 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitFunctionDecl(ctx: UCParser.FunctionDeclContext) {
-		const nameNode = ctx.functionName();
+		let nameNode: UCParser.FunctionNameContext | undefined;
+		try {
+			nameNode = ctx.functionName();
+		} catch (err) {
+			// Can happen when we have a function with an invalid body or header.
+			console.error("Encountered an error with ctx.functioName()", err);
+			return;
+		} finally {
+			console.assert(nameNode, 'no name node found for function!');
+		}
 
-		const identifier: Identifier = nameNode
-			? nameNode.accept(this)
-			: ({ name: NAME_NONE, range: rangeFromBound(ctx.start) } as Identifier);
-		const symbol = new UCMethodSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
+		let flags: MethodSpecifiers = MethodSpecifiers.None;
+		let precedence: number | undefined;
+
+		const specifierNodes = ctx.functionSpecifier();
+		for (const specifier of specifierNodes) {
+			switch (specifier.start.type) {
+				case UCParser.UCGrammarParser.KW_FUNCTION:
+					flags |= MethodSpecifiers.Function;
+					break;
+				case UCParser.UCGrammarParser.KW_OPERATOR:
+					flags |= MethodSpecifiers.Operator;
+					const opPrecNode = specifier.operatorPrecedence();
+					if (opPrecNode) {
+						precedence = Number(opPrecNode.text);
+					}
+					break;
+				case UCParser.UCGrammarParser.KW_PREOPERATOR:
+					flags |= MethodSpecifiers.PreOperator;
+					break;
+				case UCParser.UCGrammarParser.KW_POSTOPERATOR:
+					flags |= MethodSpecifiers.PostOperator;
+					break;
+				case UCParser.UCGrammarParser.KW_DELEGATE:
+					flags |= MethodSpecifiers.Delegate;
+					break;
+				case UCParser.UCGrammarParser.KW_EVENT:
+					flags |= MethodSpecifiers.Event;
+					break;
+			}
+		}
+
+		const type = (flags & MethodSpecifiers.Function)
+			? UCMethodSymbol
+			: (flags & MethodSpecifiers.Event)
+			? UCEventSymbol
+			: (flags & MethodSpecifiers.Operator)
+			? UCOperatorSymbol
+			: (flags & MethodSpecifiers.PreOperator)
+			? UCPreOperatorSymbol
+			: (flags & MethodSpecifiers.PostOperator)
+			? UCPostOperatorSymbol
+			: (flags & MethodSpecifiers.Delegate)
+			? UCDelegateSymbol
+			: UCMethodSymbol;
+
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const identifier: Identifier = nameNode.accept(this);
+		const symbol = new type(identifier, range);
 		symbol.context = ctx;
+		symbol.specifiers = flags;
+
+		if (precedence) {
+			(symbol as UCOperatorSymbol).precedence = precedence;
+		}
 
 		this.declare(symbol);
 
@@ -505,18 +559,26 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 				}
 			}
 
-			const memberNodes = ctx.functionMember();
-			if (memberNodes) for (const member of memberNodes) {
-				member.accept(this);
+			const bodyNode = ctx.functionBody();
+			if (bodyNode) {
+				bodyNode.accept(this);
 			}
-
-			symbol.block = createBlockFromCode(this, ctx);
 		} catch (err) {
 			console.error(`Encountered an error while constructing function '${symbol.getQualifiedName()}'`, err);
 		} finally {
 			this.pop();
 		}
 		return symbol;
+	}
+
+	visitFunctionBody(ctx: UCParser.FunctionBodyContext) {
+		const memberNodes = ctx.functionMember();
+		if (memberNodes) for (const member of memberNodes) {
+			member.accept(this);
+		}
+
+		const method = this.scope<UCMethodSymbol>();
+		method.block = createBlockFromCode(this, ctx);
 	}
 
 	// visitFunctionMember(ctx: UCParser.FunctionMemberContext) {
@@ -755,7 +817,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			};
 			return identifier;
 		}
-		else return ctx.identifier()!.accept(this);
+
+		const idNode = ctx.identifier();
+		if (idNode) {
+			return idNode.accept(this);
+		}
+		return { name: NAME_NONE, range: rangeFromBounds(ctx.start, ctx.stop) } as Identifier;
 	}
 
 	visitStatement(ctx: UCParser.StatementContext) {
