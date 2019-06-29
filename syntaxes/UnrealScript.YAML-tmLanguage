@@ -820,6 +820,20 @@ repository:
           '0':
             name: punctuation.curlybrace.close.uc
 
+  propertiesBlock:
+    patterns:
+      - begin: (begin ((?i)object))
+        beginCaptures:
+          '0':
+            name: keyword.other.uc
+        patterns:
+          - include: '#propertiesBlock'
+        end: (end ((?i)object))
+        endCaptures:
+          '0':
+            name: keyword.other.uc
+      - include: '#expression'
+
   defaultproperties:
     begin: \b((?i)defaultproperties)
     beginCaptures:
@@ -832,7 +846,7 @@ repository:
           '0':
             name: punctuation.curlybrace.open.uc
         patterns:
-          - include: '#expression'
+          - include: '#propertiesBlock'
         end: \}
         endCaptures:
           '0':
@@ -851,7 +865,7 @@ repository:
           '0':
             name: punctuation.curlybrace.open.uc
         patterns:
-          - include: '#expression'
+          - include: '#propertiesBlock'
         end: \}
         endCaptures:
           '0':
