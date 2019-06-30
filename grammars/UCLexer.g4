@@ -127,6 +127,7 @@ MEQ: '^^';
 INCR: '++';
 DECR: '--';
 EXP: '**';
+RSHIFT: '>>';
 LSHIFT: '<<';
 SHIFT: '>>>';
 

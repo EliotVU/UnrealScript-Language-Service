@@ -900,11 +900,10 @@ operator
 	| DECR
 	| TILDE
 	| EXP
+	| RSHIFT
 	| LSHIFT
 	| SHIFT
 	| LT
-	// FIXME:??? We don't want to capture << and >> so that our parser cannot fail at trailing arrows array<class<Object>>
-	| (GT GT | GT)
 	| GT
 	| OR
 	| AND
