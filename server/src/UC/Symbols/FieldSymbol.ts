@@ -5,9 +5,20 @@ import { UCDocument } from '../document';
 
 import { Identifier, ISymbol, UCSymbol, UCStructSymbol, UCClassSymbol } from '.';
 
+export enum FieldModifiers {
+	None 				= 0x0000,
+	Protected 			= 0x0001,
+	Private 			= 0x0002,
+	Native 				= 0x0004,
+	Const 				= 0x0008,
+	NotPublic 			= Protected | Private
+}
+
 export abstract class UCFieldSymbol extends UCSymbol {
 	public next?: UCFieldSymbol;
 	public containingStruct?: UCStructSymbol;
+
+	public modifiers: FieldModifiers = FieldModifiers.None;
 
 	constructor(id: Identifier, private readonly range: Range = id.range) {
 		super(id);
@@ -36,29 +47,24 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return this;
 	}
 
-	// TODO: reflect parsed modifier.
 	isPublic(): boolean {
-		return true;
+		return (this.modifiers & FieldModifiers.NotPublic) === 0;
 	}
 
-	// TODO: reflect parsed modifier.
 	isPrivate(): boolean {
-		return false;
+		return (this.modifiers & FieldModifiers.Private) !== 0;
 	}
 
-	// TODO: reflect parsed modifier.
 	isProtected(): boolean {
-		return false;
+		return (this.modifiers & FieldModifiers.Protected) !== 0;
 	}
 
-	// TODO: reflect parsed modifier.
 	isConst(): boolean {
-		return false;
+		return (this.modifiers & FieldModifiers.Const) !== 0;
 	}
 
-	// TODO: reflect parsed modifier.
 	isNative(): boolean {
-		return false;
+		return (this.modifiers & FieldModifiers.Native) !== 0;
 	}
 
 	// Returns true if this is a symbol that declares a type like a struct or enum.
@@ -87,14 +93,21 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	}
 
 	protected buildModifiers(): string[] {
-		let text: string[] = [];
-
-		if (this.isConst()) {
-			text.push('const');
-		}
+		const text: string[] = [];
 
 		if (this.isNative()) {
 			text.push('native');
+		}
+
+		if (this.isProtected()) {
+			text.push('protected');
+		}
+		else if (this.isPrivate()) {
+			text.push('private');
+		}
+
+		if (this.isConst()) {
+			text.push('const');
 		}
 
 		return text;

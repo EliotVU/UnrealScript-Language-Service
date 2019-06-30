@@ -64,6 +64,13 @@ KW_DELEGATE: 'delegate';
 KW_OPERATOR: 'operator';
 KW_PREOPERATOR: 'preoperator';
 KW_POSTOPERATOR: 'postoperator';
+KW_CONST: 'const';
+KW_FINAL: 'final';
+KW_STATIC: 'static';
+KW_NATIVE: 'native';
+KW_PUBLIC: 'public';
+KW_PROTECTED: 'protected';
+KW_PRIVATE: 'private';
 
 // Note: Keywords must precede the ID token.
 ID:	[a-zA-Z_][a-zA-Z0-9_]*;

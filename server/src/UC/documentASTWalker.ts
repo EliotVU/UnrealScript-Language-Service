@@ -19,7 +19,9 @@ import {
 	UCTypeSymbol,
 	UCDocumentClassSymbol, UCReplicationBlock,
 	UCQualifiedType, ITypeSymbol, UCPredefinedTypeSymbol,
-	MethodSpecifiers, UCEventSymbol, UCOperatorSymbol, UCDelegateSymbol, UCPostOperatorSymbol, UCPreOperatorSymbol
+	MethodSpecifiers, UCEventSymbol, UCOperatorSymbol, UCDelegateSymbol, UCPostOperatorSymbol, UCPreOperatorSymbol,
+	FieldModifiers,
+	UCParamSymbol
 } from './Symbols';
 
 import { UCTypeKind } from './Symbols/TypeKind';
@@ -484,48 +486,67 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			console.assert(nameNode, 'no name node found for function!');
 		}
 
-		let flags: MethodSpecifiers = MethodSpecifiers.None;
+		let modifiers: FieldModifiers = 0;
+		let specifiers: MethodSpecifiers = MethodSpecifiers.None;
 		let precedence: number | undefined;
 
 		const specifierNodes = ctx.functionSpecifier();
 		for (const specifier of specifierNodes) {
 			switch (specifier.start.type) {
+				case UCParser.UCGrammarParser.KW_NATIVE:
+					modifiers |= FieldModifiers.Native;
+					break;
+				case UCParser.UCGrammarParser.KW_CONST:
+					modifiers |= FieldModifiers.Const;
+					break;
+				case UCParser.UCGrammarParser.KW_PROTECTED:
+					modifiers |= FieldModifiers.Protected;
+					break;
+				case UCParser.UCGrammarParser.KW_PRIVATE:
+					modifiers |= FieldModifiers.Private;
+					break;
 				case UCParser.UCGrammarParser.KW_FUNCTION:
-					flags |= MethodSpecifiers.Function;
+					specifiers |= MethodSpecifiers.Function;
 					break;
 				case UCParser.UCGrammarParser.KW_OPERATOR:
-					flags |= MethodSpecifiers.Operator;
+					specifiers |= MethodSpecifiers.Operator;
 					const opPrecNode = specifier.operatorPrecedence();
 					if (opPrecNode) {
 						precedence = Number(opPrecNode.text);
 					}
 					break;
 				case UCParser.UCGrammarParser.KW_PREOPERATOR:
-					flags |= MethodSpecifiers.PreOperator;
+					specifiers |= MethodSpecifiers.PreOperator;
 					break;
 				case UCParser.UCGrammarParser.KW_POSTOPERATOR:
-					flags |= MethodSpecifiers.PostOperator;
+					specifiers |= MethodSpecifiers.PostOperator;
 					break;
 				case UCParser.UCGrammarParser.KW_DELEGATE:
-					flags |= MethodSpecifiers.Delegate;
+					specifiers |= MethodSpecifiers.Delegate;
 					break;
 				case UCParser.UCGrammarParser.KW_EVENT:
-					flags |= MethodSpecifiers.Event;
+					specifiers |= MethodSpecifiers.Event;
+					break;
+				case UCParser.UCGrammarParser.KW_STATIC:
+					specifiers |= MethodSpecifiers.Static;
+					break;
+				case UCParser.UCGrammarParser.KW_FINAL:
+					specifiers |= MethodSpecifiers.Final;
 					break;
 			}
 		}
 
-		const type = (flags & MethodSpecifiers.Function)
+		const type = (specifiers & MethodSpecifiers.Function)
 			? UCMethodSymbol
-			: (flags & MethodSpecifiers.Event)
+			: (specifiers & MethodSpecifiers.Event)
 			? UCEventSymbol
-			: (flags & MethodSpecifiers.Operator)
+			: (specifiers & MethodSpecifiers.Operator)
 			? UCOperatorSymbol
-			: (flags & MethodSpecifiers.PreOperator)
+			: (specifiers & MethodSpecifiers.PreOperator)
 			? UCPreOperatorSymbol
-			: (flags & MethodSpecifiers.PostOperator)
+			: (specifiers & MethodSpecifiers.PostOperator)
 			? UCPostOperatorSymbol
-			: (flags & MethodSpecifiers.Delegate)
+			: (specifiers & MethodSpecifiers.Delegate)
 			? UCDelegateSymbol
 			: UCMethodSymbol;
 
@@ -533,7 +554,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const identifier: Identifier = nameNode.accept(this);
 		const symbol = new type(identifier, range);
 		symbol.context = ctx;
-		symbol.specifiers = flags;
+		symbol.specifiers = specifiers;
+		symbol.modifiers = modifiers;
 
 		if (precedence) {
 			(symbol as UCOperatorSymbol).precedence = precedence;
@@ -597,12 +619,23 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	// }
 
 	visitParamDecl(ctx: UCParser.ParamDeclContext) {
+		let modifiers: FieldModifiers = 0;
+		const modifierNodes = ctx.paramModifier();
+		for (const modNode of modifierNodes) {
+			switch (modNode.start.type) {
+				case UCParser.UCGrammarParser.KW_CONST:
+					modifiers |= FieldModifiers.Const;
+					break;
+			}
+		}
+
 		const propTypeNode = ctx.typeDecl();
 		const typeSymbol = this.visitTypeDecl(propTypeNode);
 
 		const varNode = ctx.variable();
-		const symbol: UCPropertySymbol = varNode.accept(this);
+		const symbol: UCParamSymbol = varNode.accept(this);
 		symbol.type = typeSymbol;
+		symbol.modifiers = modifiers;
 		this.declare(symbol);
 		return symbol;
 	}
@@ -613,7 +646,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 		const varNodes = ctx.variable();
 		for (const varNode of varNodes) {
-			const symbol = varNode.accept(this);
+			const symbol: UCLocalSymbol = varNode.accept(this);
 			symbol.type = typeSymbol;
 			this.declare(symbol);
 		}
@@ -626,24 +659,46 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			return;
 		}
 
-		const typeSymbol = this.visitInlinedDeclTypes(declTypeNode);
+		let modifiers: FieldModifiers = 0;
+		const modifierNodes = ctx.variableModifier();
+		for (const modNode of modifierNodes) {
+			switch (modNode.start.type) {
+				case UCParser.UCGrammarParser.KW_CONST:
+					modifiers |= FieldModifiers.Const;
+					break;
+				case UCParser.UCGrammarParser.KW_NATIVE:
+					modifiers |= FieldModifiers.Native;
+					break;
+				case UCParser.UCGrammarParser.KW_PROTECTED:
+					modifiers |= FieldModifiers.Protected;
+					break;
+				case UCParser.UCGrammarParser.KW_PRIVATE:
+					modifiers |= FieldModifiers.Private;
+					break;
+			}
+		}
 
+		const typeSymbol = this.visitInlinedDeclTypes(declTypeNode);
 		const varNodes = ctx.variable();
 		if (varNodes) for (const varNode of varNodes) {
-			const symbol = varNode.accept(this);
+			const symbol: UCPropertySymbol = varNode.accept(this);
 			symbol.context = varNode;
 			symbol.type = typeSymbol;
+			symbol.modifiers = modifiers;
 			this.declare(symbol);
 		}
 		return undefined!;
 	}
 
 	visitVariable(ctx: UCParser.VariableContext) {
-		const scope = this.scope();
-		const type = scope instanceof UCMethodSymbol ? UCLocalSymbol : UCPropertySymbol;
+		const type = ctx.parent instanceof UCParser.ParamDeclContext
+			? UCParamSymbol
+			: ctx.parent instanceof UCParser.LocalDeclContext
+			? UCLocalSymbol
+			: UCPropertySymbol;
 
 		const identifier: Identifier = ctx.identifier().accept(this);
-		const symbol: UCPropertySymbol | UCLocalSymbol = new type(
+		const symbol: UCPropertySymbol = new type(
 			identifier,
 			// Stop at varCtx instead of localCtx for multiple variable declarations.
 			rangeFromBounds(ctx.parent!.start, ctx.stop)

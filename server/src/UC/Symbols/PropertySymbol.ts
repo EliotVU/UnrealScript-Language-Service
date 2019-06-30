@@ -65,11 +65,21 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	getTooltip() {
-		const text = `${this.getTypeTooltip()} ${this.type!.getTypeText()} ${this.getQualifiedName()}`;
+		const text: Array<string | undefined> = [];
+
+		text.push(this.getTypeTooltip());
+
+		const modifiers = this.buildModifiers();
+		text.push(...modifiers);
+
+		text.push(this.type!.getTypeText());
+		text.push(this.getQualifiedName());
+
 		if (this.isFixedArray()) {
-			return text + `[${this.getArrayDimSize()}]`;
+			text.push(text.pop() + `[${this.getArrayDimSize()}]`);
 		}
-		return text;
+
+		return text.filter(s => s).join(' ');
 	}
 
 	getContainedSymbolAtPos(position: Position) {

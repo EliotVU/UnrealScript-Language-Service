@@ -4,7 +4,7 @@ export { UCSymbolReference } from './SymbolReference';
 export { UCTypeKind } from "./TypeKind";
 export { ITypeSymbol, UCPredefinedTypeSymbol, UCTypeSymbol, UCQualifiedTypeSymbol as UCQualifiedType } from './TypeSymbol';
 export { UCPackage, SymbolsTable, PackagesTable } from './Package';
-export { UCFieldSymbol } from './FieldSymbol';
+export * from './FieldSymbol';
 export { UCStructSymbol } from './StructSymbol';
 export { UCEnumSymbol } from './EnumSymbol';
 export { UCEnumMemberSymbol } from './EnumMemberSymbol';

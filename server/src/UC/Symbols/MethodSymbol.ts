@@ -8,29 +8,29 @@ import { Name } from '../names';
 import { DEFAULT_RANGE, UCStructSymbol, UCParamSymbol, ITypeSymbol, ISymbol, IWithReference } from '.';
 
 export enum MethodSpecifiers {
-	None = 0x0000,
-	Function = 0x0001,
-	Operator = 0x0002,
-	PreOperator = 0x0004,
-	PostOperator = 0x0008,
-	Event = 0x0010,
-	Delegate = 0x0020
+	None 			= 0x0000,
+	Function 		= 0x0001,
+	Operator 		= 0x0002,
+	PreOperator 	= 0x0004,
+	PostOperator 	= 0x0008,
+	Event 			= 0x0010,
+	Delegate 		= 0x0020,
+	Static 			= 0x0040,
+	Final 			= 0x0080
 }
 
 export class UCMethodSymbol extends UCStructSymbol {
 	public returnType?: ITypeSymbol;
 	public overriddenMethod?: UCMethodSymbol;
 	public params?: UCParamSymbol[];
-	public specifiers?: MethodSpecifiers;
+	public specifiers: MethodSpecifiers = MethodSpecifiers.None;
 
-	// TODO: reflect parsed modifier.
 	isStatic(): boolean {
-		return false;
+		return (this.specifiers & MethodSpecifiers.Static) !== 0;
 	}
 
-	// TODO: reflect parsed modifier.
 	isFinal(): boolean {
-		return this.isStatic();
+		return (this.specifiers & MethodSpecifiers.Final) !== 0 || this.isStatic();
 	}
 
 	getKind(): SymbolKind {
