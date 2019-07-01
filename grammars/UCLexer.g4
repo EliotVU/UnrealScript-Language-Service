@@ -72,6 +72,10 @@ KW_PUBLIC: 'public';
 KW_PROTECTED: 'protected';
 KW_PRIVATE: 'private';
 
+KW_OUT: 'out';
+KW_OPTIONAL: 'optional';
+KW_COERCE: 'coerce';
+
 // Note: Keywords must precede the ID token.
 ID:	[a-zA-Z_][a-zA-Z0-9_]*;
 // ID:	[a-z_][a-z0-9_]*;

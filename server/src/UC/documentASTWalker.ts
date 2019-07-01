@@ -16,11 +16,10 @@ import {
 	UCLocalSymbol, UCObjectSymbol,
 	UCPropertySymbol, UCScriptStructSymbol, UCStateSymbol,
 	UCStructSymbol, UCSymbol, UCSymbolReference,
-	UCTypeSymbol,
+	ITypeSymbol, UCTypeSymbol, UCQualifiedTypeSymbol, UCPredefinedTypeSymbol,
 	UCDocumentClassSymbol, UCReplicationBlock,
-	UCQualifiedType, ITypeSymbol, UCPredefinedTypeSymbol,
 	MethodSpecifiers, UCEventSymbol, UCOperatorSymbol, UCDelegateSymbol, UCPostOperatorSymbol, UCPreOperatorSymbol,
-	FieldModifiers,
+	FieldModifiers, ParamModifiers,
 	UCParamSymbol
 } from './Symbols';
 
@@ -33,7 +32,6 @@ import { setEnumMember } from './indexer';
 
 import { UCDocument } from './document';
 import { UCAssignmentExpression, IExpression, UCConditionalExpression, UCBinaryExpression, UCUnaryExpression, UCParenthesizedExpression, UCPropertyAccessExpression, UCCallExpression, UCElementAccessExpression, UCNewExpression, UCMetaClassExpression, UCSuperExpression, UCPredefinedAccessExpression, UCPredefinedPropertyAccessExpression, UCMemberExpression, UCNoneLiteral, UCStringLiteral, UCNameLiteral, UCBoolLiteral, UCFloatLiteral, UCIntLiteral, UCObjectLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCNameOfLiteral, UCArrayCountExpression } from './expressions';
-import { UCQualifiedTypeSymbol } from './Symbols/TypeSymbol';
 
 function createIdentifierFrom(ctx: ParserRuleContext) {
 	const identifier: Identifier = {
@@ -156,7 +154,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			const id: Identifier = idNodes[1].accept(this);
 			const type = new UCTypeSymbol(id, rangeFromBounds(idNodes[1].start, idNodes[1].stop));
 
-			const symbol = new UCQualifiedType(type, new UCQualifiedType(leftType));
+			const symbol = new UCQualifiedTypeSymbol(type, new UCQualifiedTypeSymbol(leftType));
 
 			// FIXME: ugly hardcoded logic
 			if (ctx.parent instanceof UCParser.ExtendsClauseContext || ctx.parent instanceof UCParser.WithinClauseContext) {
@@ -620,11 +618,21 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 	visitParamDecl(ctx: UCParser.ParamDeclContext) {
 		let modifiers: FieldModifiers = 0;
+		let paramModifiers: ParamModifiers = 0;
 		const modifierNodes = ctx.paramModifier();
 		for (const modNode of modifierNodes) {
 			switch (modNode.start.type) {
 				case UCParser.UCGrammarParser.KW_CONST:
 					modifiers |= FieldModifiers.Const;
+					break;
+				case UCParser.UCGrammarParser.KW_OUT:
+					paramModifiers |= ParamModifiers.Out;
+					break;
+				case UCParser.UCGrammarParser.KW_OPTIONAL:
+					paramModifiers |= ParamModifiers.Optional;
+					break;
+				case UCParser.UCGrammarParser.KW_COERCE:
+					paramModifiers |= ParamModifiers.Coerce;
 					break;
 			}
 		}
@@ -638,6 +646,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const symbol = new UCParamSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.type = typeSymbol;
 		symbol.modifiers = modifiers;
+		symbol.paramModifiers = paramModifiers;
 		const exprNode = ctx.expression();
 		if (exprNode) {
 			symbol.defaultExpression = exprNode.accept(this);
