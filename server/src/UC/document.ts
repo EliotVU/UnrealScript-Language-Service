@@ -1,4 +1,4 @@
-import { AsyncSubject, Subject } from 'rxjs';
+import { Subject } from 'rxjs';
 
 import * as path from 'path';
 import * as fs from 'fs';

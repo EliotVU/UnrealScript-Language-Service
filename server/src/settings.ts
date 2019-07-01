@@ -1,8 +1,4 @@
-export enum UCGeneration {
-	UC1 = "1",
-	UC2 = "2",
-	UC3 = "3"
-}
+import { UCGeneration } from './UC/indexer';
 
 export interface UCSettings {
 	unrealscript: {

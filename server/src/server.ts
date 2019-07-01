@@ -20,8 +20,8 @@ import {
 } from 'vscode-languageserver';
 import URI from 'vscode-uri';
 
-import { getCompletionItems, getReferences, getSymbolDefinition, getSymbols, getHover, getHighlights, getFullCompletionItem, getSymbol } from './UC/helpers';
-import { filePathByClassIdMap$, getDocumentByUri, indexDocument, getIndexedReferences } from './UC/indexer';
+import { getCompletionItems, getReferences, getSymbolDefinition, getSymbols, getHover, getHighlights, getFullCompletionItem } from './UC/helpers';
+import { filePathByClassIdMap$, getDocumentByUri, indexDocument, getIndexedReferences, config } from './UC/indexer';
 import { UCSettings, defaultSettings } from './settings';
 import { documentLinked$ } from './UC/document';
 import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol } from './UC/Symbols';
@@ -169,6 +169,9 @@ connection.onInitialized(async () => {
 
 connection.onDidChangeConfiguration((change) => {
 	currentSettings = <UCSettings>(change.settings);
+	if (currentSettings.unrealscript.generation) {
+		config.generation = currentSettings.unrealscript.generation;
+	}
 	isIndexReady$.next(true);
 });
 

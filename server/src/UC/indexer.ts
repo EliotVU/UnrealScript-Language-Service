@@ -11,6 +11,16 @@ export const filePathByClassIdMap$ = new BehaviorSubject(new Map<string, string>
 export const documentByURIMap = new Map<string, UCDocument>();
 const packageByDirMap = new Map<string, UCPackage>();
 
+export enum UCGeneration {
+	UC1 = "1",
+	UC2 = "2",
+	UC3 = "3"
+}
+
+export const config: { generation: UCGeneration } = {
+	generation: UCGeneration.UC3
+};
+
 function findPackageNameInDir(dir: string): string {
 	const directories = dir.split('/');
 	for (let i = directories.length - 1; i >= 0; -- i) {
