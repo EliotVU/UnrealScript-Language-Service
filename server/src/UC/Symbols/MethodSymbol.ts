@@ -16,7 +16,9 @@ export enum MethodSpecifiers {
 	Event 			= 0x0010,
 	Delegate 		= 0x0020,
 	Static 			= 0x0040,
-	Final 			= 0x0080
+	Final 			= 0x0080,
+
+	HasKind			= Function | Operator | PreOperator | PostOperator | Event | Delegate
 }
 
 export class UCMethodSymbol extends UCStructSymbol {

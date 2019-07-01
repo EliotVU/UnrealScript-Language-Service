@@ -558,6 +558,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			? UCDelegateSymbol
 			: UCMethodSymbol;
 
+		if ((specifiers & MethodSpecifiers.HasKind) === 0) {
+			this.document.nodes.push(new SyntaxErrorNode(rangeFromBound(ctx.start),
+				`Missing method type! A method can be declared as either one of the following: (Function, Event, Operator, PreOperator, PostOperator, or Delegate).`
+			));
+		}
+
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const identifier: Identifier = nameNode.accept(this);
 		const symbol = new type(identifier, range);
