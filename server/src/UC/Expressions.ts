@@ -7,8 +7,6 @@ import { intersectsWith, rangeFromBounds } from './helpers';
 import { UCDocument } from './document';
 import { Name } from './names';
 
-import { UCTypeKind } from './Symbols/TypeKind';
-
 import {
 	ISymbolContext, ISymbol,
 	UCObjectTypeSymbol,
@@ -29,8 +27,7 @@ import {
 	RotMethodLike,
 	RangeTypeRef,
 	RngMethodLike,
-	ITypeSymbol,
-	TypeCastMap
+	ITypeSymbol, TypeCastMap, UCTypeKind
 } from './Symbols';
 
 export interface IExpression {

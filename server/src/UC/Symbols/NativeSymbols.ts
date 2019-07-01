@@ -14,9 +14,8 @@ import {
 	UCObjectTypeSymbol,
 	UCParamSymbol,
 	SymbolsTable,
-	PackagesTable
+	PackagesTable, UCTypeKind
 } from ".";
-import { UCTypeKind } from './TypeKind';
 import { DEFAULT_RANGE } from './Symbol';
 import { UCNativeType } from './NativeType';
 

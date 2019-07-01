@@ -1,7 +1,6 @@
 export { ISymbol, ISymbolContext, ISymbolContainer, ISymbolReference, IWithReference, Identifier } from './ISymbol';
 export { DEFAULT_RANGE, UCSymbol } from "./Symbol";
 export { UCSymbolReference } from './SymbolReference';
-export { UCTypeKind } from "./TypeKind";
 export * from './TypeSymbol';
 export { UCPackage, SymbolsTable, PackagesTable } from './Package';
 export * from './FieldSymbol';

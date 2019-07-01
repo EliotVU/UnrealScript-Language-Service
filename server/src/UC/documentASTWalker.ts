@@ -20,10 +20,8 @@ import {
 	UCDocumentClassSymbol, UCReplicationBlock,
 	MethodSpecifiers, UCEventSymbol, UCOperatorSymbol, UCDelegateSymbol, UCPostOperatorSymbol, UCPreOperatorSymbol,
 	FieldModifiers, ParamModifiers,
-	UCParamSymbol
+	UCParamSymbol, UCTypeKind
 } from './Symbols';
-
-import { UCTypeKind } from './Symbols/TypeKind';
 
 import { SyntaxErrorNode } from './diagnostics/diagnostics';
 
