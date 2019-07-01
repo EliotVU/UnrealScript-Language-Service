@@ -11,7 +11,7 @@ import {
 	UCPropertySymbol,
 	UCMethodSymbol,
 	UCMethodLikeSymbol,
-	UCTypeSymbol,
+	UCObjectTypeSymbol,
 	UCParamSymbol,
 	SymbolsTable,
 	PackagesTable
@@ -20,13 +20,13 @@ import { UCTypeKind } from './TypeKind';
 import { DEFAULT_RANGE } from './Symbol';
 import { UCNativeType } from './NativeType';
 
-export const ObjectTypeRef = new UCTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE, UCTypeKind.Class);
-export const ArgumentTypeRef = new UCTypeSymbol({ name: toName('Argument'), range: DEFAULT_RANGE });
-export const IntTypeRef = new UCTypeSymbol({ name: NAME_INT, range: DEFAULT_RANGE });
-export const FloatTypeRef = new UCTypeSymbol({ name: NAME_FLOAT, range: DEFAULT_RANGE });
-export const VectorTypeRef = new UCTypeSymbol({ name: toName('Vector'), range: DEFAULT_RANGE });
-export const RotatorTypeRef = new UCTypeSymbol({ name: toName('Rotator'), range: DEFAULT_RANGE });
-export const RangeTypeRef = new UCTypeSymbol({ name: toName('Range'), range: DEFAULT_RANGE });
+export const ObjectTypeRef = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE, UCTypeKind.Class);
+export const ArgumentTypeRef = new UCObjectTypeSymbol({ name: toName('Argument'), range: DEFAULT_RANGE });
+export const IntTypeRef = new UCObjectTypeSymbol({ name: NAME_INT, range: DEFAULT_RANGE });
+export const FloatTypeRef = new UCObjectTypeSymbol({ name: NAME_FLOAT, range: DEFAULT_RANGE });
+export const VectorTypeRef = new UCObjectTypeSymbol({ name: toName('Vector'), range: DEFAULT_RANGE });
+export const RotatorTypeRef = new UCObjectTypeSymbol({ name: toName('Rotator'), range: DEFAULT_RANGE });
+export const RangeTypeRef = new UCObjectTypeSymbol({ name: toName('Range'), range: DEFAULT_RANGE });
 
 export const NativeProperty = new UCClassSymbol({ name: NAME_PROPERTY, range: DEFAULT_RANGE });
 NativeProperty.extendsType = ObjectTypeRef;

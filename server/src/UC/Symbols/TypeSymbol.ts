@@ -1,31 +1,26 @@
 import { Position, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
+import { intersectsWithRange } from '../helpers';
 import { UnrecognizedTypeNode, SemanticErrorNode } from '../diagnostics/diagnostics';
-import { NAME_BYTE, NAME_FLOAT, NAME_STRING, NAME_BOOL, NAME_BUTTON, NAME_NAME, NAME_INT, NAME_POINTER } from '../names';
 
 import {
-	UCSymbol,
-	UCSymbolReference,
-	UCStructSymbol,
-	UCClassSymbol,
-	UCStateSymbol,
-	UCScriptStructSymbol,
-	UCMethodSymbol,
-	UCEnumSymbol,
+	UCSymbol, UCSymbolReference,
+	UCStructSymbol, UCClassSymbol, UCStateSymbol, UCScriptStructSymbol,
+	UCMethodSymbol, UCEnumSymbol,
 	PackagesTable, SymbolsTable,
-	ISymbol, Identifier, IWithReference,
-	UCTypeKind
-} from '.';
-import {
+	ISymbol, Identifier, IWithReference, UCTypeKind,
 	PredefinedByte, PredefinedFloat, PredefinedString,
 	PredefinedBool, PredefinedButton, PredefinedName,
 	PredefinedInt, PredefinedPointer
 } from '.';
-import { UCNativeType } from './NativeType';
 
 export interface ITypeSymbol extends UCSymbol, IWithReference {
 	getTypeText(): string;
+	getTypeKind(): UCTypeKind;
+
+	index(document: UCDocument, context?: UCStructSymbol);
+	analyze(document: UCDocument, context?: UCStructSymbol);
 }
 
 /**
@@ -33,12 +28,16 @@ export interface ITypeSymbol extends UCSymbol, IWithReference {
  * -- where "Core" is assigned to @left and "Object" to @type.
  */
 export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
-	constructor(private type: UCTypeSymbol, private left?: UCQualifiedTypeSymbol) {
+	constructor(private type: UCObjectTypeSymbol, private left?: UCQualifiedTypeSymbol) {
 		super(type.id);
 	}
 
-	public getTypeText(): string {
+	getTypeText(): string {
 		return this.type.getTypeText();
+	}
+
+	getTypeKind(): UCTypeKind {
+		return this.type.getTypeKind();
 	}
 
 	getReference(): ISymbol | undefined {
@@ -84,61 +83,137 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 	}
 }
 
-export class UCPredefinedTypeSymbol extends UCSymbolReference implements ITypeSymbol {
-	public getTypeText(): string {
-		return this.getId().toString();
+export abstract class UCPredefinedTypeSymbol extends UCSymbol implements IWithReference {
+	getReference(): ISymbol {
+		throw "not implemented";
 	}
 
-	index(document: UCDocument, context?: UCStructSymbol) {
-		let symbol: UCNativeType | undefined = undefined;
+	getTooltip(): string {
+		return this.getReference().getTooltip();
+	}
 
-		switch (this.getId()) {
-			case NAME_BYTE:
-				symbol = PredefinedByte;
-				break;
-			case NAME_FLOAT:
-				symbol = PredefinedFloat;
-				break;
-			case NAME_INT:
-				symbol = PredefinedInt;
-				break;
-			case NAME_STRING:
-				symbol = PredefinedString;
-				break;
-			case NAME_NAME:
-				symbol = PredefinedName;
-				break;
-			case NAME_BOOL:
-				symbol = PredefinedBool;
-				break;
-			case NAME_POINTER:
-				symbol = PredefinedPointer;
-				break;
-			case NAME_BUTTON:
-				symbol = PredefinedButton;
-				break;
+	getTypeText(): string {
+		return this.getReference().getId().toString();
+	}
+
+	getSymbolAtPos(position: Position) {
+		if (intersectsWithRange(position, this.id.range)) {
+			return this;
 		}
-
-		this.setReference(symbol!, document);
 	}
 }
 
-export class UCTypeSymbol extends UCSymbolReference implements ITypeSymbol {
-	public baseType?: UCTypeSymbol;
+export class UCByteTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+	getReference(): ISymbol {
+		return PredefinedByte;
+	}
 
-	constructor(id: Identifier, private range: Range = id.range, private typeKind?: UCTypeKind) {
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Byte;
+	}
+}
+
+export class UCFloatTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+	getReference(): ISymbol {
+		return PredefinedFloat;
+	}
+
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Float;
+	}
+}
+
+export class UCIntTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+	getReference(): ISymbol {
+		return PredefinedInt;
+	}
+
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Int;
+	}
+}
+
+export class UCStringTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+	getReference(): ISymbol {
+		return PredefinedString;
+	}
+
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.String;
+	}
+}
+
+export class UCNameTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+	getReference(): ISymbol {
+		return PredefinedName;
+	}
+
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Name;
+	}
+}
+
+export class UCBoolTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+	getReference(): ISymbol {
+		return PredefinedBool;
+	}
+
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Bool;
+	}
+}
+
+export class UCPointerTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+	getReference(): ISymbol {
+		return PredefinedPointer;
+	}
+
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Int;
+	}
+}
+
+export class UCButtonTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+	getReference(): ISymbol {
+		return PredefinedButton;
+	}
+
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Byte;
+	}
+}
+
+export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol {
+	public baseType?: ITypeSymbol;
+
+	constructor(id: Identifier, private range: Range = id.range, private validTypeKind?: UCTypeKind) {
 		super(id);
 	}
 
-	public getTypeText(): string {
+	getTypeText(): string {
 		if (this.baseType) {
 			return this.getId() + `<${this.baseType.getTypeText()}>`;
 		}
 		return this.getId().toString();
 	}
 
-	setTypeKind(kind: UCTypeKind) {
-		this.typeKind = kind;
+	getTypeKind(): UCTypeKind {
+		// TODO: UCInterfaceSymbol, anyother symbol is not a valid reference for this type symbol (in property declarations).
+		// Should we create a UCStructTypeSymbol and UCStateTypeSymbol in particular for a state, and struct extends clause?
+		if (this.reference instanceof UCClassSymbol) {
+			return this.baseType
+				? UCTypeKind.Class
+				: UCTypeKind.Object;
+		} else if (this.reference instanceof UCScriptStructSymbol) {
+			return UCTypeKind.Struct;
+		} else if (this.reference instanceof UCEnumSymbol) {
+			return UCTypeKind.Enum;
+		}
+		return UCTypeKind.Error;
+	}
+
+	setValidTypeKind(kind: UCTypeKind) {
+		this.validTypeKind = kind;
 	}
 
 	getRange(): Range {
@@ -158,7 +233,7 @@ export class UCTypeSymbol extends UCSymbolReference implements ITypeSymbol {
 
 		const id = this.getId();
 		let symbol: ISymbol | undefined;
-		switch (this.typeKind) {
+		switch (this.validTypeKind) {
 			case UCTypeKind.Package: {
 				symbol = PackagesTable.findSymbol(id, false);
 				break;
@@ -191,7 +266,7 @@ export class UCTypeSymbol extends UCSymbolReference implements ITypeSymbol {
 
 		const symbol = this.getReference();
 		if (symbol) {
-			switch (this.typeKind) {
+			switch (this.validTypeKind) {
 				case UCTypeKind.Class: {
 					if (!(symbol instanceof UCClassSymbol)) {
 						document.nodes.push(new SemanticErrorNode(this, `Expected a class!`));
@@ -232,4 +307,16 @@ export class UCTypeSymbol extends UCSymbolReference implements ITypeSymbol {
 
 		document.nodes.push(new UnrecognizedTypeNode(this));
 	}
+}
+
+export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
+
+}
+
+export class UCDelegateTypeSymbol extends UCObjectTypeSymbol {
+
+}
+
+export class UCMapTypeSymbol extends UCObjectTypeSymbol {
+
 }

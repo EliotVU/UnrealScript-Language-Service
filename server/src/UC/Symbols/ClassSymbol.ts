@@ -6,13 +6,13 @@ import { intersectsWith, intersectsWithRange } from '../helpers';
 import { SymbolWalker } from '../symbolWalker';
 import { toHash } from '../names';
 
-import { UCStructSymbol, UCTypeSymbol, ITypeSymbol, ISymbol } from '.';
+import { UCStructSymbol, UCObjectTypeSymbol, ITypeSymbol, ISymbol } from '.';
 
 export class UCClassSymbol extends UCStructSymbol {
 	public withinType?: ITypeSymbol;
 
-	public dependsOnTypes?: UCTypeSymbol[];
-	public implementsTypes?: UCTypeSymbol[];
+	public dependsOnTypes?: UCObjectTypeSymbol[];
+	public implementsTypes?: UCObjectTypeSymbol[];
 
 	isType(): boolean {
 		return true;

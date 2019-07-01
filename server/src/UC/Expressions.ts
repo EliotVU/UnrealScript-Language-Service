@@ -1,8 +1,6 @@
 import { Position, Range } from 'vscode-languageserver';
 import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
-import { connection } from '../server';
-
 import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode } from './diagnostics/diagnostics';
 import { getEnumMember } from './indexer';
 import { intersectsWith, rangeFromBounds } from './helpers';
@@ -13,7 +11,7 @@ import { UCTypeKind } from './Symbols/TypeKind';
 
 import {
 	ISymbolContext, ISymbol,
-	UCTypeSymbol,
+	UCObjectTypeSymbol,
 	UCStructSymbol,
 	UCPropertySymbol,
 	UCSymbolReference,
@@ -169,7 +167,7 @@ export class UCElementAccessExpression extends UCExpression {
 		if (symbol instanceof UCPropertySymbol) {
 			if (!symbol.type) return undefined;
 
-			if (symbol.type instanceof UCTypeSymbol && symbol.type.baseType) {
+			if (symbol.type instanceof UCObjectTypeSymbol && symbol.type.baseType) {
 				return symbol.type.baseType.getReference() as UCStructSymbol;
 			}
 			return symbol.type.getReference() as UCStructSymbol;
@@ -178,7 +176,7 @@ export class UCElementAccessExpression extends UCExpression {
 		if (symbol instanceof UCMethodSymbol) {
 			if (!symbol.returnType) return undefined;
 
-			if (symbol.returnType instanceof UCTypeSymbol && symbol.returnType.baseType) {
+			if (symbol.returnType instanceof UCObjectTypeSymbol && symbol.returnType.baseType) {
 				return symbol.returnType.baseType.getReference() as UCStructSymbol;
 			}
 			return symbol.returnType.getReference() as UCStructSymbol;
@@ -274,7 +272,7 @@ export class UCPropertyAccessExpression extends UCExpression {
 		// -- will be resolved to array or Vector (in an index expression, handled elsewhere).
 		if (symbol instanceof UCPropertySymbol) {
 			if (symbol.type) {
-				return ((symbol.type.getReference() !== NativeArray && symbol.type instanceof UCTypeSymbol && symbol.type.baseType)
+				return ((symbol.type.getReference() !== NativeArray && symbol.type instanceof UCObjectTypeSymbol && symbol.type.baseType)
 					? symbol.type.baseType.getReference()
 					: symbol.type.getReference());
 			}
@@ -282,7 +280,7 @@ export class UCPropertyAccessExpression extends UCExpression {
 		}
 		if (symbol instanceof UCMethodSymbol) {
 			if (symbol.returnType) {
-				return (symbol.returnType instanceof UCTypeSymbol && symbol.returnType.baseType
+				return (symbol.returnType instanceof UCObjectTypeSymbol && symbol.returnType.baseType
 					? symbol.returnType.baseType.getReference()
 					: symbol.returnType.getReference());
 			}
@@ -559,7 +557,7 @@ export class UCMemberExpression extends UCExpression {
 // Resolves the member for predefined specifiers such as (self, default, static, and global)
 export class UCPredefinedAccessExpression extends UCMemberExpression {
 	getTypeKind(): UCTypeKind {
-		return UCTypeKind.None;
+		return UCTypeKind.Object;
 	}
 
 	index(document: UCDocument, _context?: UCStructSymbol) {
@@ -573,7 +571,7 @@ export class UCPredefinedAccessExpression extends UCMemberExpression {
 // Resolves the context for predefined specifiers such as (default, static, and const).
 export class UCPredefinedPropertyAccessExpression extends UCMemberExpression {
 	getTypeKind(): UCTypeKind {
-		return UCTypeKind.None;
+		return UCTypeKind.Object;
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol) {
@@ -588,8 +586,9 @@ export class UCPredefinedPropertyAccessExpression extends UCMemberExpression {
 	}
 }
 
+// TODO: Support super state
 export class UCSuperExpression extends UCExpression {
-	public classRef?: UCTypeSymbol;
+	public classRef?: UCObjectTypeSymbol;
 
 	// Resolved super class.
 	private superClass?: UCClassSymbol;
@@ -603,7 +602,7 @@ export class UCSuperExpression extends UCExpression {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		if (this.classRef && this.classRef.getSymbolAtPos(position) as UCTypeSymbol) {
+		if (this.classRef && this.classRef.getSymbolAtPos(position) as UCObjectTypeSymbol) {
 			return this.classRef;
 		}
 	}
@@ -627,7 +626,7 @@ export class UCSuperExpression extends UCExpression {
 export class UCNewExpression extends UCCallExpression {
 	// TODO: Implement pseudo new operator for hover info?
 	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Class;
+		return UCTypeKind.Object;
 	}
 }
 
@@ -689,6 +688,8 @@ export class UCObjectLiteral extends UCExpression {
 	}
 
 	getTypeKind(): UCTypeKind {
+		// FIXME: Should we return objectRef's getTypeKind()?
+		// -- or should we assume that we always have at the very least an OBJECT
 		return UCTypeKind.Object;
 	}
 
@@ -810,7 +811,7 @@ export class UCNameOfLiteral extends UCLiteral {
 }
 
 export class UCMetaClassExpression extends UCParenthesizedExpression {
-	public classRef?: UCTypeSymbol;
+	public classRef?: UCObjectTypeSymbol;
 
 	getMemberSymbol() {
 		return this.classRef && this.classRef.getReference() || NativeClass;
@@ -821,7 +822,7 @@ export class UCMetaClassExpression extends UCParenthesizedExpression {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		const subSymbol = this.classRef && this.classRef.getSymbolAtPos(position) as UCTypeSymbol;
+		const subSymbol = this.classRef && this.classRef.getSymbolAtPos(position) as UCObjectTypeSymbol;
 		return subSymbol && subSymbol.getReference() && this.classRef || super.getContainedSymbolAtPos(position);
 	}
 
