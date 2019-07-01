@@ -231,7 +231,7 @@ connection.onPrepareRename(async (e) => {
 	return symbol.id.range;
 });
 
-const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)|()$/);
+const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 connection.onRenameRequest(async (e) => {
 	if (!VALID_ID_REGEXP.test(e.newName)){
 		throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid identifier!');
