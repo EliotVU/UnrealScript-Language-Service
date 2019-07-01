@@ -60,20 +60,24 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return CompletionItemKind.Property;
 	}
 
-	getTypeTooltip() {
+	protected getTypeKeyword() {
 		return 'var';
+	}
+
+	protected getTooltipId() {
+		return this.getQualifiedName();
 	}
 
 	getTooltip() {
 		const text: Array<string | undefined> = [];
 
-		text.push(this.getTypeTooltip());
+		text.push(this.getTypeKeyword());
 
 		const modifiers = this.buildModifiers();
 		text.push(...modifiers);
 
 		text.push(this.type!.getTypeText());
-		text.push(this.getQualifiedName());
+		text.push(this.getTooltipId());
 
 		if (this.isFixedArray()) {
 			text.push(text.pop() + `[${this.getArrayDimSize()}]`);

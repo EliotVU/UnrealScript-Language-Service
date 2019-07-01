@@ -16,12 +16,20 @@ export class UCLocalSymbol extends UCPropertySymbol {
 		return CompletionItemKind.Variable;
 	}
 
-	getTypeTooltip(): string {
+	protected getTypeKeyword(): string {
 		return 'local';
 	}
 
-	getTooltip(): string {
-		return `${this.getTypeTooltip()} ${this.type!.getTypeText()} ${this.getId()}`;
+	protected getTooltipId(): string {
+		return this.getId().toString();
+	}
+
+	protected buildModifiers(): string[] {
+		const text: string[] = [];
+
+		// no known modifiers of interest to us here.
+
+		return text;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

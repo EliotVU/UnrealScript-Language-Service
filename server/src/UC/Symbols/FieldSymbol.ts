@@ -28,6 +28,10 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return this.range;
 	}
 
+	protected getTypeKeyword(): string | undefined {
+		return undefined;
+	}
+
 	getTooltip(): string {
 		return this.getQualifiedName();
 	}

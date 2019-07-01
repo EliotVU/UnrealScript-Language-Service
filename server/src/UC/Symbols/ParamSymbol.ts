@@ -1,9 +1,13 @@
-import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
+import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
 import { SymbolWalker } from '../symbolWalker';
-import { UCPropertySymbol } from '.';
+import { IExpression } from '../expressions';
+import { UCDocument } from '../document';
+import { UCPropertySymbol, UCStructSymbol } from '.';
 
 export class UCParamSymbol extends UCPropertySymbol {
+	defaultExpression?: IExpression;
+
 	isPrivate(): boolean {
 		return true;
 	}
@@ -16,12 +20,37 @@ export class UCParamSymbol extends UCPropertySymbol {
 		return CompletionItemKind.Variable;
 	}
 
-	getTypeTooltip(): string {
+	protected getTypeKeyword(): string {
 		return '(parameter)';
 	}
 
-	getTooltip(): string {
-		return `${this.getTypeTooltip()} ${this.type!.getTypeText()} ${this.getId()}`;
+	protected getTooltipId(): string {
+		return this.getId().toString();
+	}
+
+	getContainedSymbolAtPos(position: Position) {
+		const symbol = this.defaultExpression && this.defaultExpression.getSymbolAtPos(position);
+		return symbol || super.getContainedSymbolAtPos(position);
+	}
+
+	public index(document: UCDocument, context: UCStructSymbol) {
+		super.index(document, context);
+		this.defaultExpression && this.defaultExpression.index(document, context);
+	}
+
+	public analyze(document: UCDocument, context: UCStructSymbol) {
+		super.analyze(document, context);
+		this.defaultExpression && this.defaultExpression.analyze(document, context);
+	}
+
+	protected buildModifiers(): string[] {
+		const text: string[] = [];
+
+		if (this.isConst()) {
+			text.push('const');
+		}
+
+		return text;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

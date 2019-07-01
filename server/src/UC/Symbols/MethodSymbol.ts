@@ -20,10 +20,11 @@ export enum MethodSpecifiers {
 }
 
 export class UCMethodSymbol extends UCStructSymbol {
+	public specifiers: MethodSpecifiers = MethodSpecifiers.None;
+
 	public returnType?: ITypeSymbol;
 	public overriddenMethod?: UCMethodSymbol;
 	public params?: UCParamSymbol[];
-	public specifiers: MethodSpecifiers = MethodSpecifiers.None;
 
 	isStatic(): boolean {
 		return (this.specifiers & MethodSpecifiers.Static) !== 0;
@@ -112,23 +113,21 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return visitor.visitMethod(this);
 	}
 
-	getTypeTooltip(): string | undefined {
-		return this.overriddenMethod && '(override)';
-	}
-
-	getKindText(): string {
+	protected getTypeKeyword(): string {
 		return 'function';
 	}
 
 	getTooltip(): string {
 		const text: Array<string | undefined> = [];
 
-		text.push(this.getTypeTooltip());
+		if (this.overriddenMethod) {
+			text.push('(override)');
+		}
 
 		const modifiers = this.buildModifiers();
 		text.push(...modifiers);
 
-		text.push(this.getKindText());
+		text.push(this.getTypeKeyword());
 		text.push(this.buildReturnType());
 		text.push(this.getQualifiedName() + this.buildParameters());
 
@@ -179,12 +178,8 @@ export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference
 		return true;
 	}
 
-	getTypeTooltip(): string {
+	protected getTypeKeyword(): string {
 		return '(intrinsic)';
-	}
-
-	getKindText(): string {
-		return this.kind || 'function'; // placeholder
 	}
 
 	getReference(): ISymbol | undefined {
@@ -201,7 +196,7 @@ export class UCEventSymbol extends UCMethodSymbol {
 		return CompletionItemKind.Event;
 	}
 
-	getKindText(): string {
+	protected getTypeKeyword(): string {
 		return 'event';
 	}
 }
@@ -215,7 +210,7 @@ export class UCDelegateSymbol extends UCMethodSymbol {
 		return CompletionItemKind.Function;
 	}
 
-	getKindText(): string {
+	protected getTypeKeyword(): string {
 		return 'delegate';
 	}
 }
@@ -231,19 +226,19 @@ export class UCOperatorSymbol extends UCMethodSymbol {
 		return CompletionItemKind.Operator;
 	}
 
-	getKindText(): string {
+	protected getTypeKeyword(): string {
 		return `operator(${this.precedence})`;
 	}
 }
 
 export class UCPreOperatorSymbol extends UCOperatorSymbol {
-	getKindText(): string {
+	protected getTypeKeyword(): string {
 		return 'preoperator';
 	}
 }
 
 export class UCPostOperatorSymbol extends UCOperatorSymbol {
-	getKindText(): string {
+	protected getTypeKeyword(): string {
 		return 'postoperator';
 	}
 }

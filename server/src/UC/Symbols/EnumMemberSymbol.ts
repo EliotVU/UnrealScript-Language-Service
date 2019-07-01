@@ -15,12 +15,12 @@ export class UCEnumMemberSymbol extends UCFieldSymbol {
 		return CompletionItemKind.EnumMember;
 	}
 
-	getTypeTooltip(): string {
+	protected getTypeKeyword(): string {
 		return '(enum member)';
 	}
 
 	getTooltip(): string {
-		return `${this.getTypeTooltip()} ${this.getQualifiedName()} = ${this.value}`;
+		return `${this.getTypeKeyword()} ${this.getQualifiedName()} = ${this.value}`;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

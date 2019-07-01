@@ -52,12 +52,9 @@ export abstract class UCSymbol implements ISymbol {
 	getKind(): SymbolKind {
 		return SymbolKind.Field;
 	}
+
 	getTooltip(): string {
 		return this.getQualifiedName();
-	}
-
-	getTypeTooltip(): string | undefined {
-		return undefined;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {

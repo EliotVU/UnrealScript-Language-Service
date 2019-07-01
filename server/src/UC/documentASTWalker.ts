@@ -633,9 +633,17 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const typeSymbol = this.visitTypeDecl(propTypeNode);
 
 		const varNode = ctx.variable();
-		const symbol: UCParamSymbol = varNode.accept(this);
+
+		const identifier: Identifier = varNode.identifier().accept(this);
+		const symbol = new UCParamSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.type = typeSymbol;
 		symbol.modifiers = modifiers;
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			symbol.defaultExpression = exprNode.accept(this);
+		}
+
+		symbol.walk(this, varNode);
 		this.declare(symbol);
 		return symbol;
 	}
@@ -691,9 +699,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitVariable(ctx: UCParser.VariableContext) {
-		const type = ctx.parent instanceof UCParser.ParamDeclContext
-			? UCParamSymbol
-			: ctx.parent instanceof UCParser.LocalDeclContext
+		const type = ctx.parent instanceof UCParser.LocalDeclContext
 			? UCLocalSymbol
 			: UCPropertySymbol;
 
