@@ -3,7 +3,7 @@ import { Range, Position, Location } from 'vscode-languageserver-types';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 import { UCDocument } from '../document';
 
-import { Identifier, ISymbol, UCSymbol, UCStructSymbol, UCClassSymbol, UCTypeKind } from '.';
+import { Identifier, ISymbol, UCSymbol, UCStructSymbol, UCTypeKind } from '.';
 
 export enum FieldModifiers {
 	None 				= 0x0000,

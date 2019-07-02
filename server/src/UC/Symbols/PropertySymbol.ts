@@ -42,9 +42,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 			if (symbol instanceof UCEnumMemberSymbol) {
 				return symbol.value;
 			} else if (symbol instanceof UCConstSymbol) {
-				// FIXME: Need to parse const values, and then adapt this line of code to reflect that change.
-				// As of now this makes a naive assumption that any const consists of a raw number.
-				return Number(symbol.value);
+				return symbol.getComputedValue();
 			}
 		} else if (this.arrayDim) {
 			return Number(this.arrayDim);
@@ -80,7 +78,9 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		text.push(this.getTooltipId());
 
 		if (this.isFixedArray()) {
-			text.push(text.pop() + `[${this.getArrayDimSize()}]`);
+			// We want to avoid printing out 'undefined', so always fall back to 0 instead.
+			const arrayDim = this.getArrayDimSize() || 0;
+			text.push(text.pop() + `[${arrayDim}]`);
 		}
 
 		return text.filter(s => s).join(' ');
@@ -112,13 +112,15 @@ export class UCPropertySymbol extends UCFieldSymbol {
 			}
 
 			const arraySize = this.getArrayDimSize();
-			if (typeof arraySize !== 'undefined' && (arraySize > 255 || arraySize <= 0)) {
-				document.nodes.push(new SemanticErrorRangeNode(this.arrayDimRange!, `Array's size must be between 1-255`));
+			if (!arraySize) {
+				document.nodes.push(new SemanticErrorRangeNode(this.arrayDimRange!, `Bad array size, try refer to a type that can be evaulated to an integer!`));
+			} else if (arraySize > 2048 || arraySize <= 1) {
+				document.nodes.push(new SemanticErrorRangeNode(this.arrayDimRange!, `Illegal array size, must be between 2-2048`));
 			}
 
 			const arrayType = this.type && this.type.getReference();
 			if (arrayType === PredefinedBool || arrayType === NativeArray) {
-				document.nodes.push(new SemanticErrorNode(this.type!, `Invalid type '${this.type!.getTypeText()}' for a static array variable`));
+				document.nodes.push(new SemanticErrorNode(this.type!, `Illegal array type '${this.type!.getTypeText()}'`));
 			}
 		}
 

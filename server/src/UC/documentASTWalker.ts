@@ -8,29 +8,57 @@ import * as UCParser from '../antlr/UCGrammarParser';
 import { UCGrammarVisitor } from '../antlr/UCGrammarVisitor';
 
 import { rangeFromBounds, rangeFromBound } from './helpers';
-import { toName, NAME_CLASS, NAME_ARRAY, NAME_REPLICATION, NAME_STRUCTDEFAULTPROPERTIES, NAME_DEFAULTPROPERTIES, NAME_NONE, NAME_NAME, NAME_DELEGATE, NAME_ENUMCOUNT, NAME_INT, NAME_FLOAT, NAME_BYTE, NAME_STRING, NAME_BOOL, NAME_POINTER, NAME_BUTTON } from './names';
+import {
+	toName,
+	NAME_CLASS, NAME_ARRAY, NAME_REPLICATION,
+	NAME_STRUCTDEFAULTPROPERTIES, NAME_DEFAULTPROPERTIES,
+	NAME_NONE, NAME_NAME, NAME_DELEGATE, NAME_ENUMCOUNT,
+	NAME_INT, NAME_FLOAT, NAME_BYTE, NAME_STRING,
+	NAME_BOOL, NAME_POINTER, NAME_BUTTON
+} from './names';
 
 import {
-	Identifier, ISymbol, ISymbolContainer, UCConstSymbol, UCDefaultPropertiesBlock,
-	UCEnumMemberSymbol, UCEnumSymbol, UCMethodSymbol,
-	UCLocalSymbol, UCObjectSymbol,
+	Identifier, ISymbol, ISymbolContainer, UCConstSymbol,
+	UCDefaultPropertiesBlock, UCEnumMemberSymbol, UCEnumSymbol,
+	UCMethodSymbol, UCLocalSymbol, UCObjectSymbol,
 	UCPropertySymbol, UCScriptStructSymbol, UCStateSymbol,
 	UCStructSymbol, UCSymbol, UCSymbolReference,
 	ITypeSymbol, UCObjectTypeSymbol, UCQualifiedTypeSymbol,
 	UCDocumentClassSymbol, UCReplicationBlock,
-	MethodSpecifiers, UCEventSymbol, UCOperatorSymbol, UCDelegateSymbol, UCPostOperatorSymbol, UCPreOperatorSymbol,
+	MethodSpecifiers, UCEventSymbol, UCOperatorSymbol,
+	UCDelegateSymbol, UCPostOperatorSymbol, UCPreOperatorSymbol,
 	FieldModifiers, ParamModifiers,
-	UCParamSymbol, UCTypeKind
+	UCParamSymbol, UCTypeKind,
+	UCIntTypeSymbol, UCFloatTypeSymbol, UCByteTypeSymbol, UCStringTypeSymbol,
+	UCNameTypeSymbol, UCBoolTypeSymbol, UCPointerTypeSymbol, UCButtonTypeSymbol,
+	UCDelegateTypeSymbol, UCArrayTypeSymbol, UCMapTypeSymbol
 } from './Symbols';
 
 import { SyntaxErrorNode } from './diagnostics/diagnostics';
 
-import { UCBlock, IStatement, UCExpressionStatement, UCLabeledStatement, UCReturnStatement, UCGotoStatement, UCIfStatement, UCWhileStatement, UCDoUntilStatement, UCForEachStatement, UCForStatement, UCSwitchStatement, UCCaseClause, UCDefaultClause, UCAssertStatement } from './statements';
+import {
+	UCBlock, IStatement, UCExpressionStatement, UCLabeledStatement,
+	UCReturnStatement, UCGotoStatement, UCIfStatement, UCWhileStatement,
+	UCDoUntilStatement, UCForEachStatement, UCForStatement, UCSwitchStatement,
+	UCCaseClause, UCDefaultClause, UCAssertStatement
+} from './statements';
+
 import { setEnumMember } from './indexer';
 
 import { UCDocument } from './document';
-import { UCAssignmentExpression, IExpression, UCConditionalExpression, UCBinaryExpression, UCUnaryExpression, UCParenthesizedExpression, UCPropertyAccessExpression, UCCallExpression, UCElementAccessExpression, UCNewExpression, UCMetaClassExpression, UCSuperExpression, UCPredefinedAccessExpression, UCPredefinedPropertyAccessExpression, UCMemberExpression, UCNoneLiteral, UCStringLiteral, UCNameLiteral, UCBoolLiteral, UCFloatLiteral, UCIntLiteral, UCObjectLiteral, UCVectLiteral, UCRotLiteral, UCRngLiteral, UCNameOfLiteral, UCArrayCountExpression } from './expressions';
-import { UCIntTypeSymbol, UCFloatTypeSymbol, UCByteTypeSymbol, UCStringTypeSymbol, UCNameTypeSymbol, UCBoolTypeSymbol, UCPointerTypeSymbol, UCButtonTypeSymbol, UCDelegateTypeSymbol, UCArrayTypeSymbol, UCMapTypeSymbol } from './Symbols/TypeSymbol';
+import {
+	UCAssignmentExpression, IExpression,
+	UCConditionalExpression, UCBinaryExpression, UCUnaryExpression,
+	UCParenthesizedExpression,
+	UCPropertyAccessExpression, UCCallExpression, UCElementAccessExpression,
+	UCNewExpression, UCMetaClassExpression, UCSuperExpression,
+	UCPredefinedAccessExpression, UCPredefinedPropertyAccessExpression,
+	UCMemberExpression,
+	UCNoneLiteral, UCStringLiteral, UCNameLiteral,
+	UCBoolLiteral, UCFloatLiteral, UCIntLiteral, UCObjectLiteral,
+	UCVectLiteral, UCRotLiteral, UCRngLiteral,
+	UCNameOfLiteral, UCArrayCountExpression, UCSizeOfLiteral, UCArrayCountLiteral
+} from './expressions';
 
 function createIdentifierFrom(ctx: ParserRuleContext) {
 	const identifier: Identifier = {
@@ -376,12 +404,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		// Ensure that all constant declarations are always declared as a top level field (i.e. class)
 		this.document.class!.addSymbol(symbol);
 
-		// TODO: create a constantToken walker similar to what we do with expressions.
 		const valueNode = ctx.constValue();
 		if (valueNode) {
-			symbol.value = valueNode.text;
+			symbol.expression = valueNode.accept(this);
 		}
-
 		return symbol;
 	}
 
@@ -1407,6 +1433,34 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			expression.expression = exprNode.accept<any>(this);
 			expression.expression!.outer = expression;
 		}
+		return expression;
+	}
+
+	visitArrayCountToken(ctx: UCParser.ArrayCountTokenContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCArrayCountLiteral(range);
+		expression.context = ctx;
+
+		const idNode = ctx.identifier();
+		if (idNode) {
+			const identifier: Identifier = idNode.accept(this);
+			expression.argumentRef = new UCObjectTypeSymbol(identifier, undefined, UCTypeKind.Property);
+		}
+
+		return expression;
+	}
+
+	visitSizeOfToken(ctx: UCParser.SizeOfTokenContext) {
+		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const expression = new UCSizeOfLiteral(range);
+		expression.context = ctx;
+
+		const idNode = ctx.identifier();
+		if (idNode) {
+			const identifier: Identifier = idNode.accept(this);
+			expression.argumentRef = new UCObjectTypeSymbol(identifier, undefined, UCTypeKind.Class);
+		}
+
 		return expression;
 	}
 

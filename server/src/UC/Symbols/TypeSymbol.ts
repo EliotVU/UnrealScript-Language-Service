@@ -37,6 +37,7 @@ export enum UCTypeKind {
 	Enum,
 	State,
 	Struct,
+	Property,
 	Function,
 	Delegate,
 

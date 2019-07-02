@@ -79,6 +79,12 @@ export abstract class UCExpression implements IExpression {
 	abstract getContainedSymbolAtPos(position: Position): ISymbol | undefined;
 	abstract index(document: UCDocument, context?: UCStructSymbol): void;
 	abstract analyze(document: UCDocument, context?: UCStructSymbol): void;
+
+	toString(): string {
+		return this.context
+			? this.context.text
+			: '';
+	}
 }
 
 export class UCParenthesizedExpression extends UCExpression {
@@ -628,6 +634,10 @@ export class UCNewExpression extends UCCallExpression {
 }
 
 export abstract class UCLiteral extends UCExpression {
+	getValue(): number | undefined {
+		return undefined;
+	}
+
 	getMemberSymbol(): ISymbol | undefined {
 		return undefined;
 	}
@@ -665,12 +675,20 @@ export class UCBoolLiteral extends UCLiteral {
 }
 
 export class UCFloatLiteral extends UCLiteral {
+	getValue(): number {
+		return Number.parseInt(this.context.text);
+	}
+
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Float;
 	}
 }
 
 export class UCIntLiteral extends UCLiteral {
+	getValue(): number {
+		return Number.parseInt(this.context.text);
+	}
+
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Int;
 	}
@@ -785,11 +803,68 @@ export class UCRngLiteral extends UCStructLiteral {
 	}
 }
 
+// See also @UCArrayCountExpression, this literal is restricted to const value tokens.
+export class UCArrayCountLiteral extends UCLiteral {
+	public argumentRef?: ITypeSymbol;
+
+	getValue() {
+		const symbol = this.argumentRef && this.argumentRef.getReference();
+		return symbol instanceof UCPropertySymbol && symbol.getArrayDimSize() || undefined;
+	}
+
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Int;
+	}
+
+	getContainedSymbolAtPos(position: Position) {
+		return this.argumentRef && this.argumentRef.getSymbolAtPos(position) && this.argumentRef;
+	}
+
+	index(document: UCDocument, context?: UCStructSymbol) {
+		super.index(document, context);
+		this.argumentRef && this.argumentRef.index(document, context!);
+	}
+
+	// TODO: Validate that referred property is a valid static array!
+	analyze(document: UCDocument, context?: UCStructSymbol) {
+		super.analyze(document, context);
+		this.argumentRef && this.argumentRef.analyze(document, context!);
+	}
+}
+
 export class UCNameOfLiteral extends UCLiteral {
 	public argumentRef?: ITypeSymbol;
 
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Name;
+	}
+
+	getContainedSymbolAtPos(position: Position) {
+		return this.argumentRef && this.argumentRef.getSymbolAtPos(position) && this.argumentRef;
+	}
+
+	index(document: UCDocument, context?: UCStructSymbol) {
+		super.index(document, context);
+		this.argumentRef && this.argumentRef.index(document, context!);
+	}
+
+	analyze(document: UCDocument, context?: UCStructSymbol) {
+		super.analyze(document, context);
+		this.argumentRef && this.argumentRef.analyze(document, context!);
+	}
+}
+
+export class UCSizeOfLiteral extends UCLiteral {
+	public argumentRef?: ITypeSymbol;
+
+	getValue() {
+		// FIXME: We don't have the data to calculate a class's size.
+		// const symbol = this.argumentRef && this.argumentRef.getReference();
+		return undefined;
+	}
+
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Int;
 	}
 
 	getContainedSymbolAtPos(position: Position) {
