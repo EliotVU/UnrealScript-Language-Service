@@ -48,25 +48,19 @@ export class UCExpressionStatement implements IStatement {
 	context?: ParserRuleContext;
 	expression?: IExpression;
 
-	constructor(private range?: Range) {
+	constructor(private range: Range) {
 
 	}
 
 	getSymbolAtPos(position: Position): ISymbol | undefined {
-		if (!this.range && this.context) {
-			this.range = rangeFromBounds(this.context.start, this.context.stop);
-		}
-
-		if (!intersectsWith(this.range!, position)) {
+		if (!intersectsWith(this.range, position)) {
 			return undefined;
 		}
-		const symbol = this.getContainedSymbolAtPos(position);
-		return symbol;
+		return this.getContainedSymbolAtPos(position);
 	}
 
 	getContainedSymbolAtPos(position: Position): ISymbol | undefined {
-		const symbol = this.expression && this.expression.getSymbolAtPos(position);
-		return symbol;
+		return this.expression && this.expression.getSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {

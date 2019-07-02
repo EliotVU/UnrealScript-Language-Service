@@ -81,11 +81,12 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	}
 
 	acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
-		// TODO: Does not match the language's behavior yet!
-		if (this.isPrivate()) {
-			return this.getOuter<UCClassSymbol>() === _document.class;
-		}
-		return this.isPublic();
+		// // TODO: Does not match the language's behavior yet!
+		// if (this.isPrivate()) {
+		// 	return this.getOuter<UCClassSymbol>() === _document.class;
+		// }
+		// return this.isPublic();
+		return true;
 	}
 
 	index(document: UCDocument, _context: UCStructSymbol) {

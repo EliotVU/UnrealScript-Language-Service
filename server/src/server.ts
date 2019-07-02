@@ -16,7 +16,8 @@ import {
 	ResponseError,
 	ErrorCodes,
 	Location,
-	SymbolKind
+	SymbolKind,
+	CompletionTriggerKind
 } from 'vscode-languageserver';
 import URI from 'vscode-uri';
 
@@ -45,7 +46,8 @@ connection.onInitialize((params: InitializeParams) => {
 			textDocumentSync: textDocuments.syncKind,
 			hoverProvider: true,
 			completionProvider: {
-				triggerCharacters: ['.', '(', '[', ',', '<']
+				triggerCharacters: ['.', '(', '[', ',', '<'],
+				resolveProvider: true
 			},
 			definitionProvider: true,
 			documentSymbolProvider: true,
@@ -198,7 +200,28 @@ connection.onDefinition(async (e)=> {
 connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
 connection.onDocumentHighlight((e) => getHighlights(e.textDocument.uri, e.position));
 
-connection.onCompletion((e) => getCompletionItems(e.textDocument.uri, e.position, e.context));
+connection.onCompletion(async (e) => {
+	let position = e.position;
+	if (e.context) {
+		if (e.context.triggerKind <= CompletionTriggerKind.TriggerCharacter) {
+			const doc = textDocuments.get(e.textDocument.uri);
+			if (!doc) {
+				return undefined;
+			}
+
+			const text = doc.getText();
+			for (let colOffset = doc.offsetAt(position); colOffset >= 0; -- colOffset) {
+				const char = text[colOffset];
+				if (char === ' ' || char === '\t' || char === '\n' || char === '.') {
+					continue;
+				}
+				position = doc.positionAt(colOffset);
+				break;
+			}
+		}
+	}
+	return getCompletionItems(e.textDocument.uri, position);
+});
 connection.onCompletionResolve(getFullCompletionItem);
 
 connection.onPrepareRename(async (e) => {

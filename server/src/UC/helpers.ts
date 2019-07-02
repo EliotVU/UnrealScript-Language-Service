@@ -2,7 +2,6 @@ import {
 	CompletionItem,
 	Hover,
 	Location,
-	Definition,
 	SymbolInformation,
 	Position,
 	Range,
@@ -174,29 +173,27 @@ export async function getHighlights(uri: string, position: Position): Promise<Do
 		));
 }
 
-export async function getCompletionItems(uri: string, position: Position, context: CompletionContext | undefined): Promise<CompletionItem[] | undefined> {
+export async function getCompletionItems(uri: string, position: Position): Promise<CompletionItem[] | undefined> {
 	const document = getDocumentByUri(uri);
 	if (!document || !document.class) {
 		return undefined;
 	}
 
-	-- position.character;
-	// Temp workaround for context expressions that haven't yet been parsed as such.
-	if (context && context.triggerCharacter === '.') {
-		-- position.character;
-	}
-
-	let symbol = document.class.getCompletionContext(position);
-	if (symbol && symbol instanceof UCSymbolReference) {
-		symbol = symbol.getReference() as UCSymbol;
-	}
-
-	if (!symbol) {
+	const contextSymbol = document.class.getCompletionContext(position);
+	if (!contextSymbol) {
 		return undefined;
 	}
 
-	if (symbol instanceof UCFieldSymbol) {
-		const symbols = symbol.getCompletionSymbols(document);
+	let selectedSymbol: ISymbol = contextSymbol;
+	if (contextSymbol && (<IWithReference>contextSymbol).getReference) {
+		const resolvedSymbol = (<IWithReference>contextSymbol).getReference();
+		if (resolvedSymbol instanceof UCSymbol) {
+			selectedSymbol = resolvedSymbol;
+		}
+	}
+
+	if (selectedSymbol instanceof UCSymbol) {
+		const symbols = selectedSymbol.getCompletionSymbols(document);
 		const contextCompletions = symbols.map(symbol => symbol.toCompletionItem(document));
 		// TODO: Add context sensitive keywords
 		return contextCompletions;

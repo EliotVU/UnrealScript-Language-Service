@@ -231,6 +231,12 @@ export class UCOperatorSymbol extends UCMethodSymbol {
 	protected getTypeKeyword(): string {
 		return `operator(${this.precedence})`;
 	}
+
+	acceptCompletion(document: UCDocument, context: ISymbol): boolean {
+		// FIXME: Should check outer, but currently it's too much of a pain to step through.
+		// Basically we don't want operators to be visible when the context is not in the same document!
+		return context instanceof UCStructSymbol && context.getUri() === document.filePath;
+	}
 }
 
 export class UCPreOperatorSymbol extends UCOperatorSymbol {
