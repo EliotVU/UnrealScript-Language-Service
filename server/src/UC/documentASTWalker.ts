@@ -1006,13 +1006,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			expression.left!.outer = expression;
 		}
 
-		const operatorNode = ctx.ASSIGNMENT();
-		const identifier: Identifier = {
-			name: toName(operatorNode.text),
-			range: rangeFromBound(operatorNode.symbol)
-		};
-		expression.operator = new UCSymbolReference(identifier);
-
 		const exprNode = ctx.defaultLiteral();
 		if (exprNode) {
 			expression.right = exprNode.accept<any>(this);
@@ -1233,9 +1226,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const primaryNode = ctx.primaryExpression();
 		expression.left = primaryNode.accept<any>(this);
 		expression.left!.outer = expression;
-
-		const operatorNode = ctx.assignmentOperator();
-		expression.operator = new UCSymbolReference(createIdentifierFrom(operatorNode));
 
 		const exprNode = ctx.expression();
 		if (exprNode) {

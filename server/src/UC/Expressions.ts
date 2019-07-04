@@ -383,7 +383,7 @@ export class UCUnaryExpression extends UCExpression {
 // TODO: Index and match overloaded operators.
 export class UCBinaryExpression extends UCExpression {
 	public left?: IExpression;
-	public operator: UCSymbolReference;
+	public operator?: UCSymbolReference;
 	public right?: IExpression;
 
 	getMemberSymbol() {
@@ -393,12 +393,12 @@ export class UCBinaryExpression extends UCExpression {
 
 	getTypeKind(): UCTypeKind {
 		// TODO: requires proper overloaded operator linking, then should return the type of the operator.
-		return this.operator.getTypeKind();
+		return this.operator!.getTypeKind();
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		const symbol = this.operator.getSymbolAtPos(position);
-		if (symbol && this.operator.getReference()) {
+		const symbol = this.operator && this.operator.getSymbolAtPos(position);
+		if (symbol && this.operator!.getReference()) {
 			return symbol;
 		}
 
@@ -418,9 +418,11 @@ export class UCBinaryExpression extends UCExpression {
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol) {
-		// Because we only need to match operators, we can directly skip @context and look in the upper class.
-		const operatorSymbol = findOperatorSymbol(this.operator.getId(), context!);
-		operatorSymbol && this.operator.setReference(operatorSymbol, document);
+		if (this.operator) {
+			// Because we only need to match operators, we can directly skip @context and look in the upper class.
+			const operatorSymbol = findOperatorSymbol(this.operator.getId(), context!);
+			operatorSymbol && this.operator.setReference(operatorSymbol, document);
+		}
 
 		if (this.left) this.left.index(document, context);
 		if (this.right) this.right.index(document, context);
@@ -430,7 +432,7 @@ export class UCBinaryExpression extends UCExpression {
 		if (this.left) this.left.analyze(document, context);
 		if (this.right) this.right.analyze(document, context);
 
-		if (this.operator && !(this instanceof UCAssignmentExpression)) {
+		if (this.operator) {
 			const operatorSymbol = this.operator.getReference();
 			if (operatorSymbol && !(operatorSymbol instanceof UCBinaryOperatorSymbol)) {
 				document.nodes.push(new SemanticErrorNode(this.operator, `'${operatorSymbol.getId()}' must be a binary operator!`));
