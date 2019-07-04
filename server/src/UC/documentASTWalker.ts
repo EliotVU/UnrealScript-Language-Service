@@ -250,6 +250,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			return symbol;
 		} else if (rule instanceof UCParser.QualifiedIdentifierContext) {
 			const symbol: ITypeSymbol = this.visitQualifiedIdentifier(rule);
+			if (symbol instanceof UCObjectTypeSymbol) {
+				symbol.setValidTypeKind(UCTypeKind.Type);
+			}
 			return symbol;
 		} else if (rule instanceof UCParser.ClassTypeContext) {
 			const identifier: Identifier = {

@@ -7,7 +7,7 @@ import { UnrecognizedTypeNode, SemanticErrorNode } from '../diagnostics/diagnost
 import {
 	UCSymbol, UCSymbolReference,
 	UCStructSymbol, UCClassSymbol, UCStateSymbol, UCScriptStructSymbol,
-	UCMethodSymbol, UCEnumSymbol,
+	UCFieldSymbol, UCEnumSymbol,
 	PackagesTable, SymbolsTable,
 	ISymbol, Identifier, IWithReference,
 	PredefinedByte, PredefinedFloat, PredefinedString,
@@ -40,6 +40,9 @@ export enum UCTypeKind {
 	Property,
 	Function,
 	Delegate,
+
+	// Special case for property type validations.
+	Type,
 
 	// Reffers the special "None" identifier, if we do actual reffer an undefined symbol, we should be an @Error.
 	None,
@@ -272,12 +275,12 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 				break;
 			}
 
-			case UCTypeKind.Class: {
+			case UCTypeKind.Class: case UCTypeKind.Interface: {
 				symbol = SymbolsTable.findSymbol(id, true);
 				break;
 			}
 
-			case UCTypeKind.Struct: case UCTypeKind.State: {
+			case UCTypeKind.Enum: case UCTypeKind.Struct: case UCTypeKind.State: {
 				symbol = context.findSuperSymbol(id);
 				break;
 			}
@@ -285,6 +288,12 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 			default: {
 				// First try to match upper level symbols such as a class.
 				symbol = SymbolsTable.findSymbol(id, true) || context.findSuperSymbol(id);
+			}
+		}
+
+		if (this.validTypeKind === UCTypeKind.Type) {
+			if (!(symbol instanceof UCFieldSymbol && symbol.isType())) {
+				symbol = undefined;
 			}
 		}
 
@@ -298,47 +307,40 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		}
 
 		const symbol = this.getReference();
-		if (symbol) {
-			switch (this.validTypeKind) {
-				case UCTypeKind.Class: {
-					if (!(symbol instanceof UCClassSymbol)) {
-						document.nodes.push(new SemanticErrorNode(this, `Expected a class!`));
-					}
-					break;
-				}
-
-				case UCTypeKind.State: {
-					if (!(symbol instanceof UCStateSymbol)) {
-						document.nodes.push(new SemanticErrorNode(this, `Expected a state!`));
-					}
-					break;
-				}
-
-				case UCTypeKind.Function: {
-					if (!(symbol instanceof UCMethodSymbol)) {
-						document.nodes.push(new SemanticErrorNode(this, `Expected a function!`));
-					}
-					break;
-				}
-
-				case UCTypeKind.Enum: {
-					if (!(symbol instanceof UCEnumSymbol)) {
-						document.nodes.push(new SemanticErrorNode(this, `Expected an enum!`));
-					}
-					break;
-				}
-
-				case UCTypeKind.Struct: {
-					if (!(symbol instanceof UCScriptStructSymbol)) {
-						document.nodes.push(new SemanticErrorNode(this, `Expected a struct!`));
-					}
-					break;
-				}
-			}
+		if (!symbol) {
+			document.nodes.push(new UnrecognizedTypeNode(this));
 			return;
 		}
 
-		document.nodes.push(new UnrecognizedTypeNode(this));
+		switch (this.validTypeKind) {
+			case UCTypeKind.Class: {
+				if (!(symbol instanceof UCClassSymbol)) {
+					document.nodes.push(new SemanticErrorNode(this, `Expected a class!`));
+				}
+				break;
+			}
+
+			case UCTypeKind.State: {
+				if (!(symbol instanceof UCStateSymbol)) {
+					document.nodes.push(new SemanticErrorNode(this, `Expected a state!`));
+				}
+				break;
+			}
+
+			case UCTypeKind.Enum: {
+				if (!(symbol instanceof UCEnumSymbol)) {
+					document.nodes.push(new SemanticErrorNode(this, `Expected an enum!`));
+				}
+				break;
+			}
+
+			case UCTypeKind.Struct: {
+				if (!(symbol instanceof UCScriptStructSymbol)) {
+					document.nodes.push(new SemanticErrorNode(this, `Expected a struct!`));
+				}
+				break;
+			}
+		}
 	}
 }
 
