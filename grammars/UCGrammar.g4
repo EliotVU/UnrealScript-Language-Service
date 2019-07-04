@@ -346,21 +346,21 @@ member
 	;
 
 literal
-	: noneLiteral
-	| boolLiteral
-	| floatLiteral
+	: boolLiteral
 	| intLiteral
+	| floatLiteral
 	| stringLiteral
-	| objectLiteral
+	| noneLiteral
 	| nameLiteral
 	| vectToken
 	| rotToken
 	| rngToken
 	| nameOfToken
+	| objectLiteral
 	;
 
-floatLiteral: (MINUS | PLUS)? (FLOAT);
-intLiteral: (MINUS | PLUS)? (INTEGER);
+floatLiteral: (MINUS | PLUS)? FLOAT;
+intLiteral: (MINUS | PLUS)? INTEGER;
 
 numberLiteral: (MINUS | PLUS)? (FLOAT | INTEGER);
 stringLiteral: STRING;
@@ -434,15 +434,24 @@ modifierValue
 	: identifier
 	| numberLiteral
 	;
-modifierArgument: OPEN_PARENS modifierValue CLOSE_PARENS;
-modifierArguments: OPEN_PARENS (modifierValue COMMA?)+ CLOSE_PARENS;
 
-constDecl: 'const' identifier ASSIGNMENT constValue SEMICOLON;
+modifierArgument
+	: OPEN_PARENS modifierValue CLOSE_PARENS
+	;
+
+modifierArguments
+	: OPEN_PARENS (modifierValue COMMA?)+ CLOSE_PARENS
+	;
+
+constDecl
+	: 'const' identifier ASSIGNMENT constValue SEMICOLON
+	;
+
 constValue
 	: noneLiteral
 	| boolLiteral
-	| intLiteral
 	| floatLiteral
+	| intLiteral
 	| stringLiteral
 	| objectLiteral
 	| nameLiteral
@@ -481,11 +490,13 @@ sizeOfToken
 enumDecl:
 	'enum' identifier metaData?
 	OPEN_BRACE
-		enumMember*
+		(enumMember (COMMA enumMember)* COMMA?)?
 	CLOSE_BRACE
 	;
 
-enumMember: identifier metaData? COMMA?;
+enumMember
+	: identifier metaData? COMMA?
+	;
 
 structDecl
 	:	'struct' exportBlockText? structModifier* identifier extendsClause?
@@ -520,7 +531,7 @@ structModifier
 	| 'immutablewhencooked'
 	;
 
-arrayDim
+arrayDimRefer
 	: INTEGER
 	| qualifiedIdentifier // Referres a constant in class scope, or an enum's member.
 	;
@@ -528,21 +539,31 @@ arrayDim
 // var (GROUP)
 // MODIFIER TYPE
 // VARIABLE, VARIABLE...;
-varDecl: 'var' (OPEN_PARENS categoryList? CLOSE_PARENS)?
+varDecl
+	: 'var' (OPEN_PARENS categoryList? CLOSE_PARENS)?
 	variableModifier* inlinedDeclTypes
-	variable (COMMA variable)* SEMICOLON;
+	variable (COMMA variable)* SEMICOLON
+	;
 
 // id[5] {DWORD} <Order=1>
-variable: identifier (OPEN_BRACKET arrayDim? CLOSE_BRACKET)?
+variable
+	: identifier (OPEN_BRACKET arrayDim=arrayDimRefer? CLOSE_BRACKET)?
 	exportBlockText?
 	metaData?
 	;
 
 // UC3 <UIMin=0.0|UIMax=1.0|Toolip=Hello world!>
-metaData: LT metaTag* GT;
-metaTag: identifier ASSIGNMENT (~(BITWISE_OR | GT) | metaTag);
+metaData
+	: LT metaTag* GT
+	;
 
-categoryList: identifier (COMMA identifier)*;
+metaTag
+	: identifier ASSIGNMENT ((~(BITWISE_OR | GT)) | metaTag)
+	;
+
+categoryList
+	: identifier (COMMA identifier)*
+	;
 
 variableModifier
 	: ('localized'
@@ -620,10 +641,21 @@ predefinedType
 	;
 
 // Note: inlinedDeclTypes includes another arrayGeneric!
-arrayType: 'array' (LT inlinedDeclTypes GT);
-classType: 'class' (LT identifier GT)?;
-delegateType: KW_DELEGATE (LT qualifiedIdentifier GT); // TODO: qualifiedIdentifier is hardcoded to 2 identifiers MAX.
-mapType: 'map' exportBlockText;
+arrayType
+	: 'array' (LT inlinedDeclTypes GT)
+	;
+
+classType
+	: 'class' (LT identifier GT)?
+	;
+
+delegateType
+	: KW_DELEGATE (LT qualifiedIdentifier GT)
+	; // TODO: qualifiedIdentifier is hardcoded to 2 identifiers MAX.
+
+mapType
+	: 'map' exportBlockText
+	;
 
 cppText
 	: 'cpptext' exportBlockText
@@ -659,8 +691,8 @@ replicationStatement
  * public simulated function coerce class<Actor> test(optional int p1, int p2) const;
  */
 functionDecl
-	: functionSpecifier+ (returnTypeModifier? returnType)?
-	  functionName (OPEN_PARENS parameters? CLOSE_PARENS) 'const'?
+	: functionSpecifier+ (returnTypeModifier? returnType=typeDecl)?
+	  functionName (OPEN_PARENS params=parameters? CLOSE_PARENS) 'const'?
 	  functionBody
 	;
 
@@ -709,28 +741,21 @@ functionSpecifier
 	| 'k2call'
 	| 'k2pure'
 	| 'k2override')
-	| ('native' (OPEN_PARENS nativeToken CLOSE_PARENS)?)
-	| ('operator' (OPEN_PARENS operatorPrecedence CLOSE_PARENS))
+	| ('native' (OPEN_PARENS nativeToken=INTEGER CLOSE_PARENS)?)
+	| ('operator' (OPEN_PARENS operatorPrecedence=INTEGER CLOSE_PARENS))
 	| ('public' exportBlockText?)
 	| ('protected' exportBlockText?)
 	| ('private' exportBlockText?)
 	;
 
-// TODO: implement a more restricted operator rule.
 functionName: identifier | operator;
 
-operatorPrecedence: INTEGER;
-nativeToken: INTEGER;
-
 parameters: paramDecl (COMMA paramDecl)*;
-
 paramDecl: paramModifier* typeDecl variable (ASSIGNMENT expression)?;
 
 returnTypeModifier
 	: 'coerce' // UC3+
 	;
-
-returnType: typeDecl;
 
 paramModifier
 	: 'out'
@@ -804,7 +829,7 @@ statement
 	| directive
 	;
 
-expressionStatement: expression;
+expressionStatement: expressionWithAssignment;
 
 ifStatement
 	: 'if' (OPEN_PARENS expression CLOSE_PARENS)
@@ -816,7 +841,7 @@ elseStatement: 'else' codeBlockOptional;
 foreachStatement: 'foreach' primaryExpression codeBlockOptional;
 
 forStatement
-	: 'for' (OPEN_PARENS expression? SEMICOLON expression? SEMICOLON expression? CLOSE_PARENS)
+	: 'for' (OPEN_PARENS (initExpr=expressionWithAssignment SEMICOLON) (condExpr=expressionWithAssignment SEMICOLON) nextExpr=expressionWithAssignment CLOSE_PARENS)
 		codeBlockOptional
 	;
 
@@ -927,11 +952,24 @@ operator
 	| ASSIGNMENT_DIV
 	;
 
-expression
-	: assignmentExpression
-	| unaryExpression
-	| binaryExpression
+expressionWithAssignment
+	: newExpression
 	| conditionalExpression
+	| assignmentExpression
+	| binaryExpression
+	| unaryExpression
+	;
+
+expression
+	: newExpression
+	| conditionalExpression
+	| binaryExpression
+	| unaryExpression
+	;
+
+// Inclusive template argument (will be parsed as a function call)
+newExpression
+	: 'new' (OPEN_PARENS arguments? CLOSE_PARENS)? primaryExpression
 	;
 
 assignmentExpression
@@ -956,8 +994,6 @@ primaryExpression
 	: literal 																			#literalExpression
 	| (OPEN_PARENS expression CLOSE_PARENS) 											#parenthesizedExpression
 	| 'class' (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)					#metaClassExpression
-	// Inclusive template argument (will be parsed as a function call)
-	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? primaryExpression 			#newExpression
 	| 'arraycount' 	(OPEN_PARENS primaryExpression CLOSE_PARENS)						#arrayCountExpression
 	| 'super' 		(OPEN_PARENS identifier CLOSE_PARENS)?								#superExpression
 	| 'self'																			#selfReferenceExpression

@@ -139,7 +139,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	walk(visitor: DocumentASTWalker, ctx: UCParser.VariableContext) {
-		const arrayDimNode = ctx.arrayDim();
+		const arrayDimNode = ctx._arrayDim;
 		if (!arrayDimNode) {
 			return;
 		}

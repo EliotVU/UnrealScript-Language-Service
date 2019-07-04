@@ -1,11 +1,5 @@
 lexer grammar UCLexer;
 
-fragment DIGIT: [0-9];
-fragment DIGITF: [0-9fF];
-fragment EXPONENT: ('e' | 'E') ('+' | '-')? DIGIT+;
-fragment HEX_DIGIT: (DIGIT | 'a' ..'f' | 'A' ..'F');
-fragment ESC_SEQ: '\\' ('b' | 't' | 'n' | 'r' | '"' | '\'' | '\\');
-
 LINE_COMMENT
 	: '//' ~[\r\n]*
 	-> channel(HIDDEN)
@@ -32,29 +26,6 @@ PP_MACRO
 	-> channel(HIDDEN)
 	;
 
-fragment PARENTHESES: '(' (~')' | PARENTHESES)* ')';
-
-fragment MACRO_BLOCK
-	: '{' ~'}'* '}'
-	;
-
-fragment MACRO_DEFINE
-	: 'define' WS MACRO_DEFINTION?
-	;
-
-// TODO: Multiline macros, defined by a backslash \
-fragment MACRO_DEFINTION
-	: ~[\r\n]+
-	;
-
-fragment MACRO_CALL
-	: MACRO_NAME PARENTHESES?
-	;
-
-fragment MACRO_NAME
-	: ID
-	;
-
 STRING: '"' (~["\\] | ESC_SEQ)* '"';
 NAME: '\'' (~['\\] | ESC_SEQ)* '\'';
 
@@ -72,25 +43,25 @@ KW_PUBLIC: 'public';
 KW_PROTECTED: 'protected';
 KW_PRIVATE: 'private';
 
-KW_OUT: 'out';
 KW_OPTIONAL: 'optional';
+KW_OUT: 'out';
 KW_COERCE: 'coerce';
 
 // Note: Keywords must precede the ID token.
 ID:	[a-zA-Z_][a-zA-Z0-9_]*;
 // ID:	[a-z_][a-z0-9_]*;
 
-ESCAPE: '\\';
+FLOAT
+	: [0-9]+ '.' [0-9fF]+ EXPONENT? [fF]?
+	| [0-9]+ ([fF] | EXPONENT [fF]?)
+	;
 
 INTEGER
-	: (DIGIT 'x' HEX_DIGIT+)
-	| (DIGIT+ ('f'| 'F')*)
+	: [0-9] [xX] HEX_DIGIT+
+	| [0-9]+
 	;
 
-FLOAT
-	: (DIGIT+ DOT DIGITF* EXPONENT?)
-	| (DIGIT+ DIGITF* EXPONENT)
-	;
+ESCAPE: '\\';
 
 OPEN_PARENS: '(';
 CLOSE_PARENS: ')';
@@ -152,3 +123,30 @@ ASSIGNMENT_OR: '|=';
 ASSIGNMENT_STAR: '*=';
 ASSIGNMENT_CARET: '^=';
 ASSIGNMENT_DIV: '/=';
+
+fragment EXPONENT: [eE] [+-]? [0-9]+;
+fragment HEX_DIGIT: [0-9] | [A-F] | [a-f];
+fragment ESC_SEQ: '\\' ('b' | 't' | 'n' | 'r' | '"' | '\'' | '\\');
+
+fragment PARENTHESES: '(' (~')' | PARENTHESES)* ')';
+
+fragment MACRO_BLOCK
+	: '{' ~'}'* '}'
+	;
+
+fragment MACRO_DEFINE
+	: 'define' WS MACRO_DEFINTION?
+	;
+
+// TODO: Multiline macros, defined by a backslash \
+fragment MACRO_DEFINTION
+	: ~[\r\n]+
+	;
+
+fragment MACRO_CALL
+	: MACRO_NAME PARENTHESES?
+	;
+
+fragment MACRO_NAME
+	: ID
+	;
