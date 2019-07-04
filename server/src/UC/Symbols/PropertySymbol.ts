@@ -7,8 +7,10 @@ import { SymbolWalker } from '../symbolWalker';
 import { SemanticErrorNode, SemanticErrorRangeNode } from '../diagnostics/diagnostics';
 import { DocumentASTWalker } from '../documentASTWalker';
 import { rangeFromBound } from '../helpers';
+import { NAME_ENUMCOUNT } from '../names';
+import { config, UCGeneration } from '../indexer';
 
-import { ITypeSymbol, UCFieldSymbol, UCStructSymbol, UCEnumMemberSymbol, UCConstSymbol, PredefinedBool, NativeArray } from '.';
+import { ITypeSymbol, UCFieldSymbol, UCStructSymbol, UCEnumSymbol, UCEnumMemberSymbol, UCConstSymbol, PredefinedBool, NativeArray } from '.';
 
 export class UCPropertySymbol extends UCFieldSymbol {
 	public type?: ITypeSymbol;
@@ -39,10 +41,17 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	getArrayDimSize(): number | undefined {
 		const symbol = this.arrayDimRef && this.arrayDimRef.getReference();
 		if (symbol) {
-			if (symbol instanceof UCEnumMemberSymbol) {
-				return symbol.value;
-			} else if (symbol instanceof UCConstSymbol) {
+			if (symbol instanceof UCConstSymbol) {
 				return symbol.getComputedValue();
+			}
+
+			if (config.generation === UCGeneration.UC3) {
+				if (symbol instanceof UCEnumSymbol) {
+					return (<UCEnumMemberSymbol>symbol.getSymbol(NAME_ENUMCOUNT)).value;
+				}
+				if (symbol instanceof UCEnumMemberSymbol) {
+					return symbol.value;
+				}
 			}
 		} else if (this.arrayDim) {
 			return Number(this.arrayDim);
@@ -104,11 +113,6 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		if (this.isFixedArray()) {
 			if (this.arrayDimRef) {
 				this.arrayDimRef.analyze(document, context);
-
-				const symbol = this.arrayDimRef.getReference();
-				if (symbol && !(symbol instanceof UCEnumMemberSymbol || symbol instanceof UCConstSymbol)) {
-					document.nodes.push(new SemanticErrorNode(this.arrayDimRef, `'${symbol.getQualifiedName()}' is not a const or enum member`));
-				}
 			}
 
 			const arraySize = this.getArrayDimSize();
