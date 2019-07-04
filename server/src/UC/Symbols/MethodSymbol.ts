@@ -4,6 +4,7 @@ import { getDocumentByUri } from '../indexer';
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
+import { SemanticErrorNode } from '../diagnostics/diagnostics';
 
 import { DEFAULT_RANGE, UCStructSymbol, UCParamSymbol, ITypeSymbol, ISymbol, IWithReference } from '.';
 
@@ -217,9 +218,7 @@ export class UCDelegateSymbol extends UCMethodSymbol {
 	}
 }
 
-export class UCOperatorSymbol extends UCMethodSymbol {
-	precedence?: number;
-
+export abstract class UCBaseOperatorSymbol extends UCMethodSymbol {
 	getKind(): SymbolKind {
 		return SymbolKind.Operator;
 	}
@@ -228,24 +227,44 @@ export class UCOperatorSymbol extends UCMethodSymbol {
 		return CompletionItemKind.Operator;
 	}
 
-	protected getTypeKeyword(): string {
-		return `operator(${this.precedence})`;
-	}
-
 	acceptCompletion(document: UCDocument, context: ISymbol): boolean {
 		// FIXME: Should check outer, but currently it's too much of a pain to step through.
 		// Basically we don't want operators to be visible when the context is not in the same document!
 		return context instanceof UCStructSymbol && context.getUri() === document.filePath;
 	}
+
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		super.analyze(document, context);
+		if (!this.isFinal()) {
+			document.nodes.push(new SemanticErrorNode(this, `Operator must be declared as 'Final'.`));
+		}
+	}
 }
 
-export class UCPreOperatorSymbol extends UCOperatorSymbol {
+export class UCBinaryOperatorSymbol extends UCBaseOperatorSymbol {
+	precedence?: number;
+
+	protected getTypeKeyword(): string {
+		return `operator(${this.precedence})`;
+	}
+
+	analyze(document: UCDocument, context: UCStructSymbol) {
+		super.analyze(document, context);
+		if (!this.precedence) {
+			document.nodes.push(new SemanticErrorNode(this, `Operator must have a precedence.`));
+		} else if (this.precedence < 0 || this.precedence > 255) {
+			document.nodes.push(new SemanticErrorNode(this, `Operator precedence must be between 0-255.`));
+		}
+	}
+}
+
+export class UCPreOperatorSymbol extends UCBaseOperatorSymbol {
 	protected getTypeKeyword(): string {
 		return 'preoperator';
 	}
 }
 
-export class UCPostOperatorSymbol extends UCOperatorSymbol {
+export class UCPostOperatorSymbol extends UCBaseOperatorSymbol {
 	protected getTypeKeyword(): string {
 		return 'postoperator';
 	}

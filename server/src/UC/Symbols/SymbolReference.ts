@@ -3,13 +3,25 @@ import { Location, Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 
-import { ISymbol, ISymbolReference, ISymbolContext, IWithReference, UCSymbol } from '.';
+import { ISymbol, ISymbolReference, ISymbolContext, IWithReference, UCSymbol, UCTypeKind, UCMethodSymbol, UCPropertySymbol } from '.';
 
 /**
  * For general symbol references, like a function's return type which cannot yet be identified.
  */
 export class UCSymbolReference extends UCSymbol implements IWithReference {
 	protected reference?: ISymbol;
+
+	/**
+	 * The type kind of the symbol we are referencing.
+	 * Returns @UCTypeKind.Error if no reference.
+	 */
+	getTypeKind(): UCTypeKind {
+		return this.reference instanceof UCMethodSymbol && this.reference.returnType
+			? this.reference.returnType.getTypeKind()
+			: this.reference instanceof UCPropertySymbol && this.reference.type
+			? this.reference.type.getTypeKind()
+			: UCTypeKind.Error;
+	}
 
 	getTooltip(): string {
 		if (this.reference) {

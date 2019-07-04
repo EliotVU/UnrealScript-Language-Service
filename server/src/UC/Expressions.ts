@@ -8,26 +8,15 @@ import { UCDocument } from './document';
 import { Name } from './names';
 
 import {
-	ISymbolContext, ISymbol,
-	UCObjectTypeSymbol,
-	UCStructSymbol,
-	UCPropertySymbol,
-	UCSymbolReference,
-	UCMethodSymbol,
-	UCClassSymbol,
-	SymbolsTable,
-	UCEnumSymbol,
-	UCSymbol,
-	NativeArray,
-	NativeClass,
-	NativeEnum,
-	VectorTypeRef,
-	VectMethodLike,
-	RotatorTypeRef,
-	RotMethodLike,
-	RangeTypeRef,
-	RngMethodLike,
-	ITypeSymbol, TypeCastMap, UCTypeKind
+	ISymbolContext, ISymbol, UCSymbol,
+	UCObjectTypeSymbol, UCStructSymbol,
+	UCPropertySymbol, UCSymbolReference,
+	UCMethodSymbol, UCClassSymbol,
+	SymbolsTable, UCEnumSymbol,
+	NativeArray, NativeClass, NativeEnum,
+	VectorTypeRef, VectMethodLike, RotatorTypeRef, RotMethodLike, RangeTypeRef, RngMethodLike,
+	ITypeSymbol, TypeCastMap, UCTypeKind,
+	UCBinaryOperatorSymbol, UCPreOperatorSymbol, UCPostOperatorSymbol
 } from './Symbols';
 
 export interface IExpression {
@@ -358,8 +347,7 @@ export class UCUnaryExpression extends UCExpression {
 	}
 
 	getTypeKind(): UCTypeKind {
-		// TODO: Return operator's return type
-		return this.expression && this.expression.getTypeKind() || UCTypeKind.Error;
+		return this.operator ? this.operator.getTypeKind() : UCTypeKind.Error;
 	}
 
 	getContainedSymbolAtPos(position: Position) {
@@ -379,8 +367,16 @@ export class UCUnaryExpression extends UCExpression {
 	}
 
 	analyze(document: UCDocument, context?: UCStructSymbol) {
-		// TODO: missing operator?
 		if (this.expression) this.expression.analyze(document, context);
+
+		if (this.operator) {
+			const operatorSymbol = this.operator.getReference();
+			if (operatorSymbol && !(operatorSymbol instanceof UCPreOperatorSymbol) && !(operatorSymbol instanceof UCPostOperatorSymbol)) {
+				document.nodes.push(new SemanticErrorNode(this.operator, `'${operatorSymbol.getId()}' must be an unary operator!`));
+			} else if (!operatorSymbol) {
+				document.nodes.push(new UnrecognizedFieldNode(this.operator, document.class));
+			}
+		}
 	}
 }
 
@@ -397,7 +393,7 @@ export class UCBinaryExpression extends UCExpression {
 
 	getTypeKind(): UCTypeKind {
 		// TODO: requires proper overloaded operator linking, then should return the type of the operator.
-		return UCTypeKind.Error;
+		return this.operator.getTypeKind();
 	}
 
 	getContainedSymbolAtPos(position: Position) {
@@ -433,6 +429,15 @@ export class UCBinaryExpression extends UCExpression {
 	analyze(document: UCDocument, context?: UCStructSymbol) {
 		if (this.left) this.left.analyze(document, context);
 		if (this.right) this.right.analyze(document, context);
+
+		if (this.operator && !(this instanceof UCAssignmentExpression)) {
+			const operatorSymbol = this.operator.getReference();
+			if (operatorSymbol && !(operatorSymbol instanceof UCBinaryOperatorSymbol)) {
+				document.nodes.push(new SemanticErrorNode(this.operator, `'${operatorSymbol.getId()}' must be a binary operator!`));
+			} else if (!operatorSymbol) {
+				document.nodes.push(new UnrecognizedFieldNode(this.operator, document.class));
+			}
+		}
 	}
 }
 
@@ -500,8 +505,7 @@ export class UCMemberExpression extends UCExpression {
 	}
 
 	getTypeKind(): UCTypeKind {
-		// TODO: Redirect to getMemberSymbol().getTypeKind()
-		return UCTypeKind.Object;
+		return this.symbolRef.getTypeKind();
 	}
 
 	getContainedSymbolAtPos(_position: Position) {

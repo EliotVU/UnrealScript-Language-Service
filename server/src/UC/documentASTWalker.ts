@@ -25,7 +25,7 @@ import {
 	UCStructSymbol, UCSymbol, UCSymbolReference,
 	ITypeSymbol, UCObjectTypeSymbol, UCQualifiedTypeSymbol,
 	UCDocumentClassSymbol, UCReplicationBlock,
-	MethodSpecifiers, UCEventSymbol, UCOperatorSymbol,
+	MethodSpecifiers, UCEventSymbol, UCBinaryOperatorSymbol,
 	UCDelegateSymbol, UCPostOperatorSymbol, UCPreOperatorSymbol,
 	FieldModifiers, ParamModifiers,
 	UCParamSymbol, UCTypeKind,
@@ -573,7 +573,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			: (specifiers & MethodSpecifiers.Event)
 			? UCEventSymbol
 			: (specifiers & MethodSpecifiers.Operator)
-			? UCOperatorSymbol
+			? UCBinaryOperatorSymbol
 			: (specifiers & MethodSpecifiers.PreOperator)
 			? UCPreOperatorSymbol
 			: (specifiers & MethodSpecifiers.PostOperator)
@@ -584,7 +584,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 		if ((specifiers & MethodSpecifiers.HasKind) === 0) {
 			this.document.nodes.push(new SyntaxErrorNode(rangeFromBound(ctx.start),
-				`Missing method type! A method can be declared as either one of the following: (Function, Event, Operator, PreOperator, PostOperator, or Delegate).`
+				`Method must be declared as either one of the following: (Function, Event, Operator, PreOperator, PostOperator, or Delegate).`
 			));
 		}
 
@@ -596,7 +596,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		symbol.modifiers = modifiers;
 
 		if (precedence) {
-			(symbol as UCOperatorSymbol).precedence = precedence;
+			(symbol as UCBinaryOperatorSymbol).precedence = precedence;
 		}
 
 		this.declare(symbol);
@@ -687,6 +687,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		symbol.type = typeSymbol;
 		symbol.modifiers = modifiers;
 		symbol.paramModifiers = paramModifiers;
+
 		const exprNode = ctx.expression();
 		if (exprNode) {
 			symbol.defaultExpression = exprNode.accept(this);
@@ -1216,17 +1217,21 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitUnaryExpression(ctx: UCParser.UnaryExpressionContext) {
-		const expression = new UCUnaryExpression();
-		expression.context = ctx;
-
-		const primaryNode = ctx.primaryExpression();
-		expression.expression = primaryNode.accept<any>(this);
-		expression.expression.outer = expression;
-
 		const operatorNode = ctx.unaryOperator();
 		if (operatorNode) {
+			const expression = new UCUnaryExpression();
+			expression.context = ctx;
+
+			const primaryNode = ctx.primaryExpression();
+			expression.expression = primaryNode.accept<any>(this);
+			expression.expression.outer = expression;
 			expression.operator = new UCSymbolReference(createIdentifierFrom(operatorNode));
+			return expression;
 		}
+
+		const primaryNode = ctx.primaryExpression();
+		const expression = primaryNode.accept<any>(this);
+		expression.outer = expression;
 		return expression;
 	}
 
