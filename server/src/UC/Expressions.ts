@@ -1,7 +1,7 @@
 import { Position, Range } from 'vscode-languageserver';
 import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
-import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode } from './diagnostics/diagnostics';
+import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode, SemanticErrorRangeNode } from './diagnostics/diagnostics';
 import { getEnumMember } from './indexer';
 import { intersectsWith, rangeFromBounds } from './helpers';
 import { UCDocument } from './document';
@@ -463,11 +463,11 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 			if (letSymbol instanceof UCPropertySymbol) {
 				// Properties with a defined array dimension cannot be assigned!
 				if (letSymbol.isFixedArray()) {
-					document.nodes.push(new SemanticErrorNode(letSymbol, "Cannot assign to a static array variable."));
+					document.nodes.push(new SemanticErrorRangeNode(letSymbol.getRange(), "Cannot assign to a static array variable."));
 				}
 
 				if (letSymbol.isConst()) {
-					document.nodes.push(new SemanticErrorNode(letSymbol, "Cannot assign to a constant variable."));
+					document.nodes.push(new SemanticErrorRangeNode(letSymbol.getRange(), "Cannot assign to a constant variable."));
 				}
 			} else if (letSymbol instanceof UCMethodSymbol) {
 				// TODO: Distinguish a delegate from a regular method!
