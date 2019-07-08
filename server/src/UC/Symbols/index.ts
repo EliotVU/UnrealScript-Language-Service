@@ -1,4 +1,4 @@
-export { ISymbol, ISymbolContext, ISymbolContainer, ISymbolReference, IWithReference, Identifier } from './ISymbol';
+export * from './ISymbol';
 export { DEFAULT_RANGE, UCSymbol } from "./Symbol";
 export { UCSymbolReference } from './SymbolReference';
 export * from './TypeSymbol';

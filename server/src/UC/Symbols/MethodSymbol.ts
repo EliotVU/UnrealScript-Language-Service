@@ -6,7 +6,7 @@ import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 
-import { DEFAULT_RANGE, UCStructSymbol, UCParamSymbol, ITypeSymbol, ISymbol, IWithReference } from '.';
+import { DEFAULT_RANGE, UCStructSymbol, UCParamSymbol, ITypeSymbol, ISymbol, IWithReference, UCTypeKind } from '.';
 
 export enum MethodSpecifiers {
 	None 			= 0x0000,
@@ -27,7 +27,14 @@ export class UCMethodSymbol extends UCStructSymbol {
 
 	public returnType?: ITypeSymbol;
 	public overriddenMethod?: UCMethodSymbol;
+
 	public params?: UCParamSymbol[];
+
+	/**
+	 * Required count for a proper function call, this is exclusive of optional params.
+	 * This value is initialized when analyze() is called on this symbol; remains undefined if no params.
+	 */
+	public requiredParamsCount?: number;
 
 	isStatic(): boolean {
 		return (this.specifiers & MethodSpecifiers.Static) !== 0;
@@ -39,6 +46,10 @@ export class UCMethodSymbol extends UCStructSymbol {
 
 	getKind(): SymbolKind {
 		return SymbolKind.Function;
+	}
+
+	getTypeKind() {
+		return this.returnType ? this.returnType.getTypeKind() : UCTypeKind.Error;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
@@ -83,11 +94,11 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		super.index(document, context);
-
 		if (this.returnType) {
 			this.returnType.index(document, context);
 		}
+
+		super.index(document, context);
 
 		if (context.super) {
 			const overriddenMethod = context.super.findSuperSymbol(this.getId());
@@ -102,10 +113,32 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
-		super.analyze(document, context);
 		if (this.returnType) {
 			this.returnType.analyze(document, context);
 		}
+
+		if (this.params) {
+			for (var requiredParamsCount = 0; requiredParamsCount < this.params.length; ++ requiredParamsCount) {
+				if (this.params[requiredParamsCount].isOptional()) {
+					// All trailing params after the first optional param, are required to be declared as 'optional' too.
+					for (let i = requiredParamsCount + 1; i < this.params.length; ++ i) {
+						const param = this.params[i];
+						if (param.isOptional()) {
+							continue;
+						}
+
+						document.nodes.push(new SemanticErrorNode(
+							param,
+							`Parameter '${param.getId()}' must be marked 'optional' after an optional parameter.`
+						));
+					}
+					break;
+				}
+			}
+			this.requiredParamsCount = requiredParamsCount;
+		}
+
+		super.analyze(document, context);
 
 		if (this.overriddenMethod) {
 			// TODO: check difference
@@ -159,7 +192,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	// TODO: Print param modifiers?
 	protected buildParameters(): string {
 		return this.params
-			? `(${this.params.map(f => (f.type ? f.type.getTypeText() + ' ' : '') + f.getId()).join(', ')})`
+			? `(${this.params.map(f => f.getTextForSignature()).join(', ')})`
 			: '()';
 	}
 }

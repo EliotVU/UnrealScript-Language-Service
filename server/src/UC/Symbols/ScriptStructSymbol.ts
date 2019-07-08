@@ -3,7 +3,7 @@ import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { Name } from '../names';
 
-import { ISymbol, UCStructSymbol, UCSymbol, UCMethodSymbol, UCPropertySymbol } from '.';
+import { UCTypeKind, ISymbol, UCStructSymbol, UCSymbol, UCMethodSymbol, UCPropertySymbol } from '.';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
 	isProtected(): boolean {
@@ -16,6 +16,10 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 
 	getKind(): SymbolKind {
 		return SymbolKind.Struct;
+	}
+
+	getTypeKind() {
+		return UCTypeKind.Struct;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {

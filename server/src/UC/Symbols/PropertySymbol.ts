@@ -10,7 +10,12 @@ import { rangeFromBound } from '../helpers';
 import { NAME_ENUMCOUNT } from '../names';
 import { config, UCGeneration } from '../indexer';
 
-import { ITypeSymbol, UCFieldSymbol, UCStructSymbol, UCEnumSymbol, UCEnumMemberSymbol, UCConstSymbol, PredefinedBool, NativeArray } from '.';
+import {
+	ITypeSymbol, UCTypeKind,
+	UCFieldSymbol, UCStructSymbol, UCEnumSymbol,
+	UCEnumMemberSymbol, UCConstSymbol,
+	PredefinedBool, NativeArray
+} from '.';
 
 export class UCPropertySymbol extends UCFieldSymbol {
 	public type?: ITypeSymbol;
@@ -61,6 +66,10 @@ export class UCPropertySymbol extends UCFieldSymbol {
 
 	getKind(): SymbolKind {
 		return SymbolKind.Property;
+	}
+
+	getTypeKind() {
+		return this.type ? this.type.getTypeKind() : UCTypeKind.Error;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {

@@ -46,6 +46,20 @@ export class UCParamSymbol extends UCPropertySymbol {
 		return CompletionItemKind.Variable;
 	}
 
+	getTextForSignature(): string {
+		const text: Array<string | undefined> = [];
+
+		const modifiers = this.buildModifiers();
+		text.push(...modifiers);
+
+		if (this.type) {
+			text.push(this.type.getTypeText());
+		}
+		text.push(this.getId().toString());
+
+		return text.filter(s => s).join(' ');
+	}
+
 	protected getTypeKeyword(): string {
 		return '(parameter)';
 	}

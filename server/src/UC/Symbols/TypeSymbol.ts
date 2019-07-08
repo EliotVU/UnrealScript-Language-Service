@@ -12,7 +12,7 @@ import {
 	ISymbol, Identifier, IWithReference,
 	PredefinedByte, PredefinedFloat, PredefinedString,
 	PredefinedBool, PredefinedButton, PredefinedName,
-	PredefinedInt, PredefinedPointer
+	PredefinedInt, PredefinedPointer, NativeClass
 } from '.';
 
 export enum UCTypeKind {
@@ -25,6 +25,8 @@ export enum UCTypeKind {
 	String,
 	Name,
 	Bool,
+	Array,
+	Delegate,
 
 	// OBJECT TYPES
 	// i.e. "Enum'ENetRole'"
@@ -39,7 +41,6 @@ export enum UCTypeKind {
 	Struct,
 	Property,
 	Function,
-	Delegate,
 
 	// Special case for property type validations.
 	Type,
@@ -119,7 +120,7 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 	}
 }
 
-export abstract class UCPredefinedTypeSymbol extends UCSymbol implements IWithReference {
+abstract class UCPredefinedTypeSymbol extends UCSymbol implements IWithReference {
 	getReference(): ISymbol {
 		throw "not implemented";
 	}
@@ -234,18 +235,10 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 	}
 
 	getTypeKind(): UCTypeKind {
-		// TODO: UCInterfaceSymbol, anyother symbol is not a valid reference for this type symbol (in property declarations).
-		// Should we create a UCStructTypeSymbol and UCStateTypeSymbol in particular for a state, and struct extends clause?
-		if (this.reference instanceof UCClassSymbol) {
-			return this.baseType
-				? UCTypeKind.Class
-				: UCTypeKind.Object;
-		} else if (this.reference instanceof UCScriptStructSymbol) {
-			return UCTypeKind.Struct;
-		} else if (this.reference instanceof UCEnumSymbol) {
-			return UCTypeKind.Enum;
+		if (this.reference !== NativeClass && this.reference instanceof UCClassSymbol) {
+			return UCTypeKind.Object;
 		}
-		return UCTypeKind.Error;
+		return this.reference instanceof UCFieldSymbol && this.reference.getTypeKind() || UCTypeKind.Error;
 	}
 
 	setValidTypeKind(kind: UCTypeKind) {
@@ -345,13 +338,19 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 }
 
 export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
-
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Array;
+	}
 }
 
 export class UCDelegateTypeSymbol extends UCObjectTypeSymbol {
-
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Delegate;
+	}
 }
 
 export class UCMapTypeSymbol extends UCObjectTypeSymbol {
-
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Error;
+	}
 }
