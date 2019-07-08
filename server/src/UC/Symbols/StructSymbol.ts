@@ -140,15 +140,13 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 
 				child.index(document, this);
 			}
-		}
 
-		for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
-			if (child instanceof UCStructSymbol && child.block) {
-				child.block.index(document, child);
+			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
+				if (child instanceof UCStructSymbol && child.block) {
+					child.block.index(document, child);
+				}
 			}
 		}
-
-		// if (this.block) this.block.index(document, this);
 	}
 
 	analyze(document: UCDocument, context: UCStructSymbol) {

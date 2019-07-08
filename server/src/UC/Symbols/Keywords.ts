@@ -39,3 +39,4 @@ export class UCKeyword implements ISymbol, CompletionItem {
 
 export const ReliableKeyword = new UCKeyword(toName('reliable'));
 export const UnreliableKeyword = new UCKeyword(toName('unreliable'));
+export const IfKeyword = new UCKeyword(toName('if'));

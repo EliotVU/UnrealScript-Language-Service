@@ -2,15 +2,13 @@ import { SymbolKind, Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
-import { UCBlock } from '../statements';
 import { Name } from '../names';
 
-import { ReliableKeyword, UnreliableKeyword } from './Keywords';
-import { ISymbol, UCFieldSymbol, UCSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCStructSymbol, UCSymbolReference } from '.';
+import { ReliableKeyword, UnreliableKeyword, IfKeyword } from './Keywords';
+import { ISymbol, UCSymbol, UCClassSymbol, UCPropertySymbol, UCMethodSymbol, UCStructSymbol, UCSymbolReference } from '.';
 
-export class UCReplicationBlock extends UCFieldSymbol {
+export class UCReplicationBlock extends UCStructSymbol {
 	public symbolRefs = new Map<Name, UCSymbolReference>();
-	public block?: UCBlock;
 
 	getKind(): SymbolKind {
 		return SymbolKind.Constructor;
@@ -21,43 +19,30 @@ export class UCReplicationBlock extends UCFieldSymbol {
 		return this.getId().toString();
 	}
 
-	getCompletionContext(position: Position) {
-		if (this.block) {
-			const symbol = this.block.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
-		}
-		return this;
-	}
-
 	getCompletionSymbols(_document: UCDocument): ISymbol[] {
-		return this.containingStruct!
+		return super
 			.getCompletionSymbols(_document)
-			.concat(ReliableKeyword, UnreliableKeyword);
+			.concat(ReliableKeyword, UnreliableKeyword, IfKeyword);
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		if (this.block) {
-			const symbol = this.block.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
-		}
-
 		for (let ref of this.symbolRefs.values()) {
 			const symbol = ref.getSymbolAtPos(position);
 			if (symbol) {
 				return symbol;
 			}
 		}
-
-		return undefined;
+		return super.getContainedSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		context = document.class!;
-		this.block && this.block.index(document, context);
+		console.assert(document.class, 'Tried to index a replication block without a class reference!');
+		// We index our block here, because in the parent class a block is no longer indexed automatically.
+		if (this.block) {
+			this.block.index(document, document.class!);
+		}
+		super.index(document, document.class!);
+
 		for (let ref of this.symbolRefs.values()) {
 			const symbol = context.findSuperSymbol(ref.getId());
 			if (!symbol) {
@@ -67,9 +52,10 @@ export class UCReplicationBlock extends UCFieldSymbol {
 		}
 	}
 
-	analyze(document: UCDocument, context: UCStructSymbol) {
-		context = document.class!;
-		this.block && this.block.analyze(document, context);
+	analyze(document: UCDocument, _context: UCStructSymbol) {
+		console.assert(document.class, 'Tried to analyze a replication block without a class reference!');
+		super.analyze(document, document.class!);
+
 		for (let symbolRef of this.symbolRefs.values()) {
 			const symbol = symbolRef.getReference();
 			if (!symbol) {
