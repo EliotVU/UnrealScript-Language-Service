@@ -13,7 +13,7 @@ import { UCGrammarLexer } from '../antlr/UCGrammarLexer';
 import { UCGrammarParser } from '../antlr/UCGrammarParser';
 import { connection } from '../server';
 
-import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage } from './Symbols';
+import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCSymbol } from './Symbols';
 
 import { IDiagnosticNode } from './diagnostics/diagnostics';
 import { IndexedReferencesMap } from './indexer';
@@ -143,7 +143,7 @@ export class UCDocument {
 			});
 	}
 
-	indexReference(symbol: ISymbol, ref: ISymbolReference) {
+	indexReference(symbol: UCSymbol, ref: ISymbolReference) {
 		const key = symbol.getQualifiedName();
 
 		let value = this.indexReferencesMade.get(key);

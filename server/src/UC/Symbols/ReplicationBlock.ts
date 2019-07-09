@@ -65,10 +65,10 @@ export class UCReplicationBlock extends UCStructSymbol {
 
 			if (symbol instanceof UCPropertySymbol || symbol instanceof UCMethodSymbol) {
 				// i.e. not defined in the same class as where the replication statement resides in.
-				if (symbol.outer !== this.outer) {
+				if (symbol.outer !== document.class) {
 					const errorNode = new SemanticErrorNode(
 						symbolRef,
-						`Variable or Function '${symbol.getQualifiedName()}' needs to be declared in class '${this.outer!.getQualifiedName()}'!`
+						`Variable or Function '${symbol.getQualifiedName()}' needs to be declared in class '${document.class!.getQualifiedName()}'!`
 					);
 					document.nodes.push(errorNode);
 				}

@@ -42,6 +42,10 @@ export const NAME_ENUM = toName('Enum');
 export const NAME_ENUMCOUNT = toName('EnumCount');
 export const NAME_PACKAGE = toName('Package');
 
+export const NAME_VECTOR = toName('Vector');
+export const NAME_ROTATOR = toName('Rotator');
+export const NAME_RANGE = toName('Range');
+
 export const NAME_CORE = toName('Core');
 export const NAME_ENGINE = toName('Engine');
 

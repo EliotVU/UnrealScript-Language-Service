@@ -91,9 +91,6 @@ class UCWorkspace extends UCPackage {
 	addSymbol(symbol: ISymbol): Name {
 		const key = symbol.getId();
 		this.symbols.set(key, symbol);
-		if (symbol instanceof UCPackage) {
-			symbol.outer = this;
-		}
 		return key;
 	}
 }

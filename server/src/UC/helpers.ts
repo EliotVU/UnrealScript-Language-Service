@@ -6,12 +6,11 @@ import {
 	Position,
 	Range,
 	DocumentHighlight,
-	DocumentHighlightKind,
-	CompletionContext
+	DocumentHighlightKind
 } from 'vscode-languageserver';
 import { Token } from 'antlr4ts';
 
-import { IWithReference, ISymbol, UCSymbol, UCSymbolReference, UCStructSymbol, SymbolsTable, UCFieldSymbol } from './Symbols';
+import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, SymbolsTable } from './Symbols';
 import { getDocumentByUri, getIndexedReferences } from "./indexer";
 
 export function rangeFromBound(token: Token): Range {
@@ -68,7 +67,7 @@ export function intersectsWithRange(position: Position, range: Range): boolean {
 		&& position.character >= range.start.character && position.character < range.end.character;
 }
 
-export async function getHover(uri: string, position: Position): Promise<Hover | undefined> {
+export async function getSymbolTooltip(uri: string, position: Position): Promise<Hover | undefined> {
 	const document = getDocumentByUri(uri);
 	const ref = document && document.getSymbolAtPos(position);
 	if (!ref) {
@@ -129,29 +128,21 @@ export async function getSymbols(uri: string): Promise<SymbolInformation[] | und
 	return contextSymbols;
 }
 
-export async function getReferences(uri: string, position: Position): Promise<Location[] | undefined> {
-	const document = getDocumentByUri(uri);
-	const symbol = document && document.getSymbolAtPos(position) as ISymbol;
-	if (!symbol) {
+export async function getSymbolReferences(uri: string, position: Position): Promise<Location[] | undefined> {
+	const symbol = await getSymbolDefinition(uri, position);
+	if (!(symbol instanceof UCSymbol)) {
 		return undefined;
 	}
 
-	const symbolWithReference = symbol as IWithReference;
-	const reference = symbolWithReference.getReference && symbolWithReference.getReference();
-
-	const qualifiedName = reference
-		? reference.getQualifiedName()
-		: symbol.getQualifiedName();
-	const references = getIndexedReferences(qualifiedName);
+	const references = getIndexedReferences(symbol.getQualifiedName());
 	return references && Array
 		.from(references.values())
 		.map(ref => ref.location);
 }
 
-export async function getHighlights(uri: string, position: Position): Promise<DocumentHighlight[] | undefined> {
-	const document = getDocumentByUri(uri);
-	const symbol = document && document.getSymbolAtPos(position);
-	if (!symbol) {
+export async function getSymbolHighlights(uri: string, position: Position): Promise<DocumentHighlight[] | undefined> {
+	const symbol = await getSymbolDefinition(uri, position);
+	if (!(symbol instanceof UCSymbol)) {
 		return undefined;
 	}
 
@@ -173,7 +164,7 @@ export async function getHighlights(uri: string, position: Position): Promise<Do
 		));
 }
 
-export async function getCompletionItems(uri: string, position: Position): Promise<CompletionItem[] | undefined> {
+export async function getSymbolItems(uri: string, position: Position): Promise<CompletionItem[] | undefined> {
 	const document = getDocumentByUri(uri);
 	if (!document || !document.class) {
 		return undefined;

@@ -21,7 +21,7 @@ import {
 } from 'vscode-languageserver';
 import URI from 'vscode-uri';
 
-import { getCompletionItems, getReferences, getSymbolDefinition, getSymbols, getHover, getHighlights, getFullCompletionItem } from './UC/helpers';
+import { getSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
 import { filePathByClassIdMap$, getDocumentByUri, indexDocument, getIndexedReferences, config } from './UC/indexer';
 import { UCSettings, defaultSettings } from './settings';
 import { documentLinked$ } from './UC/document';
@@ -182,7 +182,7 @@ textDocuments.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument:
 textDocuments.listen(connection);
 
 connection.onDocumentSymbol((e) => getSymbols(e.textDocument.uri));
-connection.onHover((e)=> getHover(e.textDocument.uri, e.position));
+connection.onHover((e)=> getSymbolTooltip(e.textDocument.uri, e.position));
 
 connection.onDefinition(async (e)=> {
 	const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
@@ -197,8 +197,8 @@ connection.onDefinition(async (e)=> {
 	return undefined;
 });
 
-connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
-connection.onDocumentHighlight((e) => getHighlights(e.textDocument.uri, e.position));
+connection.onReferences((e) => getSymbolReferences(e.textDocument.uri, e.position));
+connection.onDocumentHighlight((e) => getSymbolHighlights(e.textDocument.uri, e.position));
 
 connection.onCompletion(async (e) => {
 	let position = e.position;
@@ -220,7 +220,7 @@ connection.onCompletion(async (e) => {
 			}
 		}
 	}
-	return getCompletionItems(e.textDocument.uri, position);
+	return getSymbolItems(e.textDocument.uri, position);
 });
 connection.onCompletionResolve(getFullCompletionItem);
 
@@ -261,7 +261,7 @@ connection.onRenameRequest(async (e) => {
 	}
 
 	const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
-	if (!symbol) {
+	if (!symbol || !(symbol instanceof UCSymbol)) {
 		return undefined;
 	}
 	const qualifiedName = symbol.getQualifiedName();

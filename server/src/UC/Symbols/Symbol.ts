@@ -43,10 +43,11 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getQualifiedName(): string {
-		if (this.outer) {
-			return this.outer.getQualifiedName() + '.' + this.getId();
+		let text = this.getId().toString();
+		for (var outer = this.outer; outer; outer = outer.outer) {
+			text = outer.getId() + '.' + text;
 		}
-		return this.getId().toString();
+		return text;
 	}
 
 	getKind(): SymbolKind {

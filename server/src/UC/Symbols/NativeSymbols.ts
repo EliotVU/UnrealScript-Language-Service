@@ -1,7 +1,7 @@
 import {
 	toName,
 	NAME_CLASS, NAME_ARRAY, NAME_INT, NAME_FLOAT,
-	NAME_ENUM, NAME_PACKAGE, NAME_BYTE, NAME_STRING, NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_MAP, NAME_BUTTON, NAME_OBJECT, NAME_PROPERTY, NAME_CORE, NAME_BYTEPROPERTY, NAME_INTPROPERTY, NAME_OBJECTPROPERTY, NAME_FLOATPROPERTY, NAME_NAMEPROPERTY, NAME_STRINGPROPERTY, NAME_STRPROPERTY, NAME_BOOLPROPERTY, NAME_POINTERPROPERTY, NAME_MAPPROPERTY, NAME_DELEGATEPROPERTY, NAME_ARRAYPROPERTY, NAME_CLASSPROPERTY, Name
+	NAME_ENUM, NAME_PACKAGE, NAME_BYTE, NAME_STRING, NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_MAP, NAME_BUTTON, NAME_OBJECT, NAME_PROPERTY, NAME_CORE, NAME_BYTEPROPERTY, NAME_INTPROPERTY, NAME_OBJECTPROPERTY, NAME_FLOATPROPERTY, NAME_NAMEPROPERTY, NAME_STRINGPROPERTY, NAME_STRPROPERTY, NAME_BOOLPROPERTY, NAME_POINTERPROPERTY, NAME_MAPPROPERTY, NAME_DELEGATEPROPERTY, NAME_ARRAYPROPERTY, NAME_CLASSPROPERTY, Name, NAME_VECTOR, NAME_ROTATOR, NAME_RANGE
 } from '../names';
 
 import {
@@ -23,9 +23,9 @@ export const ObjectTypeRef = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: 
 export const ArgumentTypeRef = new UCObjectTypeSymbol({ name: toName('Argument'), range: DEFAULT_RANGE });
 export const IntTypeRef = new UCObjectTypeSymbol({ name: NAME_INT, range: DEFAULT_RANGE });
 export const FloatTypeRef = new UCObjectTypeSymbol({ name: NAME_FLOAT, range: DEFAULT_RANGE });
-export const VectorTypeRef = new UCObjectTypeSymbol({ name: toName('Vector'), range: DEFAULT_RANGE });
-export const RotatorTypeRef = new UCObjectTypeSymbol({ name: toName('Rotator'), range: DEFAULT_RANGE });
-export const RangeTypeRef = new UCObjectTypeSymbol({ name: toName('Range'), range: DEFAULT_RANGE });
+export const VectorTypeRef = new UCObjectTypeSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE });
+export const RotatorTypeRef = new UCObjectTypeSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE });
+export const RangeTypeRef = new UCObjectTypeSymbol({ name: NAME_RANGE, range: DEFAULT_RANGE });
 
 export const NativeProperty = new UCClassSymbol({ name: NAME_PROPERTY, range: DEFAULT_RANGE });
 NativeProperty.extendsType = ObjectTypeRef;
@@ -83,7 +83,7 @@ NativeEnum.extendsType = ObjectTypeRef;
 export const NativeMap = new UCStructSymbol({ name: NAME_MAP, range: DEFAULT_RANGE });
 export const NativeArray = new UCStructSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });
 
-const LengthProperty = new UCPropertySymbol({ name: toName('Length'), range: DEFAULT_RANGE });
+export const LengthProperty = new UCPropertySymbol({ name: toName('Length'), range: DEFAULT_RANGE });
 LengthProperty.type = IntTypeRef;
 NativeArray.addSymbol(LengthProperty);
 
