@@ -14,12 +14,12 @@ import {
 	UCObjectTypeSymbol,
 	UCParamSymbol,
 	SymbolsTable,
-	PackagesTable, UCTypeKind
+	PackagesTable, UCTypeFlags
 } from ".";
 import { DEFAULT_RANGE } from './Symbol';
 import { UCNativeType } from './NativeType';
 
-export const ObjectTypeRef = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE, UCTypeKind.Class);
+export const ObjectTypeRef = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE, UCTypeFlags.Class);
 export const ArgumentTypeRef = new UCObjectTypeSymbol({ name: toName('Argument'), range: DEFAULT_RANGE });
 export const IntTypeRef = new UCObjectTypeSymbol({ name: NAME_INT, range: DEFAULT_RANGE });
 export const FloatTypeRef = new UCObjectTypeSymbol({ name: NAME_FLOAT, range: DEFAULT_RANGE });

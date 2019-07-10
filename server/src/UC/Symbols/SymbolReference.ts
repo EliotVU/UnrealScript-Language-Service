@@ -6,7 +6,7 @@ import { intersectsWith, intersectsWithRange } from '../helpers';
 import {
 	ISymbol, ISymbolReference,
 	ISymbolContext, IWithReference,
-	UCTypeKind,
+	UCTypeFlags,
 	UCSymbol, ITypeSymbol, isTypeSymbol
 } from '.';
 
@@ -20,10 +20,10 @@ export class UCSymbolReference extends UCSymbol implements IWithReference {
 	 * The type kind of the symbol we are referencing.
 	 * Returns @UCTypeKind.Error if no reference.
 	 */
-	getTypeKind(): UCTypeKind {
+	getTypeFlags(): UCTypeFlags {
 		return this.reference && isTypeSymbol(<ITypeSymbol>this.reference)
-			? (<ITypeSymbol>this.reference).getTypeKind()
-			: UCTypeKind.Error;
+			? (<ITypeSymbol>this.reference).getTypeFlags()
+			: UCTypeFlags.Error;
 	}
 
 	getTooltip(): string {

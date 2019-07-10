@@ -6,7 +6,7 @@ import { intersectsWith, intersectsWithRange } from '../helpers';
 import { SymbolWalker } from '../symbolWalker';
 import { toHash } from '../names';
 
-import { UCStructSymbol, UCObjectTypeSymbol, ITypeSymbol, ISymbol, UCTypeKind } from '.';
+import { UCStructSymbol, UCObjectTypeSymbol, ITypeSymbol, ISymbol, UCTypeFlags } from '.';
 
 export class UCClassSymbol extends UCStructSymbol {
 	public withinType?: ITypeSymbol;
@@ -22,8 +22,8 @@ export class UCClassSymbol extends UCStructSymbol {
 		return SymbolKind.Class;
 	}
 
-	getTypeKind() {
-		return UCTypeKind.Class;
+	getTypeFlags() {
+		return UCTypeFlags.Class;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {

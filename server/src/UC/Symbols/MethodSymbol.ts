@@ -6,7 +6,7 @@ import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
 import { SemanticErrorNode } from '../diagnostics/diagnostics';
 
-import { DEFAULT_RANGE, UCStructSymbol, UCParamSymbol, ITypeSymbol, ISymbol, IWithReference, UCTypeKind } from '.';
+import { DEFAULT_RANGE, UCStructSymbol, UCParamSymbol, ITypeSymbol, ISymbol, IWithReference, UCTypeFlags } from '.';
 
 export enum MethodSpecifiers {
 	None 			= 0x0000,
@@ -48,8 +48,8 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return SymbolKind.Function;
 	}
 
-	getTypeKind() {
-		return UCTypeKind.Function;
+	getTypeFlags() {
+		return UCTypeFlags.Function;
 	}
 
 	getType() {

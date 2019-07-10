@@ -4,7 +4,7 @@ import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
 
-import { UCTypeKind } from '.';
+import { UCTypeFlags } from '.';
 
 export interface ISymbol {
 	outer?: ISymbol;
@@ -30,7 +30,7 @@ export interface ISymbolContext {
 }
 
 export interface IContextInfo {
-	type?: UCTypeKind;
+	type?: UCTypeFlags;
 	inAssignment?: boolean;
 	isOptional?: boolean;
 	hasArguments?: boolean;

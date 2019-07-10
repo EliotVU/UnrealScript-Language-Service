@@ -4,7 +4,7 @@ import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 import { intersectsWith, rangeFromBounds } from './helpers';
 import { UCDocument } from './document';
 
-import { UCStructSymbol, ISymbol, IContextInfo, UCTypeKind } from './Symbols';
+import { UCStructSymbol, ISymbol, IContextInfo, UCTypeFlags } from './Symbols';
 import { IExpression, analyzeExpressionType } from './expressions';
 
 export interface IStatement {
@@ -136,7 +136,7 @@ export class UCAssertStatement extends UCExpressionStatement {
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 		if (this.expression) {
-			const err = analyzeExpressionType(this.expression, UCTypeKind.Bool);
+			const err = analyzeExpressionType(this.expression, UCTypeFlags.Bool);
 			if (err) document.nodes.push(err);
 		}
 	}
@@ -157,7 +157,7 @@ export class UCIfStatement extends UCThenStatement {
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 		if (this.expression) {
-			const err = analyzeExpressionType(this.expression, UCTypeKind.Bool);
+			const err = analyzeExpressionType(this.expression, UCTypeFlags.Bool);
 			if (err) document.nodes.push(err);
 		}
 		this.else && this.else.analyze(document, context);
@@ -168,7 +168,7 @@ export class UCDoUntilStatement extends UCThenStatement {
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 		if (this.expression) {
-			const err = analyzeExpressionType(this.expression, UCTypeKind.Bool);
+			const err = analyzeExpressionType(this.expression, UCTypeFlags.Bool);
 			if (err) document.nodes.push(err);
 		}
 	}
@@ -178,7 +178,7 @@ export class UCWhileStatement extends UCThenStatement {
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 		if (this.expression) {
-			const err = analyzeExpressionType(this.expression, UCTypeKind.Bool);
+			const err = analyzeExpressionType(this.expression, UCTypeFlags.Bool);
 			if (err) document.nodes.push(err);
 		}
 	}
@@ -203,7 +203,7 @@ export class UCSwitchStatement extends UCExpressionStatement {
 	index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
 
-		const type = this.expression && this.expression.getTypeKind();
+		const type = this.expression && this.expression.getTypeFlags();
 		if (type) {
 			// TODO: validate all legal switch types!
 			// Also, cannot switch on static arrays.
@@ -289,7 +289,7 @@ export class UCForStatement extends UCThenStatement {
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 		if (this.expression) {
-			const err = analyzeExpressionType(this.expression, UCTypeKind.Bool);
+			const err = analyzeExpressionType(this.expression, UCTypeFlags.Bool);
 			if (err) document.nodes.push(err);
 		}
 		if (this.init) this.init.analyze(document, context);

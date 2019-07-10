@@ -11,7 +11,7 @@ import { NAME_ENUMCOUNT } from '../names';
 import { config, UCGeneration } from '../indexer';
 
 import {
-	ITypeSymbol, UCTypeKind,
+	ITypeSymbol, UCTypeFlags,
 	UCFieldSymbol, UCStructSymbol, UCEnumSymbol,
 	UCEnumMemberSymbol, UCConstSymbol,
 	PredefinedBool, NativeArray
@@ -68,8 +68,8 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return SymbolKind.Property;
 	}
 
-	getTypeKind() {
-		return this.type ? this.type.getTypeKind() : UCTypeKind.Error;
+	getTypeFlags() {
+		return this.type ? this.type.getTypeFlags() : UCTypeFlags.Error;
 	}
 
 	getType() {
