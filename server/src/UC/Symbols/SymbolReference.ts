@@ -7,21 +7,23 @@ import {
 	ISymbol, ISymbolReference,
 	ISymbolContext, IWithReference,
 	UCTypeKind,
-	UCSymbol, UCFieldSymbol
+	UCSymbol, ITypeSymbol, isTypeSymbol
 } from '.';
 
 /**
  * For general symbol references, like a function's return type which cannot yet be identified.
  */
 export class UCSymbolReference extends UCSymbol implements IWithReference {
-	protected reference?: ISymbol;
+	protected reference?: ISymbol | ITypeSymbol;
 
 	/**
 	 * The type kind of the symbol we are referencing.
 	 * Returns @UCTypeKind.Error if no reference.
 	 */
 	getTypeKind(): UCTypeKind {
-		return this.reference instanceof UCFieldSymbol && this.reference.getTypeKind() || UCTypeKind.Error;
+		return this.reference && isTypeSymbol(<ITypeSymbol>this.reference)
+			? (<ITypeSymbol>this.reference).getTypeKind()
+			: UCTypeKind.Error;
 	}
 
 	getTooltip(): string {

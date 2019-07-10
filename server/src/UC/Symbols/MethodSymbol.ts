@@ -49,7 +49,11 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getTypeKind() {
-		return this.returnType ? this.returnType.getTypeKind() : UCTypeKind.Error;
+		return UCTypeKind.Function;
+	}
+
+	getType() {
+		return this.returnType;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
@@ -269,7 +273,7 @@ export abstract class UCBaseOperatorSymbol extends UCMethodSymbol {
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
 		if (!this.isFinal()) {
-			document.nodes.push(new SemanticErrorNode(this, `Operator must be declared as 'Final'.`));
+			document.nodes.push(new SemanticErrorNode(this, `Operator must be declared as 'final'.`));
 		}
 	}
 }

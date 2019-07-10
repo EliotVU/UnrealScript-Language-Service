@@ -748,6 +748,7 @@ functionSpecifier
 	| ('private' exportBlockText?)
 	;
 
+// For function/operator declarations.
 functionName: identifier | operator;
 
 parameters: paramDecl (COMMA paramDecl)*;
@@ -909,6 +910,7 @@ unaryOperator
 	| AT
 	| DECR
 	| INCR
+	// TODO: Can an unary operator be an @identifier?
 	;
 
 operator
@@ -952,6 +954,34 @@ operator
 	| ASSIGNMENT_DIV
 	;
 
+binaryOperator
+	: DOLLAR
+	| AT
+	| AMP
+	| BITWISE_OR
+	| CARET
+	| STAR
+	| MINUS
+	| PLUS
+	| DIV
+	| PERCENT
+	| EXP
+	| RSHIFT
+	| LSHIFT
+	| SHIFT
+	| LT
+	| GT
+	| OR
+	| AND
+	| EQ
+	| NEQ
+	| GEQ
+	| LEQ
+	| IEQ
+	| MEQ
+	| identifier // can overloaded operators work with keyword' identifiers?
+	;
+
 expressionWithAssignment
 	: newExpression
 	| conditionalExpression
@@ -965,6 +995,7 @@ expression
 	| conditionalExpression
 	| binaryExpression
 	| unaryExpression
+	| operator { this.notifyErrorListeners("Expression expected.", this.currentToken, undefined); }
 	;
 
 // Inclusive template argument (will be parsed as a function call)
@@ -976,14 +1007,14 @@ assignmentExpression
 	: primaryExpression assignmentOperator expression
 	;
 
+binaryExpression
+	: unaryExpression binaryOperator expression
+	;
+
 unaryExpression
 	: primaryExpression
 	| primaryExpression unaryOperator
 	| unaryOperator primaryExpression
-	;
-
-binaryExpression
-	: unaryExpression functionName expression
 	;
 
 conditionalExpression
@@ -1005,7 +1036,7 @@ primaryExpression
 	| primaryExpression DOT classPropertyAccessSpecifier DOT identifier					#propertyAccessExpression
 	| primaryExpression DOT identifier													#propertyAccessExpression
 	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 							#callExpression
-	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 						#elementAccessExpression
+	| primaryExpression (OPEN_BRACKET expression? CLOSE_BRACKET)						#elementAccessExpression
 	;
 
 classPropertyAccessSpecifier

@@ -72,6 +72,10 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return this.type ? this.type.getTypeKind() : UCTypeKind.Error;
 	}
 
+	getType() {
+		return this.type;
+	}
+
 	getCompletionItemKind(): CompletionItemKind {
 		return CompletionItemKind.Property;
 	}

@@ -32,7 +32,8 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	/**
-	 * Returns the whole range this symbol encompasses i.e. for a struct this should be inclusive of the entire block.
+	 * Returns a range encompassing the entire body of the symbol.
+	 * By default this will return the range of the identifier, but for a struct it will include all of { ... }.
 	 */
 	getRange(): Range {
 		return this.id.range;
@@ -54,12 +55,12 @@ export abstract class UCSymbol implements ISymbol {
 		return SymbolKind.Field;
 	}
 
-	getTooltip(): string {
-		return this.getQualifiedName();
-	}
-
 	getCompletionItemKind(): CompletionItemKind {
 		return CompletionItemKind.Text;
+	}
+
+	getTooltip(): string {
+		return this.getQualifiedName();
 	}
 
 	getSymbolAtPos(position: Position): ISymbol | undefined {
@@ -70,9 +71,9 @@ export abstract class UCSymbol implements ISymbol {
 		return undefined;
 	}
 
-	getOuter<T extends ISymbol>(): ISymbol | undefined {
+	getOuter<T extends ISymbol>(T: {new (...args: any[]): T}): ISymbol | undefined {
 		for (let outer = this.outer; outer; outer = outer.outer) {
-			if (<T>(outer)) {
+			if (outer instanceof T) {
 				return outer;
 			}
 		}
@@ -90,6 +91,7 @@ export abstract class UCSymbol implements ISymbol {
 	index(_document: UCDocument, _context: UCStructSymbol) {}
 	analyze(_document: UCDocument, _context: UCStructSymbol) {}
 
+	// FIXME: Perhaps deprecate this, or at least store a document reference to fetch the uri from.
 	getUri(): string {
 		return this.outer instanceof UCSymbol && this.outer.getUri() || '';
 	}

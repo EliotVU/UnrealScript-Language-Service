@@ -4,6 +4,8 @@ import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
 
+import { UCTypeKind } from '.';
+
 export interface ISymbol {
 	outer?: ISymbol;
 
@@ -25,6 +27,13 @@ export interface ISymbolContainer<T> {
 export interface ISymbolContext {
 	// Context was referred by an assignment operator.
 	inAssignment?: boolean;
+}
+
+export interface IContextInfo {
+	type?: UCTypeKind;
+	inAssignment?: boolean;
+	isOptional?: boolean;
+	hasArguments?: boolean;
 }
 
 export interface ISymbolReference {

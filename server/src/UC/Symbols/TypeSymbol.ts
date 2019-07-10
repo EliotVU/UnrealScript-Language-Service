@@ -1,18 +1,18 @@
-import { Position, Range } from 'vscode-languageserver-types';
+import { Position, Range, Location } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { intersectsWithRange } from '../helpers';
+import { intersectsWithRange, intersectsWith } from '../helpers';
 import { UnrecognizedTypeNode, SemanticErrorNode } from '../diagnostics/diagnostics';
 
 import {
-	UCSymbol, UCSymbolReference,
-	UCStructSymbol, UCClassSymbol, UCStateSymbol, UCScriptStructSymbol,
+	UCSymbol, UCStructSymbol, UCClassSymbol,
+	UCStateSymbol, UCScriptStructSymbol,
 	UCFieldSymbol, UCEnumSymbol,
 	PackagesTable, SymbolsTable,
 	ISymbol, Identifier, IWithReference,
 	PredefinedByte, PredefinedFloat, PredefinedString,
 	PredefinedBool, PredefinedButton, PredefinedName,
-	PredefinedInt, PredefinedPointer, NativeClass
+	PredefinedInt, PredefinedPointer, NativeClass, ISymbolContext, ISymbolReference
 } from '.';
 
 export enum UCTypeKind {
@@ -58,6 +58,10 @@ export interface ITypeSymbol extends UCSymbol, IWithReference {
 
 	index(document: UCDocument, context?: UCStructSymbol);
 	analyze(document: UCDocument, context?: UCStructSymbol);
+}
+
+export function isTypeSymbol(symbol: ITypeSymbol): symbol is ITypeSymbol {
+	return 'getTypeKind' in symbol;
 }
 
 /**
@@ -220,11 +224,38 @@ export class UCButtonTypeSymbol extends UCPredefinedTypeSymbol implements ITypeS
 	}
 }
 
-export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol {
+export class UCObjectTypeSymbol extends UCSymbol implements ITypeSymbol {
+	protected reference?: ISymbol | ITypeSymbol;
+
 	public baseType?: ITypeSymbol;
 
 	constructor(id: Identifier, private range: Range = id.range, private validTypeKind?: UCTypeKind) {
 		super(id);
+	}
+
+	getRange(): Range {
+		return this.range;
+	}
+
+	getSymbolAtPos(position: Position) {
+		if (!intersectsWith(this.getRange(), position)) {
+			return undefined;
+		}
+		return this.getContainedSymbolAtPos(position);
+	}
+
+	getContainedSymbolAtPos(position: Position) {
+		if (this.reference && intersectsWithRange(position, this.id.range)) {
+			return this;
+		}
+		return this.baseType && this.baseType.getSymbolAtPos(position);
+	}
+
+	getTooltip(): string {
+		if (this.reference) {
+			return this.reference.getTooltip();
+		}
+		return '';
 	}
 
 	getTypeText(): string {
@@ -243,14 +274,6 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 
 	setValidTypeKind(kind: UCTypeKind) {
 		this.validTypeKind = kind;
-	}
-
-	getRange(): Range {
-		return this.range;
-	}
-
-	getContainedSymbolAtPos(position: Position) {
-		return this.baseType && this.baseType.getSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol) {
@@ -334,6 +357,26 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 				break;
 			}
 		}
+	}
+
+	setReference(symbol: ISymbol, document: UCDocument, context?: ISymbolContext, noIndex?: boolean, range: Range = this.id.range) {
+		this.reference = symbol;
+		if (noIndex) {
+			return;
+		}
+
+		if (symbol && symbol instanceof UCSymbol) {
+			const ref: ISymbolReference = {
+				location: Location.create(document.filePath, range),
+				symbol: this,
+				context
+			};
+			document.indexReference(symbol, ref);
+		}
+	}
+
+	getReference(): ISymbol | undefined {
+		return this.reference;
 	}
 }
 
