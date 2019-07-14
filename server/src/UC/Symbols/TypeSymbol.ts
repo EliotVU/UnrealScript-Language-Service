@@ -8,7 +8,7 @@ import {
 	UCSymbol, UCStructSymbol, UCClassSymbol,
 	UCStateSymbol, UCScriptStructSymbol,
 	UCFieldSymbol, UCEnumSymbol,
-	PackagesTable, SymbolsTable,
+	PackagesTable, ClassesTable,
 	ISymbol, Identifier, IWithReference,
 	PredefinedByte, PredefinedFloat, PredefinedString,
 	PredefinedBool, PredefinedButton, PredefinedName,
@@ -290,7 +290,7 @@ export class UCObjectTypeSymbol extends UCSymbol implements ITypeSymbol {
 			}
 
 			case UCTypeFlags.Class: case UCTypeFlags.Interface: {
-				symbol = SymbolsTable.findSymbol(id, true);
+				symbol = ClassesTable.findSymbol(id, true);
 				break;
 			}
 
@@ -301,7 +301,7 @@ export class UCObjectTypeSymbol extends UCSymbol implements ITypeSymbol {
 
 			default: {
 				// First try to match upper level symbols such as a class.
-				symbol = SymbolsTable.findSymbol(id, true) || context.findSuperSymbol(id);
+				symbol = ClassesTable.findSymbol(id, true) || context.findSuperSymbol(id);
 			}
 		}
 

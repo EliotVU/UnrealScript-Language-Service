@@ -32,7 +32,7 @@ import {
 	UCIntTypeSymbol, UCFloatTypeSymbol, UCByteTypeSymbol,
 	UCStringTypeSymbol, UCNameTypeSymbol, UCBoolTypeSymbol,
 	UCPointerTypeSymbol, UCButtonTypeSymbol, UCDelegateTypeSymbol,
-	UCArrayTypeSymbol, UCMapTypeSymbol, UCClassSymbol, SymbolsTable
+	UCArrayTypeSymbol, UCMapTypeSymbol, UCClassSymbol, ClassesTable
 } from './Symbols';
 
 import { SyntaxErrorNode } from './diagnostics/diagnostics';
@@ -621,6 +621,16 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 					const propSymbol = paramNode.accept<any>(this);
 					symbol.params.push(propSymbol);
 				}
+
+				// if ((specifiers & MethodSpecifiers.Operator) !== 0) {
+				// 	const leftType = symbol.params[0].getType();
+				// 	const rightType = symbol.params[1].getType();
+
+				// 	const leftTypeName = leftType && leftType.getId();
+				// 	const rightTypeName = rightType && rightType.getId();
+
+				// 	const overloadedName = symbol.getId().toString() + leftTypeName + rightTypeName;
+				// }
 			}
 
 			const bodyNode = ctx.functionBody();
@@ -933,7 +943,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 							break;
 
 						case NAME_CLASS:
-							objectClass = SymbolsTable.findSymbol(right.getId(), true) as UCClassSymbol;
+							objectClass = ClassesTable.findSymbol(right.getId(), true) as UCClassSymbol;
 							classWasDefined = true;
 							break;
 

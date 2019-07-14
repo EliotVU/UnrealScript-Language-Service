@@ -24,7 +24,7 @@ export class ExpressionErrorNode implements IDiagnosticNode {
 	}
 
 	getRange(): Range {
-		return this.symbol.getRange()!;
+		return this.symbol.getRange();
 	}
 
 	toString(): string {

@@ -3,7 +3,7 @@ import * as path from 'path';
 import URI from 'vscode-uri';
 import { BehaviorSubject } from 'rxjs';
 
-import { ISymbolReference, UCPackage, PackagesTable, UCEnumMemberSymbol } from './Symbols';
+import { ISymbolReference, UCPackage, PackagesTable, UCEnumMemberSymbol, TRANSIENT_PACKAGE } from './Symbols';
 import { UCDocument } from './document';
 import { Name, toName } from './names';
 
@@ -40,7 +40,7 @@ function getPackageByUri(uri: string): UCPackage {
 
 	const packageName = findPackageNameInDir(dir);
 	if (!packageName) {
-		return PackagesTable;
+		return TRANSIENT_PACKAGE;
 	}
 
 	pkg = new UCPackage(toName(packageName));

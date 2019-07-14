@@ -88,6 +88,10 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
+	addAlias(key: Name, symbol: ISymbol) {
+		throw 'not implemented';
+	}
+
 	getSymbol(id: Name): UCSymbol | undefined {
 		for (let child = this.children; child; child = child.next) {
 			if (child.getId() === id) {

@@ -10,7 +10,7 @@ import {
 } from 'vscode-languageserver';
 import { Token } from 'antlr4ts';
 
-import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, SymbolsTable } from './Symbols';
+import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, ClassesTable } from './Symbols';
 import { getDocumentByUri, getIndexedReferences } from "./indexer";
 
 export function rangeFromBound(token: Token): Range {
@@ -193,7 +193,7 @@ export async function getSymbolItems(uri: string, position: Position): Promise<C
 
 export async function getFullCompletionItem(item: CompletionItem): Promise<CompletionItem> {
 	if (item.data) {
-		const symbol = SymbolsTable.findSymbol(item.data, true) as UCSymbol;
+		const symbol = ClassesTable.findSymbol(item.data, true) as UCSymbol;
 		if (!symbol) {
 			return item;
 		}
