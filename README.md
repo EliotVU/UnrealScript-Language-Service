@@ -13,3 +13,5 @@ This extension adds language support for UnrealScript, including:
         Find All References
         Quick Info (Hover)
         Error Squiggles
+
+<img src="https://raw.githubusercontent.com/EliotVU/UnrealScript-Language-Service/master/demo.gif">
