@@ -283,10 +283,23 @@ export class UCBinaryOperatorSymbol extends UCBaseOperatorSymbol {
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
+		if (!this.params || this.params.length !== 2) {
+			document.nodes.push(new SemanticErrorNode(
+				this,
+				`An operator is required to have a total of 2 parameters.`
+			));
+		}
+
 		if (!this.precedence) {
-			document.nodes.push(new SemanticErrorNode(this, `Operator must have a precedence.`));
+			document.nodes.push(new SemanticErrorNode(
+				this,
+				`Operator must have a precedence.`
+			));
 		} else if (this.precedence < 0 || this.precedence > 255) {
-			document.nodes.push(new SemanticErrorNode(this, `Operator precedence must be between 0-255.`));
+			document.nodes.push(new SemanticErrorNode(
+				this,
+				`Operator precedence must be between 0-255.`
+			));
 		}
 	}
 }
