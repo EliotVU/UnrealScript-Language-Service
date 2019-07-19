@@ -3,6 +3,8 @@ import * as path from 'path';
 import URI from 'vscode-uri';
 import { BehaviorSubject } from 'rxjs';
 
+import { UCOptions } from '../settings';
+
 import { ISymbolReference, UCPackage, PackagesTable, UCEnumMemberSymbol } from './Symbols';
 import { UCDocument } from './document';
 import { Name, toName } from './names';
@@ -17,8 +19,9 @@ export enum UCGeneration {
 	UC3 = "3"
 }
 
-export const config: { generation: UCGeneration } = {
-	generation: UCGeneration.UC3
+export const config: UCOptions = {
+	generation: UCGeneration.UC3,
+	checkTypes: false
 };
 
 function findPackageNameInDir(dir: string): string {

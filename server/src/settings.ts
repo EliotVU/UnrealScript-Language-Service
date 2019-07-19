@@ -1,15 +1,21 @@
 import { UCGeneration } from './UC/indexer';
 
-export interface UCSettings {
-	unrealscript: {
-		indexAllDocuments: boolean;
-		generation: UCGeneration;
-	};
+export interface UCOptions {
+	generation: UCGeneration;
+	indexAllDocuments?: boolean;
+	analyzeDocuments?: boolean;
+	checkTypes?: boolean;
 }
 
-export const defaultSettings: UCSettings = {
+export interface ServerSettings {
+	unrealscript: UCOptions;
+}
+
+export const defaultSettings: ServerSettings = {
 	unrealscript: {
+		generation: UCGeneration.UC3,
 		indexAllDocuments: false,
-		generation: UCGeneration.UC3
+		analyzeDocuments: true,
+		checkTypes: false
 	}
 };

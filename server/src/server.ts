@@ -23,7 +23,7 @@ import URI from 'vscode-uri';
 
 import { getSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
 import { filePathByClassIdMap$, getDocumentByUri, indexDocument, getIndexedReferences, config } from './UC/indexer';
-import { UCSettings, defaultSettings } from './settings';
+import { ServerSettings, defaultSettings } from './settings';
 import { documentLinked$ } from './UC/document';
 import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol } from './UC/Symbols';
 
@@ -32,7 +32,7 @@ const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty:
 
 let textDocuments: TextDocuments = new TextDocuments();
 let hasWorkspaceFolderCapability: boolean = false;
-let currentSettings: UCSettings = defaultSettings;
+let currentSettings: ServerSettings = defaultSettings;
 
 export let connection = createConnection(ProposedFeatures.all);
 
@@ -99,6 +99,7 @@ connection.onInitialized(async () => {
 
 	documentLinked$
 		.pipe(
+			filter(() => !!currentSettings.unrealscript.analyzeDocuments),
 			delay(1000),
 		)
 		.subscribe(document => {
@@ -170,10 +171,8 @@ connection.onInitialized(async () => {
 });
 
 connection.onDidChangeConfiguration((change) => {
-	currentSettings = <UCSettings>(change.settings);
-	if (currentSettings.unrealscript.generation) {
-		config.generation = currentSettings.unrealscript.generation;
-	}
+	currentSettings = <ServerSettings>(change.settings);
+	Object.assign(config, currentSettings.unrealscript);
 	isIndexReady$.next(true);
 });
 
