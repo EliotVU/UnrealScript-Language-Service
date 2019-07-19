@@ -4,7 +4,7 @@ import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 import { ElementAccessExpressionContext } from '../antlr/UCGrammarParser';
 
 import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode, SemanticErrorRangeNode } from './diagnostics/diagnostics';
-import { getEnumMember } from './indexer';
+import { getEnumMember, config } from './indexer';
 import { intersectsWith, rangeFromBounds } from './helpers';
 import { UCDocument } from './document';
 import { Name } from './names';
@@ -292,12 +292,14 @@ export class UCCallExpression extends UCExpression {
 					}
 				}
 
-				const expectedType = param.getTypeFlags();
-				if (!typeMatches(type, expectedType)) {
-					document.nodes.push(new SemanticErrorRangeNode(
-						arg.getRange(),
-						`Argument of type '${UCTypeFlags[type]}' is not assignable to parameter of type '${UCTypeFlags[expectedType]}'.`)
-					);
+				if (config.checkTypes) {
+					const expectedType = param.getTypeFlags();
+					if (!typeMatches(type, expectedType)) {
+						document.nodes.push(new SemanticErrorRangeNode(
+							arg.getRange(),
+							`Argument of type '${UCTypeFlags[type]}' is not assignable to parameter of type '${UCTypeFlags[expectedType]}'.`)
+						);
+					}
 				}
 			}
 
@@ -718,10 +720,12 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 				if (this.left instanceof UCElementAccessExpression) {
 
 				} else {
-					document.nodes.push(new ExpressionErrorNode(
-						this.left,
-						`Cannot assign to expression (type: '${UCTypeFlags[letType]}'), because it is not a variable.`
-					));
+					if (config.checkTypes) {
+						document.nodes.push(new ExpressionErrorNode(
+							this.left,
+							`Cannot assign to expression (type: '${UCTypeFlags[letType]}'), because it is not a variable.`
+						));
+					}
 				}
 			}
 		} else {
@@ -729,10 +733,12 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 				// TODO:
 			}
 			else {
-				document.nodes.push(new ExpressionErrorNode(
-					this.left,
-					`Cannot assign to expression (type: '${UCTypeFlags[letType]}'), because it is not a variable.`
-				));
+				if (config.checkTypes) {
+					document.nodes.push(new ExpressionErrorNode(
+						this.left,
+						`Cannot assign to expression (type: '${UCTypeFlags[letType]}'), because it is not a variable.`
+					));
+				}
 			}
 		}
 	}
@@ -760,32 +766,33 @@ export class UCDefaultAssignmentExpression extends UCBinaryExpression {
 
 	analyze(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
 		if (!this.left) {
-			document.nodes.push(new ExpressionErrorNode(this, `Invalid syntax`));
 			return;
 		}
 
-		const letSymbol = this.left.getMemberSymbol();
-		if (letSymbol instanceof UCSymbol) {
-			if (letSymbol instanceof UCPropertySymbol) {
-				// TODO: check right type
-			} else if (letSymbol instanceof UCDelegateSymbol) {
-				// TODO: check right type
-			} else {
-				const errorNode = new ExpressionErrorNode(
-					this.left,
-					`Type of '${letSymbol.getQualifiedName()}' cannot be assigned a default value!`
-				);
-				document.nodes.push(errorNode);
+		if (config.checkTypes) {
+			const letSymbol = this.left.getMemberSymbol();
+			if (letSymbol instanceof UCSymbol) {
+				if (letSymbol instanceof UCPropertySymbol) {
+					// TODO: check right type
+				} else if (letSymbol instanceof UCDelegateSymbol) {
+					// TODO: check right type
+				} else {
+					const errorNode = new ExpressionErrorNode(
+						this.left,
+						`Type of '${letSymbol.getQualifiedName()}' cannot be assigned a default value!`
+					);
+					document.nodes.push(errorNode);
+				}
 			}
-		}
 
-		const leftType = this.left.getTypeFlags();
-		const rightType = this.right ? this.right.getTypeFlags() : UCTypeFlags.Error;
-		if (!typeMatches(leftType, rightType)) {
-			document.nodes.push(new ExpressionErrorNode(
-				this.left,
-				`Cannot assign variable of type '${UCTypeFlags[leftType]}' to type '${UCTypeFlags[rightType]}'`
-			));
+			const leftType = this.left.getTypeFlags();
+			const rightType = this.right ? this.right.getTypeFlags() : UCTypeFlags.Error;
+			if (!typeMatches(leftType, rightType)) {
+				document.nodes.push(new ExpressionErrorNode(
+					this.left,
+					`Cannot assign variable of type '${UCTypeFlags[leftType]}' to type '${UCTypeFlags[rightType]}'`
+				));
+			}
 		}
 
 		// TODO: pass valid type information
@@ -838,7 +845,7 @@ export class UCMemberExpression extends UCExpression {
 		}
 
 		let symbol = context.findSuperSymbol(id);
-		if (!symbol && info && info.type && (info.type & UCTypeFlags.EnumCoerce) !== 0) {
+		if (!symbol && (!config.checkTypes || (info && (info.type && info.type & UCTypeFlags.EnumCoerce) !== 0))) {
 			symbol = getEnumMember(id);
 		}
 

@@ -6,6 +6,7 @@ import { UCDocument } from './document';
 
 import { UCStructSymbol, ISymbol, IContextInfo, UCTypeFlags } from './Symbols';
 import { IExpression, analyzeExpressionType } from './expressions';
+import { config } from './indexer';
 
 export interface IStatement {
 	context?: ParserRuleContext;
@@ -135,7 +136,7 @@ export class UCBlock extends UCBaseStatement {
 export class UCAssertStatement extends UCExpressionStatement {
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
-		if (this.expression) {
+		if (this.expression && config.checkTypes) {
 			const err = analyzeExpressionType(this.expression, UCTypeFlags.Bool);
 			if (err) document.nodes.push(err);
 		}
@@ -156,7 +157,7 @@ export class UCIfStatement extends UCThenStatement {
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
-		if (this.expression) {
+		if (this.expression && config.checkTypes) {
 			const err = analyzeExpressionType(this.expression, UCTypeFlags.Bool);
 			if (err) document.nodes.push(err);
 		}
@@ -167,7 +168,7 @@ export class UCIfStatement extends UCThenStatement {
 export class UCDoUntilStatement extends UCThenStatement {
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
-		if (this.expression) {
+		if (this.expression && config.checkTypes) {
 			const err = analyzeExpressionType(this.expression, UCTypeFlags.Bool);
 			if (err) document.nodes.push(err);
 		}
@@ -177,7 +178,7 @@ export class UCDoUntilStatement extends UCThenStatement {
 export class UCWhileStatement extends UCThenStatement {
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
-		if (this.expression) {
+		if (this.expression && config.checkTypes) {
 			const err = analyzeExpressionType(this.expression, UCTypeFlags.Bool);
 			if (err) document.nodes.push(err);
 		}
@@ -288,7 +289,7 @@ export class UCForStatement extends UCThenStatement {
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		super.analyze(document, context);
-		if (this.expression) {
+		if (this.expression && config.checkTypes) {
 			const err = analyzeExpressionType(this.expression, UCTypeFlags.Bool);
 			if (err) document.nodes.push(err);
 		}
