@@ -15,3 +15,5 @@ This extension adds language support for UnrealScript, including:
         Error Squiggles
 
 <img src="https://raw.githubusercontent.com/EliotVU/UnrealScript-Language-Service/master/demo.gif">
+
+Like what I'm working on? [![Give something back!](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/eliotvu)
