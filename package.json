@@ -44,7 +44,7 @@
 					"description": "Traces the communication between VS Code and the language server."
 				},
 				"unrealscript.generation": {
-					"scope": "window",
+					"scope": "resource",
 					"type": "string",
 					"enum": [
 						"1",
@@ -57,6 +57,18 @@
 				"unrealscript.indexAllDocuments": {
 					"scope": "window",
 					"type": "boolean",
+					"default": false
+				},
+				"unrealscript.analyzeDocuments": {
+					"scope": "window",
+					"type": "boolean",
+					"description": "Analyzes any document, and report back \"problems\" if any.",
+					"default": true
+				},
+				"unrealscript.checkTypes": {
+					"scope": "window",
+					"type": "boolean",
+					"description": "Checks and reports if an expression's type is a valid one. e.g. assignments and passed arguments.",
 					"default": false
 				}
 			}
