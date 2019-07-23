@@ -650,7 +650,7 @@ classType
 	;
 
 delegateType
-	: KW_DELEGATE (LT qualifiedIdentifier GT)
+	: 'delegate' (LT qualifiedIdentifier GT)
 	; // TODO: qualifiedIdentifier is hardcoded to 2 identifiers MAX.
 
 mapType

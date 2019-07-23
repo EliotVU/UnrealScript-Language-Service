@@ -12,7 +12,9 @@ import {
 	UCStructSymbol, UCClassSymbol, UCFieldSymbol,
 	PredefinedByte, PredefinedFloat, PredefinedString,
 	PredefinedBool, PredefinedButton, PredefinedName,
-	PredefinedInt, PredefinedPointer, NativeClass
+	PredefinedInt, PredefinedPointer,
+	PredefinedArray, PredefinedDelegate, PredefinedMap,
+	NativeClass, NativeArray
 } from '.';
 
 export enum UCTypeKind {
@@ -260,6 +262,10 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol) {
+		// Don't move this below the reference return check,
+		// because, we still want to index baseType for Predefined array/delegate types.
+		this.baseType && this.baseType.index(document, context);
+
 		// In some cases where a variable declaration is declaring multiple properties we may already have initialized a reference.
 		// e.g. "local float x, y, z;"
 		if (this.reference || !context) {
@@ -297,7 +303,6 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		}
 
 		symbol && this.setReference(symbol, document);
-		this.baseType && this.baseType.index(document, context);
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
@@ -306,6 +311,12 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 }
 
 export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
+	reference = NativeArray;
+
+	getTooltip(): string {
+		return PredefinedArray.getTooltip();
+	}
+
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Array;
 	}
@@ -316,6 +327,12 @@ export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
 }
 
 export class UCDelegateTypeSymbol extends UCObjectTypeSymbol {
+	reference = PredefinedDelegate;
+
+	getTooltip(): string {
+		return PredefinedDelegate.getTooltip();
+	}
+
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Delegate;
 	}
@@ -326,6 +343,12 @@ export class UCDelegateTypeSymbol extends UCObjectTypeSymbol {
 }
 
 export class UCMapTypeSymbol extends UCObjectTypeSymbol {
+	reference = PredefinedMap;
+
+	getTooltip(): string {
+		return PredefinedMap.getTooltip();
+	}
+
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Error;
 	}

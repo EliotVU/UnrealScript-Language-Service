@@ -13,7 +13,7 @@ import {
 	NAME_CLASS, NAME_ARRAY, NAME_REPLICATION,
 	NAME_NONE, NAME_NAME, NAME_DELEGATE, NAME_ENUMCOUNT,
 	NAME_INT, NAME_FLOAT, NAME_BYTE, NAME_STRING,
-	NAME_BOOL, NAME_POINTER, NAME_BUTTON, NAME_DEFAULT, NAME_OBJECT, Name
+	NAME_BOOL, NAME_POINTER, NAME_BUTTON, NAME_DEFAULT, NAME_OBJECT, Name, NAME_MAP
 } from './names';
 
 import {
@@ -296,7 +296,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			return symbol;
 		} else if (rule instanceof UCParser.MapTypeContext) {
 			const identifier: Identifier = {
-				name: toName(rule.text),
+				name: NAME_MAP,
 				range: rangeFromBound(rule.start)
 			};
 			const symbol = new UCMapTypeSymbol(identifier, rangeFromBounds(rule.start, rule.stop));

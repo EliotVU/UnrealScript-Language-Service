@@ -9,10 +9,11 @@ import {
 	NAME_STRINGPROPERTY, NAME_STRPROPERTY, NAME_BOOLPROPERTY,
 	NAME_POINTERPROPERTY, NAME_MAPPROPERTY, NAME_DELEGATEPROPERTY,
 	NAME_ARRAYPROPERTY, NAME_CLASSPROPERTY, Name, NAME_VECTOR,
-	NAME_ROTATOR, NAME_RANGE
+	NAME_ROTATOR, NAME_RANGE, NAME_DELEGATE
 } from '../names';
 
 import {
+	DEFAULT_RANGE,
 	UCPackage,
 	UCStructSymbol,
 	UCClassSymbol,
@@ -21,16 +22,14 @@ import {
 	UCMethodLikeSymbol,
 	UCObjectTypeSymbol,
 	UCParamSymbol,
-	SymbolsTable,
-	PackagesTable, UCTypeKind
+	PackagesTable, UCTypeKind,
+	UCIntTypeSymbol, UCFloatTypeSymbol
 } from ".";
-import { DEFAULT_RANGE } from './Symbol';
 import { UCNativeType } from './NativeType';
 
 export const ObjectTypeRef = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE, UCTypeKind.Class);
-export const ArgumentTypeRef = new UCObjectTypeSymbol({ name: toName('Argument'), range: DEFAULT_RANGE });
-export const IntTypeRef = new UCObjectTypeSymbol({ name: NAME_INT, range: DEFAULT_RANGE });
-export const FloatTypeRef = new UCObjectTypeSymbol({ name: NAME_FLOAT, range: DEFAULT_RANGE });
+export const IntTypeRef = new UCIntTypeSymbol({ name: NAME_INT, range: DEFAULT_RANGE });
+export const FloatTypeRef = new UCFloatTypeSymbol({ name: NAME_FLOAT, range: DEFAULT_RANGE });
 export const VectorTypeRef = new UCObjectTypeSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE });
 export const RotatorTypeRef = new UCObjectTypeSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE });
 export const RangeTypeRef = new UCObjectTypeSymbol({ name: NAME_RANGE, range: DEFAULT_RANGE });
@@ -87,8 +86,7 @@ NativeClass.extendsType = ObjectTypeRef;
 export const NativeEnum = new UCClassSymbol({ name: NAME_ENUM, range: DEFAULT_RANGE });
 NativeEnum.extendsType = ObjectTypeRef;
 
-// HACK: Not truly objects, should be a UCNativeType, but since NativeArray has psudo properties, it's a convencience to re-use the struct' behavior.
-export const NativeMap = new UCStructSymbol({ name: NAME_MAP, range: DEFAULT_RANGE });
+// HACK: Not truly an uc object, should be a UCNativeType, but since NativeArray has psudo properties, it's a convencience to re-use the struct' behavior.
 export const NativeArray = new UCStructSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });
 
 export const LengthProperty = new UCPropertySymbol({ name: toName('Length'), range: DEFAULT_RANGE });
@@ -176,18 +174,17 @@ RngMethodLike.addSymbol(MaxParam);
 
 RngMethodLike.params = [MinParam, MaxParam];
 
-// FIXME? These aren't truly classes.
-SymbolsTable.addSymbol(NativeMap);
-SymbolsTable.addSymbol(NativeArray);
-
-export const PredefinedByte = new UCNativeType(NAME_BYTE);
-export const PredefinedFloat = new UCNativeType(NAME_FLOAT);
-export const PredefinedInt = new UCNativeType(NAME_INT);
-export const PredefinedString = new UCNativeType(NAME_STRING);
-export const PredefinedName = new UCNativeType(NAME_NAME);
-export const PredefinedBool = new UCNativeType(NAME_BOOL);
-export const PredefinedPointer = new UCNativeType(NAME_POINTER);
-export const PredefinedButton = new UCNativeType(NAME_BUTTON);
+export const PredefinedByte 		= new UCNativeType(NAME_BYTE);
+export const PredefinedFloat 		= new UCNativeType(NAME_FLOAT);
+export const PredefinedInt 			= new UCNativeType(NAME_INT);
+export const PredefinedString 		= new UCNativeType(NAME_STRING);
+export const PredefinedName 		= new UCNativeType(NAME_NAME);
+export const PredefinedBool 		= new UCNativeType(NAME_BOOL);
+export const PredefinedPointer 		= new UCNativeType(NAME_POINTER);
+export const PredefinedButton 		= new UCNativeType(NAME_BUTTON);
+export const PredefinedArray 		= new UCNativeType(NAME_ARRAY);
+export const PredefinedDelegate 	= new UCNativeType(NAME_DELEGATE);
+export const PredefinedMap 			= new UCNativeType(NAME_MAP);
 
 export const TypeCastMap: Readonly<WeakMap<Name, UCNativeType>> = new WeakMap([
 	[NAME_BYTE, PredefinedByte],
