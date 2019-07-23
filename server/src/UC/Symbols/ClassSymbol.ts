@@ -1,10 +1,8 @@
 import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { SemanticErrorNode } from '../diagnostics/diagnostics';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 import { SymbolWalker } from '../symbolWalker';
-import { toHash } from '../names';
 
 import { UCStructSymbol, UCObjectTypeSymbol, ITypeSymbol, ISymbol, UCTypeKind } from '.';
 
@@ -107,34 +105,6 @@ export class UCClassSymbol extends UCStructSymbol {
 		}
 
 		super.index(document, context);
-	}
-
-	analyze(document: UCDocument, context: UCStructSymbol) {
-		const className = this.getId();
-		if (className.hash != toHash(document.fileName)) {
-			const errorNode = new SemanticErrorNode(
-				this,
-				`Class name '${className}' must be equal to its file name ${document.fileName}!`,
-			);
-			document.nodes.push(errorNode);
-		}
-
-		if (this.withinType) {
-			this.withinType.analyze(document, context);
-		}
-
-		if (this.dependsOnTypes) {
-			for (let classTypeRef of this.dependsOnTypes) {
-				classTypeRef.analyze(document, context);
-			}
-		}
-
-		if (this.implementsTypes) {
-			for (let interfaceTypeRef of this.implementsTypes) {
-				interfaceTypeRef.analyze(document, context);
-			}
-		}
-		super.analyze(document, context);
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

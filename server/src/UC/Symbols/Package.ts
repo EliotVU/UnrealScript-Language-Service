@@ -82,7 +82,7 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
-		return visitor.visit(this);
+		return visitor.visitPackage(this);
 	}
 }
 

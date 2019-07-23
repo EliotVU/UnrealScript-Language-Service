@@ -3,9 +3,8 @@ import { SymbolKind, Position } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
-import { SemanticErrorNode, UnrecognizedFieldNode } from '../diagnostics/diagnostics';
 
-import { UCSymbolReference, UCStructSymbol, UCMethodSymbol } from ".";
+import { UCSymbolReference, UCStructSymbol } from ".";
 
 export class UCStateSymbol extends UCStructSymbol {
 	public ignoreRefs?: UCSymbolReference[];
@@ -43,23 +42,6 @@ export class UCStateSymbol extends UCStructSymbol {
 		if (this.ignoreRefs) for (const ref of this.ignoreRefs) {
 			const symbol = this.findSuperSymbol(ref.getId());
 			symbol && ref.setReference(symbol, document);
-		}
-	}
-
-	analyze(document: UCDocument, context: UCStructSymbol) {
-		super.analyze(document, context);
-
-		if (this.ignoreRefs) for (const ref of this.ignoreRefs) {
-			const symbol = ref.getReference();
-			if (!symbol) {
-				document.nodes.push(new UnrecognizedFieldNode(ref, context));
-			} else if (symbol instanceof UCMethodSymbol) {
-				if (symbol.isFinal()) {
-					document.nodes.push(new SemanticErrorNode(ref, `Cannot ignore final functions.`));
-				}
-			} else {
-				document.nodes.push(new SemanticErrorNode(ref, `'${symbol.getId()}' is not a function.`));
-			}
 		}
 	}
 

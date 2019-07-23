@@ -4,9 +4,13 @@ import { getDocumentByUri } from '../indexer';
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
-import { SemanticErrorNode } from '../diagnostics/diagnostics';
 
-import { DEFAULT_RANGE, UCStructSymbol, UCParamSymbol, ITypeSymbol, ISymbol, IWithReference, UCTypeKind } from '.';
+import {
+	DEFAULT_RANGE,
+	UCStructSymbol, UCParamSymbol,
+	ITypeSymbol, ISymbol,
+	IWithReference, UCTypeKind
+} from '.';
 
 export enum MethodSpecifiers {
 	None 			= 0x0000,
@@ -109,39 +113,6 @@ export class UCMethodSymbol extends UCStructSymbol {
 				});
 				this.overriddenMethod = overriddenMethod;
 			}
-		}
-	}
-
-	analyze(document: UCDocument, context: UCStructSymbol) {
-		if (this.returnType) {
-			this.returnType.analyze(document, context);
-		}
-
-		if (this.params) {
-			for (var requiredParamsCount = 0; requiredParamsCount < this.params.length; ++ requiredParamsCount) {
-				if (this.params[requiredParamsCount].isOptional()) {
-					// All trailing params after the first optional param, are required to be declared as 'optional' too.
-					for (let i = requiredParamsCount + 1; i < this.params.length; ++ i) {
-						const param = this.params[i];
-						if (param.isOptional()) {
-							continue;
-						}
-
-						document.nodes.push(new SemanticErrorNode(
-							param,
-							`Parameter '${param.getId()}' must be marked 'optional' after an optional parameter.`
-						));
-					}
-					break;
-				}
-			}
-			this.requiredParamsCount = requiredParamsCount;
-		}
-
-		super.analyze(document, context);
-
-		if (this.overriddenMethod) {
-			// TODO: check difference
 		}
 	}
 
@@ -265,13 +236,6 @@ export abstract class UCBaseOperatorSymbol extends UCMethodSymbol {
 		// Basically we don't want operators to be visible when the context is not in the same document!
 		return context instanceof UCStructSymbol && context.getUri() === document.filePath;
 	}
-
-	analyze(document: UCDocument, context: UCStructSymbol) {
-		super.analyze(document, context);
-		if (!this.isFinal()) {
-			document.nodes.push(new SemanticErrorNode(this, `Operator must be declared as 'Final'.`));
-		}
-	}
 }
 
 export class UCBinaryOperatorSymbol extends UCBaseOperatorSymbol {
@@ -279,28 +243,6 @@ export class UCBinaryOperatorSymbol extends UCBaseOperatorSymbol {
 
 	protected getTypeKeyword(): string {
 		return `operator(${this.precedence})`;
-	}
-
-	analyze(document: UCDocument, context: UCStructSymbol) {
-		super.analyze(document, context);
-		if (!this.params || this.params.length !== 2) {
-			document.nodes.push(new SemanticErrorNode(
-				this,
-				`An operator is required to have a total of 2 parameters.`
-			));
-		}
-
-		if (!this.precedence) {
-			document.nodes.push(new SemanticErrorNode(
-				this,
-				`Operator must have a precedence.`
-			));
-		} else if (this.precedence < 0 || this.precedence > 255) {
-			document.nodes.push(new SemanticErrorNode(
-				this,
-				`Operator precedence must be between 0-255.`
-			));
-		}
 	}
 }
 

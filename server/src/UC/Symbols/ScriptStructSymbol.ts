@@ -2,8 +2,13 @@ import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { Name } from '../names';
+import { SymbolWalker } from '../symbolWalker';
 
-import { UCTypeKind, ISymbol, UCStructSymbol, UCSymbol, UCMethodSymbol, UCPropertySymbol } from '.';
+import {
+	UCTypeKind, ISymbol,
+	UCStructSymbol, UCSymbol,
+	UCMethodSymbol, UCPropertySymbol
+} from '.';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
 	isProtected(): boolean {
@@ -51,5 +56,9 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 	findSuperSymbol(id: Name) {
 		const symbol = super.findSuperSymbol(id) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id);
 		return symbol;
+	}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitScriptStruct(this);
 	}
 }

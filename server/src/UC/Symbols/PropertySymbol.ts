@@ -4,7 +4,6 @@ import * as UCParser from '../../antlr/UCGrammarParser';
 
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
-import { SemanticErrorNode, SemanticErrorRangeNode } from '../diagnostics/diagnostics';
 import { DocumentASTWalker } from '../documentASTWalker';
 import { rangeFromBound } from '../helpers';
 import { NAME_ENUMCOUNT } from '../names';
@@ -12,9 +11,9 @@ import { config, UCGeneration } from '../indexer';
 
 import {
 	ITypeSymbol, UCTypeKind,
-	UCFieldSymbol, UCStructSymbol, UCEnumSymbol,
-	UCEnumMemberSymbol, UCConstSymbol,
-	PredefinedBool, NativeArray
+	UCFieldSymbol, UCStructSymbol,
+	UCEnumSymbol, UCEnumMemberSymbol,
+	UCConstSymbol, NativeArray
 } from '.';
 
 export class UCPropertySymbol extends UCFieldSymbol {
@@ -22,10 +21,10 @@ export class UCPropertySymbol extends UCFieldSymbol {
 
 	// Array dimension if specified, string should consist of an integer.
 	private arrayDim?: string;
-	private arrayDimRange?: Range;
+	public arrayDimRange?: Range;
 
 	// Array dimension is statically based on a declared symbol, such as a const or enum member.
-	private arrayDimRef?: ITypeSymbol;
+	public arrayDimRef?: ITypeSymbol;
 
 	/**
 	 * Returns true if this property is declared as a static array type (false if it's is dynamic!).
@@ -114,33 +113,6 @@ export class UCPropertySymbol extends UCFieldSymbol {
 
 		this.type && this.type.index(document, context);
 		this.arrayDimRef && this.arrayDimRef.index(document, context);
-	}
-
-	public analyze(document: UCDocument, context: UCStructSymbol) {
-		this.type && this.type.analyze(document, context);
-
-		if (this.isFixedArray()) {
-			if (this.arrayDimRef) {
-				this.arrayDimRef.analyze(document, context);
-			}
-
-			const arraySize = this.getArrayDimSize();
-			if (!arraySize) {
-				document.nodes.push(new SemanticErrorRangeNode(this.arrayDimRange!, `Bad array size, try refer to a type that can be evaulated to an integer!`));
-			} else if (arraySize > 2048 || arraySize <= 1) {
-				document.nodes.push(new SemanticErrorRangeNode(this.arrayDimRange!, `Illegal array size, must be between 2-2048`));
-			}
-
-			const arrayType = this.type && this.type.getReference();
-			if (arrayType === PredefinedBool || arrayType === NativeArray) {
-				document.nodes.push(new SemanticErrorNode(this.type!, `Illegal array type '${this.type!.getTypeText()}'`));
-			}
-		}
-
-		if (this.isDynamicArray()) {
-			// TODO: check valid types, and also check if we are a static array!
-			// TODO: Should define a custom type class for arrays, so that we can analyze it right there.
-		}
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

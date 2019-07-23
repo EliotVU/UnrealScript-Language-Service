@@ -1,5 +1,5 @@
-import { Range } from 'vscode-languageserver-types';
-import { UCSymbol, UCSymbolReference, ITypeSymbol } from "../Symbols";
+import { Range, DiagnosticSeverity, Diagnostic } from 'vscode-languageserver-types';
+import { UCSymbol, UCSymbolReference } from "../Symbols";
 import { IExpression } from '../expressions';
 
 export interface IDiagnosticNode {
@@ -84,5 +84,36 @@ export class UnrecognizedFieldNode implements IDiagnosticNode {
 		return this.context
 			? `'${this.symbol.getId()}' Does not exist on type '${this.context.getQualifiedName()}'!`
 			: `Couldn't find '${this.symbol.getId()}'!`;
+	}
+}
+
+// TODO: Deprecate redundant node classes above this comment!
+
+interface IDiagnosticTemplate {
+	range: Range;
+	message: { text: string, code?: string, severity: DiagnosticSeverity | number };
+	args?: string[];
+}
+
+export class DiagnosticCollection {
+	private items: IDiagnosticTemplate[] = [];
+
+	add(template: IDiagnosticTemplate) {
+		this.items.push(template);
+	}
+
+	map(): Diagnostic[] {
+		return this.items.map(template => {
+			const diagnostic: Diagnostic = {
+				range: template.range,
+				message: template.args
+					? template.message.text.replace(/\{(\d)\}/g, (_match, index) => template.args![index])
+					: template.message.text,
+				severity: template.message.severity as DiagnosticSeverity,
+				code: template.message.code,
+				source: 'unrealscript'
+			};
+			return diagnostic;
+		});
 	}
 }

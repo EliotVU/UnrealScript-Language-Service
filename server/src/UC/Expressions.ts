@@ -1,7 +1,7 @@
 import { Position, Range } from 'vscode-languageserver';
 import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
-import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode, SemanticErrorRangeNode } from './diagnostics/diagnostics';
+import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode, SemanticErrorRangeNode } from './diagnostics/diagnostic';
 import { getEnumMember } from './indexer';
 import { intersectsWith, rangeFromBounds } from './helpers';
 import { UCDocument } from './document';
@@ -14,9 +14,13 @@ import {
 	UCMethodSymbol, UCClassSymbol,
 	SymbolsTable, UCEnumSymbol,
 	NativeArray, NativeClass, NativeEnum,
-	VectorTypeRef, VectMethodLike, RotatorTypeRef, RotMethodLike, RangeTypeRef, RngMethodLike,
+	VectorTypeRef, VectMethodLike,
+	RotatorTypeRef, RotMethodLike,
+	RangeTypeRef, RngMethodLike,
 	ITypeSymbol, TypeCastMap, UCTypeKind,
-	UCBinaryOperatorSymbol, UCPreOperatorSymbol, UCPostOperatorSymbol, UCDelegateSymbol
+	UCBinaryOperatorSymbol, UCPreOperatorSymbol,
+	UCPostOperatorSymbol, UCDelegateSymbol,
+	analyzeTypeSymbol
 } from './Symbols';
 
 export interface IExpression {
@@ -67,7 +71,7 @@ export abstract class UCExpression implements IExpression {
 
 	abstract getContainedSymbolAtPos(position: Position): ISymbol | undefined;
 	abstract index(document: UCDocument, context?: UCStructSymbol): void;
-	abstract analyze(document: UCDocument, context?: UCStructSymbol): void;
+	analyze(_document: UCDocument, _context?: UCStructSymbol): void {}
 
 	toString(): string {
 		return this.context
@@ -372,7 +376,8 @@ export class UCUnaryExpression extends UCExpression {
 		if (this.operator) {
 			const operatorSymbol = this.operator.getReference();
 			if (operatorSymbol && !(operatorSymbol instanceof UCPreOperatorSymbol) && !(operatorSymbol instanceof UCPostOperatorSymbol)) {
-				document.nodes.push(new SemanticErrorNode(this.operator, `'${operatorSymbol.getId()}' must be an unary operator!`));
+				// TODO: Filter out any non-unary operator symbols instead.
+				// document.nodes.push(new SemanticErrorNode(this.operator, `'${operatorSymbol.getId()}' must be an unary operator!`));
 			} else if (!operatorSymbol) {
 				document.nodes.push(new UnrecognizedFieldNode(this.operator, document.class));
 			}
@@ -655,7 +660,9 @@ export class UCSuperExpression extends UCExpression {
 
 	// TODO: verify class type by inheritance
 	analyze(document: UCDocument, context?: UCStructSymbol) {
-		this.classRef && this.classRef.analyze(document, context);
+		if (this.classRef) {
+			analyzeTypeSymbol(document, this.classRef);
+		}
 	}
 }
 
@@ -807,9 +814,6 @@ export abstract class UCStructLiteral extends UCExpression {
 		const symbol = context!.findSuperSymbol(this.structType.getId());
 		symbol && this.structType.setReference(symbol, document, undefined, undefined, this.getRange());
 	}
-
-	analyze(_document: UCDocument, _context?: UCStructSymbol): void {
-	}
 }
 
 export class UCDefaultStructLiteral extends UCExpression {
@@ -890,7 +894,10 @@ export class UCArrayCountLiteral extends UCLiteral {
 	// TODO: Validate that referred property is a valid static array!
 	analyze(document: UCDocument, context?: UCStructSymbol) {
 		super.analyze(document, context);
-		this.argumentRef && this.argumentRef.analyze(document, context!);
+
+		if (this.argumentRef) {
+			analyzeTypeSymbol(document, this.argumentRef);
+		}
 	}
 }
 
@@ -912,7 +919,9 @@ export class UCNameOfLiteral extends UCLiteral {
 
 	analyze(document: UCDocument, context?: UCStructSymbol) {
 		super.analyze(document, context);
-		this.argumentRef && this.argumentRef.analyze(document, context!);
+		if (this.argumentRef) {
+			analyzeTypeSymbol(document, this.argumentRef);
+		}
 	}
 }
 
@@ -940,7 +949,9 @@ export class UCSizeOfLiteral extends UCLiteral {
 
 	analyze(document: UCDocument, context?: UCStructSymbol) {
 		super.analyze(document, context);
-		this.argumentRef && this.argumentRef.analyze(document, context!);
+		if (this.argumentRef) {
+			analyzeTypeSymbol(document, this.argumentRef);
+		}
 	}
 }
 
@@ -968,6 +979,8 @@ export class UCMetaClassExpression extends UCParenthesizedExpression {
 	// TODO: verify class type by inheritance
 	analyze(document: UCDocument, context?: UCStructSymbol) {
 		super.analyze(document, context);
-		this.classRef && this.classRef.analyze(document, context);
+		if (this.classRef) {
+			analyzeTypeSymbol(document, this.classRef);
+		}
 	}
 }

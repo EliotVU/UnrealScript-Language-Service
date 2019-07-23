@@ -2,14 +2,14 @@ import { Position, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { intersectsWithRange } from '../helpers';
-import { UnrecognizedTypeNode, SemanticErrorNode } from '../diagnostics/diagnostics';
+import { SymbolWalker } from '../symbolWalker';
+import { UnrecognizedTypeNode } from '../diagnostics/diagnostic';
 
 import {
-	UCSymbol, UCSymbolReference,
-	UCStructSymbol, UCClassSymbol, UCStateSymbol, UCScriptStructSymbol,
-	UCFieldSymbol, UCEnumSymbol,
 	PackagesTable, SymbolsTable,
 	ISymbol, Identifier, IWithReference,
+	UCSymbol, UCSymbolReference,
+	UCStructSymbol, UCClassSymbol, UCFieldSymbol,
 	PredefinedByte, PredefinedFloat, PredefinedString,
 	PredefinedBool, PredefinedButton, PredefinedName,
 	PredefinedInt, PredefinedPointer, NativeClass
@@ -52,12 +52,19 @@ export enum UCTypeKind {
 	Error
 }
 
+// TODO: Deprecate this, but this is blocked by a lack of an analytical expression walker.
+export function analyzeTypeSymbol(document: UCDocument, type: ITypeSymbol) {
+	if (type.getReference()) {
+		return;
+	}
+	document.nodes.push(new UnrecognizedTypeNode(type));
+}
+
 export interface ITypeSymbol extends UCSymbol, IWithReference {
 	getTypeText(): string;
 	getTypeKind(): UCTypeKind;
 
 	index(document: UCDocument, context?: UCStructSymbol);
-	analyze(document: UCDocument, context?: UCStructSymbol);
 }
 
 /**
@@ -109,14 +116,9 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		this.type.index(document, context);
 	}
 
-	analyze(document: UCDocument, context: UCStructSymbol) {
-		if (this.left) {
-			this.left.analyze(document, context);
-			const leftContext = this.left.getReference();
-			context = leftContext as UCStructSymbol;
-		}
-
-		this.type.analyze(document, context);
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		this.left && this.left.accept(visitor);
+		return visitor.visitObjectType(this.type);
 	}
 }
 
@@ -241,6 +243,10 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		return this.reference instanceof UCFieldSymbol && this.reference.getTypeKind() || UCTypeKind.Error;
 	}
 
+	getValidTypeKind(): UCTypeKind | undefined {
+		return this.validTypeKind;
+	}
+
 	setValidTypeKind(kind: UCTypeKind) {
 		this.validTypeKind = kind;
 	}
@@ -294,46 +300,8 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		this.baseType && this.baseType.index(document, context);
 	}
 
-	analyze(document: UCDocument, context?: UCStructSymbol) {
-		if (this.baseType) {
-			this.baseType.analyze(document, context);
-		}
-
-		const symbol = this.getReference();
-		if (!symbol) {
-			document.nodes.push(new UnrecognizedTypeNode(this));
-			return;
-		}
-
-		switch (this.validTypeKind) {
-			case UCTypeKind.Class: {
-				if (!(symbol instanceof UCClassSymbol)) {
-					document.nodes.push(new SemanticErrorNode(this, `Expected a class!`));
-				}
-				break;
-			}
-
-			case UCTypeKind.State: {
-				if (!(symbol instanceof UCStateSymbol)) {
-					document.nodes.push(new SemanticErrorNode(this, `Expected a state!`));
-				}
-				break;
-			}
-
-			case UCTypeKind.Enum: {
-				if (!(symbol instanceof UCEnumSymbol)) {
-					document.nodes.push(new SemanticErrorNode(this, `Expected an enum!`));
-				}
-				break;
-			}
-
-			case UCTypeKind.Struct: {
-				if (!(symbol instanceof UCScriptStructSymbol)) {
-					document.nodes.push(new SemanticErrorNode(this, `Expected a struct!`));
-				}
-				break;
-			}
-		}
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitObjectType(this);
 	}
 }
 
@@ -341,16 +309,28 @@ export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Array;
 	}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitArrayType(this);
+	}
 }
 
 export class UCDelegateTypeSymbol extends UCObjectTypeSymbol {
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Delegate;
 	}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitDelegateType(this);
+	}
 }
 
 export class UCMapTypeSymbol extends UCObjectTypeSymbol {
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Error;
+	}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitMapType(this);
 	}
 }

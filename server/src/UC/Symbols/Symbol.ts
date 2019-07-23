@@ -70,15 +70,6 @@ export abstract class UCSymbol implements ISymbol {
 		return undefined;
 	}
 
-	getOuter<T extends ISymbol>(): ISymbol | undefined {
-		for (let outer = this.outer; outer; outer = outer.outer) {
-			if (<T>(outer)) {
-				return outer;
-			}
-		}
-		return undefined;
-	}
-
 	getCompletionSymbols(_document: UCDocument): ISymbol[] {
 		return [];
 	}
@@ -88,7 +79,6 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	index(_document: UCDocument, _context: UCStructSymbol) {}
-	analyze(_document: UCDocument, _context: UCStructSymbol) {}
 
 	getUri(): string {
 		return this.outer instanceof UCSymbol && this.outer.getUri() || '';

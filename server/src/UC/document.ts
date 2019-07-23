@@ -15,7 +15,8 @@ import { connection } from '../server';
 
 import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCSymbol } from './Symbols';
 
-import { IDiagnosticNode } from './diagnostics/diagnostics';
+import { IDiagnosticNode, DiagnosticCollection } from './diagnostics/diagnostic';
+import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
 import { IndexedReferencesMap } from './indexer';
 
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
@@ -117,21 +118,13 @@ export class UCDocument {
 	}
 
 	public analyze(): Diagnostic[] {
-		if (!this.class) {
-			return [];
-		}
-
-		// const start = performance.now();
-		this.class!.analyze(this, this.class);
-		// connection.console.info(this.fileName + ': analyzing time ' + (performance.now() - start));
-
-		const nodes = this.getNodes();
-		this.nodes = [];
-		return nodes;
+		const diagnostics = new DiagnosticCollection();
+		const analyzer = new DocumentAnalyzer(this, diagnostics);
+		return this.diagnosticsFromNodes(this.nodes).concat(diagnostics.map());
 	}
 
-	private getNodes() {
-		return this.nodes
+	private diagnosticsFromNodes(nodes: IDiagnosticNode[]) {
+		return nodes
 			.map(node => {
 				return Diagnostic.create(
 					node.getRange(),

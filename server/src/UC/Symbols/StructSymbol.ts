@@ -2,11 +2,15 @@ import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-
 
 import { intersectsWith } from '../helpers';
 import { UCDocument } from '../document';
-import { SymbolWalker } from '../symbolWalker';
 import { UCBlock } from '../statements';
 import { Name } from '../names';
 
-import { ISymbol, ISymbolContainer, UCFieldSymbol, UCPropertySymbol, UCSymbol, ITypeSymbol, UCMethodSymbol } from ".";
+import {
+	ISymbol, ISymbolContainer,
+	UCFieldSymbol, UCPropertySymbol,
+	UCMethodSymbol,
+	UCSymbol, ITypeSymbol
+} from ".";
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: ITypeSymbol;
@@ -147,21 +151,5 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 				}
 			}
 		}
-	}
-
-	analyze(document: UCDocument, context: UCStructSymbol) {
-		if (this.extendsType) {
-			this.extendsType.analyze(document, context);
-		}
-
-		for (let child = this.children; child; child = child.next) {
-			child.analyze(document, this);
-		}
-
-		if (this.block) this.block.analyze(document, this);
-	}
-
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
-		return visitor.visitStruct(this);
 	}
 }

@@ -40,6 +40,8 @@ export const NAME_ARRAY = toName('Array');
 export const NAME_CLASS = toName('Class');
 export const NAME_ENUM = toName('Enum');
 export const NAME_ENUMCOUNT = toName('EnumCount');
+export const NAME_STRUCT = toName('Struct');
+export const NAME_STATE = toName('State');
 export const NAME_PACKAGE = toName('Package');
 
 export const NAME_VECTOR = toName('Vector');

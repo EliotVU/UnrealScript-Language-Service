@@ -44,11 +44,6 @@ export class UCConstSymbol extends UCFieldSymbol {
 		this.expression && this.expression.index(document, context);
 	}
 
-	public analyze(document: UCDocument, context: UCStructSymbol) {
-		super.analyze(document, context);
-		this.expression && this.expression.analyze(document, context);
-	}
-
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitConst(this);
 	}

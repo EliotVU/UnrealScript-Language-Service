@@ -1,0 +1,31 @@
+{
+	"CLASS_NAME_0_MUST_MATCH_DOCUMENT_NAME_1": {
+		"text": "Class name '{0}' must be equal to its file name '{1}'.",
+		"code": "0",
+		"severity": 1
+	},
+
+	"ID_0_DOES_NOT_EXIST_ON_TYPE_1": {
+		"text": "'{0} Does not exist on type '{1}'.",
+		"code": "1",
+		"severity": 1
+	},
+
+	"COULDNT_FIND_0": {
+		"text": "Couldn't find '{0}'.",
+		"code": "2",
+		"severity": 1
+	},
+
+	"TYPE_0_NOT_FOUND": {
+		"text": "Type '{0}' not found.",
+		"code": "3",
+		"severity": 1
+	},
+
+	"TYPE_0_CANNOT_EXTEND_TYPE_OF_1": {
+		"text": "Type '{0}' cannot extend type of '{1}'.",
+		"code": "4",
+		"severity": 1
+	}
+}

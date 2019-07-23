@@ -33,7 +33,7 @@ import {
 	UCDelegateTypeSymbol, UCArrayTypeSymbol, UCMapTypeSymbol, UCClassSymbol, SymbolsTable
 } from './Symbols';
 
-import { SyntaxErrorNode } from './diagnostics/diagnostics';
+import { SyntaxErrorNode } from './diagnostics/diagnostic';
 
 import {
 	UCBlock, IStatement, UCExpressionStatement, UCLabeledStatement,

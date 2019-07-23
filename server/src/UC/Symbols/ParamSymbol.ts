@@ -3,8 +3,6 @@ import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-
 import { SymbolWalker } from '../symbolWalker';
 import { IExpression } from '../expressions';
 import { UCDocument } from '../document';
-import { config, UCGeneration } from '../indexer';
-import { SyntaxErrorNode, SemanticErrorNode } from '../diagnostics/diagnostics';
 import { UCPropertySymbol, UCStructSymbol } from '.';
 
 export enum ParamModifiers {
@@ -76,20 +74,6 @@ export class UCParamSymbol extends UCPropertySymbol {
 	public index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
 		this.defaultExpression && this.defaultExpression.index(document, context);
-	}
-
-	public analyze(document: UCDocument, context: UCStructSymbol) {
-		super.analyze(document, context);
-		if (this.defaultExpression) {
-			this.defaultExpression.analyze(document, context);
-			if (config.generation !== UCGeneration.UC3) {
-				document.nodes.push(new SyntaxErrorNode(this.getRange(), `Assigning a default value to a parameter, is only available as of UC3+!`));
-			} else {
-				if (!this.isOptional()) {
-					document.nodes.push(new SemanticErrorNode(this, `To assign a default value to a parameter, it must be marked as 'optional'!`));
-				}
-			}
-		}
 	}
 
 	protected buildModifiers(): string[] {
