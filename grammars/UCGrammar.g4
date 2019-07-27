@@ -955,9 +955,18 @@ structDefaultPropertiesBlock
 		CLOSE_BRACE
 	;
 
+// TODO: Perhaps do what we do in the directive rule, just skip until we hit a new line or a "|".
 defaultStatement
 	: objectDecl
 	| defaultAssignmentExpression
+
+	// TODO: Add a warning, from a technical point of view,
+	// -- the UC compiler just skips any character till it hits a newline character.
+	| SEMICOLON
+
+	// "command chaining", e.g. "IntA=1|IntB=2" is valid code,
+	// -- but if the | were a space, the second variable will be ignored (by the compiler).
+	| BITWISE_OR
 	;
 
 defaultExpression
