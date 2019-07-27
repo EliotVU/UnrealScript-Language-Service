@@ -44,6 +44,12 @@ export class UCConstSymbol extends UCFieldSymbol {
 		this.expression && this.expression.index(document, context);
 	}
 
+	// Analyze here is an exceptional use-case,
+	// - because a const can be captured as a "statement", and will therefore use the old analyze concept.
+	// TODO: Deprecate this when expressions use the visitor concept.
+	public analyze(document: UCDocument, context: UCStructSymbol) {
+	}
+
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitConst(this);
 	}
