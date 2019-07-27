@@ -18,9 +18,9 @@ import {
 	RotatorTypeRef, RotMethodLike,
 	RangeTypeRef, RngMethodLike,
 	ITypeSymbol, TypeCastMap, UCTypeKind,
-	UCBinaryOperatorSymbol, UCPreOperatorSymbol,
-	UCPostOperatorSymbol, UCDelegateSymbol,
-	analyzeTypeSymbol
+	UCDelegateSymbol,
+	analyzeTypeSymbol,
+	UCStateSymbol
 } from './Symbols';
 
 export interface IExpression {
@@ -335,14 +335,56 @@ export class UCConditionalExpression extends UCExpression {
 	}
 }
 
-function findOperatorSymbol(id: Name, scope: UCStructSymbol): UCSymbol | undefined {
-	// TODO: What about UCState? Can states properly declare operators?
-	const classContext = scope.outer;
-	// Because we only need to match operators, we can directly skip @context and look in the upper class.
-	return classContext instanceof UCStructSymbol ? classContext.findSuperSymbol(id) : undefined;
+// TODO: What about UCState? Can states properly declare operators?
+function findOperatorSymbol(id: Name, context: UCStructSymbol): UCSymbol | undefined {
+	let scope = context.outer;
+	if (scope instanceof UCStateSymbol) {
+		scope = scope.outer;
+	}
+	for (; scope instanceof UCStructSymbol; scope = scope.super) {
+		for (var child = scope.children; child; child = child.next) {
+			if (child.getId() === id) {
+				if (child instanceof UCMethodSymbol && child.isOperator()) {
+					return child;
+				}
+			}
+		}
+	}
 }
 
-export class UCUnaryExpression extends UCExpression {
+function findPreOperatorSymbol(id: Name, context: UCStructSymbol): UCSymbol | undefined {
+	let scope = context.outer;
+	if (scope instanceof UCStateSymbol) {
+		scope = scope.outer;
+	}
+	for (; scope instanceof UCStructSymbol; scope = scope.super) {
+		for (var child = scope.children; child; child = child.next) {
+			if (child.getId() === id) {
+				if (child instanceof UCMethodSymbol && child.isPreOperator()) {
+					return child;
+				}
+			}
+		}
+	}
+}
+
+function findPostOperatorSymbol(id: Name, context: UCStructSymbol): UCSymbol | undefined {
+	let scope = context.outer;
+	if (scope instanceof UCStateSymbol) {
+		scope = scope.outer;
+	}
+	for (; scope instanceof UCStructSymbol; scope = scope.super) {
+		for (var child = scope.children; child; child = child.next) {
+			if (child.getId() === id) {
+				if (child instanceof UCMethodSymbol && child.isPostOperator()) {
+					return child;
+				}
+			}
+		}
+	}
+}
+
+abstract class UCBaseOperatorExpression extends UCExpression {
 	public expression: IExpression;
 	public operator?: UCSymbolReference;
 
@@ -362,31 +404,57 @@ export class UCUnaryExpression extends UCExpression {
 		return this.expression && this.expression.getSymbolAtPos(position);
 	}
 
-	index(document: UCDocument, context?: UCStructSymbol) {
-		if (this.operator) {
-			const operatorSymbol = findOperatorSymbol(this.operator.getId(), context!);
-			operatorSymbol && this.operator.setReference(operatorSymbol, document);
-		}
+	index(document: UCDocument, context: UCStructSymbol) {
 		if (this.expression) this.expression.index(document, context);
 	}
 
 	analyze(document: UCDocument, context?: UCStructSymbol) {
 		if (this.expression) this.expression.analyze(document, context);
+	}
+}
 
+export class UCPostOperatorExpression extends UCBaseOperatorExpression {
+	index(document: UCDocument, context: UCStructSymbol) {
+		super.index(document, context);
+		if (this.operator) {
+			const operatorSymbol = findPostOperatorSymbol(this.operator.getId(), context);
+			operatorSymbol && this.operator.setReference(operatorSymbol, document);
+		}
+	}
+
+	analyze(document: UCDocument, context?: UCStructSymbol) {
+		super.analyze(document, context);
 		if (this.operator) {
 			const operatorSymbol = this.operator.getReference();
-			if (operatorSymbol && !(operatorSymbol instanceof UCPreOperatorSymbol) && !(operatorSymbol instanceof UCPostOperatorSymbol)) {
-				// TODO: Filter out any non-unary operator symbols instead.
-				// document.nodes.push(new SemanticErrorNode(this.operator, `'${operatorSymbol.getId()}' must be an unary operator!`));
-			} else if (!operatorSymbol) {
-				document.nodes.push(new UnrecognizedFieldNode(this.operator, document.class));
+			if (!operatorSymbol) {
+				document.nodes.push(new SemanticErrorNode(this.operator, `Invalid postoperator '${this.operator.getId()}'.`));
+			}
+		}
+	}
+}
+
+export class UCPreOperatorExpression extends UCBaseOperatorExpression {
+	index(document: UCDocument, context: UCStructSymbol) {
+		super.index(document, context);
+		if (this.operator) {
+			const operatorSymbol = findPreOperatorSymbol(this.operator.getId(), context);
+			operatorSymbol && this.operator.setReference(operatorSymbol, document);
+		}
+	}
+
+	analyze(document: UCDocument, context?: UCStructSymbol) {
+		super.analyze(document, context);
+		if (this.operator) {
+			const operatorSymbol = this.operator.getReference();
+			if (!operatorSymbol) {
+				document.nodes.push(new SemanticErrorNode(this.operator, `Invalid preoperator '${this.operator.getId()}'.`));
 			}
 		}
 	}
 }
 
 // TODO: Index and match overloaded operators.
-export class UCBinaryExpression extends UCExpression {
+export class UCBinaryOperatorExpression extends UCExpression {
 	public left?: IExpression;
 	public operator?: UCSymbolReference;
 	public right?: IExpression;
@@ -439,16 +507,14 @@ export class UCBinaryExpression extends UCExpression {
 
 		if (this.operator) {
 			const operatorSymbol = this.operator.getReference();
-			if (operatorSymbol && !(operatorSymbol instanceof UCBinaryOperatorSymbol)) {
-				document.nodes.push(new SemanticErrorNode(this.operator, `'${operatorSymbol.getId()}' must be a binary operator!`));
-			} else if (!operatorSymbol) {
-				document.nodes.push(new UnrecognizedFieldNode(this.operator, document.class));
+			if (!operatorSymbol) {
+				document.nodes.push(new SemanticErrorNode(this.operator, `Invalid operator '${this.operator.getId()}'.`));
 			}
 		}
 	}
 }
 
-export class UCAssignmentExpression extends UCBinaryExpression {
+export class UCAssignmentExpression extends UCBinaryOperatorExpression {
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Error;
 	}
@@ -502,7 +568,11 @@ export class UCAssignmentExpression extends UCBinaryExpression {
 	}
 }
 
-export class UCDefaultAssignmentExpression extends UCBinaryExpression {
+export class UCAssignmentOperatorExpression extends UCAssignmentExpression {
+
+}
+
+export class UCDefaultAssignmentExpression extends UCBinaryOperatorExpression {
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Error;
 	}

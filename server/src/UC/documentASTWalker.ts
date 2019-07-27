@@ -47,7 +47,7 @@ import { setEnumMember } from './indexer';
 import { UCDocument } from './document';
 import {
 	UCAssignmentExpression, IExpression,
-	UCConditionalExpression, UCBinaryExpression, UCUnaryExpression,
+	UCConditionalExpression, UCBinaryOperatorExpression, UCPreOperatorExpression,
 	UCParenthesizedExpression,
 	UCPropertyAccessExpression, UCCallExpression, UCElementAccessExpression,
 	UCNewExpression, UCMetaClassExpression, UCSuperExpression,
@@ -56,7 +56,8 @@ import {
 	UCNoneLiteral, UCStringLiteral, UCNameLiteral,
 	UCBoolLiteral, UCFloatLiteral, UCIntLiteral, UCObjectLiteral,
 	UCVectLiteral, UCRotLiteral, UCRngLiteral,
-	UCNameOfLiteral, UCArrayCountExpression, UCSizeOfLiteral, UCArrayCountLiteral, UCDefaultAssignmentExpression, UCDefaultStructLiteral
+	UCNameOfLiteral, UCArrayCountExpression, UCSizeOfLiteral, UCArrayCountLiteral,
+	UCDefaultAssignmentExpression, UCDefaultStructLiteral, UCAssignmentOperatorExpression, UCPostOperatorExpression
 } from './expressions';
 
 function createIdentifierFrom(ctx: ParserRuleContext) {
@@ -960,7 +961,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitFunctionName(ctx: UCParser.FunctionNameContext): Identifier {
-		const opNode = ctx.operator();
+		const opNode = ctx.operatorName();
 		if (opNode) {
 			const identifier: Identifier = {
 				name: toName(opNode.text),
@@ -1235,13 +1236,31 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		return expression;
 	}
 
+	visitAssignmentOperatorExpression(ctx: UCParser.AssignmentOperatorExpressionContext) {
+		const expression = new UCAssignmentOperatorExpression();
+		expression.context = ctx;
+
+		const primaryNode = ctx.primaryExpression();
+		expression.left = primaryNode.accept<any>(this);
+		expression.left!.outer = expression;
+
+		expression.operator = new UCSymbolReference(createIdentifierFrom(ctx.assignmentOperator()));
+
+		const exprNode = ctx.expression();
+		if (exprNode) {
+			expression.right = exprNode.accept(this);
+			expression.right!.outer = expression;
+		}
+		return expression;
+	}
+
 	visitConditionalExpression(ctx: UCParser.ConditionalExpressionContext) {
 		const expression = new UCConditionalExpression();
 		expression.context = ctx;
 
 		const conditionNode = ctx.unaryExpression();
 		if (conditionNode) {
-			expression.condition = conditionNode.accept(this);
+			expression.condition = conditionNode.accept<any>(this);
 			expression.condition.outer = expression;
 		}
 
@@ -1259,18 +1278,20 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		return expression;
 	}
 
-	visitBinaryExpression(ctx: UCParser.BinaryExpressionContext) {
-		const expression = new UCBinaryExpression();
+	visitBinaryOperatorExpression(ctx: UCParser.BinaryOperatorExpressionContext) {
+		const expression = new UCBinaryOperatorExpression();
 		expression.context = ctx;
 
-		const leftNode = ctx.unaryExpression();
-		expression.left = leftNode.accept(this);
-		expression.left!.outer = expression;
+		const leftNode = ctx.unaryExpression(0);
+		if (leftNode) {
+			expression.left = leftNode.accept<any>(this);
+			expression.left!.outer = expression;
+		}
 
-		const operatorNode = ctx.functionName();
+		const operatorNode = ctx.binaryOperator();
 		expression.operator = new UCSymbolReference(createIdentifierFrom(operatorNode));
 
-		const rightNode = ctx.expression();
+		const rightNode = ctx.unaryExpression(1);
 		if (rightNode) {
 			expression.right = rightNode.accept<any>(this);
 			expression.right!.outer = expression;
@@ -1278,22 +1299,35 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		return expression;
 	}
 
-	visitUnaryExpression(ctx: UCParser.UnaryExpressionContext) {
-		const operatorNode = ctx.unaryOperator();
-		if (operatorNode) {
-			const expression = new UCUnaryExpression();
-			expression.context = ctx;
-
-			const primaryNode = ctx.primaryExpression();
-			expression.expression = primaryNode.accept<any>(this);
-			expression.expression.outer = expression;
-			expression.operator = new UCSymbolReference(createIdentifierFrom(operatorNode));
-			return expression;
-		}
-
+	visitSingleExpression(ctx: UCParser.SingleExpressionContext) {
 		const primaryNode = ctx.primaryExpression();
 		const expression = primaryNode.accept<any>(this);
-		expression.outer = expression;
+		return expression;
+	}
+
+	visitPostOperatorExpression(ctx: UCParser.PostOperatorExpressionContext) {
+		const expression = new UCPostOperatorExpression();
+		expression.context = ctx;
+
+		const primaryNode = ctx.unaryExpression();
+		expression.expression = primaryNode.accept<any>(this);
+		expression.expression.outer = expression;
+
+		const operatorNode = ctx.postOperator();
+		expression.operator = new UCSymbolReference(createIdentifierFrom(operatorNode));
+		return expression;
+	}
+
+	visitPreOperatorExpression(ctx: UCParser.PreOperatorExpressionContext) {
+		const expression = new UCPreOperatorExpression();
+		expression.context = ctx;
+
+		const primaryNode = ctx.unaryExpression();
+		expression.expression = primaryNode.accept<any>(this);
+		expression.expression.outer = expression;
+
+		const operatorNode = ctx.preOperator();
+		expression.operator = new UCSymbolReference(createIdentifierFrom(operatorNode));
 		return expression;
 	}
 
@@ -1475,18 +1509,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 	visitClassPropertyAccessSpecifier(ctx: UCParser.ClassPropertyAccessSpecifierContext) {
 		const expression = new UCPredefinedPropertyAccessExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
-		expression.context = ctx;
-		return expression;
-	}
-
-	visitOperator(ctx: UCParser.OperatorContext): UCMemberExpression {
-		const expression = new UCMemberExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
-		expression.context = ctx;
-		return expression;
-	}
-
-	visitUnaryOperator(ctx: UCParser.UnaryOperatorContext) {
-		const expression = new UCMemberExpression(new UCSymbolReference(createIdentifierFrom(ctx)));
 		expression.context = ctx;
 		return expression;
 	}

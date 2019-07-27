@@ -92,7 +92,7 @@ BITWISE_OR: '|';
 STAR: '*';
 CARET: '^';
 DIV: '/';
-PERCENT: '%';
+MODULUS: '%';
 TILDE: '~';
 
 LT: '<';

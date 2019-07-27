@@ -2,130 +2,6 @@ grammar UCGrammar;
 
 import UCLexer;
 
-// kwDEFAULT: 'default';
-// kwGLOBAL: 'global';
-// kwCLASS: 'class';
-// kwINTERFACE: 'interface';
-// kwWITHIN: 'within';
-// kwCONST: 'const';
-// kwENUM: 'enum';
-// kwSTRUCT: 'struct';
-// kwVAR: 'var';
-// kwLOCAL: 'local';
-// kwREPLICATION: 'replication';
-// kwSTATE: 'state';
-// kwMAP: 'map';
-// kwDEFAULTPROPERTIES: 'defaultproperties';
-// kwSTRUCTDEFAULTPROPERTIES: 'structdefaultproperties';
-// kwFOR: 'for';
-// kwFOREACH: 'foreach';
-// kwRETURN: 'return';
-// kwBREAK: 'break';
-// kwCONTINUE: 'continue';
-// kwSTOP: 'stop';
-// kwCASE: 'case';
-// kwSWITCH: 'switch';
-// kwUNTIL: 'until';
-// kwDO: 'do';
-// kwWHILE: 'while';
-// kwELSE: 'else';
-// kwIF: 'if';
-// kwIGNORES: 'ignores';
-// kwUNRELIABLE: 'unreliable';
-// kwRELIABLE: 'reliable';
-// kwCPPTEXT: 'cpptext';
-// kwSTRUCTCPPTEXT: 'structcpptext';
-// kwCPPSTRUCT: 'cppstruct';
-// kwARRAY: 'array';
-// kwBYTE: 'byte';
-// kwINT: 'int';
-// kwFLOAT: 'float';
-// kwSTRING: 'string';
-// kwBUTTON: 'button';
-// kwBOOL: 'bool';
-// kwNAME: 'name';
-// kwTRUE: 'true';
-// kwFALSE: 'false';
-// kwNONE: 'none';
-// kwEXTENDS: 'extends' | 'expands';
-// kwPUBLIC: 'public';
-// kwPROTECTED: 'protected';
-// kwPROTECTEDWRITE: 'protectedwrite';
-// kwPRIVATE: 'private';
-// kwPRIVATEWRITE: 'privatewrite';
-// kwLOCALIZED: 'localized';
-// kwOUT: 'out';
-// kwOPTIONAL: 'optional';
-// kwINIT: 'init';
-// kwSKIP: 'skip';
-// kwCOERCE: 'coerce';
-// kwFINAL: 'final';
-// kwLATENT: 'latent';
-// kwSINGULAR: 'singular';
-// kwSTATIC: 'static';
-// kwEXEC: 'exec';
-// kwITERATOR: 'iterator';
-// kwSIMULATED: 'simulated';
-// kwAUTO: 'auto';
-// kwNOEXPORT: 'noexport';
-// kwNOEXPORTHEADER: 'noexportheader';
-// kwEDITCONST: 'editconst';
-// kwEDFINDABLE: 'edfindable';
-// kwEDITINLINE: 'editinline';
-// kwEDITINLINENOTIFY: 'editinlinenotify';
-// kwEDITINLINEUSE: 'editinlineuse';
-// kwEDITHIDE: 'edithide';
-// kwEDITCONSTARRAY: 'editconstarray';
-// kwEDITFIXEDSIZE: 'editfixedsize';
-// kwEDITORONLY: 'editoronly';
-// kwEDITORTEXTBOX: 'editortextbox';
-// kwNOCLEAR: 'noclear';
-// kwNOIMPORT: 'noimport';
-// kwNONTRANSACTIONAL: 'nontransactional';
-// kwSERIALIZETEXT: 'serializetext';
-// kwCONFIG: 'config';
-// kwGLOBALCONFIG: 'globalconfig';
-// kwNATIVE: 'native';
-// kwINTRINSIC: 'intrinsic';
-// kwEXPORT: 'export';
-// kwLONG: 'long';
-// kwTRANSIENT: 'transient';
-// kwCACHE: 'cache';
-// kwINTERP: 'interp';
-// kwREPRETRY: 'repretry';
-// kwREPNOTIFY: 'repnotify';
-// kwNOTFORCONSOLE: 'notforconsole';
-// kwARCHETYPE: 'archetype';
-// kwCROSSLEVELACTIVE: 'crosslevelactive';
-// kwCROSSLEVELPASSIVE: 'crosslevelpassive';
-// kwALLOWABSTRACT: 'allowabstract';
-// kwAUTOMATED: 'automated';
-// kwTRAVEL: 'travel';
-// kwInput: 'input';
-// kwINSTANCED: 'instanced';
-// kwDATABINDING: 'databinding';
-// kwDUPLICATETRANSIENT: 'duplicatetransient';
-// kwPARSECONFIG: 'parseconfig';
-// kwCLASSREDIRECT: 'classredirect';
-// kwDEPRECATED: 'deprecated';
-// kwSTRICTCONFIG: 'strictconfig';
-// kwATOMIC: 'atomic';
-// kwATOMICWHENCOOKED: 'atomicwhencooked';
-// kwIMMUTABLE: 'immutable';
-// kwIMMUTABLEWHENCOOKED: 'immutablewhencooked';
-// kwVIRTUAL: 'virtual';
-// kwSERVER: 'server';
-// kwCLIENT: 'client';
-// kwDLLIMPORT: 'dllimport';
-// kwDEMORECORDING: 'demorecording';
-
-// kwGOTO: 'goto';
-// kwASSERT: 'assert';
-
-// kwBEGIN: 'begin';
-// kwOBJECT: 'object';
-// kwEND: 'end';
-
 // Class modifier keywords have been commented out, because we are not using them for parsing.
 identifier
 	: ID
@@ -748,7 +624,7 @@ functionSpecifier
 	| ('private' exportBlockText?)
 	;
 
-functionName: identifier | operator;
+functionName: identifier | operatorName;
 
 parameters: paramDecl (COMMA paramDecl)*;
 paramDecl: paramModifier* typeDecl variable (ASSIGNMENT expression)?;
@@ -804,7 +680,6 @@ codeBlockOptional
 
 statement
 	: SEMICOLON
-
 	| ifStatement
 	| forStatement
 	| foreachStatement
@@ -812,24 +687,22 @@ statement
 	| doStatement
 	| switchStatement
 
-	| assertStatement SEMICOLON
-	| returnStatement SEMICOLON
-	| gotoStatement SEMICOLON
-
-	// These will require post-parsing validation
-	| breakStatement SEMICOLON // in for loops only
-	| continueStatement SEMICOLON // in for loops only
-	| stopStatement SEMICOLON // in states only
+	| breakStatement
+	| continueStatement
+	| returnStatement
+	| gotoStatement
 
 	| labeledStatement
+	| assertStatement
+	| stopStatement
+	| constDecl
 
 	// We must check for expressions after ALL statements so that we don't end up capturing statement keywords as identifiers.
-	| expressionStatement SEMICOLON
-	| constDecl
+	| expressionStatement
 	| directive
 	;
 
-expressionStatement: expressionWithAssignment;
+expressionStatement: expressionWithAssignment SEMICOLON;
 
 ifStatement
 	: 'if' (OPEN_PARENS expression CLOSE_PARENS)
@@ -875,17 +748,17 @@ defaultClause
 		statement*
 	;
 
-returnStatement: 'return' expression?;
-breakStatement: 'break';
-continueStatement: 'continue';
-stopStatement: 'stop';
+returnStatement: 'return' expression? SEMICOLON;
+breakStatement: 'break' SEMICOLON;
+continueStatement: 'continue' SEMICOLON;
+stopStatement: 'stop' SEMICOLON;
 labeledStatement: identifier COLON;
-gotoStatement: 'goto' expression;
-assertStatement: 'assert' (OPEN_PARENS expression CLOSE_PARENS);
+gotoStatement: 'goto' expression SEMICOLON;
+assertStatement: 'assert' (OPEN_PARENS expression CLOSE_PARENS) SEMICOLON;
 
+// Valid assignment operators (that can be overloaded)
 assignmentOperator
-	: ASSIGNMENT
-	| ASSIGNMENT_INCR
+	: ASSIGNMENT_INCR
 	| ASSIGNMENT_DECR
 	| ASSIGNMENT_AT
 	| ASSIGNMENT_DOLLAR
@@ -896,41 +769,86 @@ assignmentOperator
 	| ASSIGNMENT_DIV
 	;
 
-unaryOperator
-	: SHARP
-	| BANG
-	| AMP
-	| MINUS
-	| PLUS
-	| PERCENT
-	| TILDE
-	| SHARP
-	| DOLLAR
-	| AT
+// Valid pre operators
+preOperator
+	: INCR
 	| DECR
-	| INCR
+	| PLUS
+	| MINUS
+	| TILDE
+	| BANG
+	| AT
+	| DOLLAR
+	| AMP
+	| MODULUS
+	| SHARP
+	| identifier
 	;
 
-operator
-	: DOLLAR
+// Valid post operators
+postOperator
+	: INCR
+	| DECR
+	| TILDE
+	| BANG
+	| AT
+	| DOLLAR
+	| AMP
+	| MODULUS
+	| SHARP
+	| identifier
+	;
+
+// Valid operators
+binaryOperator
+	: EXP
+	| STAR
+	| DIV
+	| MODULUS
+	| PLUS
+	| MINUS
+	| LSHIFT
+	| RSHIFT
+	| SHIFT
+	| LT
+	| GT
+	| LEQ
+	| GEQ
+	| EQ
+	| NEQ
+	| IEQ
+	| MEQ
+	| AMP
+	| CARET
+	| BITWISE_OR
+	| AND
+	| OR
+	| AT
+	| DOLLAR
+	| identifier
+	;
+
+// All valid operator names (for declarations)
+operatorName
+	: STAR
+	| DIV
+	| MODULUS
+	| PLUS
+	| MINUS
+	| LSHIFT
+	| RSHIFT
+	| SHIFT
+	| DOLLAR
 	| AT
 	| SHARP
 	| BANG
 	| AMP
 	| BITWISE_OR
 	| CARET
-	| STAR
-	| MINUS
-	| PLUS
-	| DIV
-	| PERCENT
 	| INCR
 	| DECR
 	| TILDE
 	| EXP
-	| RSHIFT
-	| LSHIFT
-	| SHIFT
 	| LT
 	| GT
 	| OR
@@ -953,37 +871,37 @@ operator
 	;
 
 expressionWithAssignment
-	: newExpression
-	| conditionalExpression
+	: conditionalExpression
 	| assignmentExpression
-	| binaryExpression
+	| assignmentOperatorExpression
 	| unaryExpression
 	;
 
 expression
-	: newExpression
-	| conditionalExpression
-	| binaryExpression
+	: conditionalExpression
 	| unaryExpression
 	;
 
 // Inclusive template argument (will be parsed as a function call)
-newExpression
-	: 'new' (OPEN_PARENS arguments? CLOSE_PARENS)? primaryExpression
-	;
 
 assignmentExpression
+	: primaryExpression ASSIGNMENT expression
+	;
+
+assignmentOperatorExpression
 	: primaryExpression assignmentOperator expression
 	;
 
+// Messy... but due the nature of UnrealScript, our metaClass cast can be misstaken for a binaryOperatorExpression, so we have to preceed this check,
+// - leading to even more issues,
+// - UNLESS we add the binary expression within an unary expression.
+// i.e. in UC, any pre/post or binary operator can be declared and used as an identifier, thus "class" could be a preoperator etc.
+// FIXME: Think of a fitting name, now that this rule includes a binaryExpression structure :/
 unaryExpression
-	: primaryExpression
-	| primaryExpression unaryOperator
-	| unaryOperator primaryExpression
-	;
-
-binaryExpression
-	: unaryExpression functionName expression
+	: unaryExpression binaryOperator unaryExpression 						#binaryOperatorExpression
+	| unaryExpression postOperator											#postOperatorExpression
+	| primaryExpression														#singleExpression
+	| preOperator unaryExpression											#preOperatorExpression
 	;
 
 conditionalExpression
@@ -991,9 +909,13 @@ conditionalExpression
 	;
 
 primaryExpression
-	: literal 																			#literalExpression
-	| (OPEN_PARENS expression CLOSE_PARENS) 											#parenthesizedExpression
+	: primaryExpression '.' classPropertyAccessSpecifier '.' identifier					#propertyAccessExpression
+	| primaryExpression '.' identifier													#propertyAccessExpression
+	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 							#callExpression
+	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 						#elementAccessExpression
+	| literal 																			#literalExpression
 	| 'class' (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)					#metaClassExpression
+	| 'new' (OPEN_PARENS arguments? CLOSE_PARENS)? primaryExpression					#newExpression
 	| 'arraycount' 	(OPEN_PARENS primaryExpression CLOSE_PARENS)						#arrayCountExpression
 	| 'super' 		(OPEN_PARENS identifier CLOSE_PARENS)?								#superExpression
 	| 'self'																			#selfReferenceExpression
@@ -1002,10 +924,7 @@ primaryExpression
 	| 'global'																			#globalAccessExpression
 	// Note any keyword must preceed identifier!
 	| identifier 																		#memberExpression
-	| primaryExpression DOT classPropertyAccessSpecifier DOT identifier					#propertyAccessExpression
-	| primaryExpression DOT identifier													#propertyAccessExpression
-	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 							#callExpression
-	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 						#elementAccessExpression
+	| (OPEN_PARENS expression CLOSE_PARENS) 											#parenthesizedExpression
 	;
 
 classPropertyAccessSpecifier

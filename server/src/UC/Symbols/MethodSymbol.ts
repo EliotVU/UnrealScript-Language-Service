@@ -48,6 +48,22 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return (this.specifiers & MethodSpecifiers.Final) !== 0 || this.isStatic();
 	}
 
+	/**
+	 * Returns true if this method is marked as a (binary) operator.
+	 * Beware that this returns false even when the method is a preoperator!
+	 */
+	isOperator() {
+		return (this.specifiers & MethodSpecifiers.Operator) !== 0;
+	}
+
+	isPreOperator() {
+		return (this.specifiers & MethodSpecifiers.PreOperator) !== 0;
+	}
+
+	isPostOperator() {
+		return (this.specifiers & MethodSpecifiers.PostOperator) !== 0;
+	}
+
 	getKind(): SymbolKind {
 		return SymbolKind.Function;
 	}
