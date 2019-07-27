@@ -5,7 +5,7 @@
 			"type": "antlr-debug",
             "request": "launch",
             "name": "Debug UnrealScript Grammar",
-			"input": "grammars/test.uc",
+			"input": "grammars/examples/Classes/test.uc",
 			"grammar": "grammars/UCGrammar.g4",
             "startRule": "program",
 			"visualParseTree": true
