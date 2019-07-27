@@ -1,7 +1,7 @@
 import { Position, Range } from 'vscode-languageserver';
 import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
-import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode, SemanticErrorRangeNode } from './diagnostics/diagnostic';
+import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode } from './diagnostics/diagnostic';
 import { getEnumMember } from './indexer';
 import { intersectsWith, rangeFromBounds } from './helpers';
 import { UCDocument } from './document';
@@ -11,23 +11,21 @@ import {
 	ISymbolContext, ISymbol, UCSymbol,
 	UCObjectTypeSymbol, UCStructSymbol,
 	UCPropertySymbol, UCSymbolReference,
-	UCMethodSymbol, UCClassSymbol,
-	SymbolsTable, UCEnumSymbol,
+	UCMethodSymbol, UCClassSymbol, UCEnumSymbol,
 	NativeArray, NativeClass, NativeEnum,
 	VectorTypeRef, VectMethodLike,
 	RotatorTypeRef, RotMethodLike,
 	RangeTypeRef, RngMethodLike,
 	ITypeSymbol, TypeCastMap, UCTypeKind,
-	UCDelegateSymbol,
-	analyzeTypeSymbol,
-	UCStateSymbol
+	UCDelegateSymbol, UCStateSymbol,
+	analyzeTypeSymbol, ClassesTable
 } from './Symbols';
 
 export interface IExpression {
 	outer: IExpression;
 	context: ParserRuleContext;
 
-	getRange(): Range | undefined;
+	getRange(): Range;
 
 	getMemberSymbol(): ISymbol | undefined;
 	getTypeKind(): UCTypeKind;
@@ -534,11 +532,11 @@ export class UCAssignmentExpression extends UCBinaryOperatorExpression {
 			if (letSymbol instanceof UCPropertySymbol) {
 				// Properties with a defined array dimension cannot be assigned!
 				if (letSymbol.isFixedArray()) {
-					document.nodes.push(new SemanticErrorRangeNode(letSymbol.getRange(), "Cannot assign to a static array variable."));
+					document.nodes.push(new SemanticErrorNode(letSymbol, "Cannot assign to a static array variable."));
 				}
 
 				if (letSymbol.isConst()) {
-					document.nodes.push(new SemanticErrorRangeNode(letSymbol.getRange(), "Cannot assign to a constant variable."));
+					document.nodes.push(new SemanticErrorNode(letSymbol, "Cannot assign to a constant variable."));
 				}
 			} else if (letSymbol instanceof UCMethodSymbol) {
 				// TODO: Distinguish a delegate from a regular method!
@@ -623,7 +621,7 @@ export class UCMemberExpression extends UCExpression {
 		if (hasArguments) {
 			// We must match a predefined type over any class or scope symbol!
 			// FIXME: What about casting a byte to an ENUM type?
-			let type: ISymbol | undefined = TypeCastMap.get(id) || SymbolsTable.findSymbol(id, true);
+			let type: ISymbol | undefined = TypeCastMap.get(id) || ClassesTable.findSymbol(id, true);
 			if (type) {
 				this.symbolRef.setReference(type, document);
 				return;
@@ -804,6 +802,16 @@ export class UCIntLiteral extends UCLiteral {
 	}
 }
 
+export class UCByteLiteral extends UCLiteral {
+	getValue(): number {
+		return Number.parseInt(this.context.text);
+	}
+
+	getTypeKind(): UCTypeKind {
+		return UCTypeKind.Byte;
+	}
+}
+
 export class UCObjectLiteral extends UCExpression {
 	public castRef: UCSymbolReference;
 	public objectRef?: ITypeSymbol;
@@ -829,7 +837,7 @@ export class UCObjectLiteral extends UCExpression {
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		const castSymbol = SymbolsTable.findSymbol(this.castRef.getId(), true);
+		const castSymbol = ClassesTable.findSymbol(this.castRef.getId(), true);
 		if (castSymbol) {
 			this.castRef.setReference(castSymbol, document);
 		}

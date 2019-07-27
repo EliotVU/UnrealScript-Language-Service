@@ -45,19 +45,21 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 	}
 
 	addSymbol(symbol: ISymbol): Name {
-		const key = this.outer
-			? this.outer.addSymbol(symbol)
-			: symbol.getId();
-
-		this.symbols.set(key, symbol);
 		symbol.outer = this;
+
+		const key = symbol.getId();
+		this.symbols.set(key, symbol);
 
 		// Classes are top level types, need to be added to the symbols table so they can be linked to from anywhere.
 		if (symbol instanceof UCClassSymbol) {
-			SymbolsTable.addSymbol(symbol);
+			ClassesTable.addSymbol(symbol);
 		}
 
 		return key;
+	}
+
+	addAlias(key: Name, symbol: ISymbol) {
+		this.symbols.set(key, symbol);
 	}
 
 	getSymbol(id: Name): ISymbol | undefined {
@@ -86,22 +88,51 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 	}
 }
 
-class UCWorkspace extends UCPackage {
-	// Don't register, just map it for quick lookups!
-	addSymbol(symbol: ISymbol): Name {
+export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
+	protected symbols = new WeakMap<Name, T>();
+
+	addSymbol(symbol: T): Name {
 		const key = symbol.getId();
 		this.symbols.set(key, symbol);
 		return key;
 	}
+
+	addAlias(key: Name, symbol: T) {
+		this.symbols.set(key, symbol);
+	}
+
+	getSymbol(id: Name): T | undefined {
+		return this.symbols.get(id);
+	}
+
+	findSymbol(id: Name, deepSearch?: boolean): T | undefined {
+		const symbol = this.getSymbol(id);
+		if (symbol) {
+			return symbol;
+		}
+
+		if (deepSearch) {
+			const document = getDocumentById(id.toString().toLowerCase());
+			if (document) {
+				if (!document.class) {
+					indexDocument(document);
+				}
+
+				return document.class as any;
+			}
+		}
+	}
 }
+
+export const TRANSIENT_PACKAGE = new UCPackage(NAME_NONE);
+
+/**
+ * Contains all indexed packages, including the predefined "Core" package.
+ */
+export const PackagesTable = new SymbolsTable<UCPackage>();
 
 /**
  * The symbols table is where all Class types are supposed to be stored.
  * This table will be used to index any class references, including any native psuedo class.
  */
-export const SymbolsTable = new UCWorkspace(NAME_NONE);
-
-/**
- * Contains all indexed packages, including the predefined "Core" package.
- */
-export const PackagesTable = new UCWorkspace(NAME_NONE);
+export const ClassesTable = new SymbolsTable<UCClassSymbol>();

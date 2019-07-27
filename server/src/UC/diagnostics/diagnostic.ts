@@ -24,7 +24,7 @@ export class ExpressionErrorNode implements IDiagnosticNode {
 	}
 
 	getRange(): Range {
-		return this.symbol.getRange()!;
+		return this.symbol.getRange();
 	}
 
 	toString(): string {
@@ -39,19 +39,6 @@ export class SemanticErrorNode implements IDiagnosticNode {
 
 	getRange(): Range {
 		return this.symbol.id.range;
-	}
-
-	toString(): string {
-		return this.error;
-	}
-}
-
-export class SemanticErrorRangeNode implements IDiagnosticNode {
-	constructor(private range: Range, private error: string) {
-	}
-
-	getRange(): Range {
-		return this.range;
 	}
 
 	toString(): string {

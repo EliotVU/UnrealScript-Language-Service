@@ -17,9 +17,10 @@ export interface ISymbol {
 	accept<Result>(visitor: SymbolWalker<Result>): Result;
 }
 
-export interface ISymbolContainer<T> {
+export interface ISymbolContainer<T extends ISymbol> {
 	addSymbol(symbol: T): Name | undefined;
-	getSymbol(id: Name): ISymbol | undefined;
+	addAlias(id: Name, symbol: T);
+	getSymbol(id: Name): T | undefined;
 }
 
 export interface ISymbolContext {

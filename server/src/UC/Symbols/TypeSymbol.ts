@@ -6,7 +6,7 @@ import { SymbolWalker } from '../symbolWalker';
 import { UnrecognizedTypeNode } from '../diagnostics/diagnostic';
 
 import {
-	PackagesTable, SymbolsTable,
+	PackagesTable, ClassesTable,
 	ISymbol, Identifier, IWithReference,
 	UCSymbol, UCSymbolReference,
 	UCStructSymbol, UCClassSymbol, UCFieldSymbol,
@@ -281,7 +281,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 			}
 
 			case UCTypeKind.Class: case UCTypeKind.Interface: {
-				symbol = SymbolsTable.findSymbol(id, true);
+				symbol = ClassesTable.findSymbol(id, true);
 				break;
 			}
 
@@ -292,7 +292,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 
 			default: {
 				// First try to match upper level symbols such as a class.
-				symbol = SymbolsTable.findSymbol(id, true) || context.findSuperSymbol(id);
+				symbol = ClassesTable.findSymbol(id, true) || context.findSuperSymbol(id);
 			}
 		}
 

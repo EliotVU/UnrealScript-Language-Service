@@ -2,7 +2,7 @@ export * from './ISymbol';
 export { DEFAULT_RANGE, UCSymbol } from "./Symbol";
 export { UCSymbolReference } from './SymbolReference';
 export * from './TypeSymbol';
-export { UCPackage, SymbolsTable, PackagesTable } from './Package';
+export * from './Package';
 export * from './FieldSymbol';
 export { UCStructSymbol } from './StructSymbol';
 export { UCEnumSymbol } from './EnumSymbol';
