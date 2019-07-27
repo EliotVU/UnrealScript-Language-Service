@@ -1,4 +1,16 @@
-class Test;
+class Test extends Object;
+
+var int defaultInt;
+var float defaultFloat;
+
+var int defaultIntArray[4];
+
+const CONST_SIZEOF 			= sizeof(Object);
+const CONST_ARRAYCOUNT 		= arraycount(defaultIntArray);
+const CONST_OBJECT_CLASS 	= class'Object';
+const CONST_VECT 			= vect(0,0,0);
+const CONST_ROT 			= rot(0,0,0);
+const CONST_RNG 			= rng(0,0);
 
 static final preoperator string $(string A) {
 	return "$" $ A;
@@ -46,13 +58,15 @@ function byte Test() {
 	// obj = new obj != none ? class'Test' : class'Test';
 	obj = new (none) (obj != none ? class'Test' : class'Test')(none);
 
-	objClass = class<Test>(Load('Test', class'Class'));
+	objClass = class<Test>(DynamicLoadObject("Path", class'Class'));
 	i = i - -i;
 	i = 2.0 * int(0.1 + float(i)*0.225,0.2,1.0);
 
 	return byte((i+1.f)*128.f);
 	return (float(i)/128.f)-1.f;
 }
+
+function TestFunction();
 
 // test missing expressions
 function byte TestInvalidCode(){
@@ -66,3 +80,7 @@ function byte TestInvalidCode(){
 	}
 }
 
+defaultproperties
+{
+	defaultInt=1|defaultFloat=1.0f
+}

@@ -6,3 +6,5 @@ event Created()
 {
 	G.A = self;
 }
+
+function AlphaTest();
