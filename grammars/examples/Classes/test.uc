@@ -1,16 +1,57 @@
-class Test extends Object;
-
-var int defaultInt;
-var float defaultFloat;
-
-var int defaultIntArray[4];
+class Test extends Object
+	native;
 
 const CONST_SIZEOF 			= sizeof(Object);
-const CONST_ARRAYCOUNT 		= arraycount(defaultIntArray);
-const CONST_OBJECT_CLASS 	= class'Object';
+const CONST_CLASS 			= class'Object';
 const CONST_VECT 			= vect(0,0,0);
 const CONST_ROT 			= rot(0,0,0);
 const CONST_RNG 			= rng(0,0);
+const CONST_STRING			= "string";
+const CONST_NAME 			= 'name';
+const CONST_NUMBER			= 4;
+
+enum AEnum {
+	A_1,
+	A_2
+};
+
+struct AStruct {
+	var Color AColor;
+	var Guid AGuid;
+	var Vector AVector;
+};
+
+var int defaultInt;
+var float defaultFloat;
+var byte defaultByte;
+var bool defaultBool;
+var name defaultName;
+var string defaultStr;
+// Not supported a.t.m
+// var string[255] defaultString;
+var button defaultButton;
+var Object defaultObject;
+var Class defaultClass;
+var pointer defaultPointer; // struct in UC3+
+
+var int 					defaultIntArray[CONST_NUMBER]; const CONST_ARRAYCOUNT = arraycount(defaultIntArray);
+var array<int> 				defaultIntDynamicArray;
+
+// TODO: Test how the UC compiler handles delegate names that are ambigues with a class.
+// As it currently stands, the delegate is matched with class "Test" instead of function "Test".
+var delegate<Test> 			defaultDelegate;
+var map{string, float} 		defaultStringToFloatMap;
+var class<Test> 			defaultClassMeta;
+var array<class<Test> > 	defaultArrayOfClasses;
+
+// Test for non-quoted tooltip
+var Array<Object> MetaData<Tooltip = tooltip for my array. | test=0>;
+
+// Fancy native stuff.
+var private{public} native int NativeInt[2], NativeIntTwo[2]{INT};
+
+// Test for multiple categories.
+var(Category1, Category2) string Description;
 
 static final preoperator string $(string A) {
 	return "$" $ A;
@@ -52,6 +93,7 @@ function byte Test() {
 	str = "Test"PrependDollar;
 	str = str PrependDollar;
 	str = PrependDollar "str";
+
 	obj = new class'Test';
 
 	// Is this valid UC?
@@ -82,5 +124,12 @@ function byte TestInvalidCode(){
 
 defaultproperties
 {
-	defaultInt=1|defaultFloat=1.0f
+	defaultIntDynamicArray(0)=1
+	// defaultIntDynamicArray.Add(1)
+	// defaultIntDynamicArray.Remove(1)
+	// defaultIntDynamicArray.Empty
+	defaultInt=1024				|defaultFloat=1.0f			|defaultByte=1
+	defaultBool=true			|defaultBool=false
+	defaultName=CONST_NAME		|defaultName=MyName
+	defaultStr=CONST_STRING		|defaultStr="string"
 }
