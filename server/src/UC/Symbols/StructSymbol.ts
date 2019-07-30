@@ -119,25 +119,33 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			}
 		}
 
+		function indexSymbolSafely(symbol: UCSymbol) {
+			try {
+				symbol.index(document, context);
+			} catch (err) {
+				console.error(`Encountered an error while indexing '${symbol.getQualifiedName()}': ${err}`);
+			}
+		}
+
 		// FIXME: Optimize. We have to index types before anything else but properties ALSO have to be indexed before any method can be indexed properly!
 		if (this.children) {
 			// Link types before any child so that a child that referrers one of our types can be linked properly!
 			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
 				if (child.isType()) {
-					child.index(document, this);
+					indexSymbolSafely(child);
 				}
 			}
 
 			// Index all properties foremost as we need their resolved types.
 			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
 				if (child instanceof UCPropertySymbol) {
-					child.index(document, this);
+					indexSymbolSafely(child);
 				}
 			}
 
 			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
 				if (child instanceof UCMethodSymbol) {
-					child.index(document, this);
+					indexSymbolSafely(child);
 				}
 			}
 
@@ -146,12 +154,16 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 					continue;
 				}
 
-				child.index(document, this);
+				indexSymbolSafely(child);
 			}
 
 			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
 				if (child instanceof UCStructSymbol && child.block) {
-					child.block.index(document, child);
+					try {
+						child.block.index(document, child);
+					} catch (err) {
+						console.error(`Encountered an error while indexing a block of symbol '${child.getQualifiedName()}': ${err}`);
+					}
 				}
 			}
 		}
