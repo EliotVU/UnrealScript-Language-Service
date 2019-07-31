@@ -103,7 +103,8 @@ connection.onInitialized(async () => {
 			delay(1000),
 		)
 		.subscribe(document => {
-			if (document) {
+			// Only analyze active documents.
+			if (document && textDocuments.get(URI.parse(document.filePath).toString())) {
 				const diagnostics = document.analyze();
 				connection.sendDiagnostics({
 					uri: document.filePath,
@@ -144,7 +145,10 @@ connection.onInitialized(async () => {
 				isIndexReady$.next(true);
 				const openDocuments = textDocuments.all();
 				openDocuments.forEach(doc => {
-					pendingTextDocuments$.next({ textDocument: doc, isDirty: false });
+					const document = getDocumentByUri(doc.uri);
+					if (document && !document.class) {
+						indexDocument(document);
+					}
 				});
 				return;
 			}
