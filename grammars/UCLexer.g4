@@ -1,51 +1,185 @@
 lexer grammar UCLexer;
 
+channels { MACRO, COMMENTS_CHANNEL }
+
+@lexer::members {
+	parensLevel: number = 0;
+	braceLevel: number = 0;
+	isDefine: boolean = false;
+	captureDefineText: boolean = false;
+}
+
+fragment EXPONENT: [eE] [+-]? [0-9]+;
+fragment HEX_DIGIT: [0-9] | [A-F] | [a-f];
+fragment ESC_SEQ: '\\' ('b' | 't' | 'n' | 'r' | '"' | '\'' | '\\');
+
+fragment CALL_MACRO_CHAR: '\u0060';
+
+
 LINE_COMMENT
 	: '//' ~[\r\n]*
-	-> channel(HIDDEN)
+	-> channel(COMMENTS_CHANNEL)
 	;
 
 BLOCK_COMMENT
 	: '/*' .*? '*/'
-	-> channel(HIDDEN)
+	-> channel(COMMENTS_CHANNEL)
 	;
 
 WS
 	: [ \t\r\n]+
-	-> skip
+	-> channel(HIDDEN)
 	;
 
-PP: '`';
-
-PP_MACRO
-	: PP WS?
-		( MACRO_BLOCK
-		| MACRO_DEFINE
-		| MACRO_CALL
-		)
-	-> channel(HIDDEN)
+MACRO_CHAR
+	: CALL_MACRO_CHAR
+	-> channel(MACRO), mode(MACRO_MODE)
 	;
 
 STRING: '"' (~["\\] | ESC_SEQ)* '"';
 NAME: '\'' (~['\\] | ESC_SEQ)* '\'';
 
+KW_DEFAULT: 'default';
+KW_GLOBAL: 'global';
+KW_CLASS: 'class';
+KW_INTERFACE: 'interface';
+KW_WITHIN: 'within';
+KW_CONST: 'const';
+KW_ENUM: 'enum';
+KW_STRUCT: 'struct';
+KW_VAR: 'var';
+KW_LOCAL: 'local';
+KW_REPLICATION: 'replication';
+KW_STATE: 'state';
+KW_MAP: 'map';
+KW_DEFAULTPROPERTIES: 'defaultproperties';
+KW_STRUCTDEFAULTPROPERTIES: 'structdefaultproperties';
+KW_FOR: 'for';
+KW_FOREACH: 'foreach';
+KW_RETURN: 'return';
+KW_BREAK: 'break';
+KW_CONTINUE: 'continue';
+KW_STOP: 'stop';
+KW_CASE: 'case';
+KW_SWITCH: 'switch';
+KW_UNTIL: 'until';
+KW_DO: 'do';
+KW_WHILE: 'while';
+KW_ELSE: 'else';
+KW_IF: 'if';
+KW_IGNORES: 'ignores';
+KW_UNRELIABLE: 'unreliable';
+KW_RELIABLE: 'reliable';
+KW_CPPTEXT: 'cpptext';
+KW_STRUCTCPPTEXT: 'structcpptext';
+KW_CPPSTRUCT: 'cppstruct';
+KW_ARRAY: 'array';
+KW_BYTE: 'byte';
+KW_INT: 'int';
+KW_FLOAT: 'float';
+KW_STRING: 'string';
+KW_BUTTON: 'button';
+KW_BOOL: 'bool';
+KW_NAME: 'name';
+KW_TRUE: 'true';
+KW_FALSE: 'false';
+KW_NONE: 'none';
+KW_EXTENDS: 'extends';
+KW_PUBLIC: 'public';
+KW_PROTECTED: 'protected';
+KW_PROTECTEDWRITE: 'protectedwrite';
+KW_PRIVATE: 'private';
+KW_PRIVATEWRITE: 'privatewrite';
+KW_LOCALIZED: 'localized';
+KW_OUT: 'out';
+KW_OPTIONAL: 'optional';
+KW_INIT: 'init';
+KW_SKIP: 'skip';
+KW_COERCE: 'coerce';
+KW_FINAL: 'final';
+KW_LATENT: 'latent';
+KW_SINGULAR: 'singular';
+KW_STATIC: 'static';
+KW_EXEC: 'exec';
+KW_ITERATOR: 'iterator';
+KW_SIMULATED: 'simulated';
+KW_AUTO: 'auto';
+KW_NOEXPORT: 'noexport';
+KW_NOEXPORTHEADER: 'noexportheader';
+KW_EDITCONST: 'editconst';
+KW_EDFINDABLE: 'edfindable';
+KW_EDITINLINE: 'editinline';
+KW_EDITINLINENOTIFY: 'editinlinenotify';
+KW_EDITINLINEUSE: 'editinlineuse';
+KW_EDITHIDE: 'edithide';
+KW_EDITCONSTARRAY: 'editconstarray';
+KW_EDITFIXEDSIZE: 'editfixedsize';
+KW_EDITORONLY: 'editoronly';
+KW_EDITORTEXTBOX: 'editortextbox';
+KW_NOCLEAR: 'noclear';
+KW_NOIMPORT: 'noimport';
+KW_NONTRANSACTIONAL: 'nontransactional';
+KW_SERIALIZETEXT: 'serializetext';
+KW_CONFIG: 'config';
+KW_GLOBALCONFIG: 'globalconfig';
+KW_NATIVE: 'native';
+KW_INTRINSIC: 'intrinsic';
+KW_EXPORT: 'export';
+KW_LONG: 'long';
+KW_TRANSIENT: 'transient';
+KW_CACHE: 'cache';
+KW_INTERP: 'interp';
+KW_REPRETRY: 'repretry';
+KW_REPNOTIFY: 'repnotify';
+KW_NOTFORCONSOLE: 'notforconsole';
+KW_ARCHETYPE: 'archetype';
+KW_CROSSLEVELACTIVE: 'crosslevelactive';
+KW_CROSSLEVELPASSIVE: 'crosslevelpassive';
+KW_ALLOWABSTRACT: 'allowabstract';
+KW_AUTOMATED: 'automated';
+KW_TRAVEL: 'travel';
+KW_Input: 'input';
+KW_INSTANCED: 'instanced';
+KW_DATABINDING: 'databinding';
+KW_DUPLICATETRANSIENT: 'duplicatetransient';
+KW_PARSECONFIG: 'parseconfig';
+KW_CLASSREDIRECT: 'classredirect';
+KW_DEPRECATED: 'deprecated';
+KW_STRICTCONFIG: 'strictconfig';
+KW_ATOMIC: 'atomic';
+KW_ATOMICWHENCOOKED: 'atomicwhencooked';
+KW_IMMUTABLE: 'immutable';
+KW_IMMUTABLEWHENCOOKED: 'immutablewhencooked';
+KW_VIRTUAL: 'virtual';
+KW_SERVER: 'server';
+KW_CLIENT: 'client';
+KW_DLLIMPORT: 'dllimport';
+KW_DEMORECORDING: 'demorecording';
+KW_GOTO: 'goto';
+KW_ASSERT: 'assert';
+KW_BEGIN: 'begin';
+KW_OBJECT: 'object';
+KW_END: 'end';
 KW_FUNCTION: 'function';
 KW_EVENT: 'event';
 KW_DELEGATE: 'delegate';
 KW_OPERATOR: 'operator';
 KW_PREOPERATOR: 'preoperator';
 KW_POSTOPERATOR: 'postoperator';
-KW_CONST: 'const';
-KW_FINAL: 'final';
-KW_STATIC: 'static';
-KW_NATIVE: 'native';
-KW_PUBLIC: 'public';
-KW_PROTECTED: 'protected';
-KW_PRIVATE: 'private';
-
-KW_OPTIONAL: 'optional';
-KW_OUT: 'out';
-KW_COERCE: 'coerce';
+KW_SELF: 'self';
+KW_SUPER: 'super';
+KW_POINTER: 'pointer';
+KW_EXPANDS: 'expands';
+KW_K2CALL: 'k2call';
+KW_K2PURE: 'k2pure';
+KW_K2OVERRIDE: 'k2override';
+KW_NEW: 'new';
+KW_VECT: 'vect';
+KW_ROT: 'rot';
+KW_RNG: 'rng';
+KW_ARRAYCOUNT: 'arraycount';
+KW_NAMEOF: 'nameof';
+KW_SIZEOF: 'sizeof';
 
 // Note: Keywords must precede the ID token.
 ID:	[a-zA-Z_][a-zA-Z0-9_]*;
@@ -124,29 +258,107 @@ ASSIGNMENT_STAR: '*=';
 ASSIGNMENT_CARET: '^=';
 ASSIGNMENT_DIV: '/=';
 
-fragment EXPONENT: [eE] [+-]? [0-9]+;
-fragment HEX_DIGIT: [0-9] | [A-F] | [a-f];
-fragment ESC_SEQ: '\\' ('b' | 't' | 'n' | 'r' | '"' | '\'' | '\\');
+mode MACRO_MODE;
 
-fragment PARENTHESES: '(' (~')' | PARENTHESES)* ')';
+MACRO_WHITESPACES:         	[ \t]+                     	-> channel(HIDDEN);
+MACRO_SINGLE_LINE_COMMENT: 	'//' ~[\r\n]*  				-> channel(COMMENTS_CHANNEL), type(LINE_COMMENT);
+MACRO_CHAR_INLINED
+	: CALL_MACRO_CHAR
+	-> channel(MACRO), type(MACRO_CHAR)
+	;
+MACRO_STRING:              	'"' ~('"' | [\r\n])* '"' 	-> channel(MACRO), type(STRING);
 
-fragment MACRO_BLOCK
-	: '{' ~'}'* '}'
+MACRO_DEFINE
+	: 'define'
+	{
+		this.isDefine = true;
+	}
+	-> channel(MACRO)
 	;
 
-fragment MACRO_DEFINE
-	: 'define' WS MACRO_DEFINTION?
+MACRO_UNDEFINE:             'undefine'                  -> channel(MACRO);
+MACRO_INCLUDE:				'include'					-> channel(MACRO);
+MACRO_IS_DEFINED:			'isdefined'                 -> channel(MACRO);
+MACRO_NOT_DEFINED:			'notdefined'                -> channel(MACRO);
+MACRO_COUNTER:				'counter'                   -> channel(MACRO);
+MACRO_GET_COUNTER:			'getcounter'                -> channel(MACRO);
+MACRO_SET_COUNTER:			'setcounter'                -> channel(MACRO);
+MACRO_IF:                  	'if'                        -> channel(MACRO), type(KW_IF);
+MACRO_ELSE:                	'else'                      -> channel(MACRO), type(KW_ELSE);
+MACRO_ELSE_IF:              'elseif'                    -> channel(MACRO);
+MACRO_END_IF:				'endif'                     -> channel(MACRO);
+MACRO_LINE:					'__LINE__'                  -> channel(MACRO);
+MACRO_FILE:					'__FILE__'                  -> channel(MACRO);
+MACRO_COMMA:				','							-> channel(MACRO), type(COMMA);
+
+MACRO_OPEN_PARENS
+	: '('
+	{
+		++ this.parensLevel;
+	}
+	-> channel(MACRO), type(OPEN_PARENS)
 	;
 
-// TODO: Multiline macros, defined by a backslash \
-fragment MACRO_DEFINTION
-	: ~[\r\n]+
+MACRO_CLOSE_PARENS
+	: ')'
+	{
+		-- this.parensLevel;
+	}
+	-> channel(MACRO), type(CLOSE_PARENS)
 	;
 
-fragment MACRO_CALL
-	: MACRO_NAME PARENTHESES?
+MACRO_OPEN_BRACE
+	: '{'
+	{
+		++ this.braceLevel;
+	}
+	-> channel(MACRO), type(OPEN_BRACE)
 	;
 
-fragment MACRO_NAME
-	: ID
+MACRO_CLOSE_BRACE
+	: '}'
+	{
+		-- this.braceLevel;
+		if (this.braceLevel === 0) {
+			this.isDefine = false;
+			this.captureDefineText = false;
+			this.mode(Lexer.DEFAULT_MODE);
+		}
+	}
+	-> channel(MACRO), type(CLOSE_BRACE)
+	;
+
+MACRO_SYMBOL
+	: [a-zA-Z_][a-zA-Z0-9_#]*
+	{
+		if (this.parensLevel === 0 && this.braceLevel === 0) {
+			if (this.isDefine) {
+				this.captureDefineText = true;
+				this.isDefine = false;
+			} else {
+				this.isDefine = false;
+				this.captureDefineText = false;
+				this.mode(Lexer.DEFAULT_MODE);
+			}
+		}
+	}
+	-> channel(MACRO)
+	;
+
+MACRO_TEXT
+	: { this.captureDefineText }? { this.pushMode(Lexer.DEFAULT_MODE); }
+	~[\r\n]+
+	{ this.captureDefineText = false; this.pushMode(UCLexer.MACRO_MODE); }
+	-> channel(MACRO)
+	;
+
+MACRO_NEW_LINE
+	: [\r\n]
+	{
+		this.parensLevel = 0;
+		this.braceLevel = 0;
+		this.isDefine = false;
+		this.captureDefineText = false;
+	}
+	-> channel(MACRO), mode(DEFAULT_MODE)
 	;

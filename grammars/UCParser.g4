@@ -1,6 +1,6 @@
-grammar UCGrammar;
+parser grammar UCParser;
 
-import UCLexer;
+options { tokenVocab = UCLexer; }
 
 // Class modifier keywords have been commented out, because we are not using them for parsing.
 identifier

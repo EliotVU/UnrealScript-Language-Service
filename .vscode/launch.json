@@ -4,10 +4,21 @@
 		{
 			"type": "antlr-debug",
             "request": "launch",
-            "name": "Debug UnrealScript Grammar",
-			"input": "grammars/examples/Classes/test.uc",
-			"grammar": "grammars/UCGrammar.g4",
+            "name": "UC Grammar",
+			"input": "grammars/examples/Classes/Gamma.uc",
+			"grammar": "grammars/UCParser.g4",
             "startRule": "program",
+			"visualParseTree": true
+        },
+		{
+			"type": "antlr-debug",
+            "request": "launch",
+            "name": "UC Macro",
+			"input": "grammars/examples/macro.uci",
+			"grammar": "grammars/UCPreprocessorParser.g4",
+			"startRule": "macros",
+			"debugServer": 4711,
+			"trace": true,
 			"visualParseTree": true
         },
 		{

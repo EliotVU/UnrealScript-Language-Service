@@ -1,6 +1,6 @@
 import { SymbolKind, CompletionItemKind, Position, Range } from 'vscode-languageserver-types';
 
-import * as UCParser from '../../antlr/UCGrammarParser';
+import * as UCParser from '../../antlr/UCParser';
 
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';

@@ -20,6 +20,7 @@ import {
 	CompletionTriggerKind
 } from 'vscode-languageserver';
 import URI from 'vscode-uri';
+import { UCPreprocessorParser } from './antlr/UCPreprocessorParser';
 
 import { getSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
 import { filePathByClassIdMap$, getDocumentByUri, indexDocument, getIndexedReferences, config } from './UC/indexer';
@@ -176,7 +177,25 @@ connection.onInitialized(async () => {
 
 connection.onDidChangeConfiguration((change) => {
 	currentSettings = <ServerSettings>(change.settings);
+
+	// Ensure all old custom-macros are deleted.
+	if (config.macroSymbols) {
+		const entries = Object.entries(config.macroSymbols);
+		for (let [key] of entries) {
+			UCPreprocessorParser.globalSymbols.delete(key.toLowerCase());
+		}
+		delete config.macroSymbols;
+	}
+
 	Object.assign(config, currentSettings.unrealscript);
+	if (config.macroSymbols) {
+		// Apply our custom-macros as global symbols (accessable in any uc file).
+		const entries = Object.entries(config.macroSymbols);
+		for (let [key, value] of entries) {
+			UCPreprocessorParser.globalSymbols.set(key.toLowerCase(), value);
+		}
+	}
+
 	isIndexReady$.next(true);
 });
 

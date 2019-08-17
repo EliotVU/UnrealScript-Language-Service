@@ -31,13 +31,13 @@ const SYNTAX_TASK = (function(){
 const GRAMMAR_TASK = (function(){
 	const TASK_NAME = 'buildGrammar';
 
-	const GRAMMAR_File = 'UCGrammar.g4';
 	const GRAMMAR_Dir = 'grammars/';
-	const GRAMMAR_PATH = path.join(GRAMMAR_Dir, GRAMMAR_File);
 
-	const GRAMMAR_File2 = 'UCLexer.g4';
-	const GRAMMAR_Dir2 = 'grammars/';
-	const GRAMMAR_PATH2 = path.join(GRAMMAR_Dir2, GRAMMAR_File2);
+	const GRAMMAR_PATH = path.join(GRAMMAR_Dir, 'UCParser.g4');
+	const GRAMMAR_PATH2 = path.join(GRAMMAR_Dir, 'UCLexer.g4');
+	const GRAMMAR_PATH3 = path.join(GRAMMAR_Dir, 'UCPreprocessorParser.g4');
+
+	const FILES_TO_WATCH = [GRAMMAR_PATH, GRAMMAR_PATH2, GRAMMAR_PATH3];
 
 	gulp.task(TASK_NAME, (done) => {
 		var exec = require('child_process').exec;
@@ -45,11 +45,17 @@ const GRAMMAR_TASK = (function(){
 		exec('npm run compile:grammar', (err, stdout, stderr) => {
 			console.log(stdout);
 			console.error(stderr);
-			done(err || stderr);
+			done();
+		});
+
+		exec('npm run compile:preprocessor', (err, stdout, stderr) => {
+			console.log(stdout);
+			console.error(stderr);
+			done();
 		});
 	});
 
-	gulp.watch([GRAMMAR_PATH, GRAMMAR_PATH2], (cb) => {
+	gulp.watch(FILES_TO_WATCH, (cb) => {
 		return gulp.task(TASK_NAME)(cb);
 	});
 

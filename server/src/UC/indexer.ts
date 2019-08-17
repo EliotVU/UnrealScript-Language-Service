@@ -21,7 +21,10 @@ export enum UCGeneration {
 
 export const config: UCOptions = {
 	generation: UCGeneration.UC3,
-	checkTypes: false
+	checkTypes: false,
+	macroSymbols: {
+		"debug": ""
+	}
 };
 
 function findPackageNameInDir(dir: string): string {
@@ -80,11 +83,7 @@ export function getDocumentById(id: string): UCDocument | undefined {
 export function indexDocument(document: UCDocument, text?: string): UCDocument | undefined {
 	try {
 		document.build(text);
-		if (document.class) {
-			document.link();
-		} else {
-			console.warn("Indexed a document with no class!", document.filePath);
-		}
+		document.link();
 		return document;
 	} catch (err) {
 		console.error(`An error occurred during the indexation of document ${document.filePath}`, err);

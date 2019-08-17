@@ -1,6 +1,6 @@
 import { DefaultErrorStrategy, Parser, RecognitionException, ParserRuleContext } from 'antlr4ts';
 
-import { UCGrammarParser } from '../../antlr/UCGrammarParser';
+import { UCParser } from '../../antlr/UCParser';
 
 export class UCMissingSemicolonException extends Error {
 	constructor(private context: ParserRuleContext) {
@@ -10,10 +10,10 @@ export class UCMissingSemicolonException extends Error {
 
 export class UCErrorStrategy extends DefaultErrorStrategy {
 	reportError(recognizer: Parser, e: RecognitionException) {
-		if (e.expectedTokens && e.expectedTokens.contains(UCGrammarParser.SEMICOLON)) {
+		if (e.expectedTokens && e.expectedTokens.contains(UCParser.SEMICOLON)) {
 			const token = this.constructToken(
 				recognizer.inputStream.tokenSource,
-				UCGrammarParser.SEMICOLON, ';',
+				UCParser.SEMICOLON, ';',
 				recognizer.currentToken
 			);
 

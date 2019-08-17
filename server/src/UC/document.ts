@@ -6,30 +6,32 @@ import * as fs from 'fs';
 import URI from 'vscode-uri';
 import { Diagnostic, Position } from 'vscode-languageserver';
 import { performance } from 'perf_hooks';
-
-import { CommonTokenStream, ANTLRErrorListener } from 'antlr4ts';
-
-import { UCGrammarLexer } from '../antlr/UCGrammarLexer';
-import { UCGrammarParser } from '../antlr/UCGrammarParser';
-import { connection } from '../server';
+import { UCLexer } from '../antlr/UCLexer';
+import { UCParser } from '../antlr/UCParser';
+import { UCPreprocessorParser, MacrosContext } from '../antlr/UCPreprocessorParser';
+import { CommonTokenStream, ANTLRErrorListener, BailErrorStrategy } from 'antlr4ts';
+import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
+import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 
 import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCSymbol } from './Symbols';
 
 import { IDiagnosticNode, DiagnosticCollection } from './diagnostics/diagnostic';
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
-import { IndexedReferencesMap } from './indexer';
+import { IndexedReferencesMap, config } from './indexer';
 
-import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import { DocumentASTWalker } from './documentASTWalker';
 
 export const documentLinked$ = new Subject<UCDocument>();
 
 export class UCDocument {
+	/** Parsed file name filtered of path and extension. */
 	public readonly fileName: string;
 
 	public nodes: IDiagnosticNode[] = [];
 	public tokenStream: CommonTokenStream;
+
+	public macroTree: MacrosContext;
 
 	public class?: UCClassSymbol;
 	private readonly indexReferencesMade = new Map<string, ISymbolReference | ISymbolReference[]>();
@@ -43,39 +45,68 @@ export class UCDocument {
 	}
 
 	public build(text?: string) {
-		connection.console.log('building document ' + this.fileName);
+		console.log('building document ' + this.fileName);
 
 		if (this.class) {
 			this.invalidate();
 		}
 
-		// const startLexing = performance.now();
-		const lexer = new UCGrammarLexer(new CaseInsensitiveStream(text || this.readText()));
-		lexer.removeErrorListeners();
-		lexer.addErrorListener(this as ANTLRErrorListener<number>);
-		const stream = this.tokenStream = new CommonTokenStream(lexer);
-		// connection.console.info(this.fileName + ': lexing time ' + (performance.now() - startLexing));
+		const walker = new DocumentASTWalker(this);
+		const stream = new CaseInsensitiveStream(text || this.readText());
+		const lexer = new UCLexer(stream);
+		lexer.removeErrorListeners(); lexer.addErrorListener(walker as ANTLRErrorListener<Number>);
 
-		// const startParsing = performance.now();
-		const parser = new UCGrammarParser(stream);
+		const tokenStream = this.tokenStream = new CommonTokenStream(lexer);
+		const parser = new UCParser(tokenStream);
 
-		parser.errorHandler = ERROR_STRATEGY;
-		// connection.console.info(this.fileName + ': parsing time ' + (performance.now() - startParsing));
-		parser.removeErrorListeners();
-
-		const startWalking = performance.now();
 		try {
-			const walker = new DocumentASTWalker(this);
-			parser.addErrorListener(walker);
-			walker.visit(parser.program());
+			lexer.reset();
+
+			const macroStream = new CommonTokenStream(lexer, UCLexer.MACRO);
+			const macroParser = new UCPreprocessorParser(macroStream);
+			macroParser.removeErrorListeners(); macroParser.addErrorListener(walker);
+
+			// TODO: strip .uci?
+			macroParser.currentSymbols.set("classname", this.fileName);
+			macroParser.currentSymbols.set("packagename", this.classPackage.getId().toString());
+			macroParser.filePath = this.filePath;
+
+			var macroCtx = macroParser.macros();
+			this.macroTree = macroCtx;
 		} catch (err) {
-			connection.console.error(
-				`An error was thrown while walking document: "${this.filePath}",
+			console.error(
+				`An error was thrown while preprocessing macros in document: "${this.filePath}",
 				\n
 				\t stack: "${err.stack}"`
 			);
 		} finally {
-			connection.console.info(this.fileName + ': Walking time ' + (performance.now() - startWalking));
+			lexer.reset();
+		}
+
+		const startWalking = performance.now();
+
+		parser.interpreter.setPredictionMode(PredictionMode.SLL);
+		parser.errorHandler = new BailErrorStrategy();
+		parser.errorHandler = ERROR_STRATEGY;
+		parser.removeErrorListeners(); parser.addErrorListener(walker);
+
+		try {
+			walker.visit(parser.program());
+		} catch (err) {
+			try {
+				parser.reset();
+				parser.interpreter.setPredictionMode(PredictionMode.LL);
+				parser.errorHandler = ERROR_STRATEGY;
+				walker.visit(parser.program());
+			} catch (err) {
+				console.error(
+					`An error was thrown while walking document: "${this.filePath}",
+					\n
+					\t stack: "${err.stack}"`
+				);
+			}
+		} finally {
+			console.info(this.fileName + ': Walking time ' + (performance.now() - startWalking));
 		}
 	}
 
@@ -87,8 +118,10 @@ export class UCDocument {
 
 	public link() {
 		const start = performance.now();
-		this.class!.index(this, this.class!);
-		connection.console.info(this.fileName + ': linking time ' + (performance.now() - start));
+		if (this.class) {
+			this.class.index(this, this.class);
+		}
+		console.info(this.fileName + ': linking time ' + (performance.now() - start));
 		documentLinked$.next(this);
 	}
 

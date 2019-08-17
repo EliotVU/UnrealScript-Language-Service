@@ -3,7 +3,7 @@ import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKin
 import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
 import { ParseTree } from 'antlr4ts/tree/ParseTree';
 
-import { UCGrammarParser } from '../../antlr/UCGrammarParser';
+import { UCParser } from '../../antlr/UCParser';
 
 import { UCDocument } from "../document";
 import { SymbolWalker } from '../symbolWalker';
@@ -13,7 +13,7 @@ import { DocumentASTWalker } from '../documentASTWalker';
 
 import { ISymbol, Identifier, UCStructSymbol } from ".";
 
-export const COMMENT_TYPES = new Set([UCGrammarParser.LINE_COMMENT, UCGrammarParser.BLOCK_COMMENT]);
+export const COMMENT_TYPES = new Set([UCParser.LINE_COMMENT, UCParser.BLOCK_COMMENT]);
 
 export const NO_NAME = '';
 

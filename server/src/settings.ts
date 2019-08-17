@@ -5,6 +5,9 @@ export interface UCOptions {
 	indexAllDocuments?: boolean;
 	analyzeDocuments?: boolean;
 	checkTypes?: boolean;
+	macroSymbols?: {
+		[key: string]: string
+	};
 }
 
 export interface ServerSettings {
