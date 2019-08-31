@@ -430,11 +430,19 @@ variable
 
 // UC3 <UIMin=0.0|UIMax=1.0|Toolip=Hello world!>
 metaData
-	: LT metaTag* GT
+	: LT metaTagList? GT
+	;
+
+metaTagList
+	: metaTag (BITWISE_OR metaTag)*
 	;
 
 metaTag
-	: identifier ASSIGNMENT ((~(BITWISE_OR | GT)) | metaTag)
+	: identifier (ASSIGNMENT metaText)?
+	;
+
+metaText
+	: (~(BITWISE_OR | GT))*
 	;
 
 categoryList
