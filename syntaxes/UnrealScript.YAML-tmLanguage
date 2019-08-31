@@ -187,8 +187,8 @@ repository:
       - include: '#comment'
       - include: '#type-modifier'
 
-        # predefined alias types (Array, Class, and Delegate are excluded)
-      - match: \b((?i)float|int|byte|bool|button|name|string|pointer)\b
+        # predefined alias types
+      - match: \b((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)\b
         name: storage.type.primitive.uc
 
         # Delimmiter e.g. Array<string>
@@ -225,8 +225,8 @@ repository:
       - include: '#type-modifier'
       - include: '#param-modifier'
 
-        # predefined alias types (Array, Class, and Delegate are excluded)
-      - match: \b((?i)float|int|byte|bool|button|name|string|pointer)\b
+        # predefined alias types
+      - match: \b((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)\b
         name: keyword.type.primitive.uc
 
         # Delimmiter e.g. Array<string>
@@ -269,8 +269,8 @@ repository:
       - include: '#comment'
       - include: '#type-modifier'
 
-        # predefined alias types (Array, Class, and Delegate are excluded)
-      - match: \b((?i)float|int|byte|bool|button|name|string|pointer)\b
+        # predefined alias types
+      - match: \b((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)\b
         name: keyword.type.primitive.uc
 
         # Delimmiter e.g. Array<string>
@@ -692,7 +692,7 @@ repository:
           '0':
             name: cast.expr.uc
           '1':
-            name: keyword.type.uc
+            name: entity.name.type.class.uc
           '2':
             name: punctuation.arrow.open.uc
         patterns:
