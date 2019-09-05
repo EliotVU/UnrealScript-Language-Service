@@ -179,90 +179,116 @@ repository:
       - include: '#var-declaration'
 
   type-modifier:
-    name: storage.modifier.uc
-    match: \b((?i)public|protected|protectedwrite|private|privatewrite|localized|native|intrinsic|const|editconst|config|globalconfig|transient|travel|input|export|noexport|cache|automated|edithide|editinline|editinlinenotify|editinlineuse|editconstarray|edfindable|init|editfixedsize|editoronly|editortextbox|noclear|noimport|serializetext|nontransactional|instanced|databinding|duplicatetransient|repretry|repnotify|interp|deprecated|notforconsole|archetype|crosslevelactive|crosslevelpassive)\b
+    patterns:
+      - match: \b((?i)public|protected|protectedwrite|private|privatewrite|localized|native|intrinsic|const|editconst|config|globalconfig|transient|travel|input|export|noexport|cache|automated|edithide|editinline|editinlinenotify|editinlineuse|editconstarray|edfindable|init|editfixedsize|editoronly|editortextbox|noclear|noimport|serializetext|nontransactional|instanced|databinding|duplicatetransient|repretry|repnotify|interp|deprecated|notforconsole|archetype|crosslevelactive|crosslevelpassive)\b
+        name: storage.modifier.uc
+      # export modifier
+      - begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        patterns:
+          - include: source.c++
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
 
   type-declaration:
     patterns:
       - include: '#comment'
       - include: '#type-modifier'
 
-        # predefined alias types
-      - match: \b((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)\b
-        name: storage.type.primitive.uc
-
-        # Delimmiter e.g. Array<string>
-      - begin: \<
+      - begin: \b((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)|([_[:alpha:]][_[:alnum:]]*)\b
         beginCaptures:
-          '0':
-            name: punctuation.definition.typeparameters.begin.uc
-        patterns:
-          - include: '#inlined-declaration'
-        end: \>
-        endCaptures:
-          '0':
-            name: punctuation.definition.typeparameters.end.uc
-
-      - begin: \[
-        patterns:
-          - include: '#constant'
-        end: \]
-
-        # Property's id
-      - match: (([_[:alpha:]][_[:alnum:]]*)\s*(\,|\;|\[))+
-        captures:
+          '1':
+            name: storage.type.primitive.uc
           '2':
-            name: entity.name.variable.field.uc
-
-        # Qualified type id e.g. Actor.ERemoteRole
-      - match: ([_[:alpha:]][_[:alnum:]]*)
-        name: entity.name.type.uc
-
-  # FIXME: This is overtaking the role of #method-arguments!, so I have implemented the proper hightlighting within the return type declaration.
-  return-type-declaration:
-    patterns:
-      - include: '#comment'
-      - include: '#type-modifier'
-      - include: '#param-modifier'
-
-        # predefined alias types
-      - match: \b((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)\b
-        name: keyword.type.primitive.uc
-
-        # Delimmiter e.g. Array<string>
-      - begin: \<
-        beginCaptures:
-          '0':
-            name: punctuation.definition.typeparameters.begin.uc
+            name: entity.name.type.uc
         patterns:
-          - include: '#inlined-declaration'
-        end: \>
-        endCaptures:
-          '0':
-            name: punctuation.definition.typeparameters.end.uc
+          - include: '#comment'
 
-      - begin: \[
-        patterns:
-          - include: '#literal'
-        end: \]
+          # Delimmiter e.g. Array<string>
+          - begin: \<
+            beginCaptures:
+              '0':
+                name: punctuation.definition.typeparameters.begin.uc
+            patterns:
+              - include: '#inlined-declaration'
+            end: \>
+            endCaptures:
+              '0':
+                name: punctuation.definition.typeparameters.end.uc
 
-        # Property's id
-      - match: (([_[:alpha:]][_[:alnum:]]*)\s*(\,|\)|\[))+
-        captures:
-          '2':
-            name: entity.name.variable.field.uc
+          # String size
+          - begin: \[
+            patterns:
+              - include: '#numeric-literal'
+              - match: ([_[:alpha:]][_[:alnum:]]*)
+                captures:
+                  '1':
+                    name: entity.name.variable.field.uc
+            end: \]
 
-        # Function's id
-      - match: (([_[:alpha:]][_[:alnum:]]*)|([\!\&\$\@\%\#\<\>\=\-\+\*\/\^\~\|]+))\s*\(
-        captures:
-          '2':
-            name: entity.name.function.uc
-          '3':
-            name: entity.name.operator.uc
+          # export type
+          - begin: \{
+            beginCaptures:
+              '0':
+                name: punctuation.curlybrace.open.uc
+            patterns:
+              - include: source.c++""
+            end: \}
+            endCaptures:
+              '0':
+                name: punctuation.curlybrace.close.uc
 
-        # Qualified type id e.g. Actor.ERemoteRole
-      - match: ([_[:alpha:]][_[:alnum:]]*)
-        name: entity.name.type.uc
+          - begin: ([_[:alpha:]][_[:alnum:]]*)
+            beginCaptures:
+              '1':
+                name: entity.name.variable.field.uc
+            patterns:
+              # array dimension
+              - begin: \[
+                patterns:
+                  - include: '#numeric-literal'
+                  - match: ([_[:alpha:]][_[:alnum:]]*)
+                    captures:
+                      '1':
+                        name: entity.name.variable.field.uc
+                end: \]
+
+              # metadata
+              - begin: \<
+                beginCaptures:
+                  '0':
+                    name: punctuation.definition.metadata.begin
+                patterns:
+                  - match: ([_[:alpha:]][_[:alnum:]]*)(\s*(=)\s*([^\||\>]+)?)?
+                    captures:
+                      '1':
+                        name: entity.name.metadata.key.uc
+                      '3':
+                        name: keyword.operator.assignment.uc
+                      '4':
+                        name: string.uc
+                end: \>
+                endCaptures:
+                  '0':
+                    name: punctuation.definition.metadata.end
+
+              # export type
+              - begin: \{
+                beginCaptures:
+                  '0':
+                    name: punctuation.curlybrace.open.uc
+                patterns:
+                  - include: source.c++
+                end: \}
+                endCaptures:
+                  '0':
+                    name: punctuation.curlybrace.close.uc
+            end: (?=\;|\,)
+        end: \;|\)
 
   inlined-declaration:
     patterns:
@@ -273,7 +299,7 @@ repository:
       - match: \b((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)\b
         name: keyword.type.primitive.uc
 
-        # Delimmiter e.g. Array<string>
+        # Delimmiter e.g. array<string>, or Class<Object>
       - begin: \<
         beginCaptures:
           '0':
@@ -392,7 +418,7 @@ repository:
 
   struct-declaration:
     name: meta.struct.declaration.uc
-    begin: "\\b((?i)struct)\\b\\s*(\\{(\\s*[_[:alpha:]][_[:alnum:]]*\\s*)\\})?\\s*(\\b((?i)native|intrinsic|transient|export|strictconfig|atomic|atomicwhencooked|immutable|immutablewhencooked|init|long)\\b\\s*)*([_[:alpha:]][_[:alnum:]]*)(\\s*((?i)extends)\\s*([_[:alpha:]][_[:alnum:]]*))?"
+    begin: \b((?i)struct)\b\s*(\{(\s*[_[:alpha:]][_[:alnum:]]*\s*)\})?\s*(\b((?i)native|intrinsic|transient|export|strictconfig|atomic|atomicwhencooked|immutable|immutablewhencooked|init|long)\b\s*)*([_[:alpha:]][_[:alnum:]]*)(\s*((?i)extends)\s*([_[:alpha:]][_[:alnum:]]*))?
     beginCaptures:
       '1':
         name: storage.type.struct.uc
@@ -439,16 +465,25 @@ repository:
     end: (?<=\;)
 
   method-modifier:
-    match: "(\\b((?i)static|final|simulated|public|protected|private|exec|iterator|latent|singular|const|noexport|noexportheader|virtual|reliable|unreliable|server|client|dllimport|demorecording|native|intrinsic|k2call|k2override|k2pure)\\b)(\\s*\\(\\s*([0-9]*)\\s*\\))?"
-    captures:
-      '2':
-        name: storage.modifier.uc
-      '4':
-        name: constant.numeric.uc
+    patterns:
+      - match: (\b((?i)static|final|simulated|public|protected|private|exec|iterator|latent|singular|const|noexport|noexportheader|virtual|reliable|unreliable|server|client|dllimport|demorecording|native|intrinsic|k2call|k2override|k2pure)\b)(\s*\(\s*([0-9]*)\s*\))?
+        captures:
+          '2':
+            name: storage.modifier.uc
+          '4':
+            name: constant.numeric.uc
 
-  return-modifier:
-    name: storage.modifier.uc
-    match: "\\b((?i)coerce)\\b"
+      # export modifier
+      - begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        patterns:
+          - include: source.c++""
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
 
   method-declaration:
     name: meta.method.declaration
@@ -473,22 +508,89 @@ repository:
         name: constant.numeric.uc
     patterns:
       - include: '#comment'
-      - include: '#return-modifier'
-      - include: '#return-type-declaration'
 
-        #FIXME: Overruled by return-type-declaration
-        #method parameters
-      - name: punctuation.parenthese.uc
-        begin: \(
+      # Method without a specified return type
+      - begin: (([_[:alpha:]][_[:alnum:]]*)|(\W+))\s*(\()
         beginCaptures:
-          '0':
+          '2':
+            name: entity.name.function.uc
+          '3':
+            name: entity.name.operator.uc
+          '4':
             name: punctuation.parenthesis.open.uc
         patterns:
-          - include: '#method-arguments'
-        end: \)
+          - include: '#parameter-declaration'
+        end: (?<=\))
         endCaptures:
-          '0':
+          '1':
             name: punctuation.parenthesis.close.uc
+
+      # Return type?
+      - match: \b((?i)coerce)\b
+        name: storage.modifier.uc
+      - begin: \b((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)|([_[:alpha:]][_[:alnum:]]*)\b
+        beginCaptures:
+          '1':
+            name: storage.type.primitive.uc
+          '2':
+            name: entity.name.type.uc
+        patterns:
+          - include: '#comment'
+
+          # Delimmiter e.g. Array<string>
+          - begin: \<
+            beginCaptures:
+              '0':
+                name: punctuation.definition.typeparameters.begin.uc
+            patterns:
+              - include: '#inlined-declaration'
+            end: \>
+            endCaptures:
+              '0':
+                name: punctuation.definition.typeparameters.end.uc
+
+          # String size
+          - begin: \[
+            patterns:
+              - include: '#comment'
+              - include: '#numeric-literal'
+
+              - match: ([_[:alpha:]][_[:alnum:]]*)
+                captures:
+                  '1':
+                    name: entity.name.variable.field.uc
+            end: \]
+
+          # export type
+          - begin: \{
+            beginCaptures:
+              '0':
+                name: punctuation.curlybrace.open.uc
+            patterns:
+              - include: source.c++
+            end: \}
+            endCaptures:
+              '0':
+                name: punctuation.curlybrace.close.uc
+
+          - begin: (([_[:alpha:]][_[:alnum:]]*)|(\W+))\s*(\()
+            beginCaptures:
+              '2':
+                name: entity.name.function.uc
+              '3':
+                name: entity.name.operator.uc
+              '4':
+                name: punctuation.parenthesis.open.uc
+            patterns:
+              - include: '#parameter-declaration'
+            end: (?<=\))
+            endCaptures:
+              '1':
+                name: punctuation.parenthesis.close.uc
+        end: (?<=\)|;)
+
+      - match: \b(?i)const\b
+        name: storage.modifier.uc
 
         #method body
       - name: meta.block.uc
@@ -508,12 +610,60 @@ repository:
     name: storage.modifier.uc
     match: \b((?i)optional|out|coerce|const|init|skip)\b
 
-  method-arguments:
+  parameter-declaration:
     patterns:
+      - include: '#comment'
       - include: '#param-modifier'
-      - include: '#type-declaration'
-      - match: '[_[:alpha:]][_[:alnum:]]*'
-        name: entity.name.variable.parameter.uc
+      - begin: \b((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)|([_[:alpha:]][_[:alnum:]]*)\b
+        beginCaptures:
+          '1':
+            name: storage.type.primitive.uc
+          '2':
+            name: entity.name.type.uc
+        patterns:
+          - include: '#comment'
+
+          # Delimmiter e.g. Array<string>
+          - begin: \<
+            beginCaptures:
+              '0':
+                name: punctuation.definition.typeparameters.begin.uc
+            patterns:
+              - include: '#inlined-declaration'
+            end: \>
+            endCaptures:
+              '0':
+                name: punctuation.definition.typeparameters.end.uc
+
+          # String size
+          - begin: \[
+            patterns:
+              - include: '#comment'
+              - include: '#numeric-literal'
+
+              - match: ([_[:alpha:]][_[:alnum:]]*)
+                captures:
+                  '1':
+                    name: entity.name.variable.field.uc
+            end: \]
+
+          # export type
+          - begin: \{
+            beginCaptures:
+              '0':
+                name: punctuation.curlybrace.open.uc
+            patterns:
+              - include: source.c++
+            end: \}
+            endCaptures:
+              '0':
+                name: punctuation.curlybrace.close.uc
+
+          - match: ([_[:alpha:]][_[:alnum:]]*)
+            captures:
+              '1':
+                name: entity.name.variable.parameter.uc
+        end: (?=\,)|(?<=\))
 
   local-declaration:
     name: meta.variable
@@ -555,7 +705,7 @@ repository:
           - include: '#const-declaration'
           - include: '#local-declaration'
           # TODO: Must be invalid within a labeled-block
-          - begin: (\b((?i)ignores)\b)
+          - begin: \b((?i)ignores)\b
             beginCaptures:
               '1':
                 name: keyword.other.ignores.uc
@@ -589,7 +739,7 @@ repository:
         endCaptures:
           '0':
             name: punctuation.curlybrace.close.uc
-    end: (?=\})
+    end: (?<=\})
 
   structcppblock:
     begin: \b((?i)structcpptext|cppstruct)
@@ -608,7 +758,7 @@ repository:
         endCaptures:
           '0':
             name: punctuation.curlybrace.close.uc
-    end: (?=\})
+    end: (?<=\})
 
   replication:
     begin: \b((?i)replication)
