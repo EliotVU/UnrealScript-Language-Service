@@ -4,11 +4,11 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import URI from 'vscode-uri';
-import { Diagnostic, Position } from 'vscode-languageserver';
+import { Diagnostic, Position, DiagnosticSeverity } from 'vscode-languageserver';
 import { performance } from 'perf_hooks';
 import { UCLexer } from '../antlr/UCLexer';
 import { UCParser } from '../antlr/UCParser';
-import { UCPreprocessorParser, MacrosContext } from '../antlr/UCPreprocessorParser';
+import { UCPreprocessorParser, MacrosContext, MacroContext } from '../antlr/UCPreprocessorParser';
 import { CommonTokenStream, ANTLRErrorListener, BailErrorStrategy } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
@@ -17,10 +17,11 @@ import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCSymbol } from '.
 
 import { IDiagnosticNode, DiagnosticCollection } from './diagnostics/diagnostic';
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
-import { IndexedReferencesMap, config } from './indexer';
+import { IndexedReferencesMap } from './indexer';
 
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import { DocumentASTWalker } from './documentASTWalker';
+import { rangeFromBounds } from './helpers';
 
 export const documentLinked$ = new Subject<UCDocument>();
 
@@ -34,6 +35,7 @@ export class UCDocument {
 	public macroTree: MacrosContext;
 
 	public class?: UCClassSymbol;
+	public hasBeenIndexed = false;
 	private readonly indexReferencesMade = new Map<string, ISymbolReference | ISymbolReference[]>();
 
 	constructor(public readonly filePath: string, public classPackage: UCPackage) {
@@ -46,10 +48,6 @@ export class UCDocument {
 
 	public build(text?: string) {
 		console.log('building document ' + this.fileName);
-
-		if (this.class) {
-			this.invalidate();
-		}
 
 		const walker = new DocumentASTWalker(this);
 		const stream = new CaseInsensitiveStream(text || this.readText());
@@ -117,6 +115,7 @@ export class UCDocument {
 	}
 
 	public link() {
+		this.hasBeenIndexed = true;
 		const start = performance.now();
 		if (this.class) {
 			this.class.index(this, this.class);
@@ -125,9 +124,10 @@ export class UCDocument {
 		documentLinked$.next(this);
 	}
 
-	private invalidate() {
+	public invalidate() {
 		delete this.class;
 		this.nodes = []; // clear
+		this.hasBeenIndexed = false;
 
 		// Clear all the indexed references that we have made.
 		for (let [key, value] of this.indexReferencesMade) {

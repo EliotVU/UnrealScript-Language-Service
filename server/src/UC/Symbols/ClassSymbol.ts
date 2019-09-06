@@ -114,22 +114,9 @@ export class UCClassSymbol extends UCStructSymbol {
 
 export class UCDocumentClassSymbol extends UCClassSymbol {
 	public document?: UCDocument;
-	private hasBeenIndexed = false;
 
 	getUri(): string {
 		console.assert(this.document, 'Document was accessed before being initialized! Make sure that the class is indexed first!');
 		return this.document!.filePath;
-	}
-
-	index(document: UCDocument, context: UCClassSymbol = document.class!) {
-		if (this.hasBeenIndexed) {
-			return;
-		}
-
-		// Assign it before calling super, as we don't want to end up in a situation,
-		// -- where for example index would throw an error,
-		// -- and then each dependency would re-retry to index this class yet again!
-		this.hasBeenIndexed = true;
-		super.index(document, context);
 	}
 }

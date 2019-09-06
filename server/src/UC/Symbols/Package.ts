@@ -75,10 +75,11 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 		if (deepSearch) {
 			const document = getDocumentById(id.toString().toLowerCase());
 			if (document) {
-				if (!document.class) {
+				if (document.hasBeenIndexed) {
+					return document.class;
+				} else {
 					indexDocument(document);
 				}
-				return document.class;
 			}
 		}
 	}
@@ -105,7 +106,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 		return this.symbols.get(id);
 	}
 
-	findSymbol(id: Name, deepSearch?: boolean): T | undefined {
+	findSymbol(id: Name, deepSearch?: boolean): ISymbol | undefined {
 		const symbol = this.getSymbol(id);
 		if (symbol) {
 			return symbol;
@@ -114,11 +115,11 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 		if (deepSearch) {
 			const document = getDocumentById(id.toString().toLowerCase());
 			if (document) {
-				if (!document.class) {
+				if (document.hasBeenIndexed) {
+					return document.class;
+				} else {
 					indexDocument(document);
 				}
-
-				return document.class as any;
 			}
 		}
 	}

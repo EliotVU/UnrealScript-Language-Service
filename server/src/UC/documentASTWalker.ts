@@ -630,9 +630,13 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 				// }
 			}
 
-			const bodyNode = ctx.functionBody();
-			if (bodyNode) {
-				bodyNode.accept(this);
+			try {
+				const bodyNode = ctx.functionBody();
+				if (bodyNode) {
+					bodyNode.accept(this);
+				}
+			} catch (err) {
+				console.error(`Encountered an error while constructing the body for function '${symbol.getQualifiedName()}'`, err);
 			}
 		} catch (err) {
 			console.error(`Encountered an error while constructing function '${symbol.getQualifiedName()}'`, err);

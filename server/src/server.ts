@@ -124,7 +124,11 @@ connection.onInitialized(async () => {
 			const document = getDocumentByUri(textDocument.uri);
 			console.assert(document, 'Failed to fetch document at: ' + textDocument.uri);
 
-			if (isDirty || !document.class) {
+			if (isDirty) {
+				document.invalidate();
+			}
+
+			if (!document.hasBeenIndexed) {
 				indexDocument(document, textDocument.getText());
 			}
 		}, (error) => connection.console.error(error));
@@ -147,7 +151,7 @@ connection.onInitialized(async () => {
 				const openDocuments = textDocuments.all();
 				openDocuments.forEach(doc => {
 					const document = getDocumentByUri(doc.uri);
-					if (document && !document.class) {
+					if (document && !document.hasBeenIndexed) {
 						indexDocument(document);
 					}
 				});
@@ -159,8 +163,7 @@ connection.onInitialized(async () => {
 
 			const documents = classes.map(uri => getDocumentByUri(uri));
 			documents.forEach(document => {
-				// Already indexed!
-				if (document.class) {
+				if (document.hasBeenIndexed) {
 					return;
 				}
 
