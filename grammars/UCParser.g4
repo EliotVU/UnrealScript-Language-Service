@@ -551,7 +551,7 @@ structCppText
 
 // UnrealScriptBug: Anything WHATSOEVER can be written after this closing brace as long as it's on the same line!
 exportBlockText
-	: OPEN_BRACE (~CLOSE_BRACE | exportBlockText)* CLOSE_BRACE
+	: OPEN_BRACE (~(OPEN_BRACE | CLOSE_BRACE)+ | exportBlockText)* CLOSE_BRACE
 	;
 
 replicationBlock
