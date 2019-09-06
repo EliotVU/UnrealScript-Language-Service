@@ -199,7 +199,7 @@ repository:
       - include: '#comment'
       - include: '#type-modifier'
 
-      - begin: \b((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)|([_[:alpha:]][_[:alnum:]]*)\b
+      - begin: \b(?:((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)|([_[:alpha:]][_[:alnum:]]*))\b
         beginCaptures:
           '1':
             name: storage.type.primitive.uc
