@@ -75,11 +75,10 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 		if (deepSearch) {
 			const document = getDocumentById(id.toString().toLowerCase());
 			if (document) {
-				if (document.hasBeenIndexed) {
-					return document.class;
-				} else {
+				if (!document.hasBeenIndexed) {
 					indexDocument(document);
 				}
+				return document.class;
 			}
 		}
 	}
@@ -115,11 +114,10 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 		if (deepSearch) {
 			const document = getDocumentById(id.toString().toLowerCase());
 			if (document) {
-				if (document.hasBeenIndexed) {
-					return document.class;
-				} else {
+				if (!document.hasBeenIndexed) {
 					indexDocument(document);
 				}
+				return document.class;
 			}
 		}
 	}
