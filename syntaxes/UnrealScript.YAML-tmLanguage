@@ -451,7 +451,7 @@ repository:
     end: (?<=\}|\;)
 
   var-declaration:
-    begin: "((?i)\\bvar\\b)(\\s*\\(\\s*([_[:alpha:]][_[:alnum:]]*)\\s*\\))?"
+    begin: \b((?i)var)\b(\s*\(\s*([_[:alpha:]][_[:alnum:]]*)\s*\))?
     beginCaptures:
       '1':
         name: storage.type.variable.uc
@@ -487,24 +487,24 @@ repository:
 
   method-declaration:
     name: meta.method.declaration
-    begin: \b(((?i)(function)|(event)|(delegate)|(preoperator)|(postoperator))|(((?i)operator))((\s*\(\s*([0-9]*)\s*\))))
+    begin: (\b(?i)(function)|(event)|(delegate)|(preoperator)|(postoperator)\b)|(?:(\b(?i)operator\b)((\s*\(\s*([0-9]*)\s*\)))?)
     end: (?<=\}|\;)
     beginCaptures:
-      '2':
+      '1':
         name: keyword.other.method.uc
-      '3':
+      '2':
         name: keyword.other.function.uc
-      '4':
+      '3':
         name: keyword.other.event.uc
-      '5':
+      '4':
         name: keyword.other.delegate.uc
-      '6':
+      '5':
         name: keyword.other.operator.pre.uc
-      '7':
+      '6':
         name: keyword.other.operator.post.uc
-      '9':
+      '7':
         name: keyword.other.operator.uc
-      '12':
+      '10':
         name: constant.numeric.uc
     patterns:
       - include: '#comment'
@@ -526,9 +526,9 @@ repository:
             name: punctuation.parenthesis.close.uc
 
       # Return type?
-      - match: \b((?i)coerce)\b
+      - match: \b(?:(?i)coerce)\b
         name: storage.modifier.uc
-      - begin: \b((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)|([_[:alpha:]][_[:alnum:]]*)\b
+      - begin: \b(?:((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)|([_[:alpha:]][_[:alnum:]]*))\b
         beginCaptures:
           '1':
             name: storage.type.primitive.uc
@@ -589,7 +589,7 @@ repository:
                 name: punctuation.parenthesis.close.uc
         end: (?<=\)|;)
 
-      - match: \b(?i)const\b
+      - match: \b(?:(?i)const)\b
         name: storage.modifier.uc
 
         #method body
@@ -608,13 +608,13 @@ repository:
 
   param-modifier:
     name: storage.modifier.uc
-    match: \b((?i)optional|out|coerce|const|init|skip)\b
+    match: \b(?:(?i)optional|out|coerce|const|init|skip)\b
 
   parameter-declaration:
     patterns:
       - include: '#comment'
       - include: '#param-modifier'
-      - begin: \b((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)|([_[:alpha:]][_[:alnum:]]*)\b
+      - begin: \b(?:((?i)float|int|byte|bool|button|name|string|pointer|array|map|delegate)|([_[:alpha:]][_[:alnum:]]*))\b
         beginCaptures:
           '1':
             name: storage.type.primitive.uc
@@ -677,9 +677,9 @@ repository:
     end: (?<=\;)
 
   state-modifier:
-    match: (\b((?i)auto|simulated)\b)
+    match: \b((?i)auto|simulated)\b
     captures:
-      '2':
+      '1':
         name: storage.modifier.uc
 
   state-declaration:
@@ -723,7 +723,7 @@ repository:
     end: (?<=\}|\;)
 
   cppblock:
-    begin: \b((?i)cpptext)
+    begin: \b((?i)cpptext)\b
     beginCaptures:
       '1':
         name: keyword.other.uc
@@ -742,7 +742,7 @@ repository:
     end: (?<=\})
 
   structcppblock:
-    begin: \b((?i)structcpptext|cppstruct)
+    begin: \b((?i)structcpptext|cppstruct)\b
     beginCaptures:
       '1':
         name: keyword.other.uc
@@ -761,7 +761,7 @@ repository:
     end: (?<=\})
 
   replication:
-    begin: \b((?i)replication)
+    begin: \b((?i)replication)\b
     beginCaptures:
       '1':
         name: keyword.other.replication.uc
@@ -814,10 +814,10 @@ repository:
             name: punctuation.separator.label.uc
 
       - name: keyword.control.conditional.uc
-        match: \b((?i)if|switch|case|(default\s*\:)|while|foreach|for|do|until|else|assert)\b
+        match: \b(?:(?i)if|switch|case|(default\s*\:)|while|foreach|for|do|until|else|assert)\b
 
       - name: keyword.control.flow.uc
-        match: \b((?i)return|continue|break|stop|goto)\b
+        match: \b(?:(?i)return|continue|break|stop|goto)\b
 
       - include: '#expression'
       - include: '#directive'
@@ -827,7 +827,7 @@ repository:
       - include: '#comment'
 
       - name: variable.language.this.uc
-        match: \b((?i)global|self|default|static|const)\b
+        match: \b(?:(?i)global|self|default|static|const)\b
 
       - match: ((?i)super)(?:\s*\(\s*([_[:alpha:]][_[:alnum:]]*\s*)\))?
         captures:
@@ -972,20 +972,20 @@ repository:
 
   propertiesBlock:
     patterns:
-      - begin: (begin ((?i)object))
+      - begin: \b(begin ((?i)object))\b
         beginCaptures:
           '0':
             name: keyword.other.uc
         patterns:
           - include: '#propertiesBlock'
-        end: (end ((?i)object))
+        end: \b(end ((?i)object))\b
         endCaptures:
           '0':
             name: keyword.other.uc
       - include: '#expression'
 
   defaultproperties:
-    begin: \b((?i)defaultproperties)
+    begin: \b((?i)defaultproperties)\b
     beginCaptures:
       '1':
         name: keyword.other.defaultproperties.uc
@@ -1004,7 +1004,7 @@ repository:
     end: (?<=\})
 
   structdefaultproperties:
-    begin: \b((?i)structdefaultproperties)
+    begin: \b((?i)structdefaultproperties)\b
     beginCaptures:
       '1':
         name: keyword.other.structdefaultproperties.uc
