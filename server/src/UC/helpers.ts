@@ -10,11 +10,12 @@ import {
 } from 'vscode-languageserver';
 import { Token } from 'antlr4ts';
 
+import { TokenExt } from './Parser/CommonTokenStreamExt';
 import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, ClassesTable } from './Symbols';
 import { getDocumentByUri, getIndexedReferences } from "./indexer";
 
 export function rangeFromBound(token: Token): Range {
-	const length = token.text!.length;
+	const length = (token as TokenExt).length;
 
 	const start: Position = {
 		line: token.line - 1,
@@ -29,7 +30,7 @@ export function rangeFromBound(token: Token): Range {
 }
 
 export function rangeFromBounds(startToken: Token, stopToken: Token = startToken): Range {
-	const length = stopToken.text!.length;
+	const length = (stopToken as TokenExt).length;
 
 	return {
 		start: {

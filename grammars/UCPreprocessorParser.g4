@@ -25,12 +25,13 @@ options {
 	}
 }
 
-macros: (MACRO_CHAR macro)* EOF;
+macroProgram: macroStatement* EOF;
+macroStatement: MACRO_CHAR macro;
 
 callArguments: OPEN_PARENS (MACRO_SYMBOL (',' MACRO_SYMBOL)*)? CLOSE_PARENS;
 
-macro returns[isActive: boolean]
-	: MACRO_DEFINE MACRO_SYMBOL (args=callArguments)? MACRO_TEXT? macroNewline
+macro returns[isActive: boolean, evaluatedTokens?: Token[]]
+	: MACRO_DEFINE MACRO_SYMBOL (args=callArguments)? MACRO_TEXT?
 	{
 		$isActive = this.getCurrentState();
 		if ($isActive) {
@@ -42,7 +43,7 @@ macro returns[isActive: boolean]
 			}
 		}
 	} # macroDefine
-	| MACRO_UNDEFINE MACRO_SYMBOL macroNewline
+	| MACRO_UNDEFINE MACRO_SYMBOL
 	{
 		$isActive = this.getCurrentState();
 		if ($isActive) {
@@ -53,43 +54,43 @@ macro returns[isActive: boolean]
 			}
 		}
 	} # macroUndefine
-	| KW_IF OPEN_PARENS expr=macroExpression CLOSE_PARENS macroNewline
+	| KW_IF OPEN_PARENS expr=macroExpression CLOSE_PARENS
 	{
 		$isActive = !!$expr.value && this.getCurrentState();
 		this.currentState.push($isActive);
 	} # macroIf
-	| MACRO_ELSE_IF OPEN_PARENS expr=macroExpression CLOSE_PARENS macroNewline
+	| MACRO_ELSE_IF OPEN_PARENS expr=macroExpression CLOSE_PARENS
 	{
-		if (!this.peekCurrentState()) {
+		if (this.peekCurrentState()) {
+			this.currentState.pop();
+			this.currentState.push(false);
+			$isActive = false;
+		 } else {
 			const isActive = !!$expr.value;
 		  	this.currentState.pop();
 	     	this.currentState.push(isActive);
 
 		  	$isActive = isActive && this.getCurrentState();
-		 } else {
-			this.currentState.pop();
-			this.currentState.push(false);
-			$isActive = false;
 		}
 	} # macroElseIf
-	| KW_ELSE macroNewline
+	| KW_ELSE
 	{
-		if (!this.peekCurrentState()) {
-			$isActive = this.getCurrentState();
-			this.currentState.pop();
-			this.currentState.push(true);
-		} else {
+		if (this.peekCurrentState()) {
 			this.currentState.pop();
 			this.currentState.push(false);
 			$isActive = false;
+		} else {
+			this.currentState.pop();
+			$isActive = this.getCurrentState();
+			this.currentState.push(true);
 		}
 	} # macroElse
-	| MACRO_END_IF macroNewline
+	| MACRO_END_IF
 	{
-		this.currentState.pop();
 		$isActive = this.peekCurrentState();
+		this.currentState.pop();
 	} #macroEndIf
-	| MACRO_INCLUDE macroNewline
+	| MACRO_INCLUDE
 	{
 		$isActive = this.getCurrentState();
 	} #macroInclude
@@ -102,8 +103,6 @@ macro returns[isActive: boolean]
 		$isActive = this.getCurrentState();
 	} # macroCall
 	;
-
-macroNewline: MACRO_NEW_LINE | EOF;
 
 macroExpression returns[value: boolean | string]
 	: MACRO_CHAR MACRO_IS_DEFINED (OPEN_PARENS MACRO_SYMBOL? CLOSE_PARENS)

@@ -78,8 +78,10 @@ export class UnrecognizedFieldNode implements IDiagnosticNode {
 
 interface IDiagnosticTemplate {
 	range: Range;
-	message: { text: string, code?: string, severity: DiagnosticSeverity | number };
+	message: { text: string, code?: string, severity?: DiagnosticSeverity | number };
 	args?: string[];
+
+	custom?: { [key: string]: any, unnecessary?: {} };
 }
 
 export class DiagnosticCollection {
@@ -100,7 +102,7 @@ export class DiagnosticCollection {
 				code: template.message.code,
 				source: 'unrealscript'
 			};
-			return diagnostic;
+			return Object.assign(diagnostic, template.custom);
 		});
 	}
 }

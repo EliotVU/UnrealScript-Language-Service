@@ -1,6 +1,6 @@
 import * as path from 'path';
 
-import URI from 'vscode-uri';
+import { URI } from 'vscode-uri';
 import { BehaviorSubject } from 'rxjs';
 
 import { UCOptions } from '../settings';

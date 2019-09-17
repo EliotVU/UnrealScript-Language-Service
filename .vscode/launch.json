@@ -16,8 +16,8 @@
             "name": "UC Macro",
 			"input": "grammars/examples/macro.uci",
 			"grammar": "grammars/UCPreprocessorParser.g4",
-			"startRule": "macros",
-			"debugServer": 4711,
+			"startRule": "macroProgram",
+			"debugServer": 6020,
 			"trace": true,
 			"visualParseTree": true
         },
@@ -28,7 +28,7 @@
 			"runtimeExecutable": "${execPath}",
 			"args": ["--extensionDevelopmentPath=${workspaceRoot}"],
 			"sourceMaps": true,
-			"outFiles": ["${workspaceRoot}/dist/extension.js"]
+			"outFiles": ["${workspaceRoot}/client/out/extension.js"]
 		},
 		{
 			"type": "node",
@@ -36,7 +36,7 @@
 			"name": "Attach to Server",
 			"port": 6010,
 			"sourceMaps": true,
-			"outFiles": ["${workspaceRoot}/dist/server.js"]
+			"outFiles": ["${workspaceRoot}/server/out/server.js"]
 		}
 	],
 	"compounds": [

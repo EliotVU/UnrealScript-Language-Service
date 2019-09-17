@@ -6,6 +6,7 @@ var private Alpha ArchetypeA;
 `define PP_A ArchetypeA
 
 function Test() {
+
 	local byte cmd;
 
 	switch( cmd )
@@ -18,6 +19,8 @@ function Test() {
 		case 3:
 		case 4:
 			`PP_A.AlphaTest();
+			`PP_A.AlphaTest();
+			`{PP_A}.AlphaTest();
 			break;
 	}
 }

@@ -5,8 +5,7 @@ channels { MACRO, COMMENTS_CHANNEL }
 @lexer::members {
 	parensLevel: number = 0;
 	braceLevel: number = 0;
-	isDefine: boolean = false;
-	captureDefineText: boolean = false;
+	isDefineContext: boolean = false;
 }
 
 fragment EXPONENT: [eE] [+-]? [0-9]+;
@@ -14,7 +13,6 @@ fragment HEX_DIGIT: [0-9] | [A-F] | [a-f];
 fragment ESC_SEQ: '\\' ('b' | 't' | 'n' | 'r' | '"' | '\'' | '\\');
 
 fragment CALL_MACRO_CHAR: '\u0060';
-
 
 LINE_COMMENT
 	: '//' ~[\r\n]*
@@ -33,7 +31,7 @@ WS
 
 MACRO_CHAR
 	: CALL_MACRO_CHAR
-	-> channel(MACRO), mode(MACRO_MODE)
+	-> channel(MACRO), pushMode(MACRO_MODE)
 	;
 
 STRING: '"' (~["\\] | ESC_SEQ)* '"';
@@ -258,20 +256,21 @@ ASSIGNMENT_STAR: '*=';
 ASSIGNMENT_CARET: '^=';
 ASSIGNMENT_DIV: '/=';
 
+// ERROR: .+? -> channel(HIDDEN);
+
 mode MACRO_MODE;
 
-MACRO_WHITESPACES:         	[ \t]+                     	-> channel(HIDDEN);
+MACRO_WS:         			[ \t]+                     	-> channel(HIDDEN), type(WS);
 MACRO_SINGLE_LINE_COMMENT: 	'//' ~[\r\n]*  				-> channel(COMMENTS_CHANNEL), type(LINE_COMMENT);
 MACRO_CHAR_INLINED
 	: CALL_MACRO_CHAR
 	-> channel(MACRO), type(MACRO_CHAR)
 	;
-MACRO_STRING:              	'"' ~('"' | [\r\n])* '"' 	-> channel(MACRO), type(STRING);
 
 MACRO_DEFINE
 	: 'define'
 	{
-		this.isDefine = true;
+		this.isDefineContext = true;
 	}
 	-> channel(MACRO)
 	;
@@ -318,10 +317,8 @@ MACRO_OPEN_BRACE
 MACRO_CLOSE_BRACE
 	: '}'
 	{
-		-- this.braceLevel;
-		if (this.braceLevel === 0) {
-			this.isDefine = false;
-			this.captureDefineText = false;
+		if (--this.braceLevel === 0) {
+			this.isDefineContext = false;
 			this.mode(Lexer.DEFAULT_MODE);
 		}
 	}
@@ -332,12 +329,9 @@ MACRO_SYMBOL
 	: [a-zA-Z_][a-zA-Z0-9_#]*
 	{
 		if (this.parensLevel === 0 && this.braceLevel === 0) {
-			if (this.isDefine) {
-				this.captureDefineText = true;
-				this.isDefine = false;
+			if (this.isDefineContext) {
+				this.mode(UCLexer.MACRO_TEXT_MODE);
 			} else {
-				this.isDefine = false;
-				this.captureDefineText = false;
 				this.mode(Lexer.DEFAULT_MODE);
 			}
 		}
@@ -345,20 +339,31 @@ MACRO_SYMBOL
 	-> channel(MACRO)
 	;
 
-MACRO_TEXT
-	: { this.captureDefineText }? { this.pushMode(Lexer.DEFAULT_MODE); }
-	~[\r\n]+
-	{ this.captureDefineText = false; this.pushMode(UCLexer.MACRO_MODE); }
-	-> channel(MACRO)
-	;
-
 MACRO_NEW_LINE
-	: [\r\n]
+	: [\r\n]+
 	{
 		this.parensLevel = 0;
 		this.braceLevel = 0;
-		this.isDefine = false;
-		this.captureDefineText = false;
+		this.isDefineContext = false;
 	}
-	-> channel(MACRO), mode(DEFAULT_MODE)
+	-> channel(HIDDEN), mode(DEFAULT_MODE)
 	;
+
+mode MACRO_TEXT_MODE;
+
+MACRO_TEXT
+	: (~[\n]*? '\\' '\r'? '\n')* ~[\n]+
+	-> channel(MACRO)
+	;
+
+MACRO_TEXT_NEW_LINE
+	: [\r\n]+
+	{
+		this.parensLevel = 0;
+		this.braceLevel = 0;
+		this.isDefineContext = false;
+	}
+	-> channel(HIDDEN), type(MACRO_NEW_LINE), mode(DEFAULT_MODE)
+	;
+
+// MACRO_ERROR: .+? -> channel(HIDDEN);

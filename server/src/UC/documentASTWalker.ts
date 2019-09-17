@@ -469,7 +469,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		try {
 			const memberNodes = ctx.structMember();
 			if (memberNodes) for (const member of memberNodes) {
-				member.accept<any>(this);
+				member.accept(this);
 			}
 		} finally {
 			this.pop();
@@ -615,7 +615,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 				symbol.params = [];
 				const paramNodes = ctx._params.paramDecl();
 				for (const paramNode of paramNodes) {
-					const propSymbol = paramNode.accept<any>(this);
+					const propSymbol = paramNode.accept(this);
 					symbol.params.push(propSymbol);
 				}
 

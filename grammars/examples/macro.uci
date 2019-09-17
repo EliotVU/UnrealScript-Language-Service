@@ -1,0 +1,8 @@
+class macro;
+
+`define DEF defaultproperties
+
+`DEF
+{
+
+}

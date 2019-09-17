@@ -19,7 +19,7 @@ import {
 	SymbolKind,
 	CompletionTriggerKind
 } from 'vscode-languageserver';
-import URI from 'vscode-uri';
+import { URI } from 'vscode-uri';
 import { UCPreprocessorParser } from './antlr/UCPreprocessorParser';
 
 import { getSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
