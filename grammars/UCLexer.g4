@@ -10,7 +10,7 @@ channels { MACRO, COMMENTS_CHANNEL }
 
 fragment EXPONENT: [eE] [+-]? [0-9]+;
 fragment HEX_DIGIT: [0-9] | [A-F] | [a-f];
-fragment ESC_SEQ: '\\' ('b' | 't' | 'n' | 'r' | '"' | '\'' | '\\');
+fragment ESC_SEQ: '\\' .;
 
 fragment CALL_MACRO_CHAR: '\u0060';
 
@@ -256,7 +256,7 @@ ASSIGNMENT_STAR: '*=';
 ASSIGNMENT_CARET: '^=';
 ASSIGNMENT_DIV: '/=';
 
-// ERROR: .+? -> channel(HIDDEN);
+ERROR: . -> channel(HIDDEN);
 
 mode MACRO_MODE;
 
@@ -349,6 +349,8 @@ MACRO_NEW_LINE
 	-> channel(HIDDEN), mode(DEFAULT_MODE)
 	;
 
+// MACRO_ERROR: . -> channel(HIDDEN);
+
 mode MACRO_TEXT_MODE;
 
 MACRO_TEXT
@@ -365,5 +367,3 @@ MACRO_TEXT_NEW_LINE
 	}
 	-> channel(HIDDEN), type(MACRO_NEW_LINE), mode(DEFAULT_MODE)
 	;
-
-// MACRO_ERROR: .+? -> channel(HIDDEN);
