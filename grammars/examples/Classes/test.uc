@@ -15,10 +15,42 @@ enum AEnum {
 	A_2
 };
 
-struct AStruct {
+struct native transient AStruct {
+	struct StubStruct {
+		struct DeepStruct {
+			enum EDeep {
+
+			};
+		};
+	};
+
+	var array<struct ASubStruct extends StubStruct {
+		var DeepStruct DeepStructRef;
+		var DeepStruct.EDeep DeepEnumRef;
+
+		// FIXME: Self-reference should be disallowed.
+		var ASubStruct SubInt;
+	}> InlinedSubArray;
+
+	// var DeepStruct DeepStructRef; // Should not be able to find DeepStruct from here.
+
+	// FIXME: Cannot find ASubStruct, this worked in the most recent released version!
+	var array<ASubStruct> SubArray;
+
 	var Color AColor;
 	var Guid AGuid;
 	var Vector AVector;
+	var Plane APlane;
+	var Matrix AMatrix;
+
+	structcpptext
+	{
+		(){}
+
+		FAStruct() {
+
+		}
+	}
 };
 
 var int defaultInt;
@@ -40,18 +72,27 @@ var array<int> 				defaultIntDynamicArray;
 // TODO: Test how the UC compiler handles delegate names that are ambigues with a class.
 // As it currently stands, the delegate is matched with class "Test" instead of function "Test".
 var delegate<Test> 			defaultDelegate;
+
+// FIXME: Breaks variable highlighting.
 var map{string, float} 		defaultStringToFloatMap;
 var class<Test> 			defaultClassMeta;
 var array<class<Test> > 	defaultArrayOfClasses;
 
 // Test for non-quoted tooltip
-var Array<Object> MetaData<Tooltip = tooltip for my array. | test=0>;
+var array<Object> MetaData<Tooltip = tooltip for my array. | test=0>;
+var array<Object> MetaData1<Tooltip = tooltip for my array.>;
+var array<Object> MetaData2<Tooltip = >;
+var array<Object> MetaData3<Tooltip>;
+var array<Object> MetaData4<>;
 
 // Fancy native stuff.
 var private{public} native int NativeInt[2], NativeIntTwo[2]{INT};
 
 // Test for multiple categories.
+// FIXME: Multicategories are breaking variable highlighting.
 var(Category1, Category2) string Description;
+
+native function string const() const;
 
 static final preoperator string $(string A) {
 	return "$" $ A;
@@ -73,12 +114,22 @@ function Class Load(name objName, class ObjClass) {
 	return objClass;
 }
 
+// FIXME: Should be disallowed
+function struct e {} InlinedStructReturnType() {
+	local e s;
+	return s;
+}
+
 function byte Test() {
+
 	local int i;
 
 	local Test obj;
 	local class<Test> objClass;
 	local string str;
+
+	// FIXME: Local structs or enums are disallowed!
+	local array<struct e {}> eStruct;
 
 	str = str $ $str;
 
@@ -86,7 +137,7 @@ function byte Test() {
 	i = int(0.f);
 	i = 256;
 	i = &str;
-	i = ToInt"test";
+	i = ToInt"test\s";
 	i = ToInt str;
 
 	str = $"Test";
