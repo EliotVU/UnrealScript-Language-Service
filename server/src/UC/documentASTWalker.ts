@@ -5,6 +5,7 @@ import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 
 import * as UCGrammar from '../antlr/UCParser';
+import { UCLexer } from '../antlr/UCLexer';
 import { UCParserVisitor } from '../antlr/UCParserVisitor';
 import { UCPreprocessorParserVisitor } from '../antlr/UCPreprocessorParserVisitor';
 
@@ -219,24 +220,36 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	visitTypeDecl(typeDeclNode: UCGrammar.TypeDeclContext): ITypeSymbol {
 		const rule = typeDeclNode.getChild(0) as ParserRuleContext;
 		const ruleIndex = rule.ruleIndex;
-		if (ruleIndex === UCGrammar.UCParser.RULE_predefinedType) {
-			// TODO: Maybe check rule.type instead to save us from hashing a string?
-			const name = toName(rule.text);
-			const type = name === NAME_BYTE
+		if (ruleIndex === UCGrammar.UCParser.RULE_structDecl) {
+			const symbol: UCStructSymbol = this.visitStructDecl(rule as UCGrammar.StructDeclContext);
+			const type = new UCObjectTypeSymbol(symbol.id, undefined, UCTypeKind.Struct);
+			// noIndex: true, because the struct will be indexed in its own index() call.
+			type.setReference(symbol, this.document, undefined, true);
+			return type;
+		} else if (ruleIndex === UCGrammar.UCParser.RULE_enumDecl) {
+			const symbol: UCEnumSymbol = this.visitEnumDecl(rule as UCGrammar.EnumDeclContext);
+			const type = new UCObjectTypeSymbol(symbol.id, undefined, UCTypeKind.Enum);
+			// noIndex: true, because the enum will be indexed in its own index() call.
+			type.setReference(symbol, this.document, undefined, true);
+			return type;
+		}
+		else if (ruleIndex === UCGrammar.UCParser.RULE_primitiveType) {
+			const tokenType = rule.start.type;
+			const type = tokenType === UCLexer.KW_BYTE
 				? UCByteTypeSymbol
-				: name === NAME_FLOAT
+				: tokenType === UCLexer.KW_FLOAT
 				? UCFloatTypeSymbol
-				: name === NAME_INT
+				: tokenType === UCLexer.KW_INT
 				? UCIntTypeSymbol
-				: name === NAME_STRING
+				: tokenType === UCLexer.KW_STRING
 				? UCStringTypeSymbol
-				: name === NAME_NAME
+				: tokenType === UCLexer.KW_NAME
 				? UCNameTypeSymbol
-				: name === NAME_BOOL
+				: tokenType === UCLexer.KW_BOOL
 				? UCBoolTypeSymbol
-				: name === NAME_POINTER
+				: tokenType === UCLexer.KW_POINTER
 				? UCPointerTypeSymbol
-				: name === NAME_BUTTON
+				: tokenType === UCLexer.KW_BUTTON
 				? UCButtonTypeSymbol
 				: undefined;
 
@@ -245,7 +258,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			}
 
 			const identifier: Identifier = {
-				name: name,
+				name: type.getStaticName(),
 				range: rangeFromBounds(rule.start, rule.stop)
 			};
 			const symbol = new type(identifier);
@@ -276,9 +289,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			};
 			const symbol = new UCArrayTypeSymbol(identifier, rangeFromBounds(rule.start, rule.stop));
 
-			const baseTypeNode = rule.inlinedDeclTypes();
+			const baseTypeNode = rule.varType();
 			if (baseTypeNode) {
-				const type: ITypeSymbol | undefined = this.visitInlinedDeclTypes(baseTypeNode);
+				const type: ITypeSymbol | undefined = this.visitTypeDecl(baseTypeNode.typeDecl());
 				symbol.baseType = type;
 			}
 			return symbol;
@@ -306,26 +319,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		}
 
 		throw "Encountered an unknown typeDecl:" + typeDeclNode.toString();
-	}
-
-	visitInlinedDeclTypes(inlinedTypeCtx: UCGrammar.InlinedDeclTypesContext): ITypeSymbol | undefined {
-		const rule = inlinedTypeCtx.getChild(0);
-		if (rule instanceof UCGrammar.TypeDeclContext) {
-			return this.visitTypeDecl(rule);
-		} else if (rule instanceof UCGrammar.StructDeclContext) {
-			const symbol: UCStructSymbol = this.visitStructDecl(rule);
-			const type = new UCObjectTypeSymbol(symbol.id, undefined, UCTypeKind.Struct);
-			// noIndex: true, because the struct will be indexed in its own index() call.
-			type.setReference(symbol, this.document, undefined, true);
-			return type;
-		} else if (rule instanceof UCGrammar.EnumDeclContext) {
-			const symbol: UCEnumSymbol = this.visitEnumDecl(rule);
-			const type = new UCObjectTypeSymbol(symbol.id, undefined, UCTypeKind.Enum);
-			// noIndex: true, because the enum will be indexed in its own index() call.
-			type.setReference(symbol, this.document, undefined, true);
-			return type;
-		}
-		return undefined;
 	}
 
 	visitExtendsClause(ctx: UCGrammar.ExtendsClauseContext) {
@@ -727,13 +720,13 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitVarDecl(ctx: UCGrammar.VarDeclContext) {
-		const declTypeNode = ctx.inlinedDeclTypes();
+		const declTypeNode = ctx.varType();
 		if (!declTypeNode) {
 			return;
 		}
 
 		let modifiers: FieldModifiers = 0;
-		const modifierNodes = ctx.variableModifier();
+		const modifierNodes = declTypeNode.variableModifier();
 		for (const modNode of modifierNodes) {
 			switch (modNode.start.type) {
 				case UCGrammar.UCParser.KW_CONST:
@@ -751,7 +744,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			}
 		}
 
-		const typeSymbol = this.visitInlinedDeclTypes(declTypeNode);
+		const typeSymbol = this.visitTypeDecl(declTypeNode.typeDecl());
 		const varNodes = ctx.variable();
 		if (varNodes) for (const varNode of varNodes) {
 			const symbol: UCPropertySymbol = varNode.accept(this);

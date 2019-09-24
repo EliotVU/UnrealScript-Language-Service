@@ -16,6 +16,7 @@ import {
 	PredefinedArray, PredefinedDelegate, PredefinedMap,
 	NativeClass, NativeArray
 } from '.';
+import { NAME_NONE, Name, NAME_BYTE, NAME_FLOAT, NAME_INT, NAME_STATE, NAME_STRING, NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_BUTTON } from '../names';
 
 export enum UCTypeKind {
 	// PRIMITIVE TYPES
@@ -142,6 +143,10 @@ abstract class UCPredefinedTypeSymbol extends UCSymbol implements IWithReference
 			return this;
 		}
 	}
+
+	static getName(): Name {
+		return NAME_NONE;
+	}
 }
 
 export class UCByteTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
@@ -151,6 +156,10 @@ export class UCByteTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSym
 
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Byte;
+	}
+
+	static getStaticName(): Name {
+		return NAME_BYTE;
 	}
 }
 
@@ -162,6 +171,10 @@ export class UCFloatTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSy
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Float;
 	}
+
+	static getStaticName(): Name {
+		return NAME_FLOAT;
+	}
 }
 
 export class UCIntTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
@@ -171,6 +184,10 @@ export class UCIntTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymb
 
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Int;
+	}
+
+	static getStaticName(): Name {
+		return NAME_INT;
 	}
 }
 
@@ -182,6 +199,10 @@ export class UCStringTypeSymbol extends UCPredefinedTypeSymbol implements ITypeS
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.String;
 	}
+
+	static getStaticName(): Name {
+		return NAME_STRING;
+	}
 }
 
 export class UCNameTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
@@ -191,6 +212,10 @@ export class UCNameTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSym
 
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Name;
+	}
+
+	static getStaticName(): Name {
+		return NAME_NAME;
 	}
 }
 
@@ -202,6 +227,10 @@ export class UCBoolTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSym
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Bool;
 	}
+
+	static getStaticName(): Name {
+		return NAME_BOOL;
+	}
 }
 
 export class UCPointerTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
@@ -212,6 +241,10 @@ export class UCPointerTypeSymbol extends UCPredefinedTypeSymbol implements IType
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Int;
 	}
+
+	static getStaticName(): Name {
+		return NAME_POINTER;
+	}
 }
 
 export class UCButtonTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
@@ -221,6 +254,10 @@ export class UCButtonTypeSymbol extends UCPredefinedTypeSymbol implements ITypeS
 
 	getTypeKind(): UCTypeKind {
 		return UCTypeKind.Byte;
+	}
+
+	static getStaticName(): Name {
+		return NAME_BUTTON;
 	}
 }
 

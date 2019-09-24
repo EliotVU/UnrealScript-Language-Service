@@ -416,9 +416,8 @@ arrayDimRefer
 // MODIFIER TYPE
 // VARIABLE, VARIABLE...;
 varDecl
-	: 'var' (OPEN_PARENS categoryList? CLOSE_PARENS)?
-	variableModifier* inlinedDeclTypes
-	variable (COMMA variable)* SEMICOLON
+	: 'var' (OPEN_PARENS categoryList? CLOSE_PARENS)? varType
+	   variable (COMMA variable)* SEMICOLON
 	;
 
 // id[5] {DWORD} <Order=1>
@@ -498,22 +497,7 @@ variableModifier
 	| ('privatewrite' exportBlockText?)
 	;
 
-typeDecl
-	: predefinedType
-	| classType
-	| arrayType
-	| delegateType
-	| mapType
-	| qualifiedIdentifier
-	;
-
-inlinedDeclTypes
-	: enumDecl
-	| structDecl
-	| typeDecl
-	;
-
-predefinedType
+primitiveType
 	: 'byte'
 	| 'int'
 	| 'float'
@@ -524,9 +508,24 @@ predefinedType
 	| 'button' // alias for a string with an input modifier
 	;
 
+typeDecl
+	: enumDecl 		// Only allowed as a top-scope member.
+	| structDecl 	// Only allowed as a top-scope member.
+	| primitiveType
+	| classType
+	| arrayType
+	| delegateType
+	| mapType
+	| qualifiedIdentifier
+	;
+
+varType
+	: variableModifier* typeDecl
+	;
+
 // Note: inlinedDeclTypes includes another arrayGeneric!
 arrayType
-	: 'array' (LT inlinedDeclTypes GT)
+	: 'array' (LT varType GT)
 	;
 
 classType
