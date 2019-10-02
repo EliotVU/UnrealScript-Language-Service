@@ -178,7 +178,7 @@ identifier
 // Package.Class
 // Class.Field
 // Class / Field
-qualifiedIdentifier: identifier (DOT identifier)?;
+qualifiedIdentifier: left=identifier (DOT right=identifier)?;
 
 // FIXME: Consumes atleast one token after "#error"
 directive
@@ -256,8 +256,8 @@ classDecl
 		SEMICOLON
 	;
 
-extendsClause: ('extends' | 'expands') qualifiedIdentifier;
-withinClause: 'within' qualifiedIdentifier;
+extendsClause: ('extends' | 'expands') id=qualifiedIdentifier;
+withinClause: 'within' id=qualifiedIdentifier;
 
 classModifier: identifier modifierArguments?;
 	// in UC3 a class can have a custom native name.

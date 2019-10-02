@@ -8,7 +8,7 @@ import {
 	DocumentHighlight,
 	DocumentHighlightKind
 } from 'vscode-languageserver';
-import { Token } from 'antlr4ts';
+import { Token, ParserRuleContext } from 'antlr4ts';
 
 import { TokenExt } from './Parser/CommonTokenStreamExt';
 import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, ClassesTable } from './Symbols';
@@ -41,6 +41,21 @@ export function rangeFromBounds(startToken: Token, stopToken: Token = startToken
 			line: stopToken.line - 1,
 			character: stopToken.charPositionInLine + length
 		}
+	};
+}
+
+export function rangeFromCtx(ctx: ParserRuleContext): Range {
+	const length = (ctx.stop as TokenExt).length;
+	const start = {
+		line: ctx.start.line - 1,
+		character: ctx.start.charPositionInLine
+	};
+	return {
+		start,
+		end: ctx.stop ? {
+			line: ctx.stop.line - 1,
+			character: ctx.stop.charPositionInLine + length
+		} : start
 	};
 }
 

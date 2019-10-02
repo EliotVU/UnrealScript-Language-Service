@@ -322,7 +322,8 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 				break;
 			}
 
-			case UCTypeKind.Enum: case UCTypeKind.Struct: case UCTypeKind.State: {
+			case UCTypeKind.Enum: case UCTypeKind.Struct:
+			case UCTypeKind.State: case UCTypeKind.Delegate: {
 				symbol = context.findSuperSymbol(id);
 				break;
 			}
