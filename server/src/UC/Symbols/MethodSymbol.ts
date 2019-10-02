@@ -1,6 +1,5 @@
 import { SymbolKind, CompletionItemKind, Position, Location } from 'vscode-languageserver-types';
 
-import { getDocumentByUri } from '../indexer';
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
@@ -11,6 +10,7 @@ import {
 	ITypeSymbol, ISymbol,
 	IWithReference, UCTypeKind
 } from '.';
+import { Token } from 'antlr4ts';
 
 export enum MethodSpecifiers {
 	None 			= 0x0000,
@@ -76,26 +76,14 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return CompletionItemKind.Function;
 	}
 
-	getDocumentation(tokenStream) {
-		if (!tokenStream) {
-			const uri = this.getUri();
-			const document = getDocumentByUri(uri);
-			if (document) {
-				tokenStream = document.tokenStream;
-			}
-		}
-
-		if (!tokenStream) {
-			return undefined;
-		}
-
-		const doc = super.getDocumentation(tokenStream);
+	getDocumentation() {
+		const doc = super.getDocumentation();
 		if (doc) {
 			return doc;
 		}
 
 		if (this.overriddenMethod) {
-			return this.overriddenMethod.getDocumentation(undefined);
+			return this.overriddenMethod.getDocumentation();
 		}
 	}
 

@@ -763,78 +763,6 @@ labeledStatement: identifier COLON;
 gotoStatement: 'goto' expression SEMICOLON;
 assertStatement: 'assert' (OPEN_PARENS expression CLOSE_PARENS) SEMICOLON;
 
-// Valid assignment operators (that can be overloaded)
-assignmentOperator
-	: ASSIGNMENT_INCR
-	| ASSIGNMENT_DECR
-	| ASSIGNMENT_AT
-	| ASSIGNMENT_DOLLAR
-	| ASSIGNMENT_AND
-	| ASSIGNMENT_OR
-	| ASSIGNMENT_STAR
-	| ASSIGNMENT_CARET
-	| ASSIGNMENT_DIV
-	;
-
-// Valid pre operators
-preOperator
-	: INCR
-	| DECR
-	| PLUS
-	| MINUS
-	| TILDE
-	| BANG
-	| AT
-	| DOLLAR
-	| AMP
-	| MODULUS
-	| SHARP
-	| identifier
-	;
-
-// Valid post operators
-postOperator
-	: INCR
-	| DECR
-	| TILDE
-	| BANG
-	| AT
-	| DOLLAR
-	| AMP
-	| MODULUS
-	| SHARP
-	| identifier
-	;
-
-// Valid operators
-binaryOperator
-	: EXP
-	| STAR
-	| DIV
-	| MODULUS
-	| PLUS
-	| MINUS
-	| LSHIFT
-	| RSHIFT
-	| SHIFT
-	| LT
-	| GT
-	| LEQ
-	| GEQ
-	| EQ
-	| NEQ
-	| IEQ
-	| MEQ
-	| AMP
-	| CARET
-	| BITWISE_OR
-	| AND
-	| OR
-	| AT
-	| DOLLAR
-	| identifier
-	;
-
 // All valid operator names (for declarations)
 operatorName
 	: STAR
@@ -878,60 +806,85 @@ operatorName
 	;
 
 expressionWithAssignment
-	: conditionalExpression
-	| assignmentExpression
-	| assignmentOperatorExpression
-	| unaryExpression
+	: assignmentExpression
+	| primaryExpression
 	;
 
 expression
-	: conditionalExpression
-	| unaryExpression
+	: primaryExpression
 	;
 
 // Inclusive template argument (will be parsed as a function call)
 
 assignmentExpression
-	: primaryExpression ASSIGNMENT expression
-	;
-
-assignmentOperatorExpression
-	: primaryExpression assignmentOperator expression
-	;
-
-// Messy... but due the nature of UnrealScript, our metaClass cast can be misstaken for a binaryOperatorExpression, so we have to preceed this check,
-// - leading to even more issues,
-// - UNLESS we add the binary expression within an unary expression.
-// i.e. in UC, any pre/post or binary operator can be declared and used as an identifier, thus "class" could be a preoperator etc.
-// FIXME: Think of a fitting name, now that this rule includes a binaryExpression structure :/
-unaryExpression
-	: unaryExpression binaryOperator unaryExpression 						#binaryOperatorExpression
-	| unaryExpression postOperator											#postOperatorExpression
-	| primaryExpression														#singleExpression
-	| preOperator unaryExpression											#preOperatorExpression
-	;
-
-conditionalExpression
-	: unaryExpression INTERR expression COLON expression
+	: left=primaryExpression id=ASSIGNMENT right=primaryExpression
+	| left=primaryExpression id=(ASSIGNMENT_INCR
+	| ASSIGNMENT_DECR
+	| ASSIGNMENT_AT
+	| ASSIGNMENT_DOLLAR
+	| ASSIGNMENT_AND
+	| ASSIGNMENT_OR
+	| ASSIGNMENT_STAR
+	| ASSIGNMENT_CARET
+	| ASSIGNMENT_DIV) right=primaryExpression
 	;
 
 primaryExpression
-	: primaryExpression '.' classPropertyAccessSpecifier '.' identifier					#propertyAccessExpression
-	| primaryExpression '.' identifier													#propertyAccessExpression
-	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 							#callExpression
-	| primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 						#elementAccessExpression
-	| literal 																			#literalExpression
-	| 'class' (LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)					#metaClassExpression
-	| 'new' (OPEN_PARENS arguments? CLOSE_PARENS)? primaryExpression					#newExpression
-	| 'arraycount' 	(OPEN_PARENS primaryExpression CLOSE_PARENS)						#arrayCountExpression
-	| 'super' 		(OPEN_PARENS identifier CLOSE_PARENS)?								#superExpression
-	| 'self'																			#selfReferenceExpression
-	| 'default'																			#defaultReferenceExpression
-	| 'static'																			#staticAccessExpression
-	| 'global'																			#globalAccessExpression
+	: primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 							#elementAccessExpression
+	| primaryExpression '.' classPropertyAccessSpecifier '.' identifier						#propertyAccessExpression
+	| primaryExpression '.' identifier														#propertyAccessExpression
+	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 								#callExpression
+
+	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? primaryExpression				#newExpression
+	| 'class' 		(LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)				#metaClassExpression
+	| 'arraycount' 	(OPEN_PARENS primaryExpression CLOSE_PARENS)							#arrayCountExpression
+	| 'super' 		(OPEN_PARENS identifier CLOSE_PARENS)?									#superExpression
+
+	| id=INCR right=primaryExpression														#preOperatorExpression
+	| id=DECR right=primaryExpression														#preOperatorExpression
+	| id=PLUS right=primaryExpression														#preOperatorExpression
+	| id=MINUS right=primaryExpression														#preOperatorExpression
+	| id=TILDE right=primaryExpression														#preOperatorExpression
+	| id=BANG right=primaryExpression														#preOperatorExpression
+	| id=MODULUS right=primaryExpression													#preOperatorExpression
+	| id=SHARP right=primaryExpression														#preOperatorExpression
+	| id=DOLLAR right=primaryExpression														#preOperatorExpression
+	| id=AT right=primaryExpression															#preOperatorExpression
+	| left=primaryExpression id=INCR 														#postOperatorExpression
+	| left=primaryExpression id=DECR 														#postOperatorExpression
+
+	| left=primaryExpression id=EXP right=primaryExpression 								#binaryOperatorExpression
+	| left=primaryExpression id=(STAR|DIV) right=primaryExpression 							#binaryOperatorExpression
+	| left=primaryExpression id=MODULUS right=primaryExpression 							#binaryOperatorExpression
+	// Note, checking for ID instead of identifier here,
+	// -- so that we don't missmtach 'if, or return' statements
+	// -- after a foreach's expression.
+	| left=primaryExpression id=ID right=primaryExpression 									#binaryNamedOperatorExpression
+	| left=primaryExpression id=(PLUS|MINUS) right=primaryExpression 						#binaryOperatorExpression
+	| left=primaryExpression id=(LSHIFT|RSHIFT|SHIFT) right=primaryExpression 				#binaryOperatorExpression
+	| left=primaryExpression id=(LT|GT|LEQ|GEQ|EQ|IEQ) right=primaryExpression 				#binaryOperatorExpression
+	| left=primaryExpression id=NEQ right=primaryExpression 								#binaryOperatorExpression
+	| left=primaryExpression id=(AMP|CARET|BITWISE_OR) right=primaryExpression 				#binaryOperatorExpression
+	| left=primaryExpression id=(AND|MEQ) right=primaryExpression 							#binaryOperatorExpression
+	| left=primaryExpression id=OR right=primaryExpression 									#binaryOperatorExpression
+	| left=primaryExpression id=(DOLLAR|AT) right=primaryExpression 						#binaryOperatorExpression
+
+	| cond=primaryExpression INTERR left=primaryExpression COLON right=primaryExpression	#conditionalExpression
+
+	| 'self'																				#selfReferenceExpression
+	| 'default'																				#defaultReferenceExpression
+	| 'static'																				#staticAccessExpression
+	| 'global'																				#globalAccessExpression
+
+	| literal 																				#literalExpression
+
 	// Note any keyword must preceed identifier!
-	| identifier 																		#memberExpression
-	| (OPEN_PARENS expression CLOSE_PARENS) 											#parenthesizedExpression
+	| identifier 																			#memberExpression
+
+	// | id=identifier right=primaryExpression													#preNamedOperatorExpression
+	// | left=primaryExpression id=identifier													#postNamedOperatorExpression
+
+	| (OPEN_PARENS expression CLOSE_PARENS) 												#parenthesizedExpression
 	;
 
 classPropertyAccessSpecifier

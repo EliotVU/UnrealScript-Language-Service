@@ -78,7 +78,7 @@ export async function getSymbolTooltip(uri: string, position: Position): Promise
 	if (ref instanceof UCSymbol) {
 		const contents = [{ language: 'unrealscript', value: ref.getTooltip()}];
 
-		const documentation = ref.getDocumentation(document.tokenStream);
+		const documentation = ref.getDocumentation();
 		if (documentation) {
 			contents.push({ language: 'unrealscript', value: documentation });
 		}
@@ -204,9 +204,7 @@ export async function getFullCompletionItem(item: CompletionItem): Promise<Compl
 			console.warn("no uri for symbol", symbol);
 			return item;
 		}
-
-		const tokenStream = getDocumentByUri(uri).tokenStream;
-		item.documentation = symbol.getDocumentation(tokenStream);
+		item.documentation = symbol.getDocumentation();
 	}
 	return item;
 }

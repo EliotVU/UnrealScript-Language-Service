@@ -9,8 +9,8 @@ import { Diagnostic, Position } from 'vscode-languageserver';
 import { performance } from 'perf_hooks';
 import { UCLexer } from '../antlr/UCLexer';
 import { UCParser, ProgramContext } from '../antlr/UCParser';
-import { UCPreprocessorParser, MacroCallContext, MacroProgramContext, MacroContext } from '../antlr/UCPreprocessorParser';
-import { CommonTokenStream, ANTLRErrorListener, Token, Lexer } from 'antlr4ts';
+import { UCPreprocessorParser } from '../antlr/UCPreprocessorParser';
+import { CommonTokenStream, ANTLRErrorListener, Token } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 
@@ -23,7 +23,6 @@ import { IndexedReferencesMap } from './indexer';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import { CommonTokenStreamExt } from './Parser/CommonTokenStreamExt';
 import { DocumentASTWalker } from './documentASTWalker';
-import { rangeFromBounds } from './helpers';
 
 export const documentLinked$ = new Subject<UCDocument>();
 
@@ -31,13 +30,12 @@ export class UCDocument {
 	/** Parsed file name filtered of path and extension. */
 	public readonly fileName: string;
 
+	// TODO: Displace this with a DiagnosticCollection visitor.
 	public nodes: IDiagnosticNode[] = [];
-	public tokenStream: CommonTokenStream;
-
-	public macroTree: MacroProgramContext;
 
 	public class?: UCClassSymbol;
 	public hasBeenIndexed = false;
+
 	private readonly indexReferencesMade = new Map<string, ISymbolReference | ISymbolReference[]>();
 
 	constructor(public readonly filePath: string, public classPackage: UCPackage) {
@@ -48,12 +46,19 @@ export class UCDocument {
 		return this.class && this.class.getSymbolAtPos(position);
 	}
 
-	public preprocess(lexer: UCLexer, walker: DocumentASTWalker) {
+	public preprocess(lexer: UCLexer, walker?: DocumentASTWalker) {
 		const macroStream = new CommonTokenStream(lexer, UCLexer.MACRO);
 		macroStream.fill();
 
+		if (macroStream.size <= 1) {
+			return undefined;
+		}
+
 		const macroParser = new UCPreprocessorParser(macroStream);
-		macroParser.removeErrorListeners(); macroParser.addErrorListener(walker);
+		if (walker) {
+			macroParser.removeErrorListeners();
+			macroParser.addErrorListener(walker);
+		}
 
 		// TODO: strip .uci?
 		macroParser.currentSymbols.set("classname", this.fileName);
@@ -67,36 +72,47 @@ export class UCDocument {
 	public build(text: string = this.readText()) {
 		console.log('building document ' + this.fileName);
 
-		const startWalking = performance.now();
 		const walker = new DocumentASTWalker(this);
-
-		// text = this.preprocess(new UCLexer(new CaseInsensitiveStream(text)), walker);
-
 		const inputStream = new CaseInsensitiveStream(text);
 		const lexer = new UCLexer(inputStream);
-		lexer.removeErrorListeners(); lexer.addErrorListener(walker as ANTLRErrorListener<Number>);
+		lexer.removeErrorListeners();
+		lexer.addErrorListener(walker as ANTLRErrorListener<Number>);
+		const tokens = new CommonTokenStreamExt(lexer);
 
-		const tokenStream = this.tokenStream = new CommonTokenStreamExt(lexer);
-		this.macroTree = this.preprocess(lexer, walker);
-		if (this.macroTree) {
-			tokenStream.initMacroTree(this.macroTree, walker as ANTLRErrorListener<Number>);
+		const startPreprocressing = performance.now();
+		const macroTree = this.preprocess(lexer, walker);
+		if (macroTree) {
+			try {
+				lexer.reset();
+				tokens.initMacroTree(macroTree, walker as ANTLRErrorListener<Number>);
+			} catch (err) {
+				console.error(err);
+			} finally {
+				console.info(this.fileName + ': preprocessing time ' + (performance.now() - startPreprocressing));
+			}
 		}
-		lexer.reset();
-		tokenStream.fill();
+
+		const startWalking = performance.now();
+		tokens.fill();
 
 		let context: ProgramContext | undefined;
-		const parser = new UCParser(tokenStream);
+		const parser = new UCParser(tokens);
 		try {
 			parser.interpreter.setPredictionMode(PredictionMode.SLL);
 			parser.errorHandler = ERROR_STRATEGY;
-			parser.removeErrorListeners(); parser.addErrorListener(walker);
+			parser.removeErrorListeners();
+			parser.addErrorListener(walker);
 			context = parser.program();
 		} catch (err) {
+			console.debug('PredictionMode SLL has failed, rolling back to LL.');
 			try {
+				this.nodes = [];
+
 				parser.reset();
 				parser.interpreter.setPredictionMode(PredictionMode.LL);
 				parser.errorHandler = ERROR_STRATEGY;
-				parser.removeErrorListeners(); parser.addErrorListener(walker);
+				parser.removeErrorListeners();
+				parser.addErrorListener(walker);
 				context = parser.program();
 			} catch (err) {
 				console.error(
@@ -108,6 +124,7 @@ export class UCDocument {
 		} finally {
 			try {
 				if (context) {
+					walker.tokenStream = tokens;
 					walker.visit(context);
 				}
 			} catch (err) {
@@ -121,7 +138,7 @@ export class UCDocument {
 		}
 	}
 
-	private readText(): string {
+	public readText(): string {
 		const filePath = URI.parse(this.filePath).fsPath;
 		const text = fs.readFileSync(filePath).toString();
 		return text;
@@ -167,20 +184,21 @@ export class UCDocument {
 		const diagnostics = new DiagnosticCollection();
 		const analyzer = new DocumentAnalyzer(this, diagnostics);
 
-		if (this.macroTree) {
-			const mNodes = this.macroTree.macroStatement();
-			for (let mNode of mNodes) {
-				const macro = mNode.macro();
-				const isActive = macro.isActive;
-				if (!isActive) {
-					diagnostics.add({
-						message: { text: 'This macro is inactive.' },
-						range: rangeFromBounds(mNode.start, mNode.stop),
-						custom: { unnecessary: true }
-					});
-				}
-			}
-		}
+		// TODO: build macro symbols, and walk those instead.
+		// if (this.macroTree) {
+		// 	const mNodes = this.macroTree.macroStatement();
+		// 	for (let mNode of mNodes) {
+		// 		const macro = mNode.macro();
+		// 		const isActive = macro.isActive;
+		// 		if (!isActive) {
+		// 			diagnostics.add({
+		// 				message: { text: 'This macro is inactive.' },
+		// 				range: rangeFromBounds(mNode.start, mNode.stop),
+		// 				custom: { unnecessary: true }
+		// 			});
+		// 		}
+		// 	}
+		// }
 
 		return this.diagnosticsFromNodes(this.nodes).concat(diagnostics.map());
 	}

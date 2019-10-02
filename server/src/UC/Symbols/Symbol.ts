@@ -1,9 +1,7 @@
 import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
-import { ParserRuleContext, CommonTokenStream } from 'antlr4ts';
+import { Token } from 'antlr4ts';
 import { ParseTree } from 'antlr4ts/tree/ParseTree';
-
-import { UCParser } from '../../antlr/UCParser';
 
 import { UCDocument } from "../document";
 import { SymbolWalker } from '../symbolWalker';
@@ -13,10 +11,6 @@ import { DocumentASTWalker } from '../documentASTWalker';
 
 import { ISymbol, Identifier, UCStructSymbol } from ".";
 
-export const COMMENT_TYPES = new Set([UCParser.LINE_COMMENT, UCParser.BLOCK_COMMENT]);
-
-export const NO_NAME = '';
-
 export const DEFAULT_POSITION = Position.create(0, 0);
 export const DEFAULT_RANGE = Range.create(DEFAULT_POSITION, DEFAULT_POSITION);
 
@@ -25,7 +19,7 @@ export const DEFAULT_RANGE = Range.create(DEFAULT_POSITION, DEFAULT_POSITION);
  */
 export abstract class UCSymbol implements ISymbol {
 	public outer?: ISymbol;
-	public context?: ParserRuleContext;
+	public description?: Token[];
 
 	constructor(public readonly id: Identifier) {
 
@@ -84,27 +78,8 @@ export abstract class UCSymbol implements ISymbol {
 		return this.outer instanceof UCSymbol && this.outer.getUri() || '';
 	}
 
-	getDocumentation(tokenStream: CommonTokenStream): string | undefined {
-		if (!this.context) {
-			return undefined;
-		}
-
-		const leadingComment = tokenStream
-			.getHiddenTokensToRight(this.context.stop!.tokenIndex)
-			.filter(token => COMMENT_TYPES.has(token.type) && token.charPositionInLine !== 0);
-
-		if (leadingComment && leadingComment.length > 0) {
-			return leadingComment.shift()!.text;
-		}
-
-		const headerComment = tokenStream
-			.getHiddenTokensToLeft(this.context.start.tokenIndex)
-			.filter(token => COMMENT_TYPES.has(token.type) && token.charPositionInLine === 0);
-
-		if (headerComment && headerComment.length > 0) {
-			return headerComment.map(comment => comment.text).join('\n');
-		}
-		return undefined;
+	getDocumentation(): string | undefined {
+		return this.description && this.description.map(t => t.text!).join('\n');
 	}
 
 	toSymbolInfo(): SymbolInformation {

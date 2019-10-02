@@ -2,7 +2,7 @@ import { CommonTokenStream, Token, WritableToken, ANTLRErrorListener } from 'ant
 
 import { CaseInsensitiveStream } from './CaseInsensitiveStream';
 
-import { MacroProgramContext, MacroCallContext, UCPreprocessorParser } from '../../antlr/UCPreprocessorParser';
+import { MacroProgramContext, MacroCallContext } from '../../antlr/UCPreprocessorParser';
 import { UCLexer } from '../../antlr/UCLexer';
 
 export interface TokenExt extends WritableToken {

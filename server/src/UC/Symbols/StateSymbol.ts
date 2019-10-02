@@ -36,6 +36,8 @@ export class UCStateSymbol extends UCStructSymbol {
 		return symbol;
 	}
 
+	// TODO: Index default super-state, e.g. state "Pickup" should override its parent's class state "Pickup".
+	// -- If found, "extends ID" should be disallowed and output an error!
 	index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
 
