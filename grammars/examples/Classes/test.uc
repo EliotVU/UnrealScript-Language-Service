@@ -1,4 +1,4 @@
-class Test extends Object
+class Test extends Core.Object
 	native;
 
 const CONST_SIZEOF 			= sizeof(Object);
@@ -120,11 +120,19 @@ function struct e {} InlinedStructReturnType() {
 	return s;
 }
 
-function byte Test() {
+function TestQualifiedStruct( Test.AStruct struct ) {
+
+}
+
+function AddObj(Object obj) {
+	return;
+}
+
+delegate byte Test() {
 
 	local int i;
 
-	local Test obj;
+	local Object obj;
 	local class<Test> objClass;
 	local string str;
 
@@ -133,6 +141,7 @@ function byte Test() {
 
 	str = str $ $str;
 
+	// FIXME: Preoperators with custom identifiers are not yet supported.
 	i = 0;
 	i = int(0.f);
 	i = 256;
@@ -144,6 +153,10 @@ function byte Test() {
 	str = "Test"PrependDollar;
 	str = str PrependDollar;
 	str = PrependDollar "str";
+
+	// FIXME: AddObj is parsed as preoperator!
+	foreach AllObjects(class'Object', obj)
+		AddObj(obj);
 
 	obj = new class'Test';
 

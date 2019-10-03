@@ -169,9 +169,13 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, kind?: U
 				rightType.setValidTypeKind(UCTypeKind.Delegate);
 				break;
 
-			default:
+			case UCTypeKind.Class:
 				leftType.setValidTypeKind(UCTypeKind.Package);
 				rightType.setValidTypeKind(UCTypeKind.Class);
+				break;
+
+			default:
+				leftType.setValidTypeKind(UCTypeKind.Class);
 				break;
 		}
 		return symbol;
