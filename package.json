@@ -61,9 +61,14 @@
 				},
 				"unrealscript.analyzeDocuments": {
 					"scope": "window",
-					"type": "boolean",
-					"description": "Analyzes any document, and report back \"problems\" if any.",
-					"default": true
+					"type": "string",
+					"enum": [
+						"None",
+						"OnlyActive",
+						"All"
+					],
+					"description": "Analyzes any active document, or all documents, and report back \"problems\" if any.",
+					"default": "OnlyActive"
 				},
 				"unrealscript.checkTypes": {
 					"scope": "window",

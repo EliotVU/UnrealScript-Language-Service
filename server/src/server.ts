@@ -24,7 +24,7 @@ import { UCPreprocessorParser } from './antlr/UCPreprocessorParser';
 
 import { getSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
 import { filePathByClassIdMap$, getDocumentByUri, indexDocument, getIndexedReferences, config } from './UC/indexer';
-import { ServerSettings, defaultSettings } from './settings';
+import { ServerSettings, defaultSettings, EAnalyzeOption } from './settings';
 import { documentLinked$ } from './UC/document';
 import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol } from './UC/Symbols';
 
@@ -100,12 +100,17 @@ connection.onInitialized(async () => {
 
 	documentLinked$
 		.pipe(
-			filter(() => !!currentSettings.unrealscript.analyzeDocuments),
+			filter(() => currentSettings.unrealscript.analyzeDocuments !== EAnalyzeOption.None),
 			delay(1000),
 		)
 		.subscribe(document => {
+			if (currentSettings.unrealscript.analyzeDocuments === EAnalyzeOption.OnlyActive) {
+				if (!textDocuments.get(URI.parse(document.filePath).toString())) {
+					return;
+				}
+			}
 			// Only analyze active documents.
-			if (document && textDocuments.get(URI.parse(document.filePath).toString())) {
+			if (document) {
 				const diagnostics = document.analyze();
 				connection.sendDiagnostics({
 					uri: document.filePath,
