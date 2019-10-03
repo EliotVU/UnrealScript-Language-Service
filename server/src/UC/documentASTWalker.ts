@@ -201,11 +201,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	declare(symbol: UCSymbol, ctx?: ParserRuleContext) {
-		console.assert(symbol.getId(), `Attempted to add a symbol with no Id! "${symbol.getQualifiedName()}".`);
-
+		// console.assert(symbol.getId(), `Attempted to add a symbol with no Id! "${symbol.getQualifiedName()}".`);
 		const scope = this.scope();
-		console.assert(scope, `Attempted to add a symbol "${symbol.getId()}" without a scope!`);
-
 		scope.addSymbol(symbol);
 		if (ctx) {
 			symbol.description = fetchSurroundingComments(this.tokenStream, ctx);
@@ -345,6 +342,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitClassDecl(ctx: UCGrammar.ClassDeclContext) {
+		// Most of the time a document's tree is invalid as the end-user is writing code.
+		// Therefore the parser may mistake "class'Object' <stuff here>;"" for a construction of a class declaration, this then leads to a messed up scope stack.
+		// Or alternatively someone literally did try to declare another class?
+		if (this.document.class) {
+			this.document.nodes.push(new SyntaxErrorNode(rangeFromCtx(ctx), 'Cannot declare a class within another class!'));
+			return undefined;
+		}
+
 		const identifier: Identifier = idFromCtx(ctx.identifier());
 		const symbol = new UCDocumentClassSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.document = this.document;
