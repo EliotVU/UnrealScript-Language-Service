@@ -58,6 +58,10 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return symbol;
 	}
 
+	index(document: UCDocument, context: UCStructSymbol) {
+		super.index(document, this);
+	}
+
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitScriptStruct(this);
 	}
