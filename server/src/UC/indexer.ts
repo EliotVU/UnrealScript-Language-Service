@@ -3,7 +3,7 @@ import * as path from 'path';
 import { URI } from 'vscode-uri';
 import { BehaviorSubject } from 'rxjs';
 
-import { UCOptions } from '../settings';
+import { UCOptions, ServerSettings, EAnalyzeOption } from '../settings';
 
 import { ISymbolReference, UCPackage, PackagesTable, TRANSIENT_PACKAGE, UCEnumMemberSymbol } from './Symbols';
 import { UCDocument } from './document';
@@ -19,13 +19,22 @@ export enum UCGeneration {
 	UC3 = "3"
 }
 
-export const config: UCOptions = {
-	generation: UCGeneration.UC3,
-	checkTypes: false,
-	macroSymbols: {
-		"debug": ""
+export const defaultSettings: ServerSettings = {
+	unrealscript: {
+		generation: UCGeneration.UC3,
+		indexAllDocuments: false,
+		analyzeDocuments: EAnalyzeOption.OnlyActive,
+		checkTypes: false,
+		macroSymbols: {
+			"debug": ""
+		},
+		intrinsicSymbols: {
+
+		}
 	}
 };
+
+export const config: UCOptions = Object.assign({}, defaultSettings.unrealscript);
 
 function findPackageNameInDir(dir: string): string {
 	const directories = dir.split('/');

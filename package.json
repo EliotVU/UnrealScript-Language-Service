@@ -83,6 +83,69 @@
 					"default": {
 						"debug": ""
 					}
+				},
+				"unrealscript.intrinsicSymbols": {
+					"scope": "window",
+					"type": "object",
+					"description": "A map of intrinsic(C++) symbols that have no reflected source code.",
+					"default": {
+						"Engine.Model": {
+							"type": "class",
+							"extends": "Object"
+						},
+						"Engine.Mesh": {
+							"type": "class",
+							"extends": "Object"
+						},
+						"Engine.MeshInstance": {
+							"type": "class",
+							"extends": "Object"
+						},
+						"Engine.MeshAnimation": {
+							"type": "class",
+							"extends": "Object"
+						},
+						"Engine.StaticMesh": {
+							"type": "class",
+							"extends": "Actor"
+						},
+						"Engine.StaticMeshInstance": {
+							"type": "class",
+							"extends": "Actor"
+						},
+						"Engine.ConvexVolume": {
+							"type": "class",
+							"extends": "Actor"
+						},
+						"Engine.Level": {
+							"type": "class",
+							"extends": "Object"
+						},
+						"Engine.NetConnection": {
+							"type": "class",
+							"extends": "Object"
+						},
+						"Engine.Viewport": {
+							"type": "class",
+							"extends": "Object"
+						},
+						"Engine.Primitive": {
+							"type": "class",
+							"extends": "Object"
+						},
+						"Engine.Client": {
+							"type": "class",
+							"extends": "Object"
+						},
+						"Engine.AudioSubsystem": {
+							"type": "class",
+							"extends": "Subsystem"
+						},
+						"Engine.RenderDevice": {
+							"type": "class",
+							"extends": "Object"
+						}
+					}
 				}
 			}
 		},

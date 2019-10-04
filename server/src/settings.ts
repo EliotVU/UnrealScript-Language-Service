@@ -1,6 +1,5 @@
 import { UCGeneration } from './UC/indexer';
 
-
 export enum EAnalyzeOption {
 	"None",
 	"OnlyActive",
@@ -15,17 +14,14 @@ export interface UCOptions {
 	macroSymbols?: {
 		[key: string]: string
 	};
+	intrinsicSymbols: {
+		[key: string]: {
+			type?: string;
+			extends?: string;
+		}
+	};
 }
 
 export interface ServerSettings {
 	unrealscript: UCOptions;
 }
-
-export const defaultSettings: ServerSettings = {
-	unrealscript: {
-		generation: UCGeneration.UC3,
-		indexAllDocuments: false,
-		analyzeDocuments: EAnalyzeOption.OnlyActive,
-		checkTypes: false
-	}
-};

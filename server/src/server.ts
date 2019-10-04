@@ -23,10 +23,11 @@ import { URI } from 'vscode-uri';
 import { UCPreprocessorParser } from './antlr/UCPreprocessorParser';
 
 import { getSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
-import { filePathByClassIdMap$, getDocumentByUri, indexDocument, getIndexedReferences, config } from './UC/indexer';
-import { ServerSettings, defaultSettings, EAnalyzeOption } from './settings';
+import { filePathByClassIdMap$, getDocumentByUri, indexDocument, getIndexedReferences, config, defaultSettings } from './UC/indexer';
+import { ServerSettings, EAnalyzeOption } from './settings';
 import { documentLinked$ } from './UC/document';
-import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol } from './UC/Symbols';
+import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol, PackagesTable, UCObjectTypeSymbol, UCTypeKind, UCPackage } from './UC/Symbols';
+import { toName } from './UC/names';
 
 const isIndexReady$ = new Subject<boolean>();
 const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
@@ -201,6 +202,26 @@ connection.onDidChangeConfiguration((change) => {
 		const entries = Object.entries(config.macroSymbols);
 		for (let [key, value] of entries) {
 			UCPreprocessorParser.globalSymbols.set(key.toLowerCase(), value);
+		}
+	}
+
+	const intSymbols = Object.entries(config.intrinsicSymbols);
+	for (let [key, value] of intSymbols) {
+		let [packageName, symbolName] = key.split('.');
+		let pkg = PackagesTable.getSymbol(toName(packageName));
+		if (!pkg) {
+			pkg = new UCPackage(toName(packageName));
+			PackagesTable.addSymbol(pkg);
+		}
+
+		if (value.type === 'class') {
+			const symbol = new UCClassSymbol({ name: toName(symbolName), range: DEFAULT_RANGE });
+			if (value.extends) {
+				symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCTypeKind.Class);
+			}
+			pkg.addSymbol(symbol);
+		} else {
+			console.error('Unsupported symbol type!', value.type, 'try \'class\'!');
 		}
 	}
 
