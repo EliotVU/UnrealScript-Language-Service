@@ -26,7 +26,9 @@ struct native transient AStruct {
 
 	var array<struct ASubStruct extends StubStruct {
 		var DeepStruct DeepStructRef;
-		var DeepStruct.EDeep DeepEnumRef;
+
+		// Invalid, can only deep reference using a Class identifier!
+		// var DeepStruct.EDeep DeepEnumRef;
 
 		// FIXME: Self-reference should be disallowed.
 		var ASubStruct SubInt;

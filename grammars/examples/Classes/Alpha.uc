@@ -1,10 +1,12 @@
 class Alpha extends Beta;
 
-var Gamma G;
+var Gamma GammaRef;
 
 event Created()
 {
-	G.A = self;
+	GammaRef.AlphaRef = self;
+
+	Link.GammaRef.AlphaRef = self;
 }
 
 function AlphaTest();

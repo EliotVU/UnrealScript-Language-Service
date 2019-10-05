@@ -1,6 +1,7 @@
 class Gamma;
 
-var Alpha A;
+var Link Link;
+var Alpha AlphaRef;
 var private Alpha ArchetypeA;
 
 `define PP_A ArchetypeA
@@ -28,7 +29,7 @@ function Test() {
 defaultproperties
 {
 	begin object name=AlphaArchetype class=Alpha
-		G=none
+		GammaRef=none
 	end object
 	ArchetypeA=AlphaArchetype
 }
