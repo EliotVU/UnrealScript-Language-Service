@@ -16,7 +16,11 @@ import {
 	UCArrayTypeSymbol,
 	UCPackage,
 	UCScriptStructSymbol,
+	UCReplicationBlock,
+	UCDefaultPropertiesBlock,
+	UCObjectSymbol,
 } from './Symbols';
+import { UCBlock } from './statements';
 
 export interface SymbolWalker<T> {
 	visit(symbol: ISymbol): T;
@@ -29,15 +33,20 @@ export interface SymbolWalker<T> {
 	visitConst(symbol: UCConstSymbol): T;
 	visitEnum(symbol: UCEnumSymbol): T;
 	visitEnumMember(symbol: UCEnumMemberSymbol): T;
+	visitStruct(symbol: UCStructSymbol): T;
 	visitScriptStruct(symbol: UCScriptStructSymbol): T;
 	visitProperty(symbol: UCPropertySymbol): T;
 	visitMethod(symbol: UCMethodSymbol): T;
 	visitParameter(symbol: UCParamSymbol): T;
 	visitLocal(symbol: UCLocalSymbol): T;
 	visitState(symbol: UCStateSymbol): T;
+	visitBlock(symbol: UCBlock): T;
+	visitReplicationBlock(symbol: UCReplicationBlock): T;
+	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock): T;
+	visitObjectSymbol(symbol: UCObjectSymbol): T;
 }
 
-export class DefaultSymbolWalker implements SymbolWalker<ISymbol> {
+export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 	visit(symbol: ISymbol): ISymbol {
 		return symbol;
 	}
@@ -79,6 +88,10 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol> {
 		for (var child = symbol.children; child; child = child.next) {
 			child.accept(this);
 		}
+
+		if (symbol.block) {
+			symbol.block.accept(this);
+		}
 		return symbol;
 	}
 
@@ -111,6 +124,10 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol> {
 
 	visitEnumMember(symbol: UCEnumMemberSymbol): ISymbol {
 		return symbol;
+	}
+
+	visitStruct(symbol: UCStructSymbol): ISymbol {
+		return this.visitStructBase(symbol);
 	}
 
 	visitScriptStruct(symbol: UCScriptStructSymbol): ISymbol {
@@ -149,6 +166,22 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol> {
 				ref.accept(this);
 			}
 		}
+		return this.visitStructBase(symbol);
+	}
+
+	visitBlock(symbol: UCBlock): ISymbol | undefined {
+		return undefined;
+	}
+
+	visitReplicationBlock(symbol: UCReplicationBlock): ISymbol {
+		return this.visitStructBase(symbol);
+	}
+
+	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock): ISymbol {
+		return this.visitStructBase(symbol);
+	}
+
+	visitObjectSymbol(symbol: UCObjectSymbol): ISymbol {
 		return this.visitStructBase(symbol);
 	}
 }

@@ -10,7 +10,7 @@ import {
 	UCDelegateSymbol, UCPropertySymbol,
 	UCMethodSymbol, UCBinaryOperatorSymbol,
 	PredefinedBool, NativeArray,
-	ISymbol, UCReplicationBlock,
+	UCReplicationBlock, UCDefaultPropertiesBlock, UCObjectSymbol,
 } from '../Symbols';
 
 import { UCDocument } from '../document';
@@ -31,46 +31,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 			this.context = document.class;
 			this.context.accept(this);
 		}
-	}
-
-	visit(symbol: ISymbol) {
-		if (symbol instanceof UCReplicationBlock) {
-			for (let symbolRef of symbol.symbolRefs.values()) {
-				const symbol = symbolRef.getReference();
-				if (!symbol) {
-					this.diagnostics.add({
-						range: symbolRef.id.range,
-						message: {
-							text: `Variable '${symbolRef.getId()}' not found!`,
-							severity: DiagnosticSeverity.Error
-						}
-					});
-					continue;
-				}
-
-				if (symbol instanceof UCPropertySymbol || symbol instanceof UCMethodSymbol) {
-					// i.e. not defined in the same class as where the replication statement resides in.
-					if (symbol.outer !== this.document.class) {
-						this.diagnostics.add({
-							range: symbolRef.id.range,
-							message: {
-								text: `Variable or Function '${symbol.getQualifiedName()}' needs to be declared in class '${this.document.class!.getQualifiedName()}'!`,
-								severity: DiagnosticSeverity.Error
-							}
-						});
-					}
-				} else {
-					this.diagnostics.add({
-						range: symbolRef.id.range,
-						message: {
-							text: `Type of '${symbol.getId()}' is neither a variable nor function!`,
-							severity: DiagnosticSeverity.Error
-						}
-					});
-				}
-			}
-		}
-		return symbol;
 	}
 
 	visitObjectType(symbol: UCObjectTypeSymbol) {
@@ -355,5 +315,55 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 			}
 		}
 		return symbol;
+	}
+
+	visitReplicationBlock(symbol: UCReplicationBlock) {
+		super.visitReplicationBlock(symbol);
+
+		for (let symbolRef of symbol.symbolRefs.values()) {
+			const symbol = symbolRef.getReference();
+			if (!symbol) {
+				this.diagnostics.add({
+					range: symbolRef.id.range,
+					message: {
+						text: `Variable '${symbolRef.getId()}' not found!`,
+						severity: DiagnosticSeverity.Error
+					}
+				});
+				continue;
+			}
+
+			if (symbol instanceof UCPropertySymbol || symbol instanceof UCMethodSymbol) {
+				// i.e. not defined in the same class as where the replication statement resides in.
+				if (symbol.outer !== this.document.class) {
+					this.diagnostics.add({
+						range: symbolRef.id.range,
+						message: {
+							text: `Variable or Function '${symbol.getQualifiedName()}' needs to be declared in class '${this.document.class!.getQualifiedName()}'!`,
+							severity: DiagnosticSeverity.Error
+						}
+					});
+				}
+			} else {
+				this.diagnostics.add({
+					range: symbolRef.id.range,
+					message: {
+						text: `Type of '${symbol.getId()}' is neither a variable nor function!`,
+						severity: DiagnosticSeverity.Error
+					}
+				});
+			}
+		}
+		return symbol;
+	}
+
+	visitObjectSymbol(symbol: UCObjectSymbol) {
+		if (symbol.classType) {
+			symbol.classType.accept(this);
+		}
+		if (symbol.block) {
+			symbol.block.analyze(this.document, symbol.super || symbol);
+		}
+		return super.visitStructBase(symbol);
 	}
 }

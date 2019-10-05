@@ -10,7 +10,7 @@ import { performance } from 'perf_hooks';
 import { UCLexer } from '../antlr/UCLexer';
 import { UCParser, ProgramContext } from '../antlr/UCParser';
 import { UCPreprocessorParser } from '../antlr/UCPreprocessorParser';
-import { CommonTokenStream, ANTLRErrorListener, Token } from 'antlr4ts';
+import { CommonTokenStream, ANTLRErrorListener } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 
@@ -23,6 +23,7 @@ import { IndexedReferencesMap } from './indexer';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import { CommonTokenStreamExt } from './Parser/CommonTokenStreamExt';
 import { DocumentASTWalker } from './documentASTWalker';
+import { DocumentIndexer } from './documentIndexer';
 
 export const documentLinked$ = new Subject<UCDocument>();
 
@@ -152,6 +153,14 @@ export class UCDocument {
 		}
 		console.info(this.fileName + ': linking time ' + (performance.now() - start));
 		documentLinked$.next(this);
+	}
+
+	// To be initiated after we have linked all dependencies, so that deep recursive context references can be resolved.
+	public postLink() {
+		if (this.class) {
+			const indexer = new DocumentIndexer(this);
+			this.class.accept(indexer);
+		}
 	}
 
 	public invalidate() {

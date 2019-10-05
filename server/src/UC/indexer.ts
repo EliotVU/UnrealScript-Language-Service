@@ -1,12 +1,13 @@
 import * as path from 'path';
 
 import { URI } from 'vscode-uri';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
+import { performance } from 'perf_hooks';
 
 import { UCOptions, ServerSettings, EAnalyzeOption } from '../settings';
 
 import { ISymbolReference, UCPackage, PackagesTable, TRANSIENT_PACKAGE, UCEnumMemberSymbol } from './Symbols';
-import { UCDocument } from './document';
+import { UCDocument, documentLinked$ } from './document';
 import { Name, toName } from './names';
 
 export const filePathByClassIdMap$ = new BehaviorSubject(new Map<string, string>());
@@ -35,6 +36,43 @@ export const defaultSettings: ServerSettings = {
 };
 
 export const config: UCOptions = Object.assign({}, defaultSettings.unrealscript);
+
+/**
+ * Emits an array of documents that have been linked, but are yet to be post-linked.
+ * This array is filled by the documentLinked$ listener.
+ **/
+export const pendingDocumentsLinked$ = new Subject<UCDocument[]>();
+let postLinkPendingDocuments: UCDocument[] = [];
+
+documentLinked$
+	.subscribe(document => {
+		postLinkPendingDocuments.push(document);
+	});
+
+export function indexDocument(document: UCDocument, text?: string) {
+	try {
+		document.build(text);
+		document.link();
+		// See postLink() below.
+	} catch (err) {
+		console.error(`An error occurred during the indexation of document ${document.filePath}`, err);
+	}
+}
+
+export function queuIndexDocument(document: UCDocument, text?: string) {
+	indexDocument(document, text);
+
+	if (postLinkPendingDocuments) {
+		const startTime = performance.now();
+		for (const doc of postLinkPendingDocuments) {
+			doc.postLink();
+		}
+		console.info(`[${postLinkPendingDocuments.map(doc => doc.fileName).join()}]: post linking time ${(performance.now() - startTime)}`);
+
+		pendingDocumentsLinked$.next(postLinkPendingDocuments);
+		postLinkPendingDocuments = [];
+	}
+}
 
 function findPackageNameInDir(dir: string): string {
 	const directories = dir.split('/');
@@ -87,17 +125,6 @@ export function getDocumentById(id: string): UCDocument | undefined {
 		return undefined;
 	}
 	return getDocumentByUri(uri);
-}
-
-export function indexDocument(document: UCDocument, text?: string): UCDocument | undefined {
-	try {
-		document.build(text);
-		document.link();
-		return document;
-	} catch (err) {
-		console.error(`An error occurred during the indexation of document ${document.filePath}`, err);
-		return undefined;
-	}
 }
 
 // let ClassCompletionItems: CompletionItem[] = [];

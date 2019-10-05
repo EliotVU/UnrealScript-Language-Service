@@ -954,6 +954,14 @@ structLiteral
 	: OPEN_PARENS defaultArguments? CLOSE_PARENS
 	;
 
+qualifiedIdentifierLiteral
+	: identifier (DOT identifier)+
+	;
+
+identifierLiteral
+	: identifier
+	;
+
 // id=literal,* or literal,*
 defaultArguments
 	: (defaultLiteral (COMMA defaultLiteral)*)
@@ -968,5 +976,6 @@ defaultLiteral
 	| intLiteral
 	| stringLiteral
 	| objectLiteral
-	| qualifiedIdentifier
+	| qualifiedIdentifierLiteral
+	| identifierLiteral
 	;

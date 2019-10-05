@@ -2,6 +2,7 @@ import { SymbolKind, Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { Name } from '../names';
+import { SymbolWalker } from '../symbolWalker';
 
 import { ReliableKeyword, UnreliableKeyword, IfKeyword } from './Keywords';
 import {
@@ -39,13 +40,7 @@ export class UCReplicationBlock extends UCStructSymbol {
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		console.assert(document.class, 'Tried to index a replication block without a class reference!');
-		// We index our block here, because in the parent class a block is no longer indexed automatically.
-		if (this.block) {
-			this.block.index(document, document.class!);
-		}
-		super.index(document, document.class!);
-
+		super.index(document, context);
 		for (let ref of this.symbolRefs.values()) {
 			const symbol = context.findSuperSymbol(ref.getId());
 			if (!symbol) {
@@ -57,5 +52,9 @@ export class UCReplicationBlock extends UCStructSymbol {
 
 	acceptCompletion(_document: UCDocument, context: UCSymbol): boolean {
 		return context instanceof UCClassSymbol;
+	}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitReplicationBlock(this);
 	}
 }

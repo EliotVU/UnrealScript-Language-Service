@@ -4,11 +4,11 @@ import { intersectsWith } from '../helpers';
 import { UCDocument } from '../document';
 import { UCBlock } from '../statements';
 import { Name } from '../names';
+import { SymbolWalker } from '../symbolWalker';
 
 import {
 	ISymbol, ISymbolContainer,
-	UCFieldSymbol, UCPropertySymbol,
-	UCMethodSymbol,
+	UCFieldSymbol,
 	UCSymbol, ITypeSymbol
 } from ".";
 
@@ -119,53 +119,16 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			}
 		}
 
-		function indexSymbolSafely(symbol: UCSymbol) {
+		if (this.children) for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
 			try {
-				symbol.index(document, context);
+				child.index(document, context);
 			} catch (err) {
-				console.error(`Encountered an error while indexing '${symbol.getQualifiedName()}': ${err}`);
+				console.error(`Encountered an error while indexing '${child.getQualifiedName()}': ${err}`);
 			}
 		}
+	}
 
-		// FIXME: Optimize. We have to index types before anything else but properties ALSO have to be indexed before any method can be indexed properly!
-		if (this.children) {
-			// Link types before any child so that a child that referrers one of our types can be linked properly!
-			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
-				if (child.isType()) {
-					indexSymbolSafely(child);
-				}
-			}
-
-			// Index all properties foremost as we need their resolved types.
-			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
-				if (child instanceof UCPropertySymbol) {
-					indexSymbolSafely(child);
-				}
-			}
-
-			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
-				if (child instanceof UCMethodSymbol) {
-					indexSymbolSafely(child);
-				}
-			}
-
-			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
-				if (child.isType() || child instanceof UCPropertySymbol || child instanceof UCMethodSymbol) {
-					continue;
-				}
-
-				indexSymbolSafely(child);
-			}
-
-			for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
-				if (child instanceof UCStructSymbol && child.block) {
-					try {
-						child.block.index(document, child);
-					} catch (err) {
-						console.error(`Encountered an error while indexing a block of symbol '${child.getQualifiedName()}': ${err}`);
-					}
-				}
-			}
-		}
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitStruct(this);
 	}
 }

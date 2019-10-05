@@ -335,7 +335,7 @@ export class UCConditionalExpression extends UCExpression {
 
 // TODO: What about UCState? Can states properly declare operators?
 function findOperatorSymbol(id: Name, context: UCStructSymbol): UCSymbol | undefined {
-	let scope = context.outer;
+	let scope = context instanceof UCMethodSymbol ? context.outer : context;
 	if (scope instanceof UCStateSymbol) {
 		scope = scope.outer;
 	}
@@ -351,7 +351,7 @@ function findOperatorSymbol(id: Name, context: UCStructSymbol): UCSymbol | undef
 }
 
 function findPreOperatorSymbol(id: Name, context: UCStructSymbol): UCSymbol | undefined {
-	let scope = context.outer;
+	let scope = context instanceof UCMethodSymbol ? context.outer : context;
 	if (scope instanceof UCStateSymbol) {
 		scope = scope.outer;
 	}
@@ -367,7 +367,7 @@ function findPreOperatorSymbol(id: Name, context: UCStructSymbol): UCSymbol | un
 }
 
 function findPostOperatorSymbol(id: Name, context: UCStructSymbol): UCSymbol | undefined {
-	let scope = context.outer;
+	let scope = context instanceof UCMethodSymbol ? context.outer : context;
 	if (scope instanceof UCStateSymbol) {
 		scope = scope.outer;
 	}

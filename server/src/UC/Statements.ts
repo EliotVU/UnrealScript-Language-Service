@@ -6,6 +6,7 @@ import { UCDocument } from './document';
 
 import { UCStructSymbol, ISymbol } from './Symbols';
 import { IExpression } from './expressions';
+import { SymbolWalker } from './symbolWalker';
 
 export interface IStatement {
 	// Not in use atm, but might be needed later to traverse where an expression is contained.
@@ -131,8 +132,16 @@ export class UCBlock extends UCBaseStatement {
 
 	analyze(document: UCDocument, context: UCStructSymbol) {
 		if (this.statements) for (let statement of this.statements) if (statement) {
-			statement.analyze(document, context);
+			try {
+				statement.analyze(document, context);
+			} catch (err) {
+				console.error('Hit a roadblock while analyzing a statement', context.getQualifiedName(), err);
+			}
 		}
+	}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitBlock(this);
 	}
 }
 

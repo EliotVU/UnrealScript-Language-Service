@@ -23,16 +23,19 @@ import { URI } from 'vscode-uri';
 import { UCPreprocessorParser } from './antlr/UCPreprocessorParser';
 
 import { getSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
-import { filePathByClassIdMap$, getDocumentByUri, indexDocument, getIndexedReferences, config, defaultSettings } from './UC/indexer';
+import { filePathByClassIdMap$, getDocumentByUri, queuIndexDocument, getIndexedReferences, config, defaultSettings, pendingDocumentsLinked$ } from './UC/indexer';
 import { ServerSettings, EAnalyzeOption } from './settings';
-import { documentLinked$ } from './UC/document';
 import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol, PackagesTable, UCObjectTypeSymbol, UCTypeKind, UCPackage } from './UC/Symbols';
 import { toName } from './UC/names';
 
+/** Emits true when the workspace is prepared and ready for indexing. */
 const isIndexReady$ = new Subject<boolean>();
+
+/** Emits a document that is pending an update. */
 const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
 
-let textDocuments: TextDocuments = new TextDocuments();
+const textDocuments: TextDocuments = new TextDocuments();
+
 let hasWorkspaceFolderCapability: boolean = false;
 let currentSettings: ServerSettings = defaultSettings;
 
@@ -99,19 +102,19 @@ connection.onInitialized(async () => {
 		});
 	}
 
-	documentLinked$
+	pendingDocumentsLinked$
 		.pipe(
 			filter(() => currentSettings.unrealscript.analyzeDocuments !== EAnalyzeOption.None),
-			delay(1000),
+			delay(200),
 		)
-		.subscribe(document => {
-			if (currentSettings.unrealscript.analyzeDocuments === EAnalyzeOption.OnlyActive) {
-				if (!textDocuments.get(URI.parse(document.filePath).toString())) {
-					return;
+		.subscribe(documents => {
+			for (const document of documents) {
+				if (currentSettings.unrealscript.analyzeDocuments === EAnalyzeOption.OnlyActive) {
+					if (!textDocuments.get(URI.parse(document.filePath).toString())) {
+						return;
+					}
 				}
-			}
-			// Only analyze active documents.
-			if (document) {
+				// Only analyze active documents.
 				const diagnostics = document.analyze();
 				connection.sendDiagnostics({
 					uri: document.filePath,
@@ -135,7 +138,7 @@ connection.onInitialized(async () => {
 			}
 
 			if (!document.hasBeenIndexed) {
-				indexDocument(document, textDocument.getText());
+				queuIndexDocument(document, textDocument.getText());
 			}
 		}, (error) => connection.console.error(error));
 
@@ -158,7 +161,7 @@ connection.onInitialized(async () => {
 				openDocuments.forEach(doc => {
 					const document = getDocumentByUri(doc.uri);
 					if (document && !document.hasBeenIndexed) {
-						indexDocument(document);
+						queuIndexDocument(document);
 					}
 				});
 				return;
@@ -173,7 +176,7 @@ connection.onInitialized(async () => {
 					return;
 				}
 
-				indexDocument(document);
+				queuIndexDocument(document);
 			});
 
 			isIndexReady$.next(true);
