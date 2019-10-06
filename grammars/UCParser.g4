@@ -453,7 +453,6 @@ variableModifier
 	| 'native'
 	| 'const'
 	| 'editconst'
-	| 'config'
 	| 'globalconfig'
 	| 'transient'
 	| 'travel'
@@ -490,6 +489,8 @@ variableModifier
 	| 'crosslevelactive'
 	| 'crosslevelpassive'
 	| 'allowabstract')
+	// I have only see this occur in XCOM2, but may possibly be a late UC3+ feature
+	| ('config' (OPEN_PARENS identifier CLOSE_PARENS)? )
 	| ('public' exportBlockText?)
 	| ('protected' exportBlockText?)
 	| ('protectedwrite' exportBlockText?)

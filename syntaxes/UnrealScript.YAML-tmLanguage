@@ -182,6 +182,7 @@ repository:
     patterns:
       - match: \b((?i)public|protected|protectedwrite|private|privatewrite|localized|native|intrinsic|const|editconst|config|globalconfig|transient|travel|input|export|noexport|cache|automated|edithide|editinline|editinlinenotify|editinlineuse|editconstarray|edfindable|init|editfixedsize|editoronly|editortextbox|noclear|noimport|serializetext|nontransactional|instanced|databinding|duplicatetransient|repretry|repnotify|interp|deprecated|notforconsole|archetype|crosslevelactive|crosslevelpassive)\b
         name: storage.modifier.uc
+
       # export modifier
       - begin: \{
         beginCaptures:
@@ -193,6 +194,21 @@ repository:
         endCaptures:
           '0':
             name: punctuation.curlybrace.close.uc
+
+      # modifier params like config(id)
+      - begin: \(
+        beginCaptures:
+          '0':
+            name: punctuation.parenthesis.open.uc
+        patterns:
+          - match: \b(\w)\b
+            captures:
+              '1':
+                name: string.quoted.single.uc
+        end: \)
+        endCaptures:
+          '0':
+            name: punctuation.parenthesis.close.uc
 
   type-declaration:
     patterns:
@@ -236,7 +252,7 @@ repository:
               '0':
                 name: punctuation.curlybrace.open.uc
             patterns:
-              - include: source.c++""
+              - include: source.c++
             end: \}
             endCaptures:
               '0':
@@ -479,7 +495,7 @@ repository:
           '0':
             name: punctuation.curlybrace.open.uc
         patterns:
-          - include: source.c++""
+          - include: source.c++
         end: \}
         endCaptures:
           '0':

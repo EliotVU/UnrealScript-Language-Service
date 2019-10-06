@@ -92,7 +92,7 @@ var private{public} native int NativeInt[2], NativeIntTwo[2]{INT};
 
 // Test for multiple categories.
 // FIXME: Multicategories are breaking variable highlighting.
-var(Category1, Category2) string Description;
+var(Category1, Category2) config(Test) string Description;
 
 native function string const() const;
 
