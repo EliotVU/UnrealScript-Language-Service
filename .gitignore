@@ -4,3 +4,4 @@ Icon.psd
 
 client/out
 server/out
+*.vsix

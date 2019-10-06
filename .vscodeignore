@@ -1,7 +1,7 @@
 .vscode
 node_modules
 client/
-!client/out/server.js
+!client/out/extension.js
 server/
 !server/out/server.js
 tsconfig.json
@@ -11,6 +11,7 @@ tslint.json
 .gitignore
 contributing.md
 .travis.yml
+*.vsix
 
 grammars/
 scripts/
