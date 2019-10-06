@@ -10,7 +10,6 @@ import {
 	ITypeSymbol, ISymbol,
 	IWithReference, UCTypeKind
 } from '.';
-import { Token } from 'antlr4ts';
 
 export enum MethodSpecifiers {
 	None 			= 0x0000,
@@ -97,8 +96,8 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return super.getContainedSymbolAtPos(position);
 	}
 
-	findSuperSymbol(id: Name) {
-		return this.getSymbol(id) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id);
+	findSuperSymbol(id: Name, kind?: SymbolKind) {
+		return this.getSymbol(id, kind) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id, kind);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {

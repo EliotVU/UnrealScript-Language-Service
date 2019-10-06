@@ -16,7 +16,8 @@ import {
 	PredefinedArray, PredefinedDelegate, PredefinedMap,
 	NativeClass, NativeArray, ObjectsTable
 } from '.';
-import { NAME_NONE, Name, NAME_BYTE, NAME_FLOAT, NAME_INT, NAME_STATE, NAME_STRING, NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_BUTTON } from '../names';
+import { NAME_NONE, Name, NAME_BYTE, NAME_FLOAT, NAME_INT, NAME_STRING, NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_BUTTON } from '../names';
+import { UCPackage } from './Package';
 
 export enum UCTypeKind {
 	// PRIMITIVE TYPES
@@ -75,7 +76,7 @@ export interface ITypeSymbol extends UCSymbol, IWithReference {
  * -- where "Core" is assigned to @left and "Object" to @type.
  */
 export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
-	constructor(private type: UCObjectTypeSymbol, private left?: UCQualifiedTypeSymbol) {
+	constructor(public type: UCObjectTypeSymbol, public left?: UCQualifiedTypeSymbol) {
 		super(type.id);
 	}
 
@@ -323,7 +324,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 			}
 
 			case UCTypeKind.Enum: case UCTypeKind.Struct: {
-				symbol = context.findSuperSymbol(id) || ObjectsTable.findSymbol(id);
+				symbol = ObjectsTable.findSymbol(id);
 				break;
 			}
 
@@ -332,18 +333,34 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 				break;
 			}
 
-			default: {
-				// First try to match upper level symbols such as a class.
-				symbol = ClassesTable.findSymbol(id, true) || context.findSuperSymbol(id) || ObjectsTable.findSymbol(id);
+			case UCTypeKind.Type: {
+				symbol = ClassesTable.findSymbol(id, true) || ObjectsTable.findSymbol(id);
+				break;
 			}
-		}
 
-		if (this.validTypeKind === UCTypeKind.Type) {
-			if (!(symbol instanceof UCFieldSymbol && symbol.isType())) {
-				symbol = undefined;
+			// Special case for object literals like Property'Engine.Member.Member...'
+			// FIXME: How to handle ambiguous literals such as class'Engine' versus class'Engine.Interactions',
+			// -- where Engine either be the class or package named "Engine".
+			case UCTypeKind.Object: {
+				symbol = PackagesTable.findSymbol(id)
+					// TODO: Merge classes and objects, with tricky hashing so that we can filter by class type.
+					|| ClassesTable.findSymbol(id, true)
+					|| ObjectsTable.findSymbol(id)
+					// FIXME: Hacky case for literals like Property'TempColor', only enums and structs are added to the objects table.
+					|| context.findSuperSymbol(id);
+				break;
 			}
-		}
 
+			default:
+				// Dirty hack, UCPackage is not a type of UCStructSymbol,
+				// -- handles cases like class'Engine.Interactions', where package 'Engine' is our context.
+				if (context instanceof UCPackage) {
+					symbol = context.findSymbol(id, true);
+				} else {
+					symbol = context.findSuperSymbol(id);
+				}
+				break;
+		}
 		symbol && this.setReference(symbol, document);
 	}
 

@@ -117,13 +117,17 @@ function blockFromStatementCtx(
 
 function typeFromIds(identifiers: Identifier[]): ITypeSymbol | undefined {
 	if (identifiers.length === 1) {
-		return new UCObjectTypeSymbol(identifiers[0]);
+		return new UCObjectTypeSymbol(identifiers[0], undefined, UCTypeKind.Object);
 	} else if (identifiers.length > 1) {
 		const get = (i: number): UCQualifiedTypeSymbol => {
 			const type = new UCObjectTypeSymbol(identifiers[i]);
+			if (i === 0) {
+				type.setValidTypeKind(UCTypeKind.Object);
+			}
 			const leftType = i - 1 > -1 ? get(--i) : undefined;
 			return new UCQualifiedTypeSymbol(type, leftType);
 		};
+
 		return get(identifiers.length - 1);
 	}
 	return undefined;
@@ -157,12 +161,10 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, kind?: U
 		switch (kind) {
 			case UCTypeKind.Struct:
 				leftType.setValidTypeKind(UCTypeKind.Class);
-				rightType.setValidTypeKind(UCTypeKind.Struct);
 				break;
 
 			case UCTypeKind.State:
 				leftType.setValidTypeKind(UCTypeKind.Class);
-				rightType.setValidTypeKind(UCTypeKind.State);
 				break;
 
 			case UCTypeKind.Delegate:
@@ -172,7 +174,6 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, kind?: U
 
 			case UCTypeKind.Class:
 				leftType.setValidTypeKind(UCTypeKind.Package);
-				rightType.setValidTypeKind(UCTypeKind.Class);
 				break;
 
 			default:
@@ -299,7 +300,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 				name: NAME_CLASS,
 				range: rangeFromBound(rule.start)
 			};
-			const symbol = new UCObjectTypeSymbol(identifier, rangeFromBounds(rule.start, rule.stop));
+			const symbol = new UCObjectTypeSymbol(identifier, rangeFromBounds(rule.start, rule.stop), UCTypeKind.Class);
 
 			const idNode = rule.identifier();
 			if (idNode) {
@@ -435,9 +436,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const identifier: Identifier = idFromCtx(ctx.identifier());
 		const symbol = new UCEnumSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		this.declare(symbol, ctx);
-		if (this.scope() === this.document.class) {
-			ObjectsTable.addSymbol(symbol);
-		}
+		ObjectsTable.addSymbol(symbol);
 
 		this.push(symbol);
 		try {
@@ -480,9 +479,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		}
 
 		this.declare(symbol, ctx);
-		if (this.scope() === this.document.class) {
-			ObjectsTable.addSymbol(symbol);
-		}
+		ObjectsTable.addSymbol(symbol);
 
 		this.push(symbol);
 		try {

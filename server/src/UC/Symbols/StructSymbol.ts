@@ -11,6 +11,7 @@ import {
 	UCFieldSymbol,
 	UCSymbol, ITypeSymbol
 } from ".";
+import { UCTypeKind } from './TypeSymbol';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: ITypeSymbol;
@@ -96,17 +97,20 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		throw 'not implemented';
 	}
 
-	getSymbol(id: Name): UCSymbol | undefined {
+	getSymbol(id: Name, kind?: SymbolKind): UCSymbol | undefined {
 		for (let child = this.children; child; child = child.next) {
 			if (child.getId() === id) {
+				if (kind !== undefined && (child.getTypeKind() & kind) === 0) {
+					continue;
+				}
 				return child;
 			}
 		}
 		return undefined;
 	}
 
-	findSuperSymbol(id: Name): UCSymbol | undefined {
-		return this.getSymbol(id) || this.super && this.super.findSuperSymbol(id);
+	findSuperSymbol(id: Name, kind?: SymbolKind): UCSymbol | undefined {
+		return this.getSymbol(id, kind) || this.super && this.super.findSuperSymbol(id, kind);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {

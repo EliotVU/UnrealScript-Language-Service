@@ -14,7 +14,7 @@ import { CommonTokenStream, ANTLRErrorListener } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 
-import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCSymbol, UCScriptStructSymbol, UCEnumSymbol, ObjectsTable } from './Symbols';
+import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCSymbol, UCScriptStructSymbol, UCEnumSymbol, ObjectsTable, UCStructSymbol, UCFieldSymbol } from './Symbols';
 
 import { IDiagnosticNode, DiagnosticCollection } from './diagnostics/diagnostic';
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
@@ -166,11 +166,18 @@ export class UCDocument {
 	public invalidate() {
 		if (this.class) {
 			// naive implementation, what if two classes have an identical named struct?
-			for (let child = this.class.children; child; child = child.next) {
-				if (child instanceof UCScriptStructSymbol || child instanceof UCEnumSymbol) {
-					ObjectsTable.removeSymbol(child);
+			function removeObjects(child?: UCFieldSymbol) {
+				for (; child; child = child.next) {
+					if (child instanceof UCScriptStructSymbol || child instanceof UCEnumSymbol) {
+						if (child.children) {
+							removeObjects(child.children);
+						}
+						ObjectsTable.removeSymbol(child);
+					}
 				}
 			}
+			removeObjects(this.class.children);
+
 			delete this.class;
 		}
 

@@ -20,7 +20,7 @@ export interface ISymbol {
 export interface ISymbolContainer<T extends ISymbol> {
 	addSymbol(symbol: T): Name | undefined;
 	addAlias(id: Name, symbol: T);
-	getSymbol(id: Name): T | undefined;
+	getSymbol(id: Name, kind?: SymbolKind): T | undefined;
 }
 
 export interface ISymbolContext {

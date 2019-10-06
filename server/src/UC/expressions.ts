@@ -18,7 +18,7 @@ import {
 	RangeTypeRef, RngMethodLike,
 	ITypeSymbol, TypeCastMap, UCTypeKind,
 	UCDelegateSymbol, UCStateSymbol,
-	analyzeTypeSymbol, ClassesTable
+	analyzeTypeSymbol, ClassesTable, ObjectsTable
 } from './Symbols';
 
 export interface IExpression {
@@ -621,7 +621,7 @@ export class UCMemberExpression extends UCExpression {
 		if (hasArguments) {
 			// We must match a predefined type over any class or scope symbol!
 			// FIXME: What about casting a byte to an ENUM type?
-			let type: ISymbol | undefined = TypeCastMap.get(id) || ClassesTable.findSymbol(id, true);
+			let type: ISymbol | undefined = TypeCastMap.get(id) || ClassesTable.findSymbol(id, true) || ObjectsTable.findSymbol(id);
 			if (type) {
 				this.symbolRef.setReference(type, document);
 				return;

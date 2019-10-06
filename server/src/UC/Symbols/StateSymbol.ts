@@ -31,8 +31,8 @@ export class UCStateSymbol extends UCStructSymbol {
 		return super.getContainedSymbolAtPos(position);
 	}
 
-	findSuperSymbol(id: Name) {
-		const symbol = super.findSuperSymbol(id) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id);
+	findSuperSymbol(id: Name, kind?: SymbolKind) {
+		const symbol = super.findSuperSymbol(id, kind) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id, kind);
 		return symbol;
 	}
 
