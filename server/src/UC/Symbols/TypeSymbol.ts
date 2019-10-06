@@ -14,7 +14,7 @@ import {
 	PredefinedBool, PredefinedButton, PredefinedName,
 	PredefinedInt, PredefinedPointer,
 	PredefinedArray, PredefinedDelegate, PredefinedMap,
-	NativeClass, NativeArray
+	NativeClass, NativeArray, ObjectsTable
 } from '.';
 import { NAME_NONE, Name, NAME_BYTE, NAME_FLOAT, NAME_INT, NAME_STATE, NAME_STRING, NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_BUTTON } from '../names';
 
@@ -322,7 +322,11 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 				break;
 			}
 
-			case UCTypeKind.Enum: case UCTypeKind.Struct:
+			case UCTypeKind.Enum: case UCTypeKind.Struct: {
+				symbol = context.findSuperSymbol(id) || ObjectsTable.findSymbol(id);
+				break;
+			}
+
 			case UCTypeKind.State: case UCTypeKind.Delegate: {
 				symbol = context.findSuperSymbol(id);
 				break;
@@ -330,7 +334,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 
 			default: {
 				// First try to match upper level symbols such as a class.
-				symbol = ClassesTable.findSymbol(id, true) || context.findSuperSymbol(id);
+				symbol = ClassesTable.findSymbol(id, true) || context.findSuperSymbol(id) || ObjectsTable.findSymbol(id);
 			}
 		}
 

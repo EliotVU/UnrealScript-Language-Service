@@ -6,6 +6,7 @@ import { getDocumentById, indexDocument } from '../indexer';
 import { Name, NAME_NONE } from '../names';
 
 import { ISymbol, ISymbolContainer, UCClassSymbol } from '.';
+import { UCFieldSymbol } from './FieldSymbol';
 
 export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 	public outer?: UCPackage;
@@ -101,6 +102,11 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 		this.symbols.set(key, symbol);
 	}
 
+	removeSymbol(symbol: T) {
+		const key = symbol.getId();
+		this.symbols.delete(key);
+	}
+
 	getSymbol(id: Name): T | undefined {
 		return this.symbols.get(id);
 	}
@@ -135,3 +141,5 @@ export const PackagesTable = new SymbolsTable<UCPackage>();
  * This table will be used to index any class references, including any native psuedo class.
  */
 export const ClassesTable = new SymbolsTable<UCClassSymbol>();
+
+export const ObjectsTable = new SymbolsTable<UCFieldSymbol>();

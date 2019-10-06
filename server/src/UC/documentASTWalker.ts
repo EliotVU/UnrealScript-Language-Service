@@ -34,7 +34,8 @@ import {
 	UCNameTypeSymbol, UCBoolTypeSymbol,
 	UCPointerTypeSymbol, UCButtonTypeSymbol,
 	UCDelegateTypeSymbol, UCArrayTypeSymbol,
-	UCMapTypeSymbol
+	UCMapTypeSymbol,
+	ObjectsTable
 } from './Symbols';
 
 import { SyntaxErrorNode } from './diagnostics/diagnostic';
@@ -434,6 +435,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const identifier: Identifier = idFromCtx(ctx.identifier());
 		const symbol = new UCEnumSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		this.declare(symbol, ctx);
+		if (this.scope() === this.document.class) {
+			ObjectsTable.addSymbol(symbol);
+		}
 
 		this.push(symbol);
 		try {
@@ -476,6 +480,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		}
 
 		this.declare(symbol, ctx);
+		if (this.scope() === this.document.class) {
+			ObjectsTable.addSymbol(symbol);
+		}
 
 		this.push(symbol);
 		try {
