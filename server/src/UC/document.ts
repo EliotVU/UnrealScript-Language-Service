@@ -149,7 +149,15 @@ export class UCDocument {
 		this.hasBeenIndexed = true;
 		const start = performance.now();
 		if (this.class) {
-			this.class.index(this, this.class);
+			try {
+				this.class.index(this, this.class);
+			} catch (err) {
+				console.error(
+					`An error was thrown while indexing document: "${this.filePath}",
+					\n
+					\t stack: "${err.stack}"`
+				);
+			}
 		}
 		console.info(this.fileName + ': linking time ' + (performance.now() - start));
 		documentLinked$.next(this);
@@ -158,8 +166,16 @@ export class UCDocument {
 	// To be initiated after we have linked all dependencies, so that deep recursive context references can be resolved.
 	public postLink() {
 		if (this.class) {
-			const indexer = new DocumentIndexer(this);
-			this.class.accept(indexer);
+			try {
+				const indexer = new DocumentIndexer(this);
+				this.class.accept(indexer);
+			} catch (err) {
+				console.error(
+					`An error was thrown while post indexing document: "${this.filePath}",
+					\n
+					\t stack: "${err.stack}"`
+				);
+			}
 		}
 	}
 
@@ -207,7 +223,15 @@ export class UCDocument {
 
 	public analyze(): Diagnostic[] {
 		const diagnostics = new DiagnosticCollection();
-		const analyzer = new DocumentAnalyzer(this, diagnostics);
+		try {
+			(new DocumentAnalyzer(this, diagnostics));
+		} catch (err) {
+			console.error(
+				`An error was thrown while analyzing document: "${this.filePath}",
+				\n
+				\t stack: "${err.stack}"`
+			);
+		}
 
 		// TODO: build macro symbols, and walk those instead.
 		// if (this.macroTree) {
