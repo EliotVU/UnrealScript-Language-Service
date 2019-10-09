@@ -114,7 +114,12 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		if (this.left) {
 			this.left.index(document, context);
 			const leftContext = this.left.getReference();
-			context = leftContext as UCStructSymbol;
+
+			// Ensure that context will never be anything but instances of these. e.g. class'PROP.subfield' where PROP is neither a package nor a struct.
+			if (leftContext instanceof UCStructSymbol || leftContext instanceof UCPackage) {
+				context = leftContext as UCStructSymbol;
+			}
+			// else do nothing? A warning might be convenient.
 		}
 
 		this.type.index(document, context);
