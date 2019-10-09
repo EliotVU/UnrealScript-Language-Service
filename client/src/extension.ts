@@ -15,13 +15,18 @@ export function activate(context: ExtensionContext) {
 		path.join('server', 'out', 'server.js')
 	);
 
-	let debugOptions = { execArgv: ['--nolazy', '--inspect=6010'] };
+	const memoryOption = '--max-old-space-size=8192';
+	let debugOptions = { execArgv: ['--nolazy', '--inspect=6010', memoryOption] };
 	let serverOptions: ServerOptions = {
-		run: { module: serverModule, transport: TransportKind.ipc },
+		run: {
+			module: serverModule,
+			transport: TransportKind.ipc ,
+			options: { execArgv: [memoryOption] }
+		},
 		debug: {
 			module: serverModule,
 			transport: TransportKind.ipc,
-			options: debugOptions
+			options: debugOptions,
 		}
 	};
 
