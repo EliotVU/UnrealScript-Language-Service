@@ -1,10 +1,10 @@
 import * as CRC32 from 'crc-32';
 
-const namesMap = {};
+const namesMap = new Map<number, Name>();
 
 export class Name {
 	constructor(public readonly hash: number, private text: string) {
-		namesMap[hash] = this;
+		namesMap.set(hash, this);
 	}
 
 	toString(): string {
@@ -14,15 +14,12 @@ export class Name {
 
 export function toName(text: string): Name {
 	const hash = CRC32.str(text.toLowerCase());
-	return namesMap[hash] || new Name(hash, text);
+	// console.assert(text.length <= 1024, 'LONG STRING', text); // Max 64 in UE2
+	return namesMap.get(hash) || new Name(hash, text);
 }
 
 export function toHash(text: string): number {
 	return CRC32.str(text.toLowerCase());
-}
-
-export function fromHash(hash: number): Name | undefined {
-	return namesMap[hash];
 }
 
 export const NAME_NONE = toName('None');

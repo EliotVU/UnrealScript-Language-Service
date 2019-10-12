@@ -8,6 +8,7 @@ export interface ISymbol {
 	outer?: ISymbol;
 
 	getId(): Name;
+	getHash(): number;
 	getQualifiedName(): string;
 	getKind(): SymbolKind;
 	getTooltip(): string;
@@ -19,31 +20,19 @@ export interface ISymbol {
 
 export interface ISymbolContainer<T extends ISymbol> {
 	addSymbol(symbol: T): Name | undefined;
-	addAlias(id: Name, symbol: T);
+	addAlias(id: Name, symbol: T): void;
 	getSymbol(id: Name, kind?: SymbolKind): T | undefined;
 }
 
-export interface ISymbolContext {
-	// Context was referred by an assignment operator.
-	inAssignment?: boolean;
-}
-
 export interface ISymbolReference {
-	/**
-	 * The symbol that has made a reference to this location.
-	 */
-	symbol: ISymbol;
-
 	/**
 	 * The location where a symbol is being referenced.
 	 * This symbol is mapped by a qualifiedId as key by a map that's holding an object of this interface.
 	 */
 	location: Location;
 
-	/**
-	 * Context that details how this reference was made, e.g by an assignment.
-	 */
-	context?: ISymbolContext;
+	// Context was referred by an assignment operator.
+	inAssignment?: boolean;
 }
 
 export interface IWithReference extends ISymbol {

@@ -112,7 +112,13 @@ static final preoperator int ToInt(string A) {
 	return int(A);
 }
 
+function coerce Object Spawn( class<Object> class ) {
+	return class;
+}
+
 function Class Load(name objName, class ObjClass) {
+	// Test class coercing
+    Spawn( class'Test', self ).const();
 	return objClass;
 }
 
@@ -123,7 +129,8 @@ function struct e {} InlinedStructReturnType() {
 }
 
 function TestQualifiedStruct( Test.AStruct struct ) {
-
+	// Test an assignment within a return statement.
+ 	return 1 -= $"2";
 }
 
 function AddObj(Object obj) {
@@ -159,6 +166,9 @@ delegate byte Test() {
 	// FIXME: AddObj is parsed as preoperator!
 	foreach AllObjects(class'Object', obj)
 		AddObj(obj);
+
+    // Test accessable properties via an object literal.
+	str = StrProperty'str'.default.Name;
 
 	obj = new class'Test';
 

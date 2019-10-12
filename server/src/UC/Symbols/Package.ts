@@ -19,6 +19,10 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 		return this.name;
 	}
 
+	getHash(): number {
+		return this.name.hash;
+	}
+
 	getQualifiedName(): string {
 		return this.getId().toString();
 	}

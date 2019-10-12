@@ -14,7 +14,7 @@ import { CommonTokenStream, ANTLRErrorListener } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 
-import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCSymbol, UCScriptStructSymbol, UCEnumSymbol, ObjectsTable, UCStructSymbol, UCFieldSymbol } from './Symbols';
+import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCScriptStructSymbol, UCEnumSymbol, ObjectsTable, UCFieldSymbol } from './Symbols';
 
 import { IDiagnosticNode, DiagnosticCollection } from './diagnostics/diagnostic';
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
@@ -37,7 +37,7 @@ export class UCDocument {
 	public class?: UCClassSymbol;
 	public hasBeenIndexed = false;
 
-	private readonly indexReferencesMade = new Map<string, ISymbolReference | ISymbolReference[]>();
+	private readonly indexReferencesMade = new Map<number, Set<ISymbolReference>>();
 
 	constructor(public readonly filePath: string, public classPackage: UCPackage) {
 		this.fileName = path.basename(filePath, '.uc');
@@ -124,6 +124,7 @@ export class UCDocument {
 			}
 		} finally {
 			try {
+				parser.reset(true);
 				if (context) {
 					walker.tokenStream = tokens;
 					walker.visit(context);
@@ -137,6 +138,7 @@ export class UCDocument {
 			}
 			console.info(this.fileName + ': Walking time ' + (performance.now() - startWalking));
 		}
+		tokens.release(tokens.mark());
 	}
 
 	public readText(): string {
@@ -202,22 +204,11 @@ export class UCDocument {
 
 		// Clear all the indexed references that we have made.
 		for (let [key, value] of this.indexReferencesMade) {
-			const indexedRefs = IndexedReferencesMap.get(key);
-			if (!indexedRefs) {
-				return;
-			}
-
-			if (value instanceof Array) {
-				value.forEach(ref => indexedRefs.delete(ref));
-			} else {
-				indexedRefs.delete(value);
-			}
-
-			if (indexedRefs.size === 0) {
-				IndexedReferencesMap.delete(key);
+			const refs = IndexedReferencesMap.get(key);
+			if (refs) {
+				value.forEach(ref => refs.delete(ref));
 			}
 		}
-
 		this.indexReferencesMade.clear();
 	}
 
@@ -265,18 +256,15 @@ export class UCDocument {
 			});
 	}
 
-	indexReference(symbol: UCSymbol, ref: ISymbolReference) {
-		const key = symbol.getQualifiedName();
+	indexReference(symbol: ISymbol, ref: ISymbolReference) {
+		const key = symbol.getHash();
+		const value = this.indexReferencesMade.get(key);
 
-		let value = this.indexReferencesMade.get(key);
-		if (value) {
-			if (value instanceof Array) {
-				value.push(ref);
-			} else {
-				this.indexReferencesMade.set(key, [value, ref]);
-			}
-		} else {
-			this.indexReferencesMade.set(key, ref);
+		const set = value || new Set<ISymbolReference>();
+		set.add(ref);
+
+		if (!value) {
+			this.indexReferencesMade.set(key, set);
 		}
 
 		// TODO: Refactor this, we are pretty much duplicating this function's job.

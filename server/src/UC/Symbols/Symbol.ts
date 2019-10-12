@@ -36,6 +36,14 @@ export abstract class UCSymbol implements ISymbol {
 		return this.id.name;
 	}
 
+	getHash(): number {
+		let hash: number = this.id.name.hash;
+		for (var outer = this.outer; outer; outer = outer.outer) {
+			hash = hash ^ (outer.getId().hash >> 4);
+		}
+		return hash;
+	}
+
 	getQualifiedName(): string {
 		let text = this.getId().toString();
 		for (var outer = this.outer; outer; outer = outer.outer) {

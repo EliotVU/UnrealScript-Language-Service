@@ -16,17 +16,20 @@ export function activate(context: ExtensionContext) {
 	);
 
 	const memoryOption = '--max-old-space-size=8192';
-	let debugOptions = { execArgv: ['--nolazy', '--inspect=6010', memoryOption] };
 	let serverOptions: ServerOptions = {
 		run: {
 			module: serverModule,
 			transport: TransportKind.ipc ,
-			options: { execArgv: [memoryOption] }
+			options: {
+				execArgv: [memoryOption]
+			}
 		},
 		debug: {
 			module: serverModule,
 			transport: TransportKind.ipc,
-			options: debugOptions,
+			options: {
+				execArgv: [memoryOption, '--nolazy', '--inspect=6010']
+			},
 		}
 	};
 

@@ -318,8 +318,7 @@ connection.onRenameRequest(async (e) => {
 	if (!symbol || !(symbol instanceof UCSymbol)) {
 		return undefined;
 	}
-	const qualifiedName = symbol.getQualifiedName();
-	const references = getIndexedReferences(qualifiedName);
+	const references = getIndexedReferences(symbol.getHash());
 	const locations = references && Array
 		.from(references.values())
 		.map(ref => ref.location);

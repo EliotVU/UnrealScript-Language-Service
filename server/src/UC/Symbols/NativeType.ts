@@ -14,6 +14,10 @@ export class UCNativeType implements ISymbol {
 		return this.name;
 	}
 
+	getHash(): number {
+		return this.name.hash;
+	}
+
 	getQualifiedName(): string {
 		return this.getId().toString();
 	}

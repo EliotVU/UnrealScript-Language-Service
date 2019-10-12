@@ -4,6 +4,7 @@ import { intersectsWith, intersectsWithRange } from '../helpers';
 import { UCDocument } from '../document';
 
 import { Identifier, ISymbol, UCSymbol, UCStructSymbol, UCTypeKind } from '.';
+import { ISymbolReference } from './ISymbol';
 
 export enum FieldModifiers {
 	None 				= 0x0000,
@@ -94,11 +95,11 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	}
 
 	private indexDeclaration(document: UCDocument) {
-		document.indexReference(this, {
+		const ref: ISymbolReference = {
 			location: Location.create(document.filePath, this.id.range),
-			symbol: this,
-			context: { inAssignment: true }
-		});
+			inAssignment: true
+		};
+		document.indexReference(this, ref);
 	}
 
 	protected buildModifiers(): string[] {

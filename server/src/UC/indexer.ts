@@ -139,10 +139,10 @@ export function getDocumentById(id: string): UCDocument | undefined {
 // 		});
 // });
 
-export const IndexedReferencesMap = new Map<string, Set<ISymbolReference>>();
+export const IndexedReferencesMap = new Map<number, Set<ISymbolReference>>();
 
-export function getIndexedReferences(qualifiedId: string) {
-	return IndexedReferencesMap.get(qualifiedId);
+export function getIndexedReferences(hash: number) {
+	return IndexedReferencesMap.get(hash);
 }
 
 const EnumMemberMap = new WeakMap<Name, UCEnumMemberSymbol>();

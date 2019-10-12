@@ -8,7 +8,7 @@ import { UCDocument } from './document';
 import { Name } from './names';
 
 import {
-	ISymbolContext, ISymbol, UCSymbol,
+	ISymbol, UCSymbol,
 	UCObjectTypeSymbol, UCStructSymbol,
 	UCPropertySymbol, UCSymbolReference,
 	UCMethodSymbol, UCClassSymbol, UCEnumSymbol,
@@ -18,12 +18,11 @@ import {
 	RangeTypeRef, RngMethodLike,
 	ITypeSymbol, TypeCastMap, UCTypeKind,
 	UCDelegateSymbol, UCStateSymbol,
-	analyzeTypeSymbol, ClassesTable, ObjectsTable
+	analyzeTypeSymbol, ClassesTable, ObjectsTable, DEFAULT_RANGE
 } from './Symbols';
 
 export interface IExpression {
 	outer: IExpression;
-	context: ParserRuleContext;
 
 	getRange(): Range;
 
@@ -38,17 +37,12 @@ export interface IExpression {
 
 export abstract class UCExpression implements IExpression {
 	outer: IExpression;
-	context: ParserRuleContext;
 
-	constructor(protected range?: Range) {
+	constructor(protected range: Range) {
 	}
 
 	getRange(): Range {
-		if (!this.range && this.context) {
-			this.range = rangeFromBounds(this.context.start, this.context.stop);
-		}
-
-		return this.range!;
+		return this.range;
 	}
 
 	getMemberSymbol(): ISymbol | undefined {
@@ -70,12 +64,6 @@ export abstract class UCExpression implements IExpression {
 	abstract getContainedSymbolAtPos(position: Position): ISymbol | undefined;
 	abstract index(document: UCDocument, context?: UCStructSymbol): void;
 	analyze(_document: UCDocument, _context?: UCStructSymbol): void {}
-
-	toString(): string {
-		return this.context
-			? this.context.text
-			: '';
-	}
 }
 
 export class UCParenthesizedExpression extends UCExpression {
@@ -621,8 +609,10 @@ export class UCMemberExpression extends UCExpression {
 		if (hasArguments) {
 			// We must match a predefined type over any class or scope symbol!
 			// FIXME: What about casting a byte to an ENUM type?
-			let type: ISymbol | undefined = TypeCastMap.get(id) || ClassesTable.findSymbol(id, true) || ObjectsTable.findSymbol(id);
-			if (type) {
+			let type: ISymbol | undefined;
+			if (type = TypeCastMap.get(id)) {
+				this.symbolRef.setReference(type, document, true);
+			} else if (type = ClassesTable.findSymbol(id, true) || ObjectsTable.findSymbol(id)) {
 				this.symbolRef.setReference(type, document);
 				return;
 			}
@@ -639,18 +629,16 @@ export class UCMemberExpression extends UCExpression {
 		}
 
 		if (symbol) {
-			let contextInfo: ISymbolContext;
-			contextInfo = {
-				inAssignment:
-					// Check if we are being assigned a value.
-					// FIXME: This is very ugly and should instead be determined by passing down a more verbose context to index().
-					(this.outer instanceof UCAssignmentExpression && this.outer.left === this)
-					|| this.outer instanceof UCPropertyAccessExpression
-					&& this.outer.member === this
-					&& this.outer.outer instanceof UCAssignmentExpression
-					&& this.outer.outer.left === this.outer
-			};
-			this.symbolRef.setReference(symbol, document, contextInfo);
+			const ref = this.symbolRef.setReference(symbol, document);
+			if (ref) {
+				// Check if we are being assigned a value.
+				// FIXME: This is very ugly and should instead be determined by passing down a more verbose context to index().
+				ref.inAssignment = (this.outer instanceof UCAssignmentExpression && this.outer.left === this)
+				|| this.outer instanceof UCPropertyAccessExpression
+				&& this.outer.member === this
+				&& this.outer.outer instanceof UCAssignmentExpression
+				&& this.outer.outer.left === this.outer;
+			}
 		}
 	}
 
@@ -672,7 +660,7 @@ export class UCPredefinedAccessExpression extends UCMemberExpression {
 	index(document: UCDocument, _context?: UCStructSymbol) {
 		this.symbolRef.setReference(
 			document.class!,
-			document, undefined, true
+			document, true
 		);
 	}
 }
@@ -689,7 +677,7 @@ export class UCPredefinedPropertyAccessExpression extends UCMemberExpression {
 				context instanceof UCClassSymbol
 					? context
 					: document.class!,
-				document, undefined, true
+				document, true
 			);
 		}
 	}
@@ -783,8 +771,10 @@ export class UCBoolLiteral extends UCLiteral {
 }
 
 export class UCFloatLiteral extends UCLiteral {
+	value: number;
+
 	getValue(): number {
-		return Number.parseInt(this.context.text);
+		return this.value;
 	}
 
 	getTypeKind(): UCTypeKind {
@@ -793,8 +783,10 @@ export class UCFloatLiteral extends UCLiteral {
 }
 
 export class UCIntLiteral extends UCLiteral {
+	value: number;
+
 	getValue(): number {
-		return Number.parseInt(this.context.text);
+		return this.value;
 	}
 
 	getTypeKind(): UCTypeKind {
@@ -803,8 +795,10 @@ export class UCIntLiteral extends UCLiteral {
 }
 
 export class UCByteLiteral extends UCLiteral {
+	value: number;
+
 	getValue(): number {
-		return Number.parseInt(this.context.text);
+		return this.value;
 	}
 
 	getTypeKind(): UCTypeKind {
@@ -890,7 +884,7 @@ export abstract class UCStructLiteral extends UCExpression {
 		}
 
 		const symbol = context!.findSuperSymbol(this.structType.getId());
-		symbol && this.structType.setReference(symbol, document, undefined, undefined, this.getRange());
+		symbol && this.structType.setReference(symbol, document, undefined, this.getRange());
 	}
 }
 

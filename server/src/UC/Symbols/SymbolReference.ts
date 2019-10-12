@@ -5,7 +5,7 @@ import { intersectsWith, intersectsWithRange } from '../helpers';
 
 import {
 	ISymbol, ISymbolReference,
-	ISymbolContext, IWithReference,
+	IWithReference,
 	UCTypeKind,
 	UCSymbol, UCFieldSymbol
 } from '.';
@@ -46,19 +46,18 @@ export class UCSymbolReference extends UCSymbol implements IWithReference {
 		}
 	}
 
-	setReference(symbol: ISymbol, document: UCDocument, context?: ISymbolContext, noIndex?: boolean, range: Range = this.id.range) {
+	setReference(symbol: ISymbol, document: UCDocument, noIndex?: boolean, range?: Range): ISymbolReference | undefined {
 		this.reference = symbol;
 		if (noIndex) {
 			return;
 		}
 
-		if (symbol && symbol instanceof UCSymbol) {
+		if (symbol) {
 			const ref: ISymbolReference = {
-				location: Location.create(document.filePath, range),
-				symbol: this,
-				context
+				location: Location.create(document.filePath, range || this.id.range),
 			};
 			document.indexReference(symbol, ref);
+			return ref;
 		}
 	}
 

@@ -150,7 +150,7 @@ export async function getSymbolReferences(uri: string, position: Position): Prom
 		return undefined;
 	}
 
-	const references = getIndexedReferences(symbol.getQualifiedName());
+	const references = getIndexedReferences(symbol.getHash());
 	return references && Array
 		.from(references.values())
 		.map(ref => ref.location);
@@ -162,7 +162,7 @@ export async function getSymbolHighlights(uri: string, position: Position): Prom
 		return undefined;
 	}
 
-	const references = getIndexedReferences(symbol.getQualifiedName());
+	const references = getIndexedReferences(symbol.getHash());
 	if (!references) {
 		return undefined;
 	}
@@ -172,11 +172,9 @@ export async function getSymbolHighlights(uri: string, position: Position): Prom
 		.filter(loc => loc.location.uri === uri)
 		.map(ref => DocumentHighlight.create(
 			ref.location.range,
-			ref.context
-				? ref.context.inAssignment
-					? DocumentHighlightKind.Write
-					: DocumentHighlightKind.Read
-				: undefined
+			ref.inAssignment
+				? DocumentHighlightKind.Write
+				: DocumentHighlightKind.Read
 		));
 }
 
