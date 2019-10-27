@@ -1,8 +1,5 @@
-class macro;
-
-`define DEF defaultproperties
-
-`DEF
-{
-
-}
+`if(`isdefined(debug))
+	`define IN_DEBUG true
+`else
+	`define IN_DEBUG false
+`endif

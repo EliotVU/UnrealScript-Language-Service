@@ -1,11 +1,9 @@
-import { Subject } from 'rxjs';
-
 import * as path from 'path';
 import * as fs from 'fs';
 
 import { URI } from 'vscode-uri';
 
-import { Diagnostic, Position } from 'vscode-languageserver';
+import { Diagnostic } from 'vscode-languageserver';
 import { performance } from 'perf_hooks';
 import { UCLexer } from '../antlr/UCLexer';
 import { UCParser, ProgramContext } from '../antlr/UCParser';
@@ -18,14 +16,11 @@ import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCScriptStructSymb
 
 import { IDiagnosticNode, DiagnosticCollection } from './diagnostics/diagnostic';
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
-import { IndexedReferencesMap } from './indexer';
+import { IndexedReferencesMap, applyMacroSymbols, config } from './indexer';
 
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import { CommonTokenStreamExt } from './Parser/CommonTokenStreamExt';
 import { DocumentASTWalker } from './documentASTWalker';
-import { DocumentIndexer } from './documentIndexer';
-
-export const documentLinked$ = new Subject<UCDocument>();
 
 export class UCDocument {
 	/** Parsed file name filtered of path and extension. */
@@ -54,38 +49,6 @@ export class UCDocument {
 		this.symbols.push(symbol);
 	}
 
-	public preprocess(lexer: UCLexer, walker?: DocumentASTWalker) {
-		const macroStream = new CommonTokenStream(lexer, UCLexer.MACRO);
-		macroStream.fill();
-
-		if (macroStream.size <= 1) {
-			return undefined;
-		}
-
-		const macroParser = new UCPreprocessorParser(macroStream);
-		macroParser.filePath = this.filePath;
-
-		if (this.fileName.toLowerCase() === 'globals.uci') {
-			UCPreprocessorParser.globalSymbols = macroParser.currentSymbols;
-		}
-
-		// TODO: strip .uci?
-		const classNameMacro = { text: this.fileName };
-		const packageNameMacro = { text: this.classPackage.getId().toString() };
-		macroParser.currentSymbols.set("classname", classNameMacro);
-		macroParser.currentSymbols.set("packagename", packageNameMacro);
-
-		if (walker) {
-			macroParser.removeErrorListeners();
-			macroParser.addErrorListener(walker);
-		}
-		const macroCtx = macroParser.macroProgram();
-		if (walker) {
-			walker.visit(macroCtx);
-		}
-		return macroCtx;
-	}
-
 	public build(text: string = this.readText()) {
 		console.log('building document ' + this.fileName);
 
@@ -97,11 +60,14 @@ export class UCDocument {
 		const tokens = new CommonTokenStreamExt(lexer);
 
 		const startPreprocressing = performance.now();
-		const macroTree = this.preprocess(lexer, walker);
-		if (macroTree) {
+		const macroParser = createPreprocessor(this, lexer);
+		if (macroParser) {
 			try {
-				lexer.reset();
-				tokens.initMacroTree(macroTree, walker as ANTLRErrorListener<Number>);
+				const macroTree = preprocessDocument(this, macroParser, walker);
+				if (macroTree) {
+					lexer.reset();
+					tokens.initMacroTree(macroTree, walker as ANTLRErrorListener<Number>);
+				}
 			} catch (err) {
 				console.error(err);
 			} finally {
@@ -161,40 +127,6 @@ export class UCDocument {
 		const filePath = URI.parse(this.filePath).fsPath;
 		const text = fs.readFileSync(filePath).toString();
 		return text;
-	}
-
-	public link() {
-		this.hasBeenIndexed = true;
-		const start = performance.now();
-		if (this.class) {
-			try {
-				this.class.index(this, this.class);
-			} catch (err) {
-				console.error(
-					`An error was thrown while indexing document: "${this.filePath}",
-					\n
-					\t stack: "${err.stack}"`
-				);
-			}
-		}
-		console.info(this.fileName + ': linking time ' + (performance.now() - start));
-		documentLinked$.next(this);
-	}
-
-	// To be initiated after we have linked all dependencies, so that deep recursive context references can be resolved.
-	public postLink() {
-		if (this.class) {
-			try {
-				const indexer = new DocumentIndexer(this);
-				this.class.accept<any>(indexer);
-			} catch (err) {
-				console.error(
-					`An error was thrown while post indexing document: "${this.filePath}",
-					\n
-					\t stack: "${err.stack}"`
-				);
-			}
-		}
 	}
 
 	public invalidate() {
@@ -271,4 +203,40 @@ export class UCDocument {
 		gRefs.add(ref);
 		IndexedReferencesMap.set(key, gRefs);
 	}
+}
+
+export function createPreprocessor(document: UCDocument, lexer: UCLexer) {
+	const macroStream = new CommonTokenStream(lexer, UCLexer.MACRO);
+	macroStream.fill();
+
+	if (macroStream.size <= 1) {
+		return undefined;
+	}
+
+	const macroParser = new UCPreprocessorParser(macroStream);
+	macroParser.filePath = document.filePath;
+	return macroParser;
+}
+
+export function preprocessDocument(document: UCDocument, macroParser: UCPreprocessorParser, walker?: DocumentASTWalker) {
+	if (document.fileName.toLowerCase() === 'globals.uci') {
+		UCPreprocessorParser.globalSymbols = macroParser.currentSymbols;
+		applyMacroSymbols(config.macroSymbols);
+	}
+
+	const classNameMacro = { text: document.fileName.substr(0, document.fileName.indexOf('.uc')) };
+	macroParser.currentSymbols.set("classname", classNameMacro);
+
+	const packageNameMacro = { text: document.classPackage.getId().toString() };
+	macroParser.currentSymbols.set("packagename", packageNameMacro);
+
+	if (walker) {
+		macroParser.removeErrorListeners();
+		macroParser.addErrorListener(walker);
+	}
+	const macroCtx = macroParser.macroProgram();
+	if (walker) {
+		walker.visit(macroCtx);
+	}
+	return macroCtx;
 }
