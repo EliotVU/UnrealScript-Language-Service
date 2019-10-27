@@ -8,6 +8,7 @@ import * as UCGrammar from '../antlr/UCParser';
 import { UCLexer } from '../antlr/UCLexer';
 import { UCParserVisitor } from '../antlr/UCParserVisitor';
 import { UCPreprocessorParserVisitor } from '../antlr/UCPreprocessorParserVisitor';
+import * as UCMacro from '../antlr/UCPreprocessorParser';
 
 import { rangeFromBounds, rangeFromBound, rangeFromCtx } from './helpers';
 import {
@@ -232,6 +233,19 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		return undefined!;
 	}
 
+	visitMacroDefine(ctx: UCMacro.MacroDefineContext) {
+		if (!ctx.isActive) {
+			// TODO: mark range?
+			return undefined;
+		}
+		const macro = ctx._MACRO_SYMBOL;
+		const identifier = idFromToken(macro);
+		// TODO: custom class
+		const symbol = new UCPropertySymbol(identifier);
+		this.document.addSymbol(symbol);
+		return undefined;
+	}
+
 	visitIdentifier(ctx: UCGrammar.IdentifierContext) {
 		const identifier: Identifier = {
 			name: toName(ctx.text),
@@ -425,9 +439,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		this.document.class!.addSymbol(symbol);
 		symbol.description = fetchSurroundingComments(this.tokenStream, ctx);
 
-		const valueNode = ctx.constValue();
-		if (valueNode) {
-			symbol.expression = valueNode.accept(this);
+		const exprNode = ctx._expr;
+		if (exprNode) {
+			symbol.expression = exprNode.accept(this);
 		}
 		return symbol;
 	}
@@ -1018,7 +1032,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	visitLabeledStatement(ctx: UCGrammar.LabeledStatementContext): UCLabeledStatement {
 		const statement = new UCLabeledStatement(rangeFromBounds(ctx.start, ctx.stop));
 		const idNode = ctx.identifier();
-		statement.label = idNode.text;
+		statement.label = toName(idNode.text);
 		return statement;
 	}
 
@@ -1368,10 +1382,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		expression.member.outer = expression;
 		return expression;
 
-		const specNode = ctx.classPropertyAccessSpecifier();
-		if (specNode) {
-			// TODO: recognize this particular kind of a propertyAccessExpression
-		}
+		// const specNode = ctx.classPropertyAccessSpecifier();
+		// if (specNode) {
+		// 	// TODO: recognize this particular kind of a propertyAccessExpression
+		// }
 	}
 
 	visitMemberExpression(ctx: UCGrammar.MemberExpressionContext) {

@@ -320,7 +320,7 @@ modifierArguments
 	;
 
 constDecl
-	: 'const' identifier ASSIGNMENT constValue SEMICOLON
+	: 'const' identifier (ASSIGNMENT expr=constValue)? SEMICOLON
 	;
 
 constValue
@@ -655,8 +655,7 @@ localDecl
 	;
 
 stateDecl
-	: stateModifier* 'state' (OPEN_PARENS CLOSE_PARENS)? identifier
-		extendsClause?
+	: stateModifier* 'state' (OPEN_PARENS CLOSE_PARENS)? identifier extendsClause?
 		OPEN_BRACE
 			stateMember*
 			statement*

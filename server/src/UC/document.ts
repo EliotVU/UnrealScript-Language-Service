@@ -64,19 +64,25 @@ export class UCDocument {
 
 		const macroParser = new UCPreprocessorParser(macroStream);
 		macroParser.filePath = this.filePath;
+
 		if (this.fileName.toLowerCase() === 'globals.uci') {
 			UCPreprocessorParser.globalSymbols = macroParser.currentSymbols;
-		}		if (walker) {
-			macroParser.removeErrorListeners();
-			macroParser.addErrorListener(walker);
 		}
 
 		// TODO: strip .uci?
-		macroParser.currentSymbols.set("classname", this.fileName);
-		macroParser.currentSymbols.set("packagename", this.classPackage.getId().toString());
-		macroParser.filePath = this.filePath;
+		const classNameMacro = { text: this.fileName };
+		const packageNameMacro = { text: this.classPackage.getId().toString() };
+		macroParser.currentSymbols.set("classname", classNameMacro);
+		macroParser.currentSymbols.set("packagename", packageNameMacro);
 
+		if (walker) {
+			macroParser.removeErrorListeners();
+			macroParser.addErrorListener(walker);
+		}
 		const macroCtx = macroParser.macroProgram();
+		if (walker) {
+			walker.visit(macroCtx);
+		}
 		return macroCtx;
 	}
 
@@ -233,23 +239,6 @@ export class UCDocument {
 				\t stack: "${err.stack}"`
 			);
 		}
-
-		// TODO: build macro symbols, and walk those instead.
-		// if (this.macroTree) {
-		// 	const mNodes = this.macroTree.macroStatement();
-		// 	for (let mNode of mNodes) {
-		// 		const macro = mNode.macro();
-		// 		const isActive = macro.isActive;
-		// 		if (!isActive) {
-		// 			diagnostics.add({
-		// 				message: { text: 'This macro is inactive.' },
-		// 				range: rangeFromBounds(mNode.start, mNode.stop),
-		// 				custom: { unnecessary: true }
-		// 			});
-		// 		}
-		// 	}
-		// }
-
 		return this.diagnosticsFromNodes(this.nodes).concat(diagnostics.map());
 	}
 

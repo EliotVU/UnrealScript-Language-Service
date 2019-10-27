@@ -4,15 +4,22 @@ options {
 	tokenVocab = UCLexer;
 }
 
+@parser::header {
+	interface IMacroSymbol {
+		params?: string[];
+		text: string;
+	}
+}
+
 @parser::members {
-	static globalSymbols = new Map<string, any>();
+	static globalSymbols = new Map<string, IMacroSymbol>();
 
 	currentState: boolean[] = [true];
-	currentSymbols = new Map<string, any>();
+	currentSymbols = new Map<string, IMacroSymbol>();
 
 	filePath: string;
 
-	getSymbolValue(symbolName: string): any {
+	getSymbolValue(symbolName: string): IMacroSymbol | undefined {
 		return this.currentSymbols.get(symbolName) || UCPreprocessorParser.globalSymbols.get(symbolName);
 	}
 
@@ -39,7 +46,7 @@ macro returns[isActive: boolean, evaluatedTokens?: Token[]]
 			const id = symbolToken && symbolToken.text;
 			if (id) {
 				let text = $MACRO_TEXT.text;
-				this.currentSymbols.set(id.toLowerCase(), text || '...');
+				this.currentSymbols.set(id.toLowerCase(), { text: text || '...' });
 			}
 		}
 	} # macroDefine
@@ -54,12 +61,12 @@ macro returns[isActive: boolean, evaluatedTokens?: Token[]]
 			}
 		}
 	} # macroUndefine
-	| KW_IF OPEN_PARENS expr=macroExpression CLOSE_PARENS
+	| KW_IF OPEN_PARENS (MACRO_CHAR expr=macroExpression) CLOSE_PARENS
 	{
 		$isActive = !!$expr.value && this.getCurrentState();
 		this.currentState.push($isActive);
 	} # macroIf
-	| MACRO_ELSE_IF OPEN_PARENS expr=macroExpression CLOSE_PARENS
+	| MACRO_ELSE_IF OPEN_PARENS (MACRO_CHAR expr=macroExpression) CLOSE_PARENS
 	{
 		if (this.peekCurrentState()) {
 			this.currentState.pop();
@@ -105,15 +112,15 @@ macro returns[isActive: boolean, evaluatedTokens?: Token[]]
 	;
 
 macroExpression returns[value: boolean | string]
-	: MACRO_CHAR MACRO_IS_DEFINED (OPEN_PARENS MACRO_SYMBOL? CLOSE_PARENS)
+	: MACRO_IS_DEFINED (OPEN_PARENS MACRO_SYMBOL? CLOSE_PARENS)
 	{
 		var id = $MACRO_SYMBOL.text;
-		$value = id ? this.getSymbolValue(id.toLowerCase()) : false;
+		$value = id ? Boolean(this.getSymbolValue(id.toLowerCase())) : false;
 	}
-	| MACRO_CHAR MACRO_NOT_DEFINED (OPEN_PARENS MACRO_SYMBOL? CLOSE_PARENS)
+	| MACRO_NOT_DEFINED (OPEN_PARENS MACRO_SYMBOL? CLOSE_PARENS)
 	{
 		var id = $MACRO_SYMBOL.text;
-		$value = id ? !this.getSymbolValue(id.toLowerCase()) : true;
+		$value = id ? !Boolean(this.getSymbolValue(id.toLowerCase())) : true;
 	}
 	| MACRO_LINE
 	{
@@ -127,6 +134,10 @@ macroExpression returns[value: boolean | string]
 	{
 		var symbolToken = $MACRO_SYMBOL;
 		var id = symbolToken && symbolToken.text;
-		$value = id && this.getSymbolValue(id.toLowerCase()) || false;
+		if (id) {
+			var macro = this.getSymbolValue(id.toLowerCase());
+			$value = macro ? macro.text : false;
+		}
+		else $value = false;
 	}
 	;

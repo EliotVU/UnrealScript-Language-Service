@@ -2,7 +2,6 @@ import * as path from 'path';
 
 import { expect } from 'chai';
 
-import { ANTLRErrorListener } from 'antlr4ts';
 import { MacroContext, MacroCallContext } from '../antlr/UCPreprocessorParser';
 import { UCLexer } from '../antlr/UCLexer';
 

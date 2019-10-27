@@ -205,9 +205,9 @@ connection.onDidChangeConfiguration((change) => {
 	Object.assign(config, currentSettings.unrealscript);
 	if (config.macroSymbols) {
 		// Apply our custom-macros as global symbols (accessable in any uc file).
-		const entries = Object.entries(config.macroSymbols);
+		const entries = Object.entries<string>(config.macroSymbols);
 		for (let [key, value] of entries) {
-			UCPreprocessorParser.globalSymbols.set(key.toLowerCase(), value);
+			UCPreprocessorParser.globalSymbols.set(key.toLowerCase(), { text: value });
 		}
 	}
 
