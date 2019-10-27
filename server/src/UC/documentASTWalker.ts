@@ -359,6 +359,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const symbol = new UCDocumentClassSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.document = this.document;
 		this.document.class = symbol; // Important!, must be assigned before further parsing.
+		this.document.addSymbol(symbol);
 
 		const extendsNode = ctx.extendsClause();
 		if (extendsNode) {

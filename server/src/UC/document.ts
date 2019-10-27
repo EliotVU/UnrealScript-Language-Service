@@ -14,7 +14,7 @@ import { CommonTokenStream, ANTLRErrorListener } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 
-import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCScriptStructSymbol, UCEnumSymbol, ObjectsTable, UCFieldSymbol } from './Symbols';
+import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCScriptStructSymbol, UCEnumSymbol, ObjectsTable, UCFieldSymbol, UCSymbol } from './Symbols';
 
 import { IDiagnosticNode, DiagnosticCollection } from './diagnostics/diagnostic';
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
@@ -39,12 +39,19 @@ export class UCDocument {
 
 	private readonly indexReferencesMade = new Map<number, Set<ISymbolReference>>();
 
+	// List of symbols, including macro declarations.
+	private symbols: UCSymbol[] = [];
+
 	constructor(public readonly filePath: string, public classPackage: UCPackage) {
 		this.fileName = path.basename(filePath, '.uc');
 	}
 
-	public getSymbolAtPos(position: Position): ISymbol | undefined {
-		return this.class && this.class.getSymbolAtPos(position);
+	public getSymbols() {
+		return this.symbols;
+	}
+
+	public addSymbol(symbol: UCSymbol) {
+		this.symbols.push(symbol);
 	}
 
 	public preprocess(lexer: UCLexer, walker?: DocumentASTWalker) {
@@ -173,7 +180,7 @@ export class UCDocument {
 		if (this.class) {
 			try {
 				const indexer = new DocumentIndexer(this);
-				this.class.accept(indexer);
+				this.class.accept<any>(indexer);
 			} catch (err) {
 				console.error(
 					`An error was thrown while post indexing document: "${this.filePath}",

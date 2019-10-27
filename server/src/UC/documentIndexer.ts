@@ -14,7 +14,7 @@ export class DocumentIndexer extends DefaultSymbolWalker {
 	visitStructBase(symbol: UCStructSymbol) {
 		for (let child = symbol.children; child; child = child.next) {
 			if (child instanceof UCStructSymbol) {
-				child.accept(this);
+				child.accept<any>(this);
 			}
 		}
 		return symbol;

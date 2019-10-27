@@ -13,6 +13,7 @@ import { Token, ParserRuleContext } from 'antlr4ts';
 import { TokenExt } from './Parser/CommonTokenStreamExt';
 import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, ClassesTable } from './Symbols';
 import { getDocumentByUri, getIndexedReferences } from "./indexer";
+import { UCDocument } from './document';
 
 export function rangeFromBound(token: Token): Range {
 	const length = (token as TokenExt).length;
@@ -83,9 +84,20 @@ export function intersectsWithRange(position: Position, range: Range): boolean {
 		&& position.character >= range.start.character && position.character < range.end.character;
 }
 
+function getDocumentSymbol(document: UCDocument, position: Position): ISymbol | undefined {
+	const symbols = document.getSymbols();
+	for (let symbol of symbols) {
+		const child = symbol.getSymbolAtPos(position);
+		if (child) {
+			return child;
+		}
+	}
+	return undefined;
+}
+
 export async function getSymbolTooltip(uri: string, position: Position): Promise<Hover | undefined> {
 	const document = getDocumentByUri(uri);
-	const ref = document && document.getSymbolAtPos(position);
+	const ref = document && getDocumentSymbol(document, position);
 	if (!ref) {
 		return undefined;
 	}
@@ -107,7 +119,7 @@ export async function getSymbolTooltip(uri: string, position: Position): Promise
 
 export async function getSymbolDefinition(uri: string, position: Position): Promise<ISymbol | undefined> {
 	const document = getDocumentByUri(uri);
-	const ref = document && document.getSymbolAtPos(position) as unknown as IWithReference;
+	const ref = document && getDocumentSymbol(document, position) as unknown as IWithReference;
 	if (!ref) {
 		return undefined;
 	}
@@ -121,7 +133,7 @@ export async function getSymbolDefinition(uri: string, position: Position): Prom
 
 export async function getSymbol(uri: string, position: Position): Promise<ISymbol | undefined> {
 	const document = getDocumentByUri(uri);
-	return document && document.getSymbolAtPos(position);
+	return document && getDocumentSymbol(document, position);
 }
 
 export async function getSymbols(uri: string): Promise<SymbolInformation[] | undefined> {
@@ -130,7 +142,7 @@ export async function getSymbols(uri: string): Promise<SymbolInformation[] | und
 		return undefined;
 	}
 
-	const contextSymbols: SymbolInformation[] = [];
+	const contextSymbols: SymbolInformation[] = document.getSymbols().map(s => s.toSymbolInfo());
 	const buildSymbolsList = (container: UCStructSymbol) => {
 		for (let child = container.children; child; child = child.next) {
 			contextSymbols.push(child.toSymbolInfo());
@@ -190,7 +202,7 @@ export async function getSymbolItems(uri: string, position: Position): Promise<C
 	}
 
 	let selectedSymbol: ISymbol = contextSymbol;
-	if (contextSymbol && (<IWithReference>contextSymbol).getReference) {
+	if ((<IWithReference>contextSymbol).getReference) {
 		const resolvedSymbol = (<IWithReference>contextSymbol).getReference();
 		if (resolvedSymbol instanceof UCSymbol) {
 			selectedSymbol = resolvedSymbol;
