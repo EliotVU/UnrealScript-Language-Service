@@ -11,7 +11,6 @@ import {
 	UCFieldSymbol,
 	UCSymbol, ITypeSymbol
 } from ".";
-import { UCTypeKind } from './TypeSymbol';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: ITypeSymbol;

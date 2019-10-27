@@ -1,9 +1,8 @@
 import { Position, Range } from 'vscode-languageserver';
-import { ParserRuleContext } from 'antlr4ts/ParserRuleContext';
 
 import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode } from './diagnostics/diagnostic';
 import { getEnumMember } from './indexer';
-import { intersectsWith, rangeFromBounds } from './helpers';
+import { intersectsWith } from './helpers';
 import { UCDocument } from './document';
 import { Name } from './names';
 
@@ -18,8 +17,9 @@ import {
 	RangeTypeRef, RngMethodLike,
 	ITypeSymbol, TypeCastMap, UCTypeKind,
 	UCDelegateSymbol, UCStateSymbol,
-	analyzeTypeSymbol, ClassesTable, ObjectsTable, DEFAULT_RANGE
+	analyzeTypeSymbol, ClassesTable, ObjectsTable
 } from './Symbols';
+import { SymbolWalker } from './symbolWalker';
 
 export interface IExpression {
 	outer: IExpression;
@@ -33,6 +33,8 @@ export interface IExpression {
 
 	index(document: UCDocument, context?: UCStructSymbol): void;
 	analyze(document: UCDocument, context?: UCStructSymbol): void;
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result;
 }
 
 export abstract class UCExpression implements IExpression {
@@ -64,6 +66,10 @@ export abstract class UCExpression implements IExpression {
 	abstract getContainedSymbolAtPos(position: Position): ISymbol | undefined;
 	abstract index(document: UCDocument, context?: UCStructSymbol): void;
 	analyze(_document: UCDocument, _context?: UCStructSymbol): void {}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitExpression(this);
+	}
 }
 
 export class UCParenthesizedExpression extends UCExpression {

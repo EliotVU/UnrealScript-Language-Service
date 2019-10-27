@@ -20,7 +20,8 @@ import {
 	UCDefaultPropertiesBlock,
 	UCObjectSymbol,
 } from './Symbols';
-import { UCBlock } from './statements';
+import { UCBlock, IStatement } from './statements';
+import { IExpression } from './expressions';
 
 export interface SymbolWalker<T> {
 	visit(symbol: ISymbol): T;
@@ -44,9 +45,11 @@ export interface SymbolWalker<T> {
 	visitReplicationBlock(symbol: UCReplicationBlock): T;
 	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock): T;
 	visitObjectSymbol(symbol: UCObjectSymbol): T;
+	visitStatement(stm: IStatement): T;
+	visitExpression(expr: IExpression): T;
 }
 
-export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
+export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression | IStatement | undefined> {
 	visit(symbol: ISymbol): ISymbol {
 		return symbol;
 	}
@@ -57,7 +60,7 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 
 	visitObjectType(symbol: UCObjectTypeSymbol): ISymbol {
 		if (symbol.baseType) {
-			symbol.baseType.accept(this);
+			symbol.baseType.accept<any>(this);
 		}
 		return symbol;
 	}
@@ -68,53 +71,56 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 
 	visitDelegateType(symbol: UCDelegateTypeSymbol): ISymbol {
 		if (symbol.baseType) {
-			symbol.baseType.accept(this);
+			symbol.baseType.accept<any>(this);
 		}
 		return symbol;
 	}
 
 	visitArrayType(symbol: UCArrayTypeSymbol): ISymbol {
 		if (symbol.baseType) {
-			symbol.baseType.accept(this);
+			symbol.baseType.accept<any>(this);
 		}
 		return symbol;
 	}
 
 	visitStructBase(symbol: UCStructSymbol): ISymbol {
 		if (symbol.extendsType) {
-			symbol.extendsType.accept(this);
+			symbol.extendsType.accept<any>(this);
 		}
 
 		for (var child = symbol.children; child; child = child.next) {
-			child.accept(this);
+			child.accept<any>(this);
 		}
 
 		if (symbol.block) {
-			symbol.block.accept(this);
+			symbol.block.accept<any>(this);
 		}
 		return symbol;
 	}
 
 	visitClass(symbol: UCClassSymbol): ISymbol {
 		if (symbol.withinType) {
-			symbol.withinType.accept(this);
+			symbol.withinType.accept<any>(this);
 		}
 
 		if (symbol.dependsOnTypes) {
 			for (var classTypeRef of symbol.dependsOnTypes) {
-				classTypeRef.accept(this);
+				classTypeRef.accept<any>(this);
 			}
 		}
 
 		if (symbol.implementsTypes) {
 			for (var interfaceTypeRef of symbol.implementsTypes) {
-				interfaceTypeRef.accept(this);
+				interfaceTypeRef.accept<any>(this);
 			}
 		}
 		return this.visitStructBase(symbol);
 	}
 
 	visitConst(symbol: UCConstSymbol): ISymbol {
+		if (symbol.expression) {
+			symbol.expression.accept<any>(this);
+		}
 		return symbol;
 	}
 
@@ -136,23 +142,26 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 
 	visitProperty(symbol: UCPropertySymbol): ISymbol {
 		if (symbol.type) {
-			symbol.type.accept(this);
+			symbol.type.accept<any>(this);
 		}
 
 		if (symbol.arrayDimRef) {
-			symbol.arrayDimRef.accept(this);
+			symbol.arrayDimRef.accept<any>(this);
 		}
 		return symbol;
 	}
 
 	visitMethod(symbol: UCMethodSymbol): ISymbol {
 		if (symbol.returnType) {
-			symbol.returnType.accept(this);
+			symbol.returnType.accept<any>(this);
 		}
 		return this.visitStructBase(symbol);
 	}
 
 	visitParameter(symbol: UCParamSymbol): ISymbol {
+		if (symbol.defaultExpression) {
+			symbol.defaultExpression.accept<any>(this);
+		}
 		return this.visitProperty(symbol);
 	}
 
@@ -163,14 +172,14 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 	visitState(symbol: UCStateSymbol): ISymbol {
 		if (symbol.ignoreRefs) {
 			for (var ref of symbol.ignoreRefs){
-				ref.accept(this);
+				ref.accept<any>(this);
 			}
 		}
 		return this.visitStructBase(symbol);
 	}
 
-	visitBlock(symbol: UCBlock): ISymbol | undefined {
-		return undefined;
+	visitBlock(symbol: UCBlock): UCBlock {
+		return symbol;
 	}
 
 	visitReplicationBlock(symbol: UCReplicationBlock): ISymbol {
@@ -183,5 +192,13 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 
 	visitObjectSymbol(symbol: UCObjectSymbol): ISymbol {
 		return this.visitStructBase(symbol);
+	}
+
+	visitExpression(expr: IExpression) {
+		return expr;
+	}
+
+	visitStatement(stm: IStatement) {
+		return stm;
 	}
 }

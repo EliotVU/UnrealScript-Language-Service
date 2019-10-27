@@ -10,8 +10,10 @@ import {
 	UCDelegateSymbol, UCPropertySymbol,
 	UCMethodSymbol, UCBinaryOperatorSymbol,
 	PredefinedBool, NativeArray,
-	UCReplicationBlock, UCDefaultPropertiesBlock, UCObjectSymbol,
+	UCReplicationBlock, UCObjectSymbol,
 } from '../Symbols';
+import { UCBlock, IStatement, UCExpressionStatement, UCThenStatement, UCIfStatement, UCDoUntilStatement, UCForStatement } from '../statements';
+import { IExpression } from '../expressions';
 
 import { UCDocument } from '../document';
 import { toHash, NAME_STRUCT, NAME_STATE, NAME_DELEGATE } from '../names';
@@ -22,15 +24,29 @@ import { DiagnosticCollection } from './diagnostic';
 import * as diagnosticMessages from './diagnosticMessages.json';
 
 export class DocumentAnalyzer extends DefaultSymbolWalker {
-	private context: UCStructSymbol | undefined;
+	private scopes: UCStructSymbol[] = [];
+	private context?: UCStructSymbol;
 
 	constructor(private document: UCDocument, private diagnostics: DiagnosticCollection) {
 		super();
 
 		if (document.class) {
-			this.context = document.class;
-			this.context.accept(this);
+			this.push(document.class);
+			document.class.accept<any>(this);
 		}
+	}
+
+	push(context?: UCStructSymbol) {
+		this.context = context;
+		if (context) {
+			this.scopes.push(context);
+		}
+	}
+
+	pop(): UCStructSymbol | undefined {
+		this.scopes.pop();
+		this.context = this.scopes[this.scopes.length - 1];
+		return this.context;
 	}
 
 	visitObjectType(symbol: UCObjectTypeSymbol) {
@@ -69,14 +85,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		return symbol;
 	}
 
-	visitStructBase(symbol: UCStructSymbol) {
-		super.visitStructBase(symbol);
-		if (symbol.block) {
-			symbol.block.analyze(this.document, symbol);
-		}
-		return symbol;
-	}
-
 	visitClass(symbol: UCClassSymbol) {
 		super.visitClass(symbol);
 
@@ -92,11 +100,20 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	}
 
 	visitConst(symbol: UCConstSymbol) {
+		this.push(this.document.class);
 		super.visitConst(symbol);
-
 		if (symbol.expression) {
-			symbol.expression.analyze(this.document, this.context);
+			// TODO: Check if expression is static
+		} else {
+			this.diagnostics.add({
+				range: symbol.id.range,
+				message: {
+					text: `Const declarations must be initialized!`,
+					severity: DiagnosticSeverity.Error
+				}
+			});
 		}
+		this.pop();
 		return symbol;
 	}
 
@@ -106,6 +123,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	}
 
 	visitScriptStruct(symbol: UCScriptStructSymbol) {
+		this.push(symbol);
 		super.visitScriptStruct(symbol);
 
 		if (config.checkTypes && symbol.extendsType) {
@@ -118,6 +136,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 		}
+		this.pop();
 		return symbol;
 	}
 
@@ -167,6 +186,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	}
 
 	visitMethod(symbol: UCMethodSymbol) {
+		this.push(symbol);
 		super.visitMethod(symbol);
 
 		if (symbol.params) {
@@ -238,10 +258,12 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		if (symbol.overriddenMethod) {
 			// TODO: check difference
 		}
+		this.pop();
 		return symbol;
 	}
 
 	visitState(symbol: UCStateSymbol) {
+		this.push(symbol);
 		super.visitState(symbol);
 
 		if (config.checkTypes && symbol.extendsType) {
@@ -284,6 +306,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 		}
+		this.pop();
 		return symbol;
 	}
 
@@ -291,9 +314,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		super.visitParameter(symbol);
 
 		if (symbol.defaultExpression) {
-			// TODO: Expression walker...
-			symbol.defaultExpression.analyze(this.document, this.context);
-
 			if (config.generation === UCGeneration.UC3) {
 				if (!symbol.isOptional()) {
 					this.diagnostics.add({
@@ -318,6 +338,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	}
 
 	visitReplicationBlock(symbol: UCReplicationBlock) {
+		this.push(this.document.class || symbol);
 		super.visitReplicationBlock(symbol);
 
 		for (let symbolRef of symbol.symbolRefs.values()) {
@@ -354,16 +375,52 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 		}
+		this.pop();
 		return symbol;
 	}
 
 	visitObjectSymbol(symbol: UCObjectSymbol) {
+		this.push(symbol.super || symbol);
+		super.visitStructBase(symbol);
 		if (symbol.classType) {
-			symbol.classType.accept(this);
+			symbol.classType.accept<any>(this);
 		}
-		if (symbol.block) {
-			symbol.block.analyze(this.document, symbol.super || symbol);
+		this.pop();
+		return symbol;
+	}
+
+	visitBlock(symbol: UCBlock) {
+		for (let statement of symbol.statements) if (statement) {
+			try {
+				statement.accept<any>(this);
+			} catch (err) {
+				console.error('Hit a roadblock while analyzing a statement', this.context ? this.context.getQualifiedName() : '???', err);
+			}
 		}
-		return super.visitStructBase(symbol);
+		return symbol;
+	}
+
+	visitStatement(stm: IStatement) {
+		// TODO: Report statements which are missing an expression.
+		if (stm instanceof UCExpressionStatement) {
+			stm.expression && stm.expression.accept<any>(this);
+			if (stm instanceof UCThenStatement) {
+				stm.then && stm.then.accept<any>(this);
+				if (stm instanceof UCIfStatement) {
+					stm.else && stm.else.accept<any>(this);
+				} else if (stm instanceof UCDoUntilStatement) {
+					stm.until && stm.until.accept<any>(this);
+				} else if (stm instanceof UCForStatement) {
+					stm.init && stm.init.accept<any>(this);
+					stm.next && stm.next.accept<any>(this);
+				}
+			}
+		}
+		return stm;
+	}
+
+	visitExpression(expr: IExpression) {
+		expr.analyze(this.document, this.context);
+		return expr;
 	}
 }
