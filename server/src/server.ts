@@ -23,7 +23,7 @@ import { URI } from 'vscode-uri';
 import { UCPreprocessorParser } from './antlr/UCPreprocessorParser';
 
 import { getSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
-import { filePathByClassIdMap$, getDocumentByUri, queuIndexDocument, getIndexedReferences, config, defaultSettings, pendingDocumentsLinked$ } from './UC/indexer';
+import { filePathByClassIdMap$, getDocumentByUri, queuIndexDocument, getIndexedReferences, config, defaultSettings, pendingDocumentsLinked$, getDocumentById } from './UC/indexer';
 import { ServerSettings, EAnalyzeOption } from './settings';
 import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol, PackagesTable, UCObjectTypeSymbol, UCTypeKind, UCPackage } from './UC/Symbols';
 import { toName } from './UC/names';
@@ -73,7 +73,7 @@ connection.onInitialized(async () => {
 			for (let folder of folders) {
 				const folderPath = URI.parse(folder.uri).fsPath;
 				try {
-					const files = glob.sync(path.join(folderPath, "**/*.uc"));
+					const files = glob.sync(path.join(folderPath, "**/+(*.uc|*.uci)"));
 					for (let file of files) {
 						pathsMap.set(path.basename(file, '.uc').toLowerCase(), file);
 					}
@@ -127,7 +127,7 @@ connection.onInitialized(async () => {
 		.pipe(
 			filter((value) => !!value),
 			switchMapTo(pendingTextDocuments$),
-			debounce(() => interval(200))
+			debounce(() => interval(50))
 		)
 		.subscribe(({ textDocument, isDirty }) => {
 			const document = getDocumentByUri(textDocument.uri);
@@ -144,7 +144,7 @@ connection.onInitialized(async () => {
 
 	filePathByClassIdMap$
 		.pipe(
-			filter(classesMap => !!classesMap),
+			filter(classesMap => classesMap.size > 0),
 			map((classesMap) => {
 				return Array
 					.from(classesMap.values())
@@ -155,8 +155,28 @@ connection.onInitialized(async () => {
 			})
 		)
 		.subscribe(((classes) => {
-			if (!currentSettings.unrealscript.indexAllDocuments) {
-				isIndexReady$.next(true);
+			// TODO: does not respect multiple globals.uci files
+			const globalUci = getDocumentById('globals.uci');
+			if (globalUci) {
+				queuIndexDocument(globalUci);
+			}
+
+			if (currentSettings.unrealscript.indexAllDocuments) {
+				const indexStartTime = Date.now();
+				connection.window.showInformationMessage('Indexing UnrealScript classes!');
+
+				const documents = classes.map(uri => getDocumentByUri(uri));
+				documents.forEach(document => {
+					if (document.hasBeenIndexed) {
+						return;
+					}
+
+					queuIndexDocument(document);
+				});
+
+				const time = Date.now() - indexStartTime;
+				connection.window.showInformationMessage('UnrealScript classes have been indexed in ' + new Date(time).getSeconds() + ' seconds!');
+			} else {
 				const openDocuments = textDocuments.all();
 				openDocuments.forEach(doc => {
 					const document = getDocumentByUri(doc.uri);
@@ -164,25 +184,8 @@ connection.onInitialized(async () => {
 						queuIndexDocument(document);
 					}
 				});
-				return;
 			}
-
-			const indexStartTime = Date.now();
-			connection.window.showInformationMessage('Indexing UnrealScript classes!');
-
-			const documents = classes.map(uri => getDocumentByUri(uri));
-			documents.forEach(document => {
-				if (document.hasBeenIndexed) {
-					return;
-				}
-
-				queuIndexDocument(document);
-			});
-
 			isIndexReady$.next(true);
-
-			const time = Date.now() - indexStartTime;
-			connection.window.showInformationMessage('UnrealScript classes have been indexed in ' + new Date(time).getSeconds() + ' seconds!');
 		})
 	);
 });

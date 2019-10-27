@@ -56,7 +56,10 @@ export class UCDocument {
 		}
 
 		const macroParser = new UCPreprocessorParser(macroStream);
-		if (walker) {
+		macroParser.filePath = this.filePath;
+		if (this.fileName.toLowerCase() === 'globals.uci') {
+			UCPreprocessorParser.globalSymbols = macroParser.currentSymbols;
+		}		if (walker) {
 			macroParser.removeErrorListeners();
 			macroParser.addErrorListener(walker);
 		}
