@@ -3,7 +3,6 @@ language: node_js
 node_js:
   - 'node'
   - '10'
-  - '8'
 
 env:
   - workerCount=3 timeout=600000
@@ -17,6 +16,7 @@ branches:
 
 install:
   - npm install
+  - npm run webpack
 
 cache:
   directories:
