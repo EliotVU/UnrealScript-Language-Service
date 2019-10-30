@@ -3,7 +3,7 @@ import { SymbolKind } from 'vscode-languageserver';
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 
-import { UCSymbol, UCClassSymbol, UCScriptStructSymbol, UCStructSymbol } from '.';
+import { UCSymbol, UCStructSymbol } from '.';
 
 export class UCDefaultPropertiesBlock extends UCStructSymbol {
 	getKind(): SymbolKind {
@@ -11,7 +11,7 @@ export class UCDefaultPropertiesBlock extends UCStructSymbol {
 	}
 
 	acceptCompletion(_document: UCDocument, context: UCSymbol): boolean {
-		return context instanceof UCClassSymbol || context instanceof UCScriptStructSymbol;
+		return false;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

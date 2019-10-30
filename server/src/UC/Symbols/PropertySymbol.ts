@@ -13,7 +13,7 @@ import {
 	ITypeSymbol, UCTypeKind,
 	UCFieldSymbol, UCStructSymbol,
 	UCEnumSymbol, UCEnumMemberSymbol,
-	UCConstSymbol, NativeArray
+	UCConstSymbol, NativeArray, ISymbol, UCSymbol
 } from '.';
 
 export class UCPropertySymbol extends UCFieldSymbol {
@@ -106,6 +106,20 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	getContainedSymbolAtPos(position: Position) {
 		const symbol = this.type && this.type.getSymbolAtPos(position);
 		return symbol || this.arrayDimRef && this.arrayDimRef.getSymbolAtPos(position);
+	}
+
+	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
+		if (context === '.') {
+			const resolvedType = this.type && this.type.getReference();
+			if (resolvedType instanceof UCSymbol) {
+				return resolvedType.getCompletionSymbols(document, context);
+			}
+		}
+		// TODO: Filter by type only.
+		else if (document.class) {
+			return document.class.getCompletionSymbols(document, context);
+		}
+		return [];
 	}
 
 	public index(document: UCDocument, context: UCStructSymbol) {

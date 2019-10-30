@@ -8,7 +8,7 @@ import {
 	DEFAULT_RANGE,
 	UCStructSymbol, UCParamSymbol,
 	ITypeSymbol, ISymbol,
-	IWithReference, UCTypeKind
+	IWithReference, UCTypeKind, UCSymbol
 } from '.';
 
 export enum MethodSpecifiers {
@@ -94,6 +94,16 @@ export class UCMethodSymbol extends UCStructSymbol {
 			}
 		}
 		return super.getContainedSymbolAtPos(position);
+	}
+
+	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
+		if (context === '.') {
+			const resolvedType = this.returnType && this.returnType.getReference();
+			if (resolvedType instanceof UCSymbol) {
+				return resolvedType.getCompletionSymbols(document, context);
+			}
+		}
+		return super.getCompletionSymbols(document, context);
 	}
 
 	findSuperSymbol(id: Name, kind?: SymbolKind) {
@@ -234,9 +244,12 @@ export abstract class UCBaseOperatorSymbol extends UCMethodSymbol {
 	}
 
 	acceptCompletion(document: UCDocument, context: ISymbol): boolean {
+		// TODO: Perhaps only list operators with a custom Identifier? i.e. "Dot" and "Cross".
+		return false;
+
 		// FIXME: Should check outer, but currently it's too much of a pain to step through.
 		// Basically we don't want operators to be visible when the context is not in the same document!
-		return context instanceof UCStructSymbol && context.getUri() === document.filePath;
+		// return context instanceof UCStructSymbol && context.getUri() === document.filePath;
 	}
 }
 

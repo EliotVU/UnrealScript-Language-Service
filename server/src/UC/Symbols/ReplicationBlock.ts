@@ -23,9 +23,9 @@ export class UCReplicationBlock extends UCStructSymbol {
 		return this.getId().toString();
 	}
 
-	getCompletionSymbols(_document: UCDocument): ISymbol[] {
+	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
 		return super
-			.getCompletionSymbols(_document)
+			.getCompletionSymbols(document, context)
 			.concat(ReliableKeyword, UnreliableKeyword, IfKeyword);
 	}
 

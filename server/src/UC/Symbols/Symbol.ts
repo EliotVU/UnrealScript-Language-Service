@@ -72,7 +72,7 @@ export abstract class UCSymbol implements ISymbol {
 		return undefined;
 	}
 
-	getCompletionSymbols(_document: UCDocument): ISymbol[] {
+	getCompletionSymbols(_document: UCDocument, _context: string): ISymbol[] {
 		return [];
 	}
 

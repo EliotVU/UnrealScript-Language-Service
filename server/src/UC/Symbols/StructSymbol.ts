@@ -26,7 +26,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return CompletionItemKind.Module;
 	}
 
-	getCompletionSymbols(document: UCDocument) {
+	getCompletionSymbols(document: UCDocument, _context: string) {
 		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
 			if (child.acceptCompletion(document, this)) {
@@ -49,13 +49,6 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
 			if (intersectsWith(symbol.getRange(), position)) {
 				return symbol.getCompletionContext(position);
-			}
-		}
-
-		if (this.block) {
-			const symbol = this.block.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
 			}
 		}
 		return this;

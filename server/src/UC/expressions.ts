@@ -609,7 +609,7 @@ export class UCMemberExpression extends UCExpression {
 		return this.symbolRef.getReference() && this.symbolRef;
 	}
 
-	index(document: UCDocument, context?: UCStructSymbol) {
+	index(document: UCDocument, context: UCStructSymbol) {
 		const id = this.symbolRef.getId();
 		const hasArguments = this.outer instanceof UCCallExpression;
 		if (hasArguments) {
@@ -624,16 +624,8 @@ export class UCMemberExpression extends UCExpression {
 			}
 		}
 
-		if (!context) {
-			return;
-		}
-
-		let symbol = context.findSuperSymbol(id);
-		if (!symbol) {
-			// FIXME: only lookup an enumMember if the context value is either an enum, byte, or int.
-			symbol = getEnumMember(id);
-		}
-
+		// FIXME: only lookup an enumMember if the context value is either an enum, byte, or int.
+		const symbol = context.findSuperSymbol(id) || getEnumMember(id);
 		if (symbol) {
 			const ref = this.symbolRef.setReference(symbol, document);
 			if (ref) {
@@ -651,7 +643,7 @@ export class UCMemberExpression extends UCExpression {
 	analyze(document: UCDocument, context?: UCStructSymbol | ISymbol) {
 		if (context && !(context instanceof UCStructSymbol)) {
 			document.nodes.push(new SemanticErrorNode(this.symbolRef, `'${context.getQualifiedName()}' is an inaccessible type!`));
-		} else if (!context || !this.getMemberSymbol()) {
+		} else if (!this.getMemberSymbol()) {
 			document.nodes.push(new UnrecognizedFieldNode(this.symbolRef, context));
 		}
 	}

@@ -21,7 +21,7 @@ import {
 } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
-import { getSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
+import { getCompletableSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
 import { filePathByClassIdMap$, getDocumentByUri, queuIndexDocument, getIndexedReferences, config, defaultSettings, lastIndexedDocuments$, getDocumentById, applyMacroSymbols } from './UC/indexer';
 import { ServerSettings, EAnalyzeOption } from './settings';
 import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol, PackagesTable, UCObjectTypeSymbol, UCTypeKind, UCPackage } from './UC/Symbols';
@@ -50,7 +50,7 @@ connection.onInitialize((params: InitializeParams) => {
 			textDocumentSync: textDocuments.syncKind,
 			hoverProvider: true,
 			completionProvider: {
-				triggerCharacters: ['.', '(', '[', ',', '<'],
+				triggerCharacters: ['.', '(', '[', ',', '<', '`'],
 				resolveProvider: true
 			},
 			definitionProvider: true,
@@ -104,7 +104,7 @@ connection.onInitialized(async () => {
 	lastIndexedDocuments$
 		.pipe(
 			filter(() => currentSettings.unrealscript.analyzeDocuments !== EAnalyzeOption.None),
-			delay(200),
+			delay(50),
 		)
 		.subscribe(documents => {
 			for (const document of documents) {
@@ -242,26 +242,62 @@ connection.onReferences((e) => getSymbolReferences(e.textDocument.uri, e.positio
 connection.onDocumentHighlight((e) => getSymbolHighlights(e.textDocument.uri, e.position));
 
 connection.onCompletion(async (e) => {
+	let context = '';
 	let position = e.position;
-	if (e.context) {
-		if (e.context.triggerKind <= CompletionTriggerKind.TriggerCharacter) {
-			const doc = textDocuments.get(e.textDocument.uri);
-			if (!doc) {
-				return undefined;
+	if (e.context && e.context.triggerKind <= CompletionTriggerKind.TriggerCharacter) {
+		const doc = textDocuments.get(e.textDocument.uri);
+		if (!doc) {
+			return undefined;
+		}
+
+		// TODO: Perhaps we should re-use ANTLR's lexer,
+		// -- or try using a naive backtracking lexer until the first '.' token is hit, where "(), [] etc" are considered white space.
+		const text = doc.getText();
+		let parenthesisLevel = 0;
+		let bracketLevel = 0;
+		let shouldSkipNextChars = false;
+		for (let colOffset = doc.offsetAt(position); colOffset >= 0; -- colOffset) {
+			const char = text[colOffset];
+			if (char === ' ' || char === '\t' || char === '\n' || char === ';') {
+				shouldSkipNextChars = false;
+				continue;
 			}
 
-			const text = doc.getText();
-			for (let colOffset = doc.offsetAt(position); colOffset >= 0; -- colOffset) {
-				const char = text[colOffset];
-				if (char === ' ' || char === '\t' || char === '\n' || char === '.') {
-					continue;
-				}
-				position = doc.positionAt(colOffset);
-				break;
+			if ((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')) {
+				shouldSkipNextChars = context !== '.';
+			} else if (char === '(') {
+				-- parenthesisLevel;
+				continue;
+			} else if (char === ')') {
+				++ parenthesisLevel;
+				continue;
+			} else if (char === '[') {
+				-- bracketLevel;
+				continue;
+			} else if (char === ']') {
+				++ bracketLevel;
+				continue;
 			}
+
+			if (parenthesisLevel > 0 || bracketLevel > 0) {
+				continue;
+			}
+
+			if (char === '.') {
+				context = '.';
+				shouldSkipNextChars = false;
+				continue;
+			}
+
+			if (shouldSkipNextChars) {
+				continue;
+			}
+
+			position = doc.positionAt(colOffset);
+			break;
 		}
 	}
-	return getSymbolItems(e.textDocument.uri, position);
+	return getCompletableSymbolItems(e.textDocument.uri, position, context);
 });
 connection.onCompletionResolve(getFullCompletionItem);
 
@@ -302,7 +338,7 @@ connection.onRenameRequest(async (e) => {
 	}
 
 	const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
-	if (!symbol || !(symbol instanceof UCSymbol)) {
+	if (!symbol) {
 		return undefined;
 	}
 	const references = getIndexedReferences(symbol.getHash());

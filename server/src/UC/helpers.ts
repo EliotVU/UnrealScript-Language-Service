@@ -14,6 +14,7 @@ import { TokenExt } from './Parser/CommonTokenStreamExt';
 import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, ClassesTable } from './Symbols';
 import { getDocumentByUri, getIndexedReferences } from "./indexer";
 import { UCDocument } from './document';
+import { performance } from 'perf_hooks';
 
 export function rangeFromBound(token: Token): Range {
 	const length = (token as TokenExt).length;
@@ -69,19 +70,21 @@ export function intersectsWith(range: Range, position: Position): boolean {
 		return position.character >= range.start.character && position.character < range.end.character;
 	}
 
-	if (position.line == range.start.line) {
+	if (position.line === range.start.line) {
 		return position.character >= range.start.character;
 	}
 
-	if (position.line == range.end.line) {
+	if (position.line === range.end.line) {
 		return position.character <= range.end.character;
 	}
 	return true;
 }
 
 export function intersectsWithRange(position: Position, range: Range): boolean {
-	return position.line >= range.start.line && position.line <= range.end.line
-		&& position.character >= range.start.character && position.character < range.end.character;
+	return position.line >= range.start.line
+		&& position.line <= range.end.line
+		&& position.character >= range.start.character
+		&& position.character < range.end.character;
 }
 
 function getDocumentSymbol(document: UCDocument, position: Position): ISymbol | undefined {
@@ -95,14 +98,23 @@ function getDocumentSymbol(document: UCDocument, position: Position): ISymbol | 
 	return undefined;
 }
 
+function getDocumentCompletionContext(document: UCDocument, position: Position): ISymbol | undefined {
+	const symbols = document.getSymbols();
+	for (let symbol of symbols) {
+		if (symbol instanceof UCStructSymbol) {
+			const child = symbol.getCompletionContext(position);
+			if (child) {
+				return child;
+			}
+		}
+	}
+	return undefined;
+}
+
 export async function getSymbolTooltip(uri: string, position: Position): Promise<Hover | undefined> {
 	const document = getDocumentByUri(uri);
 	const ref = document && getDocumentSymbol(document, position);
-	if (!ref) {
-		return undefined;
-	}
-
-	if (ref instanceof UCSymbol) {
+	if (ref && ref instanceof UCSymbol) {
 		const contents = [{ language: 'unrealscript', value: ref.getTooltip()}];
 
 		const documentation = ref.getDocumentation();
@@ -138,7 +150,7 @@ export async function getSymbol(uri: string, position: Position): Promise<ISymbo
 
 export async function getSymbols(uri: string): Promise<SymbolInformation[] | undefined> {
 	const document = getDocumentByUri(uri);
-	if (!document || !document.class) {
+	if (!document) {
 		return undefined;
 	}
 
@@ -152,7 +164,11 @@ export async function getSymbols(uri: string): Promise<SymbolInformation[] | und
 		}
 	};
 
-	buildSymbolsList(document.class);
+	for (let symbol of contextSymbols) {
+		if (symbol instanceof UCStructSymbol) {
+			buildSymbolsList(symbol);
+		}
+	}
 	return contextSymbols;
 }
 
@@ -190,31 +206,31 @@ export async function getSymbolHighlights(uri: string, position: Position): Prom
 		));
 }
 
-export async function getSymbolItems(uri: string, position: Position): Promise<CompletionItem[] | undefined> {
+export async function getCompletableSymbolItems(uri: string, position: Position, context: string): Promise<CompletionItem[] | undefined> {
 	const document = getDocumentByUri(uri);
-	if (!document || !document.class) {
-		return undefined;
-	}
-
-	const contextSymbol = document.class.getCompletionContext(position);
+	const contextSymbol = document && getDocumentCompletionContext(document, position);
 	if (!contextSymbol) {
 		return undefined;
 	}
 
-	let selectedSymbol: ISymbol = contextSymbol;
-	if ((<IWithReference>contextSymbol).getReference) {
-		const resolvedSymbol = (<IWithReference>contextSymbol).getReference();
-		if (resolvedSymbol instanceof UCSymbol) {
-			selectedSymbol = resolvedSymbol;
+	let symbols: ISymbol[] = [];
+	if (contextSymbol instanceof UCSymbol) {
+		const symbol = contextSymbol instanceof UCStructSymbol
+			&& contextSymbol.block
+			&& contextSymbol.block.getSymbolAtPos(position);
+
+		if (context === '.' && symbol && (<IWithReference>symbol).getReference) {
+			const resolvedSymbol = (<IWithReference>symbol).getReference();
+			if (resolvedSymbol instanceof UCSymbol) {
+				symbols = resolvedSymbol.getCompletionSymbols(document, context);
+			}
+		} else {
+			symbols = contextSymbol.getCompletionSymbols(document, context);
 		}
 	}
 
-	if (selectedSymbol instanceof UCSymbol) {
-		const symbols = selectedSymbol.getCompletionSymbols(document);
-		const contextCompletions = symbols.map(symbol => symbol.toCompletionItem(document));
-		// TODO: Add context sensitive keywords
-		return contextCompletions;
-	}
+	const contextCompletions = symbols.map(symbol => symbol.toCompletionItem(document));
+	return contextCompletions;
 }
 
 export async function getFullCompletionItem(item: CompletionItem): Promise<CompletionItem> {
