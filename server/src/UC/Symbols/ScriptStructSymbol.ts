@@ -1,7 +1,6 @@
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { Name } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 
 import {
@@ -51,11 +50,6 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 
 	acceptCompletion(_document: UCDocument, context: UCSymbol): boolean {
 		return (context instanceof UCPropertySymbol || context instanceof UCMethodSymbol);
-	}
-
-	findSuperSymbol(id: Name, kind?: SymbolKind) {
-		const symbol = super.findSuperSymbol(id, kind) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id, kind);
-		return symbol;
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
