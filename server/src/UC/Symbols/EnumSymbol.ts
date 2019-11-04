@@ -3,7 +3,7 @@ import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 
-import { UCTypeKind, UCStructSymbol, ISymbol } from '.';
+import { UCTypeFlags, UCStructSymbol, ISymbol } from '.';
 
 export class UCEnumSymbol extends UCStructSymbol {
 	isProtected(): boolean {
@@ -18,8 +18,8 @@ export class UCEnumSymbol extends UCStructSymbol {
 		return SymbolKind.Enum;
 	}
 
-	getTypeKind() {
-		return UCTypeKind.Byte;
+	getTypeFlags() {
+		return UCTypeFlags.Byte;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {

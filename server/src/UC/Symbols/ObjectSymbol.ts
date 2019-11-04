@@ -6,7 +6,7 @@ import { UCDocument } from '../document';
 
 import { UCStructSymbol, ClassesTable } from '.';
 import { UCClassSymbol } from './ClassSymbol';
-import { UCObjectTypeSymbol, UCTypeKind } from './TypeSymbol';
+import { UCObjectTypeSymbol, UCTypeFlags } from './TypeSymbol';
 import { Identifier } from './ISymbol';
 
 /**
@@ -27,7 +27,7 @@ export class UCObjectSymbol extends UCStructSymbol {
 
 	index(document: UCDocument, context: UCStructSymbol) {
 		if (this.classId) {
-			this.classType = new UCObjectTypeSymbol(this.classId, undefined, UCTypeKind.Class);
+			this.classType = new UCObjectTypeSymbol(this.classId, undefined, UCTypeFlags.Class);
 
 			const objectClass = ClassesTable.findSymbol(this.classId.name, true) as UCClassSymbol;
 			this.classType.setReference(objectClass, document);

@@ -8,7 +8,7 @@ import {
 	DEFAULT_RANGE,
 	UCStructSymbol, UCParamSymbol,
 	ITypeSymbol, ISymbol,
-	IWithReference, UCTypeKind, UCSymbol
+	IWithReference, UCTypeFlags, UCSymbol
 } from '.';
 
 export enum MethodSpecifiers {
@@ -67,8 +67,12 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return SymbolKind.Function;
 	}
 
-	getTypeKind() {
-		return this.returnType ? this.returnType.getTypeKind() : UCTypeKind.Error;
+	getTypeFlags() {
+		return UCTypeFlags.Function;
+	}
+
+	getType() {
+		return this.returnType;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {

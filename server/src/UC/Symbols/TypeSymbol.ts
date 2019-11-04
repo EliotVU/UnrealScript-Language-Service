@@ -14,46 +14,43 @@ import {
 	PredefinedBool, PredefinedButton, PredefinedName,
 	PredefinedInt, PredefinedPointer,
 	PredefinedArray, PredefinedDelegate, PredefinedMap,
-	NativeClass, NativeArray, ObjectsTable, findSuperStruct
+	NativeClass, NativeArray, ObjectsTable
 } from '.';
 import { NAME_NONE, Name, NAME_BYTE, NAME_FLOAT, NAME_INT, NAME_STRING, NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_BUTTON } from '../names';
 import { UCPackage } from './Package';
 
-export enum UCTypeKind {
+export enum UCTypeFlags {
+	// A type that couldn't be found.
+	Error			= 0,
+
 	// PRIMITIVE TYPES
-	Float,
-	// Also true for a pointer
-	Int,
-	// Also true for an enum member.
-	Byte,
-	String,
-	Name,
-	Bool,
-	Array,
-	Delegate,
+	Float 			= 1 << 1,
+	Int 			= 1 << 2, // Also true for a pointer
+	Byte 			= 1 << 3, // Also true for an enum member.
+	String			= 1 << 4,
+	Name			= 1 << 5,
+	Bool			= 1 << 6,
+	Array			= 1 << 7,
+	Delegate		= 1 << 8,
 
 	// OBJECT TYPES
-	// i.e. "Enum'ENetRole'"
-	Object,
-	// For use cases like e.g. "class Actor extends Core.Object" where "Core" would be of type "Package".
-	Package,
-	// A class like class<CLASSNAME>.
-	Class,
-	Interface,
-	Enum,
-	State,
-	Struct,
-	Property,
-	Function,
+	Object			= 1 << 9,
+	Package			= 1 << 10 | Object, // For use cases like e.g. "class Actor extends Core.Object" where "Core" would be of type "Package".
+	Class			= 1 << 11 | Object, // A class like class<CLASSNAME>.
+	Interface		= 1 << 12 | Object,
+	Enum			= 1 << 13 | Object,
+	Struct			= 1 << 14 | Object,
+	Property		= 1 << 15 | Object,
+	Function		= 1 << 16 | Object,
+	State			= 1 << 17 | Object,
 
 	// Special case for property type validations.
-	Type,
+	Type			= Object | Class | Interface | Enum | Struct,
+	NumberCoerce	= Float | Int | Byte,
+	EnumCoerce		= Int | Byte,
 
 	// Reffers the special "None" identifier, if we do actual reffer an undefined symbol, we should be an @Error.
-	None,
-
-	// A type that couldn't be found.
-	Error
+	None			= 1 << 18
 }
 
 // TODO: Deprecate this, but this is blocked by a lack of an analytical expression walker.
@@ -66,9 +63,13 @@ export function analyzeTypeSymbol(document: UCDocument, type: ITypeSymbol | UCSy
 
 export interface ITypeSymbol extends UCSymbol, IWithReference {
 	getTypeText(): string;
-	getTypeKind(): UCTypeKind;
+	getTypeFlags(): UCTypeFlags;
 
 	index(document: UCDocument, context?: UCStructSymbol);
+}
+
+export function isTypeSymbol(symbol: ITypeSymbol): symbol is ITypeSymbol {
+	return 'getTypeFlags' in symbol;
 }
 
 /**
@@ -84,8 +85,8 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		return this.type.getTypeText();
 	}
 
-	getTypeKind(): UCTypeKind {
-		return this.type.getTypeKind();
+	getTypeFlags(): UCTypeFlags {
+		return this.type.getTypeFlags();
 	}
 
 	getReference(): ISymbol | undefined {
@@ -131,7 +132,7 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 	}
 }
 
-abstract class UCPredefinedTypeSymbol extends UCSymbol implements IWithReference {
+export abstract class UCPredefinedTypeSymbol extends UCSymbol implements IWithReference {
 	getReference(): ISymbol {
 		throw "not implemented";
 	}
@@ -160,8 +161,8 @@ export class UCByteTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSym
 		return PredefinedByte;
 	}
 
-	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Byte;
+	getTypeFlags(): UCTypeFlags {
+		return UCTypeFlags.Byte;
 	}
 
 	static getStaticName(): Name {
@@ -174,8 +175,8 @@ export class UCFloatTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSy
 		return PredefinedFloat;
 	}
 
-	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Float;
+	getTypeFlags(): UCTypeFlags {
+		return UCTypeFlags.Float;
 	}
 
 	static getStaticName(): Name {
@@ -188,8 +189,8 @@ export class UCIntTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymb
 		return PredefinedInt;
 	}
 
-	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Int;
+	getTypeFlags(): UCTypeFlags {
+		return UCTypeFlags.Int;
 	}
 
 	static getStaticName(): Name {
@@ -202,8 +203,8 @@ export class UCStringTypeSymbol extends UCPredefinedTypeSymbol implements ITypeS
 		return PredefinedString;
 	}
 
-	getTypeKind(): UCTypeKind {
-		return UCTypeKind.String;
+	getTypeFlags(): UCTypeFlags {
+		return UCTypeFlags.String;
 	}
 
 	static getStaticName(): Name {
@@ -216,8 +217,8 @@ export class UCNameTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSym
 		return PredefinedName;
 	}
 
-	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Name;
+	getTypeFlags(): UCTypeFlags {
+		return UCTypeFlags.Name;
 	}
 
 	static getStaticName(): Name {
@@ -230,8 +231,8 @@ export class UCBoolTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSym
 		return PredefinedBool;
 	}
 
-	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Bool;
+	getTypeFlags(): UCTypeFlags {
+		return UCTypeFlags.Bool;
 	}
 
 	static getStaticName(): Name {
@@ -244,8 +245,8 @@ export class UCPointerTypeSymbol extends UCPredefinedTypeSymbol implements IType
 		return PredefinedPointer;
 	}
 
-	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Int;
+	getTypeFlags(): UCTypeFlags {
+		return UCTypeFlags.Int;
 	}
 
 	static getStaticName(): Name {
@@ -258,8 +259,8 @@ export class UCButtonTypeSymbol extends UCPredefinedTypeSymbol implements ITypeS
 		return PredefinedButton;
 	}
 
-	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Byte;
+	getTypeFlags(): UCTypeFlags {
+		return UCTypeFlags.Byte;
 	}
 
 	static getStaticName(): Name {
@@ -268,10 +269,30 @@ export class UCButtonTypeSymbol extends UCPredefinedTypeSymbol implements ITypeS
 }
 
 export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol {
+	protected reference?: ISymbol | ITypeSymbol;
+
 	public baseType?: ITypeSymbol;
 
-	constructor(id: Identifier, private range: Range = id.range, private validTypeKind?: UCTypeKind) {
+	constructor(id: Identifier, private range: Range = id.range, private validTypeKind?: UCTypeFlags) {
 		super(id);
+	}
+
+	getRange(): Range {
+		return this.range;
+	}
+
+	getContainedSymbolAtPos(position: Position) {
+		if (this.reference && intersectsWithRange(position, this.id.range)) {
+			return this;
+		}
+		return this.baseType && this.baseType.getSymbolAtPos(position);
+	}
+
+	getTooltip(): string {
+		if (this.reference) {
+			return this.reference.getTooltip();
+		}
+		return '';
 	}
 
 	getTypeText(): string {
@@ -281,27 +302,19 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		return this.getId().toString();
 	}
 
-	getTypeKind(): UCTypeKind {
+	getTypeFlags(): UCTypeFlags {
 		if (this.reference !== NativeClass && this.reference instanceof UCClassSymbol) {
-			return UCTypeKind.Object;
+			return UCTypeFlags.Object;
 		}
-		return this.reference instanceof UCFieldSymbol && this.reference.getTypeKind() || UCTypeKind.Error;
+		return this.reference instanceof UCFieldSymbol && this.reference.getTypeFlags() || UCTypeFlags.Error;
 	}
 
-	getValidTypeKind(): UCTypeKind | undefined {
+	getValidTypeKind(): UCTypeFlags | undefined {
 		return this.validTypeKind;
 	}
 
-	setValidTypeKind(kind: UCTypeKind) {
+	setValidTypeKind(kind: UCTypeFlags) {
 		this.validTypeKind = kind;
-	}
-
-	getRange(): Range {
-		return this.range;
-	}
-
-	getContainedSymbolAtPos(position: Position) {
-		return this.baseType && this.baseType.getSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol) {
@@ -318,27 +331,27 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		const id = this.getId();
 		let symbol: ISymbol | undefined;
 		switch (this.validTypeKind) {
-			case UCTypeKind.Package: {
+			case UCTypeFlags.Package: {
 				symbol = PackagesTable.findSymbol(id, false);
 				break;
 			}
 
-			case UCTypeKind.Class: case UCTypeKind.Interface: {
+			case UCTypeFlags.Class: case UCTypeFlags.Interface: {
 				symbol = ClassesTable.findSymbol(id, true);
 				break;
 			}
 
-			case UCTypeKind.Enum: case UCTypeKind.Struct: {
+			case UCTypeFlags.Enum: case UCTypeFlags.Struct: {
 				symbol = ObjectsTable.findSymbol(id);
 				break;
 			}
 
-			case UCTypeKind.State: case UCTypeKind.Delegate: {
+			case UCTypeFlags.State: case UCTypeFlags.Delegate: {
 				symbol = context.findSuperSymbol(id);
 				break;
 			}
 
-			case UCTypeKind.Type: {
+			case UCTypeFlags.Type: {
 				symbol = ClassesTable.findSymbol(id, true) || ObjectsTable.findSymbol(id);
 				break;
 			}
@@ -346,7 +359,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 			// Special case for object literals like Property'Engine.Member.Member...'
 			// FIXME: How to handle ambiguous literals such as class'Engine' versus class'Engine.Interactions',
 			// -- where Engine either be the class or package named "Engine".
-			case UCTypeKind.Object: {
+			case UCTypeFlags.Object: {
 				symbol = PackagesTable.findSymbol(id)
 					// TODO: Merge classes and objects, with tricky hashing so that we can filter by class type.
 					|| ClassesTable.findSymbol(id, true)
@@ -381,8 +394,8 @@ export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
 		return PredefinedArray.getTooltip();
 	}
 
-	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Array;
+	getTypeFlags(): UCTypeFlags {
+		return UCTypeFlags.Array;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
@@ -397,8 +410,8 @@ export class UCDelegateTypeSymbol extends UCObjectTypeSymbol {
 		return PredefinedDelegate.getTooltip();
 	}
 
-	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Delegate;
+	getTypeFlags(): UCTypeFlags {
+		return UCTypeFlags.Delegate;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
@@ -413,8 +426,8 @@ export class UCMapTypeSymbol extends UCObjectTypeSymbol {
 		return PredefinedMap.getTooltip();
 	}
 
-	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Error;
+	getTypeFlags(): UCTypeFlags {
+		return UCTypeFlags.Error;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

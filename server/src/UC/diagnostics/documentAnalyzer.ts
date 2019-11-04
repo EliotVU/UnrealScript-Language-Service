@@ -409,7 +409,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				if (stm instanceof UCIfStatement) {
 					stm.else && stm.else.accept<any>(this);
 				} else if (stm instanceof UCDoUntilStatement) {
-					stm.until && stm.until.accept<any>(this);
 				} else if (stm instanceof UCForStatement) {
 					stm.init && stm.init.accept<any>(this);
 					stm.next && stm.next.accept<any>(this);

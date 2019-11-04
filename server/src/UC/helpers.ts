@@ -14,7 +14,6 @@ import { TokenExt } from './Parser/CommonTokenStreamExt';
 import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, ClassesTable } from './Symbols';
 import { getDocumentByUri, getIndexedReferences } from "./indexer";
 import { UCDocument } from './document';
-import { performance } from 'perf_hooks';
 
 export function rangeFromBound(token: Token): Range {
 	const length = (token as TokenExt).length;

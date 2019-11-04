@@ -24,7 +24,7 @@ import { URI } from 'vscode-uri';
 import { getCompletableSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
 import { filePathByClassIdMap$, getDocumentByUri, queuIndexDocument, getIndexedReferences, config, defaultSettings, lastIndexedDocuments$, getDocumentById, applyMacroSymbols } from './UC/indexer';
 import { ServerSettings, EAnalyzeOption } from './settings';
-import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol, PackagesTable, UCObjectTypeSymbol, UCTypeKind, UCPackage } from './UC/Symbols';
+import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol, PackagesTable, UCObjectTypeSymbol, UCTypeFlags, UCPackage } from './UC/Symbols';
 import { toName } from './UC/names';
 
 /** Emits true when the workspace is prepared and ready for indexing. */
@@ -207,7 +207,7 @@ connection.onDidChangeConfiguration((change) => {
 		if (value.type === 'class') {
 			const symbol = new UCClassSymbol({ name: toName(symbolName), range: DEFAULT_RANGE });
 			if (value.extends) {
-				symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCTypeKind.Class);
+				symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCTypeFlags.Class);
 			}
 			pkg.addSymbol(symbol);
 		} else {

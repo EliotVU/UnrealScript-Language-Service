@@ -4,7 +4,7 @@ import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 
 import {
-	UCTypeKind, ISymbol,
+	UCTypeFlags, ISymbol,
 	UCStructSymbol, UCSymbol,
 	UCMethodSymbol, UCPropertySymbol
 } from '.';
@@ -22,8 +22,8 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return SymbolKind.Struct;
 	}
 
-	getTypeKind() {
-		return UCTypeKind.Struct;
+	getTypeFlags() {
+		return UCTypeFlags.Struct;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {

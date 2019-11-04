@@ -92,7 +92,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	getSymbol(id: Name, kind?: SymbolKind): UCSymbol | undefined {
 		for (let child = this.children; child; child = child.next) {
 			if (child.getId() === id) {
-				if (kind !== undefined && (child.getTypeKind() & kind) === 0) {
+				if (kind !== undefined && (child.getTypeFlags() & kind) === 0) {
 					continue;
 				}
 				return child;

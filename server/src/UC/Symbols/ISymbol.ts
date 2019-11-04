@@ -4,6 +4,8 @@ import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
 
+import { UCTypeFlags } from '.';
+
 export interface ISymbol {
 	outer?: ISymbol;
 
@@ -22,6 +24,13 @@ export interface ISymbolContainer<T extends ISymbol> {
 	addSymbol(symbol: T): Name | undefined;
 	addAlias(id: Name, symbol: T): void;
 	getSymbol(id: Name, kind?: SymbolKind): T | undefined;
+}
+
+export interface IContextInfo {
+	type?: UCTypeFlags;
+	inAssignment?: boolean;
+	isOptional?: boolean;
+	hasArguments?: boolean;
 }
 
 export interface ISymbolReference {

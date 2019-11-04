@@ -22,12 +22,12 @@ import {
 	UCMethodLikeSymbol,
 	UCObjectTypeSymbol,
 	UCParamSymbol,
-	PackagesTable, UCTypeKind,
+	PackagesTable, UCTypeFlags,
 	UCIntTypeSymbol, UCFloatTypeSymbol
 } from ".";
 import { UCNativeType } from './NativeType';
 
-export const ObjectTypeRef = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE, UCTypeKind.Class);
+export const ObjectTypeRef = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE, UCTypeFlags.Class);
 export const IntTypeRef = new UCIntTypeSymbol({ name: NAME_INT, range: DEFAULT_RANGE });
 export const FloatTypeRef = new UCFloatTypeSymbol({ name: NAME_FLOAT, range: DEFAULT_RANGE });
 export const VectorTypeRef = new UCObjectTypeSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE });
