@@ -169,13 +169,6 @@
 				"scopeName": "source.uc",
 				"path": "./syntaxes/UnrealScript.tmLanguage.json"
 			}
-		],
-		"iconThemes": [
-			{
-				"id": "unrealscript",
-				"label": "UnrealScript",
-				"path": "./fileicons/unrealscipt-icon-theme.json"
-			}
 		]
 	},
 	"scripts": {
