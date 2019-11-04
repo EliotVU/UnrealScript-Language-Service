@@ -1,4 +1,4 @@
-import { SymbolKind, Position } from 'vscode-languageserver-types';
+import { SymbolKind, Position, Location } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
@@ -7,18 +7,31 @@ import { Name } from '../names';
 import { UCSymbolReference, UCStructSymbol } from ".";
 
 export class UCStateSymbol extends UCStructSymbol {
+	public overriddenState?: UCStateSymbol;
 	public ignoreRefs?: UCSymbolReference[];
-
-	isProtected(): boolean {
-		return true;
-	}
 
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
 	}
 
+	getTypeKeyword(): string {
+		return 'state';
+	}
+
 	getTooltip(): string {
-		return `state ${this.getQualifiedName()}`;
+		const text: Array<string | undefined> = [];
+
+		if (this.overriddenState) {
+			text.push('(override)');
+		}
+
+		const modifiers = this.buildModifiers();
+		text.push(...modifiers);
+
+		text.push(this.getTypeKeyword());
+		text.push(this.getQualifiedName());
+
+		return text.filter(s => s).join(' ');
 	}
 
 	getContainedSymbolAtPos(position: Position) {
@@ -36,11 +49,21 @@ export class UCStateSymbol extends UCStructSymbol {
 		return symbol;
 	}
 
-	// TODO: Index default super-state, e.g. state "Pickup" should override its parent's class state "Pickup".
-	// -- If found, "extends ID" should be disallowed and output an error!
 	index(document: UCDocument, context: UCStructSymbol) {
-		super.index(document, context);
+		// Look for an overridden state, e.g. "state Pickup {}" would override "Pickup" of "Pickup.uc".
+		if (!this.super && context.super) {
+			// TODO: If truthy, should "extends ID" be disallowed? Need to investigate how UMake handles this situation.
+			const overriddenState = context.super.findSuperSymbol(this.getId());
+			if (overriddenState instanceof UCStateSymbol) {
+				document.indexReference(overriddenState, {
+					location: Location.create(document.filePath, this.id.range)
+				});
+				this.overriddenState = overriddenState;
+				this.super = overriddenState;
+			}
+		}
 
+		super.index(document, context);
 		if (this.ignoreRefs) for (const ref of this.ignoreRefs) {
 			const symbol = this.findSuperSymbol(ref.getId());
 			symbol && ref.setReference(symbol, document);

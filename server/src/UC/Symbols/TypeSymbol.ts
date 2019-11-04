@@ -14,7 +14,7 @@ import {
 	PredefinedBool, PredefinedButton, PredefinedName,
 	PredefinedInt, PredefinedPointer,
 	PredefinedArray, PredefinedDelegate, PredefinedMap,
-	NativeClass, NativeArray, ObjectsTable
+	NativeClass, NativeArray, ObjectsTable, findSuperStruct
 } from '.';
 import { NAME_NONE, Name, NAME_BYTE, NAME_FLOAT, NAME_INT, NAME_STRING, NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_BUTTON } from '../names';
 import { UCPackage } from './Package';
@@ -57,7 +57,7 @@ export enum UCTypeKind {
 }
 
 // TODO: Deprecate this, but this is blocked by a lack of an analytical expression walker.
-export function analyzeTypeSymbol(document: UCDocument, type: ITypeSymbol) {
+export function analyzeTypeSymbol(document: UCDocument, type: ITypeSymbol | UCSymbolReference) {
 	if (type.getReference()) {
 		return;
 	}

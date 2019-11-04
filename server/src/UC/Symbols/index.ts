@@ -4,7 +4,7 @@ export { UCSymbolReference } from './SymbolReference';
 export * from './TypeSymbol';
 export * from './Package';
 export * from './FieldSymbol';
-export { UCStructSymbol } from './StructSymbol';
+export * from './StructSymbol';
 export { UCEnumSymbol } from './EnumSymbol';
 export { UCEnumMemberSymbol } from './EnumMemberSymbol';
 export { UCScriptStructSymbol } from './ScriptStructSymbol';

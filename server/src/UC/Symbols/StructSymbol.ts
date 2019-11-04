@@ -117,7 +117,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 
 		if (this.children) for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
 			try {
-				child.index(document, context);
+				child.index(document, this);
 			} catch (err) {
 				console.error(`Encountered an error while indexing '${child.getQualifiedName()}': ${err}`);
 			}
@@ -127,4 +127,16 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitStruct(this);
 	}
+}
+
+/**
+ * Looks up the @struct's hierachy for a matching @id
+ */
+export function findSuperStruct(struct: UCStructSymbol, id: Name): UCStructSymbol | undefined {
+	for (let other = struct.super; other; other = other.super) {
+		if (other.getId() === id) {
+			return other;
+		}
+	}
+	return undefined;
 }

@@ -17,7 +17,7 @@ import {
 	RangeTypeRef, RngMethodLike,
 	ITypeSymbol, TypeCastMap, UCTypeKind,
 	UCDelegateSymbol, UCStateSymbol,
-	analyzeTypeSymbol, ClassesTable, ObjectsTable
+	analyzeTypeSymbol, ClassesTable, ObjectsTable, findSuperStruct
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
@@ -681,41 +681,49 @@ export class UCPredefinedPropertyAccessExpression extends UCMemberExpression {
 	}
 }
 
-// TODO: Support super state
 export class UCSuperExpression extends UCExpression {
-	public classRef?: UCObjectTypeSymbol;
+	public structRef?: UCSymbolReference;
 
-	// Resolved super class.
-	private superClass?: UCClassSymbol;
+	// Resolved structRef.
+	private superStruct?: UCStructSymbol;
 
 	getMemberSymbol() {
-		return this.superClass;
+		return this.superStruct;
 	}
 
 	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Class;
+		return this.superStruct ? this.superStruct.getTypeKind() : UCTypeKind.Error;
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		if (this.classRef && this.classRef.getSymbolAtPos(position) as UCObjectTypeSymbol) {
-			return this.classRef;
+		if (this.structRef && this.structRef.getSymbolAtPos(position)) {
+			return this.structRef;
 		}
 	}
 
-	index(document: UCDocument, context?: UCStructSymbol) {
-		if (this.classRef) {
-			this.classRef.index(document, context!);
-			this.superClass = this.classRef.getReference() as UCClassSymbol;
+	index(document: UCDocument, context: UCStructSymbol) {
+		context = (context instanceof UCMethodSymbol && context.outer instanceof UCStateSymbol && context.outer.super)
+			? context.outer
+			: document.class!;
+
+		if (this.structRef) {
+			// FIXME: UE2 doesn't verify inheritance, thus particular exploits are possible by calling a super function through an unrelated class,
+			// -- this let's programmers write data in different parts of the memory.
+			// -- Thus should we just be naive and match any type instead?
+			const symbol = findSuperStruct(context, this.structRef.getId()) || ClassesTable.findSymbol(this.structRef.getId(), true);
+			if (symbol instanceof UCStructSymbol) {
+				this.structRef.setReference(symbol, document);
+				this.superStruct = symbol;
+			}
 		} else {
-			// TODO: Can super refer to a parent STATE?
-			this.superClass = document.class!.super;
+			this.superStruct = context.super;
 		}
 	}
 
 	// TODO: verify class type by inheritance
-	analyze(document: UCDocument, context?: UCStructSymbol) {
-		if (this.classRef) {
-			analyzeTypeSymbol(document, this.classRef);
+	analyze(document: UCDocument, _context?: UCStructSymbol) {
+		if (this.structRef) {
+			analyzeTypeSymbol(document, this.structRef);
 		}
 	}
 }
@@ -876,13 +884,11 @@ export abstract class UCStructLiteral extends UCExpression {
 		return this.structType.getReference() && this.structType as ISymbol;
 	}
 
-	index(document: UCDocument, context?: UCStructSymbol) {
-		if (!this.structType || this.structType.getReference()) {
-			return;
+	index(document: UCDocument, _context?: UCStructSymbol) {
+		const symbol = ObjectsTable.findSymbol(this.structType.getId());
+		if (symbol) {
+			this.structType.setReference(symbol, document, undefined, this.getRange());
 		}
-
-		const symbol = context!.findSuperSymbol(this.structType.getId());
-		symbol && this.structType.setReference(symbol, document, undefined, this.getRange());
 	}
 }
 

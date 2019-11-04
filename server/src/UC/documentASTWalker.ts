@@ -1495,9 +1495,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const expression = new UCSuperExpression(range);
 
-		const classIdNode = ctx.identifier();
-		if (classIdNode) {
-			expression.classRef = new UCObjectTypeSymbol(idFromCtx(classIdNode), undefined, UCTypeKind.Class);
+		const superIdNode = ctx.identifier();
+		if (superIdNode) {
+			expression.structRef = new UCSymbolReference(idFromCtx(superIdNode));
 		}
 		return expression;
 	}
