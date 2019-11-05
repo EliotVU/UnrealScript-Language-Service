@@ -12,7 +12,7 @@ import { CommonTokenStream, ANTLRErrorListener } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 
-import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCScriptStructSymbol, UCEnumSymbol, ObjectsTable, UCFieldSymbol, UCSymbol } from './Symbols';
+import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCScriptStructSymbol, UCEnumSymbol, ObjectsTable, UCFieldSymbol, UCSymbol, ClassesTable, UCStructSymbol } from './Symbols';
 
 import { IDiagnosticNode, DiagnosticCollection } from './diagnostics/diagnostic';
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
@@ -130,23 +130,31 @@ export class UCDocument {
 	}
 
 	public invalidate() {
-		if (this.class) {
-			// naive implementation, what if two classes have an identical named struct?
-			function removeObjects(child?: UCFieldSymbol) {
-				for (; child; child = child.next) {
-					if (child instanceof UCScriptStructSymbol || child instanceof UCEnumSymbol) {
-						if (child.children) {
-							removeObjects(child.children);
-						}
-						ObjectsTable.removeSymbol(child);
+		// naive implementation, what if two classes have an identical named struct?
+		function removeObjects(child?: UCFieldSymbol) {
+			for (; child; child = child.next) {
+				if (child instanceof UCScriptStructSymbol || child instanceof UCEnumSymbol) {
+					if (child.children) {
+						removeObjects(child.children);
 					}
+					ObjectsTable.removeSymbol(child);
 				}
 			}
-			removeObjects(this.class.children);
-
-			delete this.class;
 		}
 
+		for (let symbol of this.symbols) {
+			if (symbol instanceof UCStructSymbol) {
+				removeObjects(symbol.children);
+				// Not necessary, we don't support included documents yet!, thus no script structs nor enums without a class.
+				// ObjectsTable.removeSymbol(symbol);
+			}
+		}
+
+		if (this.class) {
+			ClassesTable.removeSymbol(this.class);
+			this.class = undefined;
+		}
+		this.symbols = []; // clear
 		this.nodes = []; // clear
 		this.hasBeenIndexed = false;
 
