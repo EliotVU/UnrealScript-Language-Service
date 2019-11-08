@@ -77,7 +77,7 @@ var delegate<Test> 			defaultDelegate;
 
 // FIXME: Breaks variable highlighting.
 var map{string, float} 		defaultStringToFloatMap;
-var class<Test> 			defaultClassMeta;
+var class<Test> 			defaultClassMeta[4];
 var array<class<Test> > 	defaultArrayOfClasses;
 
 // Test for non-quoted tooltip
@@ -112,7 +112,7 @@ static final preoperator int ToInt(string A) {
 	return int(A);
 }
 
-function coerce Object Spawn( class<Object> class ) {
+function coerce Object Spawn( class<Object> class, Object owner ) {
 	return class;
 }
 
@@ -180,8 +180,31 @@ delegate byte Test() {
 	i = i - -i;
 	i = 2.0 * int(0.1 + float(i)*0.225,0.2,1.0);
 
+	// Type resolving tests!
+	inputInt(defaultIntArray[0]);
+	InputObject(defaultClassMeta[0]);
+	InputObject(defaultArrayOfClasses[0]);
+	InputObject(GetObjects()[0]);
+	InputArray(GetObjects());
+
 	return byte((i+1.f)*128.f);
 	return (float(i)/128.f)-1.f;
+}
+
+function InputInt(int i) {
+
+}
+
+function InputObject(Object obj) {
+
+}
+
+function InputArray(Array<Object> objs) {
+
+}
+
+function Array<Object> GetObjects() {
+
 }
 
 function TestFunction();
