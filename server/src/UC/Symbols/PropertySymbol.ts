@@ -15,6 +15,7 @@ import {
 	UCEnumSymbol, UCEnumMemberSymbol,
 	UCConstSymbol, NativeArray, ISymbol, UCSymbol
 } from '.';
+import { UCObjectTypeSymbol } from './TypeSymbol';
 
 export class UCPropertySymbol extends UCFieldSymbol {
 	public type?: ITypeSymbol;
@@ -35,7 +36,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	isDynamicArray(): boolean {
-		return (this.type && this.type.getReference()) === NativeArray;
+		return (this.type?.getReference()) === NativeArray;
 	}
 
 	/**
@@ -43,7 +44,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	 * Returns undefined if unresolved.
 	 */
 	getArrayDimSize(): number | undefined {
-		const symbol = this.arrayDimRef && this.arrayDimRef.getReference();
+		const symbol = this.arrayDimRef?.getReference();
 		if (symbol) {
 			if (symbol instanceof UCConstSymbol) {
 				return symbol.getComputedValue();
@@ -67,11 +68,10 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return SymbolKind.Property;
 	}
 
-	getTypeFlags() {
-		return this.type ? this.type.getTypeFlags() : UCTypeFlags.Error;
-	}
-
 	getType() {
+		if (this.type && (this.type.getTypeFlags() & UCTypeFlags.Object) !== 0 && (this.type as UCObjectTypeSymbol).baseType) {
+			return (this.type as UCObjectTypeSymbol).baseType;
+		}
 		return this.type;
 	}
 
@@ -114,7 +114,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 
 	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
 		if (context === '.') {
-			const resolvedType = this.type && this.type.getReference();
+			const resolvedType = this.type?.getReference();
 			if (resolvedType instanceof UCSymbol) {
 				return resolvedType.getCompletionSymbols(document, context);
 			}
@@ -129,8 +129,8 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	public index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
 
-		this.type && this.type.index(document, context);
-		this.arrayDimRef && this.arrayDimRef.index(document, context);
+		this.type?.index(document, context);
+		this.arrayDimRef?.index(document, context);
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
@@ -146,7 +146,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		const qualifiedNode = arrayDimNode.qualifiedIdentifier();
 		if (qualifiedNode) {
 			this.arrayDimRef = qualifiedNode.accept(visitor);
-			this.arrayDimRange = this.arrayDimRef && this.arrayDimRef.getRange();
+			this.arrayDimRange = this.arrayDimRef?.getRange();
 			return;
 		}
 

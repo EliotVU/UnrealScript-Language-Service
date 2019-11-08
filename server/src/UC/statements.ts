@@ -3,11 +3,10 @@ import { Position, Range } from 'vscode-languageserver';
 import { intersectsWith } from './helpers';
 import { UCDocument } from './document';
 
-import { UCStructSymbol, ISymbol, IContextInfo, UCTypeFlags } from './Symbols';
-import { IExpression, analyzeExpressionType } from './expressions';
+import { UCStructSymbol, ISymbol, IContextInfo } from './Symbols';
+import { IExpression } from './expressions';
 import { SymbolWalker } from './symbolWalker';
 import { Name } from './names';
-import { config } from './indexer';
 
 export interface IStatement {
 	getSymbolAtPos(position: Position): ISymbol | undefined;
@@ -149,7 +148,7 @@ export class UCSwitchStatement extends UCExpressionStatement {
 	index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
 
-		const type = this.expression && this.expression.getTypeFlags();
+		const type = this.expression && this.expression.getType();
 		if (type) {
 			// TODO: validate all legal switch types!
 			// Also, cannot switch on static arrays.
@@ -157,7 +156,7 @@ export class UCSwitchStatement extends UCExpressionStatement {
 
 		if (this.then) {
 			// Our case-statements need to know the type that our switch is working with.
-			this.then.index(document, context, { type });
+			this.then.index(document, context, { typeFlags: type && type.getTypeFlags() });
 		}
 	}
 }

@@ -9,8 +9,8 @@ import {
 	UCArrayTypeSymbol, UCDelegateTypeSymbol,
 	UCDelegateSymbol, UCPropertySymbol,
 	UCMethodSymbol, UCBinaryOperatorSymbol,
-	PredefinedBool, NativeArray,
-	UCReplicationBlock, UCObjectSymbol,
+	TypeBool, NativeArray,
+	UCReplicationBlock, UCObjectSymbol, UCTypeFlags, typeMatchesFlags, ITypeSymbol,
 } from '../Symbols';
 import { UCBlock, IStatement, UCExpressionStatement, UCThenStatement, UCIfStatement, UCDoUntilStatement, UCForStatement } from '../statements';
 import { IExpression } from '../expressions';
@@ -165,7 +165,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
 			if (config.checkTypes && symbol.type) {
 				const referredSymbol = symbol.type.getReference();
-				if (referredSymbol === PredefinedBool || referredSymbol === NativeArray) {
+				if (referredSymbol === TypeBool || referredSymbol === NativeArray) {
 					this.diagnostics.add({
 						range: symbol.type.id.range,
 						message: {
@@ -407,6 +407,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 			if (stm instanceof UCThenStatement) {
 				stm.then && stm.then.accept<any>(this);
 				if (stm instanceof UCIfStatement) {
+					this.visitIfStatement(stm);
 					stm.else && stm.else.accept<any>(this);
 				} else if (stm instanceof UCDoUntilStatement) {
 				} else if (stm instanceof UCForStatement) {
@@ -418,8 +419,27 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		return stm;
 	}
 
+	visitIfStatement(stm: UCIfStatement) {
+		if (stm.expression && config.checkTypes) {
+			const type = stm.expression.getType();
+			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
+				this.diagnostics.add({
+					range: stm.expression.getRange(),
+					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
+				});
+			}
+		}
+	}
+
 	visitExpression(expr: IExpression) {
 		expr.analyze(this.document, this.context);
 		return expr;
 	}
+}
+
+function createExpectedTypeMessage(expected: UCTypeFlags, type?: ITypeSymbol) {
+	return {
+		text: `Expected a type of '${UCTypeFlags[expected]}', but got type '${type ? UCTypeFlags[type.getTypeFlags()] : UCTypeFlags.Error}'.`,
+		severity: DiagnosticSeverity.Error
+	};
 }

@@ -12,10 +12,6 @@ export class UCClassSymbol extends UCStructSymbol {
 	public dependsOnTypes?: UCObjectTypeSymbol[];
 	public implementsTypes?: UCObjectTypeSymbol[];
 
-	isType(): boolean {
-		return true;
-	}
-
 	getKind(): SymbolKind {
 		return SymbolKind.Class;
 	}

@@ -10,10 +10,6 @@ export class UCEnumSymbol extends UCStructSymbol {
 		return true;
 	}
 
-	isType(): boolean {
-		return true;
-	}
-
 	getKind(): SymbolKind {
 		return SymbolKind.Enum;
 	}

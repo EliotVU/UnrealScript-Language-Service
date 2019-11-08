@@ -1,12 +1,11 @@
 import { Range, DiagnosticSeverity, Diagnostic } from 'vscode-languageserver-types';
-import { UCSymbol, UCSymbolReference } from "../Symbols";
-import { IExpression } from '../expressions';
+import { UCSymbol, Identifier } from "../Symbols";
 
 export interface IDiagnosticNode {
 	getRange(): Range;
 }
 
-export class SyntaxErrorNode implements IDiagnosticNode {
+export class ErrorDiagnostic implements IDiagnosticNode {
 	constructor(private range: Range, private error: string) {
 	}
 
@@ -19,8 +18,8 @@ export class SyntaxErrorNode implements IDiagnosticNode {
 	}
 }
 
-export class ExpressionErrorNode implements IDiagnosticNode {
-	constructor(private symbol: IExpression, private error: string) {
+export class SymbolErrorDiagnostic implements IDiagnosticNode {
+	constructor(private symbol: { getRange(): Range }, private error: string) {
 	}
 
 	getRange(): Range {
@@ -32,21 +31,7 @@ export class ExpressionErrorNode implements IDiagnosticNode {
 	}
 }
 
-export class SemanticErrorNode implements IDiagnosticNode {
-	// FIXME: just accept a range
-	constructor(private symbol: UCSymbol | UCSymbolReference, private error: string) {
-	}
-
-	getRange(): Range {
-		return this.symbol.id.range;
-	}
-
-	toString(): string {
-		return this.error;
-	}
-}
-
-export class UnrecognizedTypeNode implements IDiagnosticNode {
+export class UnrecognizedTypeDiagnostic implements IDiagnosticNode {
 	constructor(private symbol: UCSymbol) {
 	}
 
@@ -59,18 +44,18 @@ export class UnrecognizedTypeNode implements IDiagnosticNode {
 	}
 }
 
-export class UnrecognizedFieldNode implements IDiagnosticNode {
-	constructor(private symbol: UCSymbol, private context?: UCSymbol) {
+export class UnrecognizedFieldDiagnostic implements IDiagnosticNode {
+	constructor(private id: Identifier, private context?: UCSymbol) {
 	}
 
 	getRange(): Range {
-		return this.symbol.id.range;
+		return this.id.range;
 	}
 
 	toString(): string {
 		return this.context
-			? `'${this.symbol.getId()}' Does not exist on type '${this.context.getQualifiedName()}'!`
-			: `Couldn't find '${this.symbol.getId()}'!`;
+			? `'${this.id.name}' Does not exist on type '${this.context.getQualifiedName()}'!`
+			: `Couldn't find '${this.id.name}'!`;
 	}
 }
 

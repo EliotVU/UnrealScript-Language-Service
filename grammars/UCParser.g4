@@ -830,8 +830,8 @@ assignmentExpression
 	;
 
 primaryExpression
-	: primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 							#elementAccessExpression
-	| primaryExpression '.' classPropertyAccessSpecifier '.' identifier						#propertyAccessExpression
+	: primaryExpression (OPEN_BRACKET arg=expression? CLOSE_BRACKET) 						#elementAccessExpression
+	| primaryExpression '.' classPropertyAccessSpecifier '.' identifier						#propertyClassAccessExpression
 	| primaryExpression '.' identifier														#propertyAccessExpression
 	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 								#callExpression
 
@@ -884,7 +884,7 @@ primaryExpression
 	// | id=identifier right=primaryExpression													#preNamedOperatorExpression
 	// | left=primaryExpression id=identifier													#postNamedOperatorExpression
 
-	| (OPEN_PARENS expression CLOSE_PARENS) 												#parenthesizedExpression
+	| (OPEN_PARENS expr=expression CLOSE_PARENS) 											#parenthesizedExpression
 	;
 
 classPropertyAccessSpecifier

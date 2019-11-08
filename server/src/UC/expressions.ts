@@ -1,6 +1,6 @@
 import { Position, Range } from 'vscode-languageserver';
 
-import { UnrecognizedFieldNode, UnrecognizedTypeNode, SemanticErrorNode, ExpressionErrorNode, SyntaxErrorNode } from './diagnostics/diagnostic';
+import { SymbolErrorDiagnostic, ErrorDiagnostic, UnrecognizedFieldDiagnostic, UnrecognizedTypeDiagnostic } from './diagnostics/diagnostic';
 import { getEnumMember, config } from './indexer';
 import { intersectsWith } from './helpers';
 import { UCDocument } from './document';
@@ -11,67 +11,25 @@ import {
 	UCObjectTypeSymbol, UCStructSymbol,
 	UCPropertySymbol, UCSymbolReference,
 	UCMethodSymbol, UCClassSymbol, UCEnumSymbol,
-	NativeArray, NativeClass, NativeEnum,
+	NativeClass, NativeEnum,
 	VectorTypeRef, VectMethodLike,
 	RotatorTypeRef, RotMethodLike,
 	RangeTypeRef, RngMethodLike,
-	ITypeSymbol, TypeCastMap,
+	ITypeSymbol,
 	UCDelegateSymbol, UCStateSymbol,
 	analyzeTypeSymbol, ClassesTable, ObjectsTable,
 	findSuperStruct, UCTypeFlags,
-	IContextInfo, UCFieldSymbol, UCPredefinedTypeSymbol,
-	LengthProperty, UCBaseOperatorSymbol, UCBinaryOperatorSymbol
+	IContextInfo, UCFieldSymbol,
+	LengthProperty, UCBaseOperatorSymbol, UCBinaryOperatorSymbol,
+	typeMatchesFlags, TypeSymbolCastMap, Identifier,
+	UCArrayTypeSymbol, getTypeFlagsName
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
-
-function typeMatches(type: UCTypeFlags, other: UCTypeFlags): boolean {
-	if ((type & UCTypeFlags.Object) !== 0) {
-		if (other === UCTypeFlags.None) {
-			return true;
-		}
-		return (other & UCTypeFlags.Object) !== 0;
-	} else if (type === UCTypeFlags.Name) {
-		if (other === UCTypeFlags.None) {
-			return true;
-		}
-	} else if ((type & UCTypeFlags.NumberCoerce) !== 0) {
-		return (other & UCTypeFlags.NumberCoerce) !== 0;
-	}
-	return type === other;
-}
-
-export function analyzeExpressionType(expression: IExpression, expectedType: UCTypeFlags) {
-	const type = expression.getTypeFlags();
-	if (type !== expectedType) {
-		return new SyntaxErrorNode(
-			expression.getRange()!,
-			`Expected a type of '${UCTypeFlags[expectedType]}', but got type '${UCTypeFlags[type]}'.`
-		);
-	}
-}
-
-function isElementAccessable(symbol: ISymbol): boolean {
-	if (symbol instanceof UCPropertySymbol) {
-		if (symbol.isDynamicArray() || symbol.isFixedArray()) {
-			return true;
-		}
-	} else if (symbol instanceof UCMethodSymbol) {
-		const type = symbol.getType();
-		if (type && type.getTypeFlags() === UCTypeFlags.Array) {
-			return true;
-		}
-	}
-	return false;
-}
 
 export interface IExpression {
 	getRange(): Range;
 
 	getMemberSymbol(): ISymbol | undefined;
-
-	// FIXME: Displace this with getType(),
-	// but this requires us to refactor the type symbol to represent flags for non-declared symbols.
-	getTypeFlags(): UCTypeFlags;
 	getType(): ITypeSymbol | undefined;
 
 	getSymbolAtPos(position: Position): ISymbol | undefined;
@@ -94,10 +52,6 @@ export abstract class UCExpression implements IExpression {
 		return undefined;
 	}
 
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Error;
-	}
-
 	getType(): ITypeSymbol | undefined {
 		return undefined;
 	}
@@ -111,8 +65,8 @@ export abstract class UCExpression implements IExpression {
 	}
 
 	abstract getContainedSymbolAtPos(position: Position): ISymbol | undefined;
-	index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo): void {}
-	analyze(_document: UCDocument, _context?: UCStructSymbol, info?: IContextInfo): void {}
+	index(_document: UCDocument, _context?: UCStructSymbol, _info?: IContextInfo): void {}
+	analyze(_document: UCDocument, _context?: UCStructSymbol, _info?: IContextInfo): void {}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitExpression(this);
@@ -123,28 +77,24 @@ export class UCParenthesizedExpression extends UCExpression {
 	public expression?: IExpression;
 
 	getMemberSymbol() {
-		return this.expression && this.expression.getMemberSymbol();
-	}
-
-	getTypeFlags(): UCTypeFlags {
-		return this.expression && this.expression.getTypeFlags() || UCTypeFlags.Error;
+		return this.expression?.getMemberSymbol();
 	}
 
 	getType() {
-		return this.expression && this.expression.getType();
+		return this.expression?.getType();
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		const symbol = this.expression && this.expression.getSymbolAtPos(position);
+		const symbol = this.expression?.getSymbolAtPos(position);
 		return symbol;
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol, info?) {
-		if (this.expression) this.expression.index(document, context, info);
+		this.expression?.index(document, context, info);
 	}
 
 	analyze(document: UCDocument, context?: UCStructSymbol, info?) {
-		if (this.expression) this.expression.analyze(document, context, info);
+		this.expression?.analyze(document, context, info);
 	}
 }
 
@@ -153,7 +103,7 @@ export class UCArrayCountExpression extends UCParenthesizedExpression {
 }
 
 export class UCEmptyArgument extends UCExpression {
-	getContainedSymbolAtPos(position: Position) {
+	getContainedSymbolAtPos(_position: Position) {
 		return undefined;
 	}
 }
@@ -166,16 +116,16 @@ export class UCCallExpression extends UCExpression {
 		return this.expression.getMemberSymbol();
 	}
 
-	getTypeFlags(): UCTypeFlags {
-		const type = this.getType();
-		return type && type.getTypeFlags() || UCTypeFlags.Error;
-	}
-
 	getType() {
-		const symbol = this.getMemberSymbol();
-		return symbol instanceof UCFieldSymbol && symbol.getType()
-			|| symbol instanceof UCPredefinedTypeSymbol && symbol as ITypeSymbol
-			|| undefined;
+		const type = this.expression.getType();
+		if (type) {
+			const symbol = type.getReference();
+			if (symbol instanceof UCMethodSymbol) {
+				// TODO: Coerce return type
+				return symbol.getType();
+			}
+		}
+		return type;
 	}
 
 	getContainedSymbolAtPos(position: Position) {
@@ -195,14 +145,15 @@ export class UCCallExpression extends UCExpression {
 	index(document: UCDocument, context?: UCStructSymbol, info?) {
 		this.expression.index(document, context, Object.assign(info || {}, { hasArguments: true }));
 
-		const symbol = this.expression.getMemberSymbol();
+		const type = this.expression.getType();
+		const symbol = type?.getReference();
 		if (symbol instanceof UCMethodSymbol) {
 			if (this.arguments) for (let i = 0; i < this.arguments.length; ++i) {
 				const arg = this.arguments[i];
-				const param = symbol.params && symbol.params[i];
-				const expectedType = param && param.getTypeFlags() || UCTypeFlags.Error;
+				const param = symbol.params?.[i];
+				const expectedFlags = param?.getType()?.getTypeFlags() || UCTypeFlags.Error;
 				arg.index(document, context, {
-					type: expectedType,
+					typeFlags: expectedFlags,
 					inAssignment: param ? param.isOut() : undefined
 				});
 			}
@@ -217,7 +168,8 @@ export class UCCallExpression extends UCExpression {
 	analyze(document: UCDocument, context?: UCStructSymbol, info?) {
 		this.expression.analyze(document, context, Object.assign(info || {}, { hasArguments: true }));
 
-		const symbol = this.expression.getMemberSymbol();
+		const type = this.expression.getType();
+		const symbol = type?.getReference();
 		if (symbol instanceof UCMethodSymbol) {
 			let i = 0;
 			let passedArgumentsCount = 0; // excluding optional parameters.
@@ -227,7 +179,7 @@ export class UCCallExpression extends UCExpression {
 
 				const param = symbol.params && symbol.params[i];
 				if (!param) {
-					document.nodes.push(new SyntaxErrorNode(
+					document.nodes.push(new ErrorDiagnostic(
 						arg.getRange(),
 						`Unexpected argument!`)
 					);
@@ -238,7 +190,7 @@ export class UCCallExpression extends UCExpression {
 				if (!param.isOptional()) {
 					++ passedArgumentsCount;
 					if (arg instanceof UCEmptyArgument) {
-						document.nodes.push(new SyntaxErrorNode(
+						document.nodes.push(new ErrorDiagnostic(
 							arg.getRange(),
 							`An argument for non-optional '${param.getId()}' is missing.`
 						));
@@ -250,52 +202,51 @@ export class UCCallExpression extends UCExpression {
 					continue;
 				}
 
-				const type = arg.getTypeFlags();
-				if (type === UCTypeFlags.Error) {
+				const type = arg.getType();
+				if (!type) {
 					// We already have generated an error diagnostic when type is an error.
 					// Thus we can skip further skips that would only overload the programmer.
 					continue;
 				}
 
 				if (param.isOut()) {
-					const argSymbol = arg.getMemberSymbol();
+					const argSymbol = arg.getType()?.getReference();
 					if (!argSymbol) {
-						document.nodes.push(new SyntaxErrorNode(
+						document.nodes.push(new ErrorDiagnostic(
 							arg.getRange(),
-							`non-resolved argument is not assignable to an 'out' parameter.`)
+							`Non-resolved argument cannot be passed to an 'out' parameter.`)
 						);
 					} else if (argSymbol instanceof UCFieldSymbol) {
 						if (argSymbol === LengthProperty) {
-							document.nodes.push(new SyntaxErrorNode(
+							document.nodes.push(new ErrorDiagnostic(
 								arg.getRange(),
-								`Cannot pass an array's length property to an 'out' parameter.`)
+								`Cannot pass array property 'Length' to an 'out' parameter.`)
 							);
 						}
 						else if (argSymbol.isConst()) {
-							document.nodes.push(new SyntaxErrorNode(
+							document.nodes.push(new ErrorDiagnostic(
 								arg.getRange(),
-								`Argument is a 'const', and cannot be assigned to an 'out' parameter.`)
+								`Argument '${argSymbol.getId()}' cannot be passed to an 'out' parameter, because it is a constant.`)
 							);
 						}
 					}
 				}
 
 				if (config.checkTypes) {
-					const expectedType = param.getTypeFlags();
-					if (!typeMatches(type, expectedType)) {
-						document.nodes.push(new SyntaxErrorNode(
+					const expectedFlags = param.getType()?.getTypeFlags() || UCTypeFlags.Error;
+					if (type && !typeMatchesFlags(type, expectedFlags)) {
+						document.nodes.push(new ErrorDiagnostic(
 							arg.getRange(),
-							`Argument of type '${UCTypeFlags[type]}' is not assignable to parameter of type '${UCTypeFlags[expectedType]}'.`)
+							`Argument of type '${getTypeFlagsName(type)}' is not assignable to parameter of type '${UCTypeFlags[expectedFlags]}'.`)
 						);
 					}
 				}
 			}
 
 			// When we have more params than required, we'll catch an unexpected argument error, see above.
-			if (symbol.requiredParamsCount && symbol.requiredParamsCount > 0
-				&& passedArgumentsCount < symbol.requiredParamsCount) {
+			if (symbol.requiredParamsCount && passedArgumentsCount < symbol.requiredParamsCount) {
 				const totalPassedParamsCount = i;
-				document.nodes.push(new SyntaxErrorNode(
+				document.nodes.push(new ErrorDiagnostic(
 					this.getRange(),
 					`Expected ${symbol.requiredParamsCount} arguments, but got ${totalPassedParamsCount}.`
 				));
@@ -316,39 +267,23 @@ export class UCElementAccessExpression extends UCExpression {
 	public argument?: IExpression;
 
 	getMemberSymbol() {
-		const symbol = this.expression && this.expression.getMemberSymbol();
-		if (symbol instanceof UCFieldSymbol) {
-			const type = symbol.getType();
-			if (type) {
-				if (type instanceof UCObjectTypeSymbol && type.baseType) {
-					return type.baseType.getReference();
-				}
-				return type.getReference();
-			}
-		}
-		// Maybe return undefined?
-		return symbol;
+		return this.expression?.getMemberSymbol();
 	}
 
-	getTypeFlags(): UCTypeFlags {
-		const type = this.expression && this.expression.getType();
-		if (type) {
-			const symbolTypeKind = this.expression.getTypeFlags();
-			if (symbolTypeKind === UCTypeFlags.Function) {
-				return UCTypeFlags.Error;
-			}
-
-			const typeKind = type.getTypeFlags();
-			if (typeKind === UCTypeFlags.Array && type instanceof UCObjectTypeSymbol) {
-				return type.baseType ? type.baseType.getTypeFlags() : UCTypeFlags.Error;
-			}
-			return typeKind;
-		}
-		return UCTypeFlags.Error;
-	}
-
+	// Returns the type we are working with after [] has taken affect, this means we return undefined if the type is invalid.
 	getType() {
-		return this.expression && this.expression.getType();
+		const type = this.expression?.getType();
+		if (type instanceof UCArrayTypeSymbol) {
+			// Resolve metaclass class<Actor> to Actor
+			if (type.baseType instanceof UCObjectTypeSymbol && type.baseType.baseType) {
+				return type.baseType.baseType;
+			}
+			return type.baseType;
+		} else if (this.getMemberSymbol() instanceof UCPropertySymbol && (this.getMemberSymbol() as UCPropertySymbol)?.isFixedArray()) {
+			// metaclass is resolved in @UCMemberExpression's .getType
+			return type;
+		}
+		return undefined;
 	}
 
 	getContainedSymbolAtPos(position: Position) {
@@ -373,19 +308,24 @@ export class UCElementAccessExpression extends UCExpression {
 	}
 
 	analyze(document: UCDocument, context?: UCStructSymbol, info?) {
-		if (this.expression) {
-			this.expression.analyze(document, context, info);
-
-			const symbol = this.expression.getMemberSymbol();
-			if (!symbol || !isElementAccessable(symbol)) {
-				document.nodes.push(new SyntaxErrorNode(this.getRange(), `[] can only be applied to array types.`));
-			}
+		const type = this.getType();
+		if (!type) {
+			document.nodes.push(new ErrorDiagnostic(this.getRange(),
+				`Type of '${this.getMemberSymbol()?.getQualifiedName()}' is not a valid array.`
+			));
+		} else if (!this.expression) {
+			document.nodes.push(new ErrorDiagnostic(this.getRange(),
+				`An element access expression should take an argument.`
+			));
 		}
 
+		this.expression?.analyze(document, context, info);
 		if (this.argument) {
 			this.argument.analyze(document, context, info);
 		} else {
-			document.nodes.push(new SyntaxErrorNode(this.getRange(), `Missing expression in [].`));
+			document.nodes.push(new ErrorDiagnostic(this.getRange(),
+				`Missing expression in [].`
+			));
 		}
 	}
 }
@@ -396,10 +336,6 @@ export class UCPropertyAccessExpression extends UCExpression {
 
 	getMemberSymbol() {
 		return this.member.getMemberSymbol();
-	}
-
-	getTypeFlags(): UCTypeFlags {
-		return this.member.getTypeFlags() || UCTypeFlags.Error;
 	}
 
 	getType() {
@@ -415,41 +351,16 @@ export class UCPropertyAccessExpression extends UCExpression {
 		// DO NOT PASS @info, only our right expression needs access to @info.
 		this.left.index(document, context);
 
-		const memberContext = this.getContextMemberSymbol(this.left && this.left.getMemberSymbol());
-		if (memberContext instanceof UCStructSymbol) {
-			this.member.index(document, memberContext, info);
-		}
+		const memberContext = this.left.getType()?.getReference();
+		this.member.index(document, memberContext as UCStructSymbol, info);
 	}
 
 	analyze(document: UCDocument, context?: UCStructSymbol, info?) {
 		// DO NOT PASS @info, only our right expression needs access to @info.
 		this.left.analyze(document, context);
 
-		const memberContext = this.getContextMemberSymbol(this.left && this.left.getMemberSymbol());
+		const memberContext = this.left.getType()?.getReference();
 		this.member.analyze(document, memberContext as UCStructSymbol, info);
-	}
-
-	private getContextMemberSymbol(symbol?: ISymbol): ISymbol | undefined {
-		// Resolve properties to its defined type
-		// e.g. given property "local array<Vector> Foo;"
-		// -- will be resolved to array or Vector (in an index expression, handled elsewhere).
-		if (symbol instanceof UCPropertySymbol) {
-			if (symbol.type) {
-				return ((symbol.type.getReference() !== NativeArray && symbol.type instanceof UCObjectTypeSymbol && symbol.type.baseType)
-					? symbol.type.baseType.getReference()
-					: symbol.type.getReference());
-			}
-			return undefined;
-		}
-		if (symbol instanceof UCMethodSymbol) {
-			if (symbol.returnType) {
-				return (symbol.returnType instanceof UCObjectTypeSymbol && symbol.returnType.baseType
-					? symbol.returnType.baseType.getReference()
-					: symbol.returnType.getReference());
-			}
-			return undefined;
-		}
-		return symbol;
 	}
 }
 
@@ -460,10 +371,6 @@ export class UCConditionalExpression extends UCExpression {
 
 	getMemberSymbol() {
 		return (this.true && this.true.getMemberSymbol()) || (this.false && this.false.getMemberSymbol());
-	}
-
-	getTypeFlags(): UCTypeFlags {
-		return this.true && this.true.getTypeFlags() || UCTypeFlags.Error;
 	}
 
 	getType() {
@@ -563,11 +470,6 @@ abstract class UCBaseOperatorExpression extends UCExpression {
 		return this.expression.getMemberSymbol();
 	}
 
-	getTypeFlags(): UCTypeFlags {
-		const type = this.getType();
-		return type ? type.getTypeFlags() : UCTypeFlags.Error;
-	}
-
 	getType() {
 		const ref = this.operator.getReference();
 		return ref instanceof UCBaseOperatorSymbol ? ref.getType() : undefined;
@@ -604,7 +506,7 @@ export class UCPostOperatorExpression extends UCBaseOperatorExpression {
 		if (this.operator) {
 			const operatorSymbol = this.operator.getReference();
 			if (!operatorSymbol) {
-				document.nodes.push(new SemanticErrorNode(this.operator, `Invalid postoperator '${this.operator.getId()}'.`));
+				document.nodes.push(new SymbolErrorDiagnostic(this.operator, `Invalid postoperator '${this.operator.getId()}'.`));
 			}
 		}
 	}
@@ -624,7 +526,7 @@ export class UCPreOperatorExpression extends UCBaseOperatorExpression {
 		if (this.operator) {
 			const operatorSymbol = this.operator.getReference();
 			if (!operatorSymbol) {
-				document.nodes.push(new SemanticErrorNode(this.operator, `Invalid preoperator '${this.operator.getId()}'.`));
+				document.nodes.push(new SymbolErrorDiagnostic(this.operator, `Invalid preoperator '${this.operator.getId()}'.`));
 			}
 		}
 	}
@@ -639,11 +541,6 @@ export class UCBinaryOperatorExpression extends UCExpression {
 	getMemberSymbol() {
 		// TODO: Return the operator's return type.
 		return (this.left && this.left.getMemberSymbol()) || (this.right && this.right.getMemberSymbol());
-	}
-
-	getTypeFlags(): UCTypeFlags {
-		const type = this.getType();
-		return type ? type.getTypeFlags() : UCTypeFlags.Error;
 	}
 
 	getType() {
@@ -676,8 +573,8 @@ export class UCBinaryOperatorExpression extends UCExpression {
 		if (this.left) {
 			this.left.index(document, context, info);
 
-			const leftTypeFlags = this.left.getTypeFlags();
-			info.type = leftTypeFlags;
+			const type = this.left.getType();
+			info.typeFlags = type && type.getTypeFlags();
 		}
 		if (this.right) {
 			this.right.index(document, context, info);
@@ -696,10 +593,6 @@ export class UCBinaryOperatorExpression extends UCExpression {
 }
 
 export class UCAssignmentExpression extends UCBinaryOperatorExpression {
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Error;
-	}
-
 	getType() {
 		return undefined;
 	}
@@ -707,58 +600,41 @@ export class UCAssignmentExpression extends UCBinaryOperatorExpression {
 	analyze(document: UCDocument, context?: UCStructSymbol, info?) {
 		super.analyze(document, context, info);
 
-		// TODO: Validate type compatibility, but this requires us to match an overloaded operator first!
 		if (!this.left) {
-			document.nodes.push(new ExpressionErrorNode(this, "Missing left expression!"));
+			document.nodes.push(new SymbolErrorDiagnostic(this, "Missing left expression!"));
 			return;
 		}
 
-		const letType = this.left.getTypeFlags();
-		const letSymbol = this.left.getMemberSymbol();
+
+		if (!this.right) {
+			document.nodes.push(new SymbolErrorDiagnostic(this, "Missing right expression!"));
+			return;
+		}
+
+		// TODO: Validate type compatibility, but this requires us to match an overloaded operator first!
+		const letType = this.left.getType();
+		const letSymbol = letType?.getReference();
 		if (letSymbol) {
 			if (letSymbol instanceof UCPropertySymbol) {
 				// Properties with a defined array dimension cannot be assigned!
 				if (letSymbol.isFixedArray()) {
-					document.nodes.push(new SemanticErrorNode(letSymbol, "Cannot assign to a static array variable."));
+					document.nodes.push(new ErrorDiagnostic(letType!.getRange(),
+						`Cannot assign to '${letSymbol.getId()}' because it is a fixed array.`
+					));
 				}
 
 				if (letSymbol.isConst()) {
-					document.nodes.push(new SemanticErrorNode(letSymbol, "Cannot assign to a constant variable."));
-				}
-			} else if (letSymbol instanceof UCMethodSymbol) {
-				// TODO: Distinguish a delegate from a regular method!
-				// TODO: throw error unless it's a delegate.
-			} else {
-				// AN ElementAccessExpression does not return the property but its type that's being assigned, in this case such assignments are legal.
-				// -- but elsewhere, assigning a type is illegal!
-				if (this.left instanceof UCElementAccessExpression) {
-
-				} else {
-					if (config.checkTypes) {
-						document.nodes.push(new ExpressionErrorNode(
-							this.left,
-							`Cannot assign to expression (type: '${UCTypeFlags[letType]}'), because it is not a variable.`
-						));
-					}
-				}
-			}
-		} else {
-			if ((letType & UCTypeFlags.Object) !== 0) {
-				// TODO:
-			}
-			else {
-				if (config.checkTypes) {
-					document.nodes.push(new ExpressionErrorNode(
-						this.left,
-						`Cannot assign to expression (type: '${UCTypeFlags[letType]}'), because it is not a variable.`
+					document.nodes.push(new ErrorDiagnostic(letType!.getRange(),
+						`Cannot assign to '${letSymbol.getId()}' because it is a constant.`
 					));
 				}
+			} else if (letSymbol instanceof UCMethodSymbol && !(letSymbol instanceof UCDelegateSymbol)) {
+				document.nodes.push(new ErrorDiagnostic(letType!.getRange(),
+					`Cannot assign to '${letSymbol.getId()}' because it is a function. Did you mean to assign a delegate?`
+				));
+				// TODO: Distinguish a delegate from a regular method!
+				// TODO: throw error unless it's a delegate.
 			}
-		}
-
-		if (!this.right) {
-			document.nodes.push(new ExpressionErrorNode(this, "Missing right expression!"));
-			return;
 		}
 	}
 }
@@ -768,42 +644,46 @@ export class UCAssignmentOperatorExpression extends UCAssignmentExpression {
 }
 
 export class UCDefaultAssignmentExpression extends UCBinaryOperatorExpression {
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Error;
-	}
-
 	getType() {
 		return undefined;
 	}
 
+	// TODO: @index() Fetch left type, so that we can use the correct lookup strategy.
+
 	analyze(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
 		if (!this.left) {
+			document.nodes.push(new SymbolErrorDiagnostic(this, "Missing left expression!"));
 			return;
 		}
 
 		if (config.checkTypes) {
-			const letSymbol = this.left.getMemberSymbol();
-			if (letSymbol instanceof UCSymbol) {
-				if (letSymbol instanceof UCPropertySymbol) {
-					// TODO: check right type
-				} else if (letSymbol instanceof UCDelegateSymbol) {
-					// TODO: check right type
-				} else {
-					const errorNode = new ExpressionErrorNode(
-						this.left,
-						`Type of '${letSymbol.getQualifiedName()}' cannot be assigned a default value!`
-					);
-					document.nodes.push(errorNode);
-				}
+			const letType = this.left.getType();
+			const letSymbol = letType?.getReference();
+			if (letType && !letSymbol) {
+				const errorNode = new ErrorDiagnostic(
+					this.left.getRange(),
+					`Type of '${letType.getId()}' cannot be assigned a default value!`
+				);
+				document.nodes.push(errorNode);
 			}
 
-			const leftType = this.left.getTypeFlags();
-			const rightType = this.right ? this.right.getTypeFlags() : UCTypeFlags.Error;
-			if (!typeMatches(leftType, rightType)) {
-				document.nodes.push(new ExpressionErrorNode(
-					this.left,
-					`Cannot assign variable of type '${UCTypeFlags[leftType]}' to type '${UCTypeFlags[rightType]}'`
-				));
+			if (this.right) {
+				const leftType = this.left.getType();
+				const rightType = this.right.getType();
+				if (rightType) {
+					const rightFlags = rightType.getTypeFlags();
+					if (leftType && !typeMatchesFlags(leftType, rightFlags)) {
+						document.nodes.push(new ErrorDiagnostic(
+							this.left.getRange(),
+							`Cannot assign variable of type '${getTypeFlagsName(leftType)}' to type '${getTypeFlagsName(rightType)}'`
+						));
+					}
+				} else {
+					// TODO: Invalid type?
+				}
+
+			} else {
+				// TODO: Missing value
 			}
 		}
 
@@ -813,107 +693,94 @@ export class UCDefaultAssignmentExpression extends UCBinaryOperatorExpression {
 }
 
 export class UCMemberExpression extends UCExpression {
-	constructor(protected symbolRef: UCSymbolReference) {
-		super(symbolRef.getRange());
+	protected typeRef?: ITypeSymbol;
+
+	constructor(protected id: Identifier) {
+		super(id.range);
 	}
 
 	getId(): Name {
-		return this.symbolRef.getId();
+		return this.id.name;
 	}
 
 	getMemberSymbol() {
-		return this.symbolRef.getReference();
-	}
-
-	getTypeFlags(): UCTypeFlags {
-		return this.symbolRef.getTypeFlags();
+		return this.typeRef && this.typeRef.getReference();
 	}
 
 	getType() {
-		const ref = this.getMemberSymbol();
-		return ref instanceof UCFieldSymbol ? ref.getType() : undefined;
+		const symbol = this.typeRef?.getReference();
+		// We resolve UCMethodSymbols in UCCallExpression, because we don't want to return the function's type in assignment expressions...
+		if (symbol instanceof UCPropertySymbol) {
+			return symbol.getType();
+		}
+		return this.typeRef;
 	}
 
 	getContainedSymbolAtPos(_position: Position) {
 		// Only return if we have a RESOLVED reference.
-		return this.symbolRef.getReference() && this.symbolRef;
+		if (this.typeRef) {
+			return this.typeRef.getReference() && this.typeRef;
+		}
 	}
 
-	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
-		const id = this.symbolRef.getId();
+	index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
+		const id = this.id.name;
 		if (info && info.hasArguments) {
-			// TODO: Check if argument is a byte/int/enum, if true, lookup the call as an enum type!
-
-			// We must match a predefined type over any class or scope symbol!
-			const type: ISymbol | undefined = TypeCastMap.get(id) || ClassesTable.findSymbol(id, true);
-			if (type) {
-				this.symbolRef.setReference(type, document);
-				return;
+			// Casting to a int, byte, bool? etc...
+			const typeClass = TypeSymbolCastMap.get(id);
+			const ref = typeClass && new typeClass(this.id);
+			if (ref) {
+				this.typeRef = ref;
+			} else {
+				// Casting to a Class, Struct, or Enum?
+				const structSymbol = ClassesTable.findSymbol(id, true) || ObjectsTable.findSymbol(id);
+				if (structSymbol) {
+					const type = new UCObjectTypeSymbol(this.id);
+					type.setReference(structSymbol, document);
+					this.typeRef = type;
+					return;
+				}
 			}
 		}
 
-		let symbol = context.findSuperSymbol(id);
-		if (!symbol && (!config.checkTypes || (info && (info.type && info.type & UCTypeFlags.EnumCoerce) !== 0))) {
-			symbol = getEnumMember(id);
+		let member = context instanceof UCStructSymbol && context.findSuperSymbol(id);
+		if (!member && (!config.checkTypes || (info && !info.hasArguments && (info.typeFlags && info.typeFlags & UCTypeFlags.EnumCoerce) !== 0))) {
+			member = getEnumMember(id);
 		}
 
-		if (symbol) {
-			const ref = this.symbolRef.setReference(symbol, document);
-			if (ref && info) ref.inAssignment = info.inAssignment;
+		if (member) {
+			const type = new UCObjectTypeSymbol(this.id);
+			const symbolRef = type.setReference(member, document);
+			if (symbolRef && info) {
+				symbolRef.inAssignment = info.inAssignment;
+			}
+			this.typeRef = type;
 		}
 	}
 
-	analyze(document: UCDocument, context?: UCStructSymbol | ISymbol, _info?: IContextInfo) {
-		if (context && !(context instanceof UCStructSymbol)) {
-			document.nodes.push(new SemanticErrorNode(this.symbolRef, `'${context.getQualifiedName()}' is an inaccessible type!`));
-		} else if (!this.getMemberSymbol()) {
-			document.nodes.push(new UnrecognizedFieldNode(this.symbolRef, context));
+	analyze(document: UCDocument, context?: UCSymbol, _info?: IContextInfo) {
+		if (!this.typeRef && context) {
+			document.nodes.push(new UnrecognizedFieldDiagnostic(this.id, context));
 		}
 	}
 }
 
 // Resolves the member for predefined specifiers such as (self, default, static, and global)
 export class UCPredefinedAccessExpression extends UCMemberExpression {
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Object;
-	}
-
-	getType() {
-		return undefined;
-	}
-
 	index(document: UCDocument, _context?: UCStructSymbol) {
-		this.symbolRef.setReference(
-			document.class!,
-			document, true
-		);
+		const typeRef = new UCObjectTypeSymbol(this.id);
+		typeRef.setReference(document.class!, document, true);
+		this.typeRef = typeRef;
 	}
 }
 
 // Resolves the context for predefined specifiers such as (default, static, and const).
-export class UCPredefinedPropertyAccessExpression extends UCMemberExpression {
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Object;
-	}
+export class UCPropertyClassAccessExpression extends UCPropertyAccessExpression {
 
-	getType() {
-		return undefined;
-	}
-
-	index(document: UCDocument, context?: UCStructSymbol) {
-		if (context) {
-			this.symbolRef.setReference(
-				context instanceof UCClassSymbol
-					? context
-					: document.class!,
-				document, true
-			);
-		}
-	}
 }
 
 export class UCSuperExpression extends UCExpression {
-	public structRef?: UCSymbolReference;
+	public structRef?: UCObjectTypeSymbol;
 
 	// Resolved structRef.
 	private superStruct?: UCStructSymbol;
@@ -922,12 +789,8 @@ export class UCSuperExpression extends UCExpression {
 		return this.superStruct;
 	}
 
-	getTypeFlags(): UCTypeFlags {
-		return this.superStruct ? this.superStruct.getTypeFlags() : UCTypeFlags.Error;
-	}
-
 	getType() {
-		return undefined;
+		return this.structRef;
 	}
 
 	getContainedSymbolAtPos(position: Position) {
@@ -965,10 +828,6 @@ export class UCSuperExpression extends UCExpression {
 
 export class UCNewExpression extends UCCallExpression {
 	// TODO: Implement pseudo new operator for hover info?
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Object;
-	}
-
 	getType() {
 		return undefined;
 	}
@@ -1063,10 +922,6 @@ export class UCObjectLiteral extends UCExpression {
 		return this.objectRef && this.objectRef.getReference() || this.castRef.getReference() || NativeClass;
 	}
 
-	getTypeFlags(): UCTypeFlags {
-		return this.castRef.getTypeFlags();
-	}
-
 	getType() {
 		return this.objectRef;
 	}
@@ -1096,18 +951,18 @@ export class UCObjectLiteral extends UCExpression {
 		const objectSymbol = this.objectRef && this.objectRef.getReference();
 		if (this.objectRef) {
 			if (!objectSymbol) {
-				document.nodes.push(new UnrecognizedFieldNode(this.objectRef));
+				document.nodes.push(new UnrecognizedFieldDiagnostic(this.objectRef.id));
 			}
 			else if (castSymbol === NativeClass && !(objectSymbol instanceof UCClassSymbol)) {
-				document.nodes.push(new SemanticErrorNode(this.objectRef, `Type of '${objectSymbol.getQualifiedName()}' is not a class!`));
+				document.nodes.push(new SymbolErrorDiagnostic(this.objectRef, `Type of '${objectSymbol.getQualifiedName()}' is not a class!`));
 			}
 			else if (castSymbol === NativeEnum && !(objectSymbol instanceof UCEnumSymbol)) {
-				document.nodes.push(new SemanticErrorNode(this.objectRef, `Type of '${objectSymbol.getQualifiedName()}' is not an enum!`));
+				document.nodes.push(new SymbolErrorDiagnostic(this.objectRef, `Type of '${objectSymbol.getQualifiedName()}' is not an enum!`));
 			}
 		}
 
 		if (!castSymbol) {
-			document.nodes.push(new UnrecognizedTypeNode(this.castRef));
+			document.nodes.push(new UnrecognizedTypeDiagnostic(this.castRef));
 		}
 	}
 }
@@ -1118,10 +973,6 @@ export abstract class UCStructLiteral extends UCExpression {
 
 	getMemberSymbol() {
 		return this.structType.getReference();
-	}
-
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Struct;
 	}
 
 	getType() {
@@ -1143,10 +994,6 @@ export abstract class UCStructLiteral extends UCExpression {
 
 export class UCDefaultStructLiteral extends UCExpression {
 	public arguments?: Array<IExpression | undefined>;
-
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Struct;
-	}
 
 	getContainedSymbolAtPos(position: Position) {
 		if (this.arguments) for (let arg of this.arguments) {
@@ -1203,8 +1050,8 @@ export class UCArrayCountLiteral extends UCLiteral {
 		return symbol instanceof UCPropertySymbol && symbol.getArrayDimSize() || undefined;
 	}
 
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Int;
+	getType() {
+		return this.argumentRef;
 	}
 
 	getContainedSymbolAtPos(position: Position) {
@@ -1228,10 +1075,6 @@ export class UCArrayCountLiteral extends UCLiteral {
 
 export class UCNameOfLiteral extends UCLiteral {
 	public argumentRef?: ITypeSymbol;
-
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Name;
-	}
 
 	getType() {
 		return this.argumentRef;
@@ -1259,12 +1102,8 @@ export class UCSizeOfLiteral extends UCLiteral {
 
 	getValue() {
 		// FIXME: We don't have the data to calculate a class's size.
-		// const symbol = this.argumentRef && this.argumentRef.getReference();
+		// const symbol = this.argumentRef?.getReference();
 		return undefined;
-	}
-
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Int;
 	}
 
 	getType() {
@@ -1272,12 +1111,12 @@ export class UCSizeOfLiteral extends UCLiteral {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		return this.argumentRef && this.argumentRef.getSymbolAtPos(position) && this.argumentRef;
+		return this.argumentRef?.getSymbolAtPos(position) && this.argumentRef;
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol) {
 		super.index(document, context);
-		this.argumentRef && this.argumentRef.index(document, context!);
+		this.argumentRef?.index(document, context!);
 	}
 
 	analyze(document: UCDocument, context?: UCStructSymbol) {
@@ -1292,11 +1131,7 @@ export class UCMetaClassExpression extends UCParenthesizedExpression {
 	public classRef?: UCObjectTypeSymbol;
 
 	getMemberSymbol() {
-		return this.classRef && this.classRef.getReference() || NativeClass;
-	}
-
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Class;
+		return this.classRef?.getReference();
 	}
 
 	getType() {
@@ -1304,13 +1139,13 @@ export class UCMetaClassExpression extends UCParenthesizedExpression {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		const subSymbol = this.classRef && this.classRef.getSymbolAtPos(position) as UCObjectTypeSymbol;
+		const subSymbol = this.classRef?.getSymbolAtPos(position) as UCObjectTypeSymbol;
 		return subSymbol && subSymbol.getReference() && this.classRef || super.getContainedSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol, info?) {
 		super.index(document, context, info);
-		this.classRef && this.classRef.index(document, context!);
+		this.classRef?.index(document, context!);
 	}
 
 	// TODO: verify class type by inheritance

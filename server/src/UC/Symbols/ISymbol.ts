@@ -27,7 +27,7 @@ export interface ISymbolContainer<T extends ISymbol> {
 }
 
 export interface IContextInfo {
-	type?: UCTypeFlags;
+	typeFlags?: UCTypeFlags;
 	inAssignment?: boolean;
 	isOptional?: boolean;
 	hasArguments?: boolean;

@@ -23,9 +23,13 @@ import {
 	UCObjectTypeSymbol,
 	UCParamSymbol,
 	PackagesTable, UCTypeFlags,
-	UCIntTypeSymbol, UCFloatTypeSymbol
+	UCIntTypeSymbol, UCFloatTypeSymbol,
+	UCByteTypeSymbol, UCStringTypeSymbol,
+	UCNameTypeSymbol, UCBoolTypeSymbol,
+	UCButtonTypeSymbol
 } from ".";
 import { UCNativeType } from './NativeType';
+import { UCPredefinedTypeSymbol } from './TypeSymbol';
 
 export const ObjectTypeRef = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE, UCTypeFlags.Class);
 export const IntTypeRef = new UCIntTypeSymbol({ name: NAME_INT, range: DEFAULT_RANGE });
@@ -109,6 +113,16 @@ InsertFunction.params = [IndexParam, CountParam];
 const RemoveFunction = new UCMethodSymbol({ name: toName('Remove'), range: DEFAULT_RANGE });
 NativeArray.addSymbol(RemoveFunction);
 
+const IndexParam2 = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE });
+IndexParam2.type = IntTypeRef;
+InsertFunction.addSymbol(IndexParam2);
+
+const CountParam2 = new UCParamSymbol({ name: toName('Count'), range: DEFAULT_RANGE });
+CountParam2.type = IntTypeRef;
+RemoveFunction.addSymbol(CountParam2);
+
+RemoveFunction.params = [IndexParam2, CountParam2];
+
 const AddFunction = new UCMethodSymbol({ name: toName('Add'), range: DEFAULT_RANGE });
 NativeArray.addSymbol(AddFunction);
 
@@ -174,27 +188,38 @@ RngMethodLike.addSymbol(MaxParam);
 
 RngMethodLike.params = [MinParam, MaxParam];
 
-export const PredefinedByte 		= new UCNativeType(NAME_BYTE);
-export const PredefinedFloat 		= new UCNativeType(NAME_FLOAT);
-export const PredefinedInt 			= new UCNativeType(NAME_INT);
-export const PredefinedString 		= new UCNativeType(NAME_STRING);
-export const PredefinedName 		= new UCNativeType(NAME_NAME);
-export const PredefinedBool 		= new UCNativeType(NAME_BOOL);
-export const PredefinedPointer 		= new UCNativeType(NAME_POINTER);
-export const PredefinedButton 		= new UCNativeType(NAME_BUTTON);
-export const PredefinedArray 		= new UCNativeType(NAME_ARRAY);
-export const PredefinedDelegate 	= new UCNativeType(NAME_DELEGATE);
-export const PredefinedMap 			= new UCNativeType(NAME_MAP);
+export const TypeByte 		= new UCNativeType(NAME_BYTE);
+export const TypeFloat 		= new UCNativeType(NAME_FLOAT);
+export const TypeInt 		= new UCNativeType(NAME_INT);
+export const TypeString 	= new UCNativeType(NAME_STRING);
+export const TypeName 		= new UCNativeType(NAME_NAME);
+export const TypeBool 		= new UCNativeType(NAME_BOOL);
+export const TypePointer 	= new UCNativeType(NAME_POINTER);
+export const TypeButton 	= new UCNativeType(NAME_BUTTON);
+export const TypeArray 		= new UCNativeType(NAME_ARRAY);
+export const TypeDelegate 	= new UCNativeType(NAME_DELEGATE);
+export const TypeMap 		= new UCNativeType(NAME_MAP);
 
 export const TypeCastMap: Readonly<WeakMap<Name, UCNativeType>> = new WeakMap([
-	[NAME_BYTE, PredefinedByte],
-	[NAME_FLOAT, PredefinedFloat],
-	[NAME_INT, PredefinedInt],
-	[NAME_STRING, PredefinedString],
-	[NAME_NAME, PredefinedName],
-	[NAME_BOOL, PredefinedBool],
+	[NAME_BYTE, TypeByte],
+	[NAME_FLOAT, TypeFloat],
+	[NAME_INT, TypeInt],
+	[NAME_STRING, TypeString],
+	[NAME_NAME, TypeName],
+	[NAME_BOOL, TypeBool],
 	// Oddly... conversion to a button is actually valid!
-	[NAME_BUTTON, PredefinedButton]
+	[NAME_BUTTON, TypeButton]
+]);
+
+export const TypeSymbolCastMap: Readonly<WeakMap<Name, typeof UCPredefinedTypeSymbol>> = new WeakMap([
+	[NAME_BYTE, UCByteTypeSymbol],
+	[NAME_FLOAT, UCFloatTypeSymbol],
+	[NAME_INT, UCIntTypeSymbol],
+	[NAME_STRING, UCStringTypeSymbol],
+	[NAME_NAME, UCNameTypeSymbol],
+	[NAME_BOOL, UCBoolTypeSymbol],
+	// Oddly... conversion to a button is actually valid!
+	[NAME_BUTTON, UCButtonTypeSymbol]
 ]);
 
 export const CORE_PACKAGE = new UCPackage(NAME_CORE);

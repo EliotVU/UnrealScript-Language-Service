@@ -14,10 +14,6 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return true;
 	}
 
-	isType(): boolean {
-		return true;
-	}
-
 	getKind(): SymbolKind {
 		return SymbolKind.Struct;
 	}
@@ -52,7 +48,7 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return (context instanceof UCPropertySymbol || context instanceof UCMethodSymbol);
 	}
 
-	index(document: UCDocument, context: UCStructSymbol) {
+	index(document: UCDocument, _context: UCStructSymbol) {
 		super.index(document, this);
 	}
 

@@ -8,7 +8,7 @@ import {
 	DEFAULT_RANGE,
 	UCStructSymbol, UCParamSymbol,
 	ITypeSymbol, ISymbol,
-	IWithReference, UCTypeFlags, UCSymbol
+	IWithReference, UCTypeFlags, UCSymbol, UCObjectTypeSymbol
 } from '.';
 
 export enum MethodSpecifiers {
@@ -72,6 +72,9 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getType() {
+		if (this.returnType && (this.returnType.getTypeFlags() & UCTypeFlags.Object) !== 0 && (this.returnType as UCObjectTypeSymbol).baseType) {
+			return (this.returnType as UCObjectTypeSymbol).baseType;
+		}
 		return this.returnType;
 	}
 

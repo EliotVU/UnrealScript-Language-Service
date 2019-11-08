@@ -3,21 +3,22 @@ import { Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { intersectsWithRange } from '../helpers';
 import { SymbolWalker } from '../symbolWalker';
-import { UnrecognizedTypeNode } from '../diagnostics/diagnostic';
+import { UnrecognizedTypeDiagnostic, ErrorDiagnostic } from '../diagnostics/diagnostic';
 
 import {
 	PackagesTable, ClassesTable,
 	ISymbol, Identifier, IWithReference,
 	UCSymbol, UCSymbolReference,
 	UCStructSymbol, UCClassSymbol, UCFieldSymbol,
-	PredefinedByte, PredefinedFloat, PredefinedString,
-	PredefinedBool, PredefinedButton, PredefinedName,
-	PredefinedInt, PredefinedPointer,
-	PredefinedArray, PredefinedDelegate, PredefinedMap,
+	TypeByte, TypeFloat, TypeString,
+	TypeBool, TypeButton, TypeName,
+	TypeInt, TypePointer,
+	TypeArray, TypeDelegate, TypeMap,
 	NativeClass, NativeArray, ObjectsTable
 } from '.';
 import { NAME_NONE, Name, NAME_BYTE, NAME_FLOAT, NAME_INT, NAME_STRING, NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_BUTTON } from '../names';
 import { UCPackage } from './Package';
+import { IExpression } from '../expressions';
 
 export enum UCTypeFlags {
 	// A type that couldn't be found.
@@ -53,14 +54,6 @@ export enum UCTypeFlags {
 	None			= 1 << 18
 }
 
-// TODO: Deprecate this, but this is blocked by a lack of an analytical expression walker.
-export function analyzeTypeSymbol(document: UCDocument, type: ITypeSymbol | UCSymbolReference) {
-	if (type.getReference()) {
-		return;
-	}
-	document.nodes.push(new UnrecognizedTypeNode(type));
-}
-
 export interface ITypeSymbol extends UCSymbol, IWithReference {
 	getTypeText(): string;
 	getTypeFlags(): UCTypeFlags;
@@ -70,6 +63,10 @@ export interface ITypeSymbol extends UCSymbol, IWithReference {
 
 export function isTypeSymbol(symbol: ITypeSymbol): symbol is ITypeSymbol {
 	return 'getTypeFlags' in symbol;
+}
+
+export function getTypeFlagsName(type: ITypeSymbol): string {
+	return UCTypeFlags[type.getTypeFlags()];
 }
 
 /**
@@ -132,9 +129,13 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 	}
 }
 
-export abstract class UCPredefinedTypeSymbol extends UCSymbol implements IWithReference {
+export class UCPredefinedTypeSymbol extends UCSymbol implements IWithReference, ITypeSymbol {
 	getReference(): ISymbol {
 		throw "not implemented";
+	}
+
+	getTypeFlags(): UCTypeFlags {
+		return UCTypeFlags.Error;
 	}
 
 	getTooltip(): string {
@@ -156,9 +157,9 @@ export abstract class UCPredefinedTypeSymbol extends UCSymbol implements IWithRe
 	}
 }
 
-export class UCByteTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+export class UCByteTypeSymbol extends UCPredefinedTypeSymbol {
 	getReference(): ISymbol {
-		return PredefinedByte;
+		return TypeByte;
 	}
 
 	getTypeFlags(): UCTypeFlags {
@@ -170,9 +171,9 @@ export class UCByteTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSym
 	}
 }
 
-export class UCFloatTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+export class UCFloatTypeSymbol extends UCPredefinedTypeSymbol {
 	getReference(): ISymbol {
-		return PredefinedFloat;
+		return TypeFloat;
 	}
 
 	getTypeFlags(): UCTypeFlags {
@@ -184,9 +185,9 @@ export class UCFloatTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSy
 	}
 }
 
-export class UCIntTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+export class UCIntTypeSymbol extends UCPredefinedTypeSymbol {
 	getReference(): ISymbol {
-		return PredefinedInt;
+		return TypeInt;
 	}
 
 	getTypeFlags(): UCTypeFlags {
@@ -198,9 +199,9 @@ export class UCIntTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymb
 	}
 }
 
-export class UCStringTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+export class UCStringTypeSymbol extends UCPredefinedTypeSymbol {
 	getReference(): ISymbol {
-		return PredefinedString;
+		return TypeString;
 	}
 
 	getTypeFlags(): UCTypeFlags {
@@ -212,9 +213,9 @@ export class UCStringTypeSymbol extends UCPredefinedTypeSymbol implements ITypeS
 	}
 }
 
-export class UCNameTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+export class UCNameTypeSymbol extends UCPredefinedTypeSymbol {
 	getReference(): ISymbol {
-		return PredefinedName;
+		return TypeName;
 	}
 
 	getTypeFlags(): UCTypeFlags {
@@ -226,9 +227,9 @@ export class UCNameTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSym
 	}
 }
 
-export class UCBoolTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+export class UCBoolTypeSymbol extends UCPredefinedTypeSymbol {
 	getReference(): ISymbol {
-		return PredefinedBool;
+		return TypeBool;
 	}
 
 	getTypeFlags(): UCTypeFlags {
@@ -240,9 +241,9 @@ export class UCBoolTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSym
 	}
 }
 
-export class UCPointerTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+export class UCPointerTypeSymbol extends UCPredefinedTypeSymbol {
 	getReference(): ISymbol {
-		return PredefinedPointer;
+		return TypePointer;
 	}
 
 	getTypeFlags(): UCTypeFlags {
@@ -254,9 +255,9 @@ export class UCPointerTypeSymbol extends UCPredefinedTypeSymbol implements IType
 	}
 }
 
-export class UCButtonTypeSymbol extends UCPredefinedTypeSymbol implements ITypeSymbol {
+export class UCButtonTypeSymbol extends UCPredefinedTypeSymbol {
 	getReference(): ISymbol {
-		return PredefinedButton;
+		return TypeButton;
 	}
 
 	getTypeFlags(): UCTypeFlags {
@@ -269,7 +270,7 @@ export class UCButtonTypeSymbol extends UCPredefinedTypeSymbol implements ITypeS
 }
 
 export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol {
-	protected reference?: ISymbol | ITypeSymbol;
+	protected reference?: ISymbol;
 
 	public baseType?: ITypeSymbol;
 
@@ -391,7 +392,7 @@ export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
 	reference = NativeArray;
 
 	getTooltip(): string {
-		return PredefinedArray.getTooltip();
+		return TypeArray.getTooltip();
 	}
 
 	getTypeFlags(): UCTypeFlags {
@@ -404,10 +405,10 @@ export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
 }
 
 export class UCDelegateTypeSymbol extends UCObjectTypeSymbol {
-	reference = PredefinedDelegate;
+	reference = TypeDelegate;
 
 	getTooltip(): string {
-		return PredefinedDelegate.getTooltip();
+		return TypeDelegate.getTooltip();
 	}
 
 	getTypeFlags(): UCTypeFlags {
@@ -420,10 +421,10 @@ export class UCDelegateTypeSymbol extends UCObjectTypeSymbol {
 }
 
 export class UCMapTypeSymbol extends UCObjectTypeSymbol {
-	reference = PredefinedMap;
+	reference = TypeMap;
 
 	getTooltip(): string {
-		return PredefinedMap.getTooltip();
+		return TypeMap.getTooltip();
 	}
 
 	getTypeFlags(): UCTypeFlags {
@@ -433,4 +434,41 @@ export class UCMapTypeSymbol extends UCObjectTypeSymbol {
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitMapType(this);
 	}
+}
+
+// TODO: Deprecate this, but this is blocked by a lack of an analytical expression walker.
+export function analyzeTypeSymbol(document: UCDocument, type: ITypeSymbol | UCSymbolReference) {
+	if (type.getReference()) {
+		return;
+	}
+	document.nodes.push(new UnrecognizedTypeDiagnostic(type));
+}
+
+export function analyzeExpressionType(expression: IExpression, expected: UCTypeFlags) {
+	const type = expression.getType();
+	if (type && type.getTypeFlags() !== expected) {
+		return new ErrorDiagnostic(expression.getRange()!,
+			`Expected a type of '${UCTypeFlags[expected]}', but got type '${UCTypeFlags[type.getTypeFlags()]}'.`
+		);
+	}
+}
+
+export function typeMatchesFlags(type: ITypeSymbol | undefined, expected: UCTypeFlags): boolean {
+	if (type) {
+		const flags = type.getTypeFlags();
+		if ((flags & UCTypeFlags.Object) !== 0) {
+			if (expected === UCTypeFlags.None) {
+				return true;
+			}
+			return (expected & UCTypeFlags.Object) !== 0;
+		} else if (flags === UCTypeFlags.Name) {
+			if (expected === UCTypeFlags.None) {
+				return true;
+			}
+		} else if ((flags & UCTypeFlags.NumberCoerce) !== 0) {
+			return (expected & UCTypeFlags.NumberCoerce) !== 0;
+		}
+		return flags === expected;
+	}
+	return expected === UCTypeFlags.Error;
 }
