@@ -1,9 +1,9 @@
 import { UCGeneration } from './UC/indexer';
 
 export enum EAnalyzeOption {
-	"None",
-	"OnlyActive",
-	"All"
+	None = "None",
+	OnlyActive = "OnlyActive",
+	All = "All"
 }
 
 export interface UCOptions {
