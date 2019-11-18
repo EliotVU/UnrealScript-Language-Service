@@ -33,10 +33,6 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return undefined;
 	}
 
-	getTypeFlags(): UCTypeFlags {
-		return UCTypeFlags.Error;
-	}
-
 	protected getTypeKeyword(): string | undefined {
 		return undefined;
 	}

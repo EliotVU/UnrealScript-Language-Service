@@ -11,7 +11,7 @@ import {
 import { Token, ParserRuleContext } from 'antlr4ts';
 
 import { TokenExt } from './Parser/CommonTokenStreamExt';
-import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, ClassesTable } from './Symbols';
+import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, tryFindClassSymbol } from './Symbols';
 import { getDocumentByUri, getIndexedReferences } from "./indexer";
 import { UCDocument } from './document';
 
@@ -234,7 +234,7 @@ export async function getCompletableSymbolItems(uri: string, position: Position,
 
 export async function getFullCompletionItem(item: CompletionItem): Promise<CompletionItem> {
 	if (item.data) {
-		const symbol = ClassesTable.findSymbol(item.data, true) as UCSymbol;
+		const symbol = tryFindClassSymbol(item.data);
 		if (!symbol) {
 			return item;
 		}

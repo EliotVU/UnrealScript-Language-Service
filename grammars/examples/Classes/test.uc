@@ -9,6 +9,7 @@ const CONST_RNG 			= rng(0,0);
 const CONST_STRING			= "string";
 const CONST_NAME 			= 'name';
 const CONST_NUMBER			= 4;
+const CONST_BOOL			= true;
 
 enum AEnum {
 	A_1,
@@ -86,6 +87,11 @@ var array<Object> MetaData1<Tooltip = tooltip for my array.>;
 var array<Object> MetaData2<Tooltip = >;
 var array<Object> MetaData3<Tooltip>;
 var array<Object> MetaData4<>;
+
+// var array<bool> IllegalBoolArray;
+// var array<array<Test> > IllegalBoolArray;
+// var bool IllegalBool[4];
+// var array<bool> IllegalBool[4];
 
 // Fancy native stuff.
 var private{public} native int NativeInt[2], NativeIntTwo[2]{INT};
@@ -200,7 +206,11 @@ function InputObject(Object obj) {
 }
 
 function InputArray(Array<Object> objs) {
+	local int l;
+	local Class objClass;
 
+	l = objs.Length;
+	objClass = objs[0].Class;
 }
 
 function Array<Object> GetObjects() {

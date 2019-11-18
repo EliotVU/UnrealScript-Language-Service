@@ -13,7 +13,7 @@ import {
 	ITypeSymbol, UCTypeFlags,
 	UCFieldSymbol, UCStructSymbol,
 	UCEnumSymbol, UCEnumMemberSymbol,
-	UCConstSymbol, NativeArray, ISymbol, UCSymbol
+	UCConstSymbol, ISymbol, UCSymbol
 } from '.';
 import { UCObjectTypeSymbol } from './TypeSymbol';
 
@@ -36,7 +36,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	isDynamicArray(): boolean {
-		return (this.type?.getReference()) === NativeArray;
+		return (this.type?.getTypeFlags() === UCTypeFlags.Array);
 	}
 
 	/**
@@ -66,6 +66,10 @@ export class UCPropertySymbol extends UCFieldSymbol {
 
 	getKind(): SymbolKind {
 		return SymbolKind.Property;
+	}
+
+	getTypeFlags() {
+		return UCTypeFlags.Property;
 	}
 
 	getType() {

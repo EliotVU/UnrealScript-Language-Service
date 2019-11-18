@@ -9,7 +9,7 @@ import { intersectsWithRange } from '../helpers';
 import { Name } from '../names';
 import { DocumentASTWalker } from '../documentASTWalker';
 
-import { ISymbol, Identifier, UCStructSymbol } from ".";
+import { ISymbol, Identifier, UCStructSymbol, UCTypeFlags } from ".";
 
 export const DEFAULT_POSITION = Position.create(0, 0);
 export const DEFAULT_RANGE = Range.create(DEFAULT_POSITION, DEFAULT_POSITION);
@@ -54,6 +54,10 @@ export abstract class UCSymbol implements ISymbol {
 
 	getKind(): SymbolKind {
 		return SymbolKind.Field;
+	}
+
+	getTypeFlags() {
+		return UCTypeFlags.Error;
 	}
 
 	getTooltip(): string {

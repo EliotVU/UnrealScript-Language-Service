@@ -4,8 +4,7 @@ import { Name } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import { UCDocument } from '../document';
 
-import { UCStructSymbol, ClassesTable } from '.';
-import { UCClassSymbol } from './ClassSymbol';
+import { UCStructSymbol, tryFindClassSymbol } from '.';
 import { UCObjectTypeSymbol, UCTypeFlags } from './TypeSymbol';
 import { Identifier } from './ISymbol';
 
@@ -25,14 +24,18 @@ export class UCObjectSymbol extends UCStructSymbol {
 		return SymbolKind.Constructor;
 	}
 
-	index(document: UCDocument, context: UCStructSymbol) {
+	getTypeFlags() {
+		return UCTypeFlags.Object;
+	}
+
+	index(document: UCDocument, _context: UCStructSymbol) {
 		if (this.classId) {
 			this.classType = new UCObjectTypeSymbol(this.classId, undefined, UCTypeFlags.Class);
 
-			const objectClass = ClassesTable.findSymbol(this.classId.name, true) as UCClassSymbol;
-			this.classType.setReference(objectClass, document);
-
+			const objectClass = tryFindClassSymbol(this.classId.name);
 			if (objectClass) {
+				this.classType.setReference(objectClass, document);
+
 				// TODO: Find @super, for declarations where no class=NAME was specified
 				this.super = objectClass;
 			}

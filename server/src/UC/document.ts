@@ -12,7 +12,7 @@ import { CommonTokenStream, ANTLRErrorListener } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 
-import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCScriptStructSymbol, UCEnumSymbol, ObjectsTable, UCFieldSymbol, UCSymbol, ClassesTable, UCStructSymbol } from './Symbols';
+import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCScriptStructSymbol, UCEnumSymbol, ObjectsTable, UCFieldSymbol, UCSymbol, UCStructSymbol } from './Symbols';
 
 import { IDiagnosticNode, DiagnosticCollection } from './diagnostics/diagnostic';
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
@@ -46,13 +46,16 @@ export class UCDocument {
 	}
 
 	public addSymbol(symbol: UCSymbol) {
+		if (symbol instanceof UCClassSymbol) {
+			this.classPackage.addSymbol(symbol);
+		}
 		this.symbols.push(symbol);
 	}
 
 	public build(text: string = this.readText()) {
 		console.log('building document ' + this.fileName);
 
-		const walker = new DocumentASTWalker(this);
+		const walker = new DocumentASTWalker(this, this.classPackage.getScope());
 		const inputStream = new CaseInsensitiveStream(text);
 		const lexer = new UCLexer(inputStream);
 		lexer.removeErrorListeners();
@@ -145,15 +148,11 @@ export class UCDocument {
 		for (let symbol of this.symbols) {
 			if (symbol instanceof UCStructSymbol) {
 				removeObjects(symbol.children);
-				// Not necessary, we don't support included documents yet!, thus no script structs nor enums without a class.
-				// ObjectsTable.removeSymbol(symbol);
+				ObjectsTable.removeSymbol(symbol);
 			}
 		}
 
-		if (this.class) {
-			ClassesTable.removeSymbol(this.class);
-			this.class = undefined;
-		}
+		this.class = undefined;
 		this.symbols = []; // clear
 		this.nodes = []; // clear
 		this.hasBeenIndexed = false;

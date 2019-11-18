@@ -9,10 +9,18 @@ import {
 	UCArrayTypeSymbol, UCDelegateTypeSymbol,
 	UCDelegateSymbol, UCPropertySymbol,
 	UCMethodSymbol, UCBinaryOperatorSymbol,
-	TypeBool, NativeArray,
-	UCReplicationBlock, UCObjectSymbol, UCTypeFlags, typeMatchesFlags, ITypeSymbol,
+	UCReplicationBlock, UCObjectSymbol, UCTypeFlags,
+	typeMatchesFlags, ITypeSymbol, getTypeFlagsName,
 } from '../Symbols';
-import { UCBlock, IStatement, UCExpressionStatement, UCThenStatement, UCIfStatement, UCDoUntilStatement, UCForStatement } from '../statements';
+import {
+	UCBlock, IStatement,
+	UCExpressionStatement,
+	UCThenStatement, UCIfStatement, UCDoUntilStatement,
+	UCForStatement, UCWhileStatement, UCReturnStatement,
+	UCAssertStatement,
+	UCSwitchStatement,
+	UCForEachStatement
+} from '../statements';
 import { IExpression } from '../expressions';
 
 import { UCDocument } from '../document';
@@ -128,7 +136,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
 		if (config.checkTypes && symbol.extendsType) {
 			const referredSymbol = symbol.extendsType.getReference();
-			if (referredSymbol && referredSymbol.getKind() !== SymbolKind.Struct) {
+			if (referredSymbol && referredSymbol.getTypeFlags() !== UCTypeFlags.Struct) {
 				this.diagnostics.add({
 					range: symbol.extendsType.id.range,
 					message: diagnosticMessages.TYPE_0_CANNOT_EXTEND_TYPE_OF_1,
@@ -162,23 +170,28 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 					}
 				});
 			}
+		}
 
-			if (config.checkTypes && symbol.type) {
-				const referredSymbol = symbol.type.getReference();
-				if (referredSymbol === TypeBool || referredSymbol === NativeArray) {
+		if (config.checkTypes) {
+			const baseType = symbol.isDynamicArray()
+				? (symbol.type! as UCArrayTypeSymbol).baseType
+				: symbol.isFixedArray()
+					? symbol.type
+					: undefined;
+
+			if (baseType) {
+				const typeFlags = baseType.getTypeFlags();
+				if (typeFlags && ((typeFlags & (UCTypeFlags.Bool | UCTypeFlags.Array)) !== 0)) {
 					this.diagnostics.add({
-						range: symbol.type.id.range,
+						range: baseType.id.range,
 						message: {
-							text: `Illegal array type '${symbol.type.getTypeText()}'`,
+							text: `Illegal array type '${baseType.id.name}'`,
 							severity: DiagnosticSeverity.Error
 						}
 					});
 				}
 			}
-		}
 
-		if (symbol.isDynamicArray()) {
-			// TODO: check valid types, and also check if we are a static array!
 			// TODO: Should define a custom type class for arrays, so that we can analyze it right there.
 		}
 
@@ -190,10 +203,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		super.visitMethod(symbol);
 
 		if (symbol.params) {
-			for (var requiredParamsCount = 0; requiredParamsCount < symbol.params.length; ++ requiredParamsCount) {
+			for (var requiredParamsCount = 0; requiredParamsCount < symbol.params.length; ++requiredParamsCount) {
 				if (symbol.params[requiredParamsCount].isOptional()) {
 					// All trailing params after the first optional param, are required to be declared as 'optional' too.
-					for (let i = requiredParamsCount + 1; i < symbol.params.length; ++ i) {
+					for (let i = requiredParamsCount + 1; i < symbol.params.length; ++i) {
 						const param = symbol.params[i];
 						if (param.isOptional()) {
 							continue;
@@ -268,7 +281,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
 		if (config.checkTypes && symbol.extendsType) {
 			const referredSymbol = symbol.extendsType.getReference();
-			if (referredSymbol && !(referredSymbol instanceof UCStateSymbol)) {
+			if (referredSymbol && referredSymbol.getTypeFlags() !== UCTypeFlags.State) {
 				this.diagnostics.add({
 					range: symbol.extendsType.id.range,
 					message: diagnosticMessages.TYPE_0_CANNOT_EXTEND_TYPE_OF_1,
@@ -354,7 +367,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				continue;
 			}
 
-			if (symbol instanceof UCPropertySymbol || symbol instanceof UCMethodSymbol) {
+			if ((symbol.getTypeFlags() & UCTypeFlags.Replicatable) !== 0) {
 				// i.e. not defined in the same class as where the replication statement resides in.
 				if (symbol.outer !== this.document.class) {
 					this.diagnostics.add({
@@ -382,9 +395,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	visitObjectSymbol(symbol: UCObjectSymbol) {
 		this.push(symbol.super || symbol);
 		super.visitStructBase(symbol);
-		if (symbol.classType) {
-			symbol.classType.accept<any>(this);
-		}
+		symbol.classType?.accept<any>(this);
 		this.pop();
 		return symbol;
 	}
@@ -403,17 +414,28 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	visitStatement(stm: IStatement) {
 		// TODO: Report statements which are missing an expression.
 		if (stm instanceof UCExpressionStatement) {
-			stm.expression && stm.expression.accept<any>(this);
+			stm.expression?.accept<any>(this);
 			if (stm instanceof UCThenStatement) {
-				stm.then && stm.then.accept<any>(this);
+				stm.then?.accept<any>(this);
 				if (stm instanceof UCIfStatement) {
 					this.visitIfStatement(stm);
-					stm.else && stm.else.accept<any>(this);
+					stm.else?.accept<any>(this);
+				} else if (stm instanceof UCWhileStatement) {
+					this.visitWhileStatement(stm);
 				} else if (stm instanceof UCDoUntilStatement) {
+					this.visitDoUntilStatement(stm);
 				} else if (stm instanceof UCForStatement) {
-					stm.init && stm.init.accept<any>(this);
-					stm.next && stm.next.accept<any>(this);
+					this.visitForStatement(stm);
+					stm.init?.accept<any>(this);
+					stm.next?.accept<any>(this);
+				} else if (stm instanceof UCForEachStatement) {
+					// TODO: Verify we have an iterator function or array(UC3+).
+				} else if (stm instanceof UCSwitchStatement) {
 				}
+			} else if (stm instanceof UCReturnStatement) {
+				this.visitReturnStatement(stm);
+			} else if (stm instanceof UCAssertStatement) {
+				this.visitAssertStatement(stm);
 			}
 		}
 		return stm;
@@ -424,7 +446,81 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 			const type = stm.expression.getType();
 			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
 				this.diagnostics.add({
-					range: stm.expression.getRange(),
+					range: stm.getRange(),
+					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
+				});
+			}
+		}
+	}
+
+	visitWhileStatement(stm: UCWhileStatement) {
+		if (stm.expression && config.checkTypes) {
+			const type = stm.expression.getType();
+			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
+				this.diagnostics.add({
+					range: stm.getRange(),
+					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
+				});
+			}
+		}
+	}
+
+	visitDoUntilStatement(stm: UCDoUntilStatement) {
+		if (stm.expression && config.checkTypes) {
+			const type = stm.expression.getType();
+			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
+				this.diagnostics.add({
+					range: stm.getRange(),
+					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
+				});
+			}
+		}
+	}
+
+	visitForStatement(stm: UCForStatement) {
+		if (stm.expression && config.checkTypes) {
+			const type = stm.expression.getType();
+			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
+				this.diagnostics.add({
+					range: stm.getRange(),
+					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
+				});
+			}
+		}
+	}
+
+	visitReturnStatement(stm: UCReturnStatement) {
+		if (!config.checkTypes) return stm;
+
+		if (this.context instanceof UCMethodSymbol) {
+			const expectedType = this.context.getType();
+			if (stm.expression) {
+				const type = stm.expression.getType();
+				if (!expectedType) {
+					// TODO: No return expression expected!
+				} else {
+					const flags = expectedType.getTypeFlags();
+					if (!typeMatchesFlags(type, flags)) {
+						this.diagnostics.add({
+							range: stm.getRange(),
+							message: createTypeCannotBeAssignedToMessage(flags, type)
+						});
+					}
+				}
+			} else if (expectedType) {
+				// TODO: Expect a return expression!
+			}
+		} else {
+			// TODO: Return not allowed here?
+		}
+	}
+
+	visitAssertStatement(stm: UCAssertStatement) {
+		if (stm.expression && config.checkTypes) {
+			const type = stm.expression.getType();
+			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
+				this.diagnostics.add({
+					range: stm.getRange(),
 					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
 				});
 			}
@@ -439,7 +535,14 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
 function createExpectedTypeMessage(expected: UCTypeFlags, type?: ITypeSymbol) {
 	return {
-		text: `Expected a type of '${UCTypeFlags[expected]}', but got type '${type ? UCTypeFlags[type.getTypeFlags()] : UCTypeFlags.Error}'.`,
+		text: `Expected type '${UCTypeFlags[expected]}', but got type '${type ? UCTypeFlags[type.getTypeFlags()] : UCTypeFlags.Error}'.`,
+		severity: DiagnosticSeverity.Error
+	};
+}
+
+function createTypeCannotBeAssignedToMessage(expected: UCTypeFlags, type?: ITypeSymbol) {
+	return {
+		text: `Type '${getTypeFlagsName(type)}' is not assignable to type '${UCTypeFlags[expected]}'.`,
 		severity: DiagnosticSeverity.Error
 	};
 }

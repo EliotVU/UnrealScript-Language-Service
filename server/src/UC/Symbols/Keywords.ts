@@ -4,7 +4,7 @@ import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { Name, toName } from '../names';
 
-import { ISymbol } from '.';
+import { ISymbol, UCTypeFlags } from '.';
 
 export class UCKeyword implements ISymbol, CompletionItem {
 	kind: CompletionItemKind = CompletionItemKind.Keyword;
@@ -22,6 +22,10 @@ export class UCKeyword implements ISymbol, CompletionItem {
 
 	getKind(): SymbolKind {
 		return this.kind;
+	}
+
+	getTypeFlags() {
+		return UCTypeFlags.Error;
 	}
 
 	getQualifiedName(): string {

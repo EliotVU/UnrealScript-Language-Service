@@ -3,7 +3,7 @@ import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-
 import { SymbolWalker } from '../symbolWalker';
 import { UCLiteral, IExpression } from '../expressions';
 import { UCDocument } from '../document';
-import { UCFieldSymbol, UCStructSymbol } from ".";
+import { UCFieldSymbol, UCStructSymbol, UCTypeFlags } from ".";
 
 export class UCConstSymbol extends UCFieldSymbol {
 	public expression?: IExpression;
@@ -22,6 +22,10 @@ export class UCConstSymbol extends UCFieldSymbol {
 		return SymbolKind.Constant;
 	}
 
+	getTypeFlags() {
+		return UCTypeFlags.Const;
+	}
+
 	getCompletionItemKind(): CompletionItemKind {
 		return CompletionItemKind.Constant;
 	}
@@ -35,13 +39,12 @@ export class UCConstSymbol extends UCFieldSymbol {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		const symbol = this.expression && this.expression.getSymbolAtPos(position);
-		return symbol || super.getContainedSymbolAtPos(position);
+		return this.expression?.getSymbolAtPos(position) || super.getContainedSymbolAtPos(position);
 	}
 
 	public index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
-		this.expression && this.expression.index(document, context);
+		this.expression?.index(document, context);
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

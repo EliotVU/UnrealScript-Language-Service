@@ -7,7 +7,7 @@ import { performance } from 'perf_hooks';
 import { UCOptions, ServerSettings, EAnalyzeOption } from '../settings';
 import { UCPreprocessorParser } from '../antlr/UCPreprocessorParser';
 
-import { ISymbolReference, UCPackage, PackagesTable, TRANSIENT_PACKAGE, UCEnumMemberSymbol } from './Symbols';
+import { ISymbolReference, UCPackage, TRANSIENT_PACKAGE, UCEnumMemberSymbol, ObjectsTable } from './Symbols';
 import { UCDocument } from './document';
 import { Name, toName } from './names';
 import { DocumentIndexer } from './documentIndexer';
@@ -138,7 +138,7 @@ function getPackageByUri(uri: string): UCPackage {
 	}
 
 	pkg = new UCPackage(toName(packageName));
-	PackagesTable.addSymbol(pkg);
+	ObjectsTable.addSymbol(pkg);
 	packageByDirMap.set(dir, pkg);
 	return pkg;
 }

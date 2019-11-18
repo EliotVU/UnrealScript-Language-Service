@@ -4,7 +4,7 @@ import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
 
-import { UCSymbolReference, UCStructSymbol } from ".";
+import { UCSymbolReference, UCStructSymbol, UCTypeFlags } from ".";
 
 export class UCStateSymbol extends UCStructSymbol {
 	public overriddenState?: UCStateSymbol;
@@ -12,6 +12,10 @@ export class UCStateSymbol extends UCStructSymbol {
 
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
+	}
+
+	getTypeFlags() {
+		return UCTypeFlags.State;
 	}
 
 	getTypeKeyword(): string {

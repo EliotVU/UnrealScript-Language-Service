@@ -8,11 +8,13 @@ import { UCTypeFlags } from '.';
 
 export interface ISymbol {
 	outer?: ISymbol;
+	nextInHash?: ISymbol | undefined;
 
 	getId(): Name;
 	getHash(): number;
 	getQualifiedName(): string;
 	getKind(): SymbolKind;
+	getTypeFlags(): UCTypeFlags;
 	getTooltip(): string;
 
 	toCompletionItem(document: UCDocument): CompletionItem;
@@ -22,8 +24,7 @@ export interface ISymbol {
 
 export interface ISymbolContainer<T extends ISymbol> {
 	addSymbol(symbol: T): Name | undefined;
-	addAlias(id: Name, symbol: T): void;
-	getSymbol(id: Name, kind?: SymbolKind): T | undefined;
+	getSymbol(id: Name, type?: UCTypeFlags): T | undefined;
 }
 
 export interface IContextInfo {

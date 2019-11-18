@@ -24,7 +24,7 @@ import { URI } from 'vscode-uri';
 import { getCompletableSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
 import { filePathByClassIdMap$, getDocumentByUri, queuIndexDocument, getIndexedReferences, config, defaultSettings, lastIndexedDocuments$, getDocumentById, applyMacroSymbols } from './UC/indexer';
 import { ServerSettings, EAnalyzeOption } from './settings';
-import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol, PackagesTable, UCObjectTypeSymbol, UCTypeFlags, UCPackage } from './UC/Symbols';
+import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol, UCObjectTypeSymbol, UCTypeFlags, UCPackage, ObjectsTable } from './UC/Symbols';
 import { toName } from './UC/names';
 
 /** Emits true when the workspace is prepared and ready for indexing. */
@@ -107,13 +107,12 @@ connection.onInitialized(async () => {
 			delay(50),
 		)
 		.subscribe(documents => {
-			for (const document of documents) {
-				if (currentSettings.unrealscript.analyzeDocuments === EAnalyzeOption.OnlyActive) {
-					if (!textDocuments.get(URI.parse(document.filePath).toString())) {
-						return;
-					}
-				}
+			if (currentSettings.unrealscript.analyzeDocuments === EAnalyzeOption.OnlyActive) {
 				// Only analyze active documents.
+				documents = documents.filter(document => textDocuments.get(URI.parse(document.filePath).toString()))
+			}
+
+			for (const document of documents) {
 				const diagnostics = document.analyze();
 				connection.sendDiagnostics({
 					uri: document.filePath,
@@ -198,10 +197,10 @@ connection.onDidChangeConfiguration((change) => {
 	const intSymbols = Object.entries(config.intrinsicSymbols);
 	for (let [key, value] of intSymbols) {
 		let [packageName, symbolName] = key.split('.');
-		let pkg = PackagesTable.getSymbol(toName(packageName));
+		let pkg = ObjectsTable.getSymbol<UCPackage>(toName(packageName), UCTypeFlags.Package);
 		if (!pkg) {
 			pkg = new UCPackage(toName(packageName));
-			PackagesTable.addSymbol(pkg);
+			ObjectsTable.addSymbol(pkg);
 		}
 
 		if (value.type === 'class') {
@@ -223,9 +222,9 @@ textDocuments.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument:
 textDocuments.listen(connection);
 
 connection.onDocumentSymbol((e) => getSymbols(e.textDocument.uri));
-connection.onHover((e)=> getSymbolTooltip(e.textDocument.uri, e.position));
+connection.onHover((e) => getSymbolTooltip(e.textDocument.uri, e.position));
 
-connection.onDefinition(async (e)=> {
+connection.onDefinition(async (e) => {
 	const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
 	if (symbol instanceof UCSymbol) {
 		const uri = symbol.getUri();
@@ -256,7 +255,7 @@ connection.onCompletion(async (e) => {
 		let parenthesisLevel = 0;
 		let bracketLevel = 0;
 		let shouldSkipNextChars = false;
-		for (let colOffset = doc.offsetAt(position); colOffset >= 0; -- colOffset) {
+		for (let colOffset = doc.offsetAt(position); colOffset >= 0; --colOffset) {
 			const char = text[colOffset];
 			if (char === ' ' || char === '\t' || char === '\n' || char === ';') {
 				shouldSkipNextChars = false;
@@ -266,16 +265,16 @@ connection.onCompletion(async (e) => {
 			if ((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')) {
 				shouldSkipNextChars = context !== '.';
 			} else if (char === '(') {
-				-- parenthesisLevel;
+				--parenthesisLevel;
 				continue;
 			} else if (char === ')') {
-				++ parenthesisLevel;
+				++parenthesisLevel;
 				continue;
 			} else if (char === '[') {
-				-- bracketLevel;
+				--bracketLevel;
 				continue;
 			} else if (char === ']') {
-				++ bracketLevel;
+				++bracketLevel;
 				continue;
 			}
 
@@ -324,7 +323,7 @@ connection.onPrepareRename(async (e) => {
 	}
 
 	// Disallow symbols with invalid identifiers, such as an operator.
-	if (!VALID_ID_REGEXP.test(symbol.getId().toString())){
+	if (!VALID_ID_REGEXP.test(symbol.getId().toString())) {
 		throw new ResponseError(ErrorCodes.InvalidParams, 'You cannot rename this element!');
 	}
 
@@ -333,7 +332,7 @@ connection.onPrepareRename(async (e) => {
 
 const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 connection.onRenameRequest(async (e) => {
-	if (!VALID_ID_REGEXP.test(e.newName)){
+	if (!VALID_ID_REGEXP.test(e.newName)) {
 		throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid identifier!');
 	}
 
@@ -355,7 +354,7 @@ connection.onRenameRequest(async (e) => {
 		const ranges = changes[l.uri] || (changes[l.uri] = []);
 		ranges.push(TextEdit.replace(l.range, e.newName));
 	});
-	const result: WorkspaceEdit = {changes};
+	const result: WorkspaceEdit = { changes };
 	return result;
 });
 

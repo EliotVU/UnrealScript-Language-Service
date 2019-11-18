@@ -1,91 +1,97 @@
-import { SymbolKind, CompletionItem } from 'vscode-languageserver-types';
+import { SymbolKind } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { getDocumentById, indexDocument } from '../indexer';
 import { Name, NAME_NONE } from '../names';
 
-import { ISymbol, ISymbolContainer, UCClassSymbol } from '.';
-import { UCFieldSymbol } from './FieldSymbol';
+import { ISymbol, ISymbolContainer, UCClassSymbol, DEFAULT_RANGE, UCSymbol } from '.';
+import { UCTypeFlags } from './TypeSymbol';
 
-export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
-	public outer?: UCPackage;
-	protected symbols = new WeakMap<Name, ISymbol>();
+export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
+	protected symbols = new WeakMap<Name, T>();
+
+	addSymbol(symbol: T): Name {
+		const key = symbol.getId();
+		const other = this.getSymbol(key);
+		if (other === symbol) {
+			return key;
+		}
+
+		if (other) {
+			symbol.nextInHash = other;
+		}
+		this.symbols.set(key, symbol);
+		return key;
+	}
+
+	removeSymbol(symbol: T) {
+		const key = symbol.getId();
+		const other = this.getSymbol(key);
+		if (!other) {
+			return;
+		}
+
+		if (other === symbol) {
+			this.symbols.delete(key);
+			if (other.nextInHash) {
+				this.addSymbol(other.nextInHash as T);
+				delete other.nextInHash;
+			}
+		} else {
+			for (let next = other; next; next = next.nextInHash as T) {
+				if (next.nextInHash === symbol) {
+					next.nextInHash = symbol.nextInHash;
+					break;
+				}
+			}
+		}
+	}
+
+	getSymbol<C extends T>(key: Name, type?: UCTypeFlags): C | undefined {
+		const symbol = this.symbols.get(key);
+		if (!type) {
+			return symbol as C;
+		}
+		for (let next = symbol; next; next = next.nextInHash as T) {
+			if ((next.getTypeFlags() & type) === type) {
+				return next as C;
+			}
+		}
+		return undefined;
+	}
+}
+
+export class UCPackage extends UCSymbol {
+	private scope = new SymbolsTable<ISymbol>();
 
 	constructor(private name: Name) {
-	}
-
-	getId(): Name {
-		return this.name;
-	}
-
-	getHash(): number {
-		return this.name.hash;
-	}
-
-	getQualifiedName(): string {
-		return this.getId().toString();
+		super({ name, range: DEFAULT_RANGE });
 	}
 
 	getKind(): SymbolKind {
 		return SymbolKind.Package;
 	}
 
+	getTypeFlags() {
+		return UCTypeFlags.Package;
+	}
+
 	getTooltip(): string {
 		return 'package ' + this.getId();
 	}
 
-	// FIXME: Not setup yet!
-	getCompletionSymbols(_document: UCDocument): ISymbol[] {
-		const symbols: ISymbol[] = [];
-		// for (let symbol of this.symbols.values()) {
-		// 	symbols.push(symbol);
-		// }
-		return symbols;
+	getScope(): ISymbolContainer<ISymbol> {
+		return this.scope;
 	}
 
-	// TODO: implement
-	toCompletionItem(_document: UCDocument): CompletionItem {
-		return CompletionItem.create(this.getId().toString());
+	getSymbol(id: Name, type?: UCTypeFlags) {
+		return this.scope.getSymbol(id, type);
 	}
 
 	addSymbol(symbol: ISymbol): Name {
 		symbol.outer = this;
-
-		const key = symbol.getId();
-		this.symbols.set(key, symbol);
-
-		// Classes are top level types, need to be added to the symbols table so they can be linked to from anywhere.
-		if (symbol instanceof UCClassSymbol) {
-			ClassesTable.addSymbol(symbol);
-		}
-
-		return key;
-	}
-
-	addAlias(key: Name, symbol: ISymbol) {
-		this.symbols.set(key, symbol);
-	}
-
-	getSymbol(id: Name): ISymbol | undefined {
-		return this.symbols.get(id);
-	}
-
-	findSymbol(id: Name, deepSearch?: boolean): ISymbol | undefined {
-		const symbol = this.getSymbol(id);
-		if (symbol) {
-			return symbol;
-		}
-
-		if (deepSearch) {
-			const document = getDocumentById(id.toString().toLowerCase());
-			if (document) {
-				if (!document.hasBeenIndexed) {
-					indexDocument(document);
-				}
-				return document.class;
-			}
-		}
+		ObjectsTable.addSymbol(symbol as UCClassSymbol);
+		return this.scope.addSymbol(symbol);
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
@@ -93,57 +99,32 @@ export class UCPackage implements ISymbol, ISymbolContainer<ISymbol> {
 	}
 }
 
-export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
-	protected symbols = new WeakMap<Name, T>();
-
-	addSymbol(symbol: T): Name {
-		const key = symbol.getId();
-		this.symbols.set(key, symbol);
-		return key;
-	}
-
-	addAlias(key: Name, symbol: T) {
-		this.symbols.set(key, symbol);
-	}
-
-	removeSymbol(symbol: T) {
-		const key = symbol.getId();
-		this.symbols.delete(key);
-	}
-
-	getSymbol(id: Name): T | undefined {
-		return this.symbols.get(id);
-	}
-
-	findSymbol(id: Name, deepSearch?: boolean): ISymbol | undefined {
-		const symbol = this.getSymbol(id);
-		if (symbol) {
-			return symbol;
-		}
-
-		if (deepSearch) {
-			const document = getDocumentById(id.toString().toLowerCase());
-			if (document) {
-				if (!document.hasBeenIndexed) {
-					indexDocument(document);
-				}
-				return document.class;
-			}
-		}
-	}
-}
-
 export const TRANSIENT_PACKAGE = new UCPackage(NAME_NONE);
 
 /**
- * Contains all indexed packages, including the predefined "Core" package.
+ * A symbols table of kinds such as UPackage, UClass, UStruct, and UEnums.
  */
-export const PackagesTable = new SymbolsTable<UCPackage>();
+export const ObjectsTable = new SymbolsTable<UCSymbol>();
 
-/**
- * The symbols table is where all Class types are supposed to be stored.
- * This table will be used to index any class references, including any native psuedo class.
- */
-export const ClassesTable = new SymbolsTable<UCClassSymbol>();
+function findOrIndexClassSymbol(id: Name): UCClassSymbol | undefined {
+	const document = getDocumentById(id.toString().toLowerCase());
+	if (document) {
+		if (!document.hasBeenIndexed) {
+			indexDocument(document);
+		}
+		return document.class;
+	}
+	return undefined;
+}
 
-export const ObjectsTable = new SymbolsTable<UCFieldSymbol>();
+export function tryFindSymbolInPackage(id: Name, pkg: UCPackage): ISymbol | undefined {
+	// Package may have a class that hasn't been indexed yet.
+	const symbol = pkg.getSymbol(id) ?? findOrIndexClassSymbol(id);
+	return symbol;
+	// return symbol?.outer === pkg ? symbol : undefined;
+}
+
+export function tryFindClassSymbol(id: Name): UCClassSymbol | undefined {
+	const symbol = ObjectsTable.getSymbol<UCClassSymbol>(id, UCTypeFlags.Class) ?? findOrIndexClassSymbol(id);
+	return symbol;
+}

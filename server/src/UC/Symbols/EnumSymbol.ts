@@ -15,7 +15,7 @@ export class UCEnumSymbol extends UCStructSymbol {
 	}
 
 	getTypeFlags() {
-		return UCTypeFlags.Byte;
+		return UCTypeFlags.Enum;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {

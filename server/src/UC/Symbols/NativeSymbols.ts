@@ -2,14 +2,13 @@ import {
 	toName,
 	NAME_CLASS, NAME_ARRAY, NAME_INT, NAME_FLOAT,
 	NAME_ENUM, NAME_PACKAGE, NAME_BYTE, NAME_STRING,
-	NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_MAP,
-	NAME_BUTTON, NAME_OBJECT, NAME_PROPERTY,
+	NAME_NAME, NAME_BOOL,
+	NAME_BUTTON, NAME_PROPERTY,
 	NAME_CORE, NAME_BYTEPROPERTY, NAME_INTPROPERTY,
 	NAME_OBJECTPROPERTY, NAME_FLOATPROPERTY, NAME_NAMEPROPERTY,
 	NAME_STRINGPROPERTY, NAME_STRPROPERTY, NAME_BOOLPROPERTY,
 	NAME_POINTERPROPERTY, NAME_MAPPROPERTY, NAME_DELEGATEPROPERTY,
-	NAME_ARRAYPROPERTY, NAME_CLASSPROPERTY, Name, NAME_VECTOR,
-	NAME_ROTATOR, NAME_RANGE, NAME_DELEGATE
+	NAME_ARRAYPROPERTY, NAME_CLASSPROPERTY, Name
 } from '../names';
 
 import {
@@ -20,92 +19,83 @@ import {
 	UCPropertySymbol,
 	UCMethodSymbol,
 	UCMethodLikeSymbol,
-	UCObjectTypeSymbol,
 	UCParamSymbol,
-	PackagesTable, UCTypeFlags,
 	UCIntTypeSymbol, UCFloatTypeSymbol,
 	UCByteTypeSymbol, UCStringTypeSymbol,
 	UCNameTypeSymbol, UCBoolTypeSymbol,
 	UCButtonTypeSymbol
 } from ".";
-import { UCNativeType } from './NativeType';
-import { UCPredefinedTypeSymbol } from './TypeSymbol';
-
-export const ObjectTypeRef = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE, UCTypeFlags.Class);
-export const IntTypeRef = new UCIntTypeSymbol({ name: NAME_INT, range: DEFAULT_RANGE });
-export const FloatTypeRef = new UCFloatTypeSymbol({ name: NAME_FLOAT, range: DEFAULT_RANGE });
-export const VectorTypeRef = new UCObjectTypeSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE });
-export const RotatorTypeRef = new UCObjectTypeSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE });
-export const RangeTypeRef = new UCObjectTypeSymbol({ name: NAME_RANGE, range: DEFAULT_RANGE });
+import { UCPredefinedTypeSymbol, StaticObjectType, StaticIntType, StaticVectorType, StaticFloatType, StaticRotatorType, StaticRangeType, StaticByteType, StaticStringType, StaticNameType, StaticBoolType, ITypeSymbol } from './TypeSymbol';
+import { ObjectsTable } from './Package';
 
 export const NativeProperty = new UCClassSymbol({ name: NAME_PROPERTY, range: DEFAULT_RANGE });
-NativeProperty.extendsType = ObjectTypeRef;
+NativeProperty.extendsType = StaticObjectType;
 
 export const NativeByteProperty = new UCClassSymbol({ name: NAME_BYTEPROPERTY, range: DEFAULT_RANGE });
-NativeByteProperty.extendsType = ObjectTypeRef;
+NativeByteProperty.extendsType = StaticObjectType;
 
 export const NativeFloatProperty = new UCClassSymbol({ name: NAME_FLOATPROPERTY, range: DEFAULT_RANGE });
-NativeFloatProperty.extendsType = ObjectTypeRef;
+NativeFloatProperty.extendsType = StaticObjectType;
 
 export const NativeIntProperty = new UCClassSymbol({ name: NAME_INTPROPERTY, range: DEFAULT_RANGE });
-NativeIntProperty.extendsType = ObjectTypeRef;
+NativeIntProperty.extendsType = StaticObjectType;
 
 export const NativeNameProperty = new UCClassSymbol({ name: NAME_NAMEPROPERTY, range: DEFAULT_RANGE });
-NativeNameProperty.extendsType = ObjectTypeRef;
+NativeNameProperty.extendsType = StaticObjectType;
 
 export const NativeStringProperty = new UCClassSymbol({ name: NAME_STRINGPROPERTY, range: DEFAULT_RANGE });
-NativeStringProperty.extendsType = ObjectTypeRef;
+NativeStringProperty.extendsType = StaticObjectType;
 
 export const NativeStrProperty = new UCClassSymbol({ name: NAME_STRPROPERTY, range: DEFAULT_RANGE });
-NativeStrProperty.extendsType = ObjectTypeRef;
+NativeStrProperty.extendsType = StaticObjectType;
 
 export const NativeBoolProperty = new UCClassSymbol({ name: NAME_BOOLPROPERTY, range: DEFAULT_RANGE });
-NativeBoolProperty.extendsType = ObjectTypeRef;
+NativeBoolProperty.extendsType = StaticObjectType;
 
 export const NativePointerProperty = new UCClassSymbol({ name: NAME_POINTERPROPERTY, range: DEFAULT_RANGE });
-NativePointerProperty.extendsType = ObjectTypeRef;
+NativePointerProperty.extendsType = StaticObjectType;
 
 export const NativeMapProperty = new UCClassSymbol({ name: NAME_MAPPROPERTY, range: DEFAULT_RANGE });
-NativeMapProperty.extendsType = ObjectTypeRef;
+NativeMapProperty.extendsType = StaticObjectType;
 
 export const NativeDelegateProperty = new UCClassSymbol({ name: NAME_DELEGATEPROPERTY, range: DEFAULT_RANGE });
-NativeDelegateProperty.extendsType = ObjectTypeRef;
+NativeDelegateProperty.extendsType = StaticObjectType;
 
 export const NativeArrayProperty = new UCClassSymbol({ name: NAME_ARRAYPROPERTY, range: DEFAULT_RANGE });
-NativeArrayProperty.extendsType = ObjectTypeRef;
+NativeArrayProperty.extendsType = StaticObjectType;
 
 export const NativeClassProperty = new UCClassSymbol({ name: NAME_CLASSPROPERTY, range: DEFAULT_RANGE });
-NativeClassProperty.extendsType = ObjectTypeRef;
+NativeClassProperty.extendsType = StaticObjectType;
 
 export const NativeObjectProperty = new UCClassSymbol({ name: NAME_OBJECTPROPERTY, range: DEFAULT_RANGE });
-NativeObjectProperty.extendsType = ObjectTypeRef;
+NativeObjectProperty.extendsType = StaticObjectType;
 
 export const NativePackage = new UCClassSymbol({ name: NAME_PACKAGE, range: DEFAULT_RANGE });
-NativePackage.extendsType = ObjectTypeRef;
+NativePackage.extendsType = StaticObjectType;
 
 // A Class type instance has all the members of an object.
 export const NativeClass = new UCClassSymbol({ name: NAME_CLASS, range: DEFAULT_RANGE });
-NativeClass.extendsType = ObjectTypeRef;
+NativeClass.extendsType = StaticObjectType;
 
 export const NativeEnum = new UCClassSymbol({ name: NAME_ENUM, range: DEFAULT_RANGE });
-NativeEnum.extendsType = ObjectTypeRef;
+NativeEnum.extendsType = StaticObjectType;
 
-// HACK: Not truly an uc object, should be a UCNativeType, but since NativeArray has psudo properties, it's a convencience to re-use the struct' behavior.
+// HACK: Not truly an uc object, but since NativeArray has psuedo properties, it's a convencience to re-use the struct's features.
 export const NativeArray = new UCStructSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });
 
 export const LengthProperty = new UCPropertySymbol({ name: toName('Length'), range: DEFAULT_RANGE });
-LengthProperty.type = IntTypeRef;
+LengthProperty.type = StaticIntType;
 NativeArray.addSymbol(LengthProperty);
 
 const InsertFunction = new UCMethodSymbol({ name: toName('Insert'), range: DEFAULT_RANGE });
 NativeArray.addSymbol(InsertFunction);
 
 const IndexParam = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE });
-IndexParam.type = IntTypeRef;
+IndexParam.type = StaticIntType;
 InsertFunction.addSymbol(IndexParam);
 
 const CountParam = new UCParamSymbol({ name: toName('Count'), range: DEFAULT_RANGE });
-CountParam.type = IntTypeRef;
+CountParam.type = StaticIntType;
 InsertFunction.addSymbol(CountParam);
 
 InsertFunction.params = [IndexParam, CountParam];
@@ -114,11 +104,11 @@ const RemoveFunction = new UCMethodSymbol({ name: toName('Remove'), range: DEFAU
 NativeArray.addSymbol(RemoveFunction);
 
 const IndexParam2 = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE });
-IndexParam2.type = IntTypeRef;
+IndexParam2.type = StaticIntType;
 InsertFunction.addSymbol(IndexParam2);
 
 const CountParam2 = new UCParamSymbol({ name: toName('Count'), range: DEFAULT_RANGE });
-CountParam2.type = IntTypeRef;
+CountParam2.type = StaticIntType;
 RemoveFunction.addSymbol(CountParam2);
 
 RemoveFunction.params = [IndexParam2, CountParam2];
@@ -142,76 +132,53 @@ const SortFunction = new UCMethodSymbol({ name: toName('Sort'), range: DEFAULT_R
 NativeArray.addSymbol(SortFunction);
 
 export const VectMethodLike = new UCMethodLikeSymbol(toName('Vect'));
-VectMethodLike.returnType = VectorTypeRef;
+VectMethodLike.returnType = StaticVectorType;
 
 const XParam = new UCParamSymbol({ name: toName('X'), range: DEFAULT_RANGE });
-XParam.type = FloatTypeRef;
+XParam.type = StaticFloatType;
 VectMethodLike.addSymbol(XParam);
 
 const YParam = new UCParamSymbol({ name: toName('Y'), range: DEFAULT_RANGE });
-YParam.type = FloatTypeRef;
+YParam.type = StaticFloatType;
 VectMethodLike.addSymbol(YParam);
 
 const ZParam = new UCParamSymbol({ name: toName('Z'), range: DEFAULT_RANGE });
-ZParam.type = FloatTypeRef;
+ZParam.type = StaticFloatType;
 VectMethodLike.addSymbol(ZParam);
 
 VectMethodLike.params = [XParam, YParam, ZParam];
 
 export const RotMethodLike = new UCMethodLikeSymbol(toName('Rot'));
-RotMethodLike.returnType = RotatorTypeRef;
+RotMethodLike.returnType = StaticRotatorType;
 
 const PitchParam = new UCParamSymbol({ name: toName('Pitch'), range: DEFAULT_RANGE });
-PitchParam.type = IntTypeRef;
+PitchParam.type = StaticIntType;
 RotMethodLike.addSymbol(PitchParam);
 
 const YawParam = new UCParamSymbol({ name: toName('Yaw'), range: DEFAULT_RANGE });
-YawParam.type = IntTypeRef;
+YawParam.type = StaticIntType;
 RotMethodLike.addSymbol(YawParam);
 
 const RollParam = new UCParamSymbol({ name: toName('Roll'), range: DEFAULT_RANGE });
-RollParam.type = IntTypeRef;
+RollParam.type = StaticIntType;
 RotMethodLike.addSymbol(RollParam);
 
 RotMethodLike.params = [PitchParam, YawParam, RollParam];
 
 export const RngMethodLike = new UCMethodLikeSymbol(toName('Rng'));
-RngMethodLike.returnType = RangeTypeRef;
+RngMethodLike.returnType = StaticRangeType;
 
 const MinParam = new UCParamSymbol({ name: toName('Min'), range: DEFAULT_RANGE });
-MinParam.type = FloatTypeRef;
+MinParam.type = StaticFloatType;
 RngMethodLike.addSymbol(MinParam);
 
 const MaxParam = new UCParamSymbol({ name: toName('Max'), range: DEFAULT_RANGE });
-MaxParam.type = FloatTypeRef;
+MaxParam.type = StaticFloatType;
 RngMethodLike.addSymbol(MaxParam);
 
 RngMethodLike.params = [MinParam, MaxParam];
 
-export const TypeByte 		= new UCNativeType(NAME_BYTE);
-export const TypeFloat 		= new UCNativeType(NAME_FLOAT);
-export const TypeInt 		= new UCNativeType(NAME_INT);
-export const TypeString 	= new UCNativeType(NAME_STRING);
-export const TypeName 		= new UCNativeType(NAME_NAME);
-export const TypeBool 		= new UCNativeType(NAME_BOOL);
-export const TypePointer 	= new UCNativeType(NAME_POINTER);
-export const TypeButton 	= new UCNativeType(NAME_BUTTON);
-export const TypeArray 		= new UCNativeType(NAME_ARRAY);
-export const TypeDelegate 	= new UCNativeType(NAME_DELEGATE);
-export const TypeMap 		= new UCNativeType(NAME_MAP);
-
-export const TypeCastMap: Readonly<WeakMap<Name, UCNativeType>> = new WeakMap([
-	[NAME_BYTE, TypeByte],
-	[NAME_FLOAT, TypeFloat],
-	[NAME_INT, TypeInt],
-	[NAME_STRING, TypeString],
-	[NAME_NAME, TypeName],
-	[NAME_BOOL, TypeBool],
-	// Oddly... conversion to a button is actually valid!
-	[NAME_BUTTON, TypeButton]
-]);
-
-export const TypeSymbolCastMap: Readonly<WeakMap<Name, typeof UCPredefinedTypeSymbol>> = new WeakMap([
+export const CastTypeClassMap: Readonly<WeakMap<Name, typeof UCPredefinedTypeSymbol>> = new WeakMap([
 	[NAME_BYTE, UCByteTypeSymbol],
 	[NAME_FLOAT, UCFloatTypeSymbol],
 	[NAME_INT, UCIntTypeSymbol],
@@ -220,6 +187,17 @@ export const TypeSymbolCastMap: Readonly<WeakMap<Name, typeof UCPredefinedTypeSy
 	[NAME_BOOL, UCBoolTypeSymbol],
 	// Oddly... conversion to a button is actually valid!
 	[NAME_BUTTON, UCButtonTypeSymbol]
+]);
+
+export const CastTypeSymbolMap: Readonly<WeakMap<Name, ITypeSymbol>> = new WeakMap([
+	[NAME_BYTE, StaticByteType],
+	[NAME_FLOAT, StaticFloatType],
+	[NAME_INT, StaticIntType],
+	[NAME_STRING, StaticStringType],
+	[NAME_NAME, StaticNameType],
+	[NAME_BOOL, StaticBoolType],
+	// Oddly... conversion to a button is actually valid!
+	[NAME_BUTTON, StaticBoolType]
 ]);
 
 export const CORE_PACKAGE = new UCPackage(NAME_CORE);
@@ -241,4 +219,4 @@ CORE_PACKAGE.addSymbol(NativeArrayProperty);
 CORE_PACKAGE.addSymbol(NativeClassProperty);
 CORE_PACKAGE.addSymbol(NativeObjectProperty);
 
-PackagesTable.addSymbol(CORE_PACKAGE);
+ObjectsTable.addSymbol(CORE_PACKAGE);
