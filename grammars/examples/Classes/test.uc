@@ -169,6 +169,41 @@ delegate byte Test() {
 	str = str PrependDollar;
 	str = PrependDollar "str";
 
+	// Statement tests
+	if (str == "") str = " " else ; ;
+
+	assert (str != "");
+
+	do {
+		str = "";
+	} until (str == "")
+
+	switch (str) {
+		case "x":
+		case "":
+			// test for a "default" missmatch
+			str = default.CONST_STRING;
+			obj = default; // semantically invalid
+			obj = const == none ? none : none;
+			// case = default;
+			break;
+
+		default:
+			break;
+	}
+
+	loop:
+	for (i = 0; i < Len(str); ++i) {
+		continue;
+		break;
+	}
+
+	if (false) {
+		goto loop;
+	} else if (true) {
+		;
+	}
+
 	// FIXME: AddObj is parsed as preoperator!
 	foreach AllObjects(class'Object', obj)
 		AddObj(obj);
