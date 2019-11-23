@@ -27,5 +27,11 @@
 		"text": "Type '{0}' cannot extend type of '{1}'.",
 		"code": "4",
 		"severity": 1
+	},
+
+	"EXPECTED_EXPRESSION": {
+		"text": "Expression expected.",
+		"code": "5",
+		"severity": 1
 	}
 }

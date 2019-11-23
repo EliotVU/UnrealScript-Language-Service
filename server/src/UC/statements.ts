@@ -43,7 +43,7 @@ export class UCExpressionStatement implements IStatement {
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
-		return visitor.visitStatement(this);
+		return visitor.visitExpressionStatement(this);
 	}
 }
 
@@ -102,6 +102,9 @@ export class UCBlock implements IStatement {
 }
 
 export class UCAssertStatement extends UCExpressionStatement {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitAssertStatement(this);
+	}
 }
 
 export class UCIfStatement extends UCThenStatement {
@@ -115,12 +118,22 @@ export class UCIfStatement extends UCThenStatement {
 		super.index(document, context, info);
 		this.else?.index(document, context, info);
 	}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitIfStatement(this);
+	}
 }
 
 export class UCDoUntilStatement extends UCThenStatement {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitDoUntilStatement(this);
+	}
 }
 
 export class UCWhileStatement extends UCThenStatement {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitWhileStatement(this);
+	}
 }
 
 export class UCSwitchStatement extends UCThenStatement {
@@ -138,14 +151,22 @@ export class UCSwitchStatement extends UCThenStatement {
 		this.then?.index(document, context, info);
 		// super.index(document, context, info);
 	}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitSwitchStatement(this);
+	}
 }
 
 export class UCCaseClause extends UCThenStatement {
-
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitCaseClause(this);
+	}
 }
 
-export class UCDefaultClause extends UCCaseClause {
-
+export class UCDefaultClause extends UCThenStatement {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitDefaultClause(this);
+	}
 }
 
 export class UCForStatement extends UCThenStatement {
@@ -164,14 +185,43 @@ export class UCForStatement extends UCThenStatement {
 		this.init?.index(document, context, info);
 		this.next?.index(document, context, info);
 	}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitForStatement(this);
+	}
 }
 
 export class UCForEachStatement extends UCThenStatement {
-
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitForEachStatement(this);
+	}
 }
 
-export class UCLabeledStatement extends UCExpressionStatement {
+export class UCLabeledStatement implements IStatement {
 	label?: Name;
+
+	constructor(protected range: Range) {
+
+	}
+
+	getRange(): Range {
+		return this.range;
+	}
+
+	getSymbolAtPos(position: Position): ISymbol | undefined {
+		return undefined;
+	}
+
+	getContainedSymbolAtPos(position: Position): ISymbol | undefined {
+		return undefined;
+	}
+
+	index(_document: UCDocument, _context: UCStructSymbol, _info?: IContextInfo) {
+	}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitLabeledStatement(this);
+	}
 }
 
 export class UCReturnStatement extends UCExpressionStatement {
@@ -182,7 +232,14 @@ export class UCReturnStatement extends UCExpressionStatement {
 		}
 		super.index(document, context, info);
 	}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitReturnStatement(this);
+	}
 }
 
 export class UCGotoStatement extends UCExpressionStatement {
+	accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitGotoStatement(this);
+	}
 }

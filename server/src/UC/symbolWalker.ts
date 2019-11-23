@@ -20,7 +20,7 @@ import {
 	UCDefaultPropertiesBlock,
 	UCObjectSymbol,
 } from './Symbols';
-import { UCBlock, IStatement } from './statements';
+import { UCBlock, IStatement, UCExpressionStatement, UCLabeledStatement, UCAssertStatement, UCIfStatement, UCDoUntilStatement, UCWhileStatement, UCSwitchStatement, UCCaseClause, UCDefaultClause, UCForStatement, UCForEachStatement, UCReturnStatement, UCGotoStatement } from './statements';
 import { IExpression } from './expressions';
 
 export interface SymbolWalker<T> {
@@ -45,7 +45,19 @@ export interface SymbolWalker<T> {
 	visitReplicationBlock(symbol: UCReplicationBlock): T;
 	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock): T;
 	visitObjectSymbol(symbol: UCObjectSymbol): T;
-	visitStatement(stm: IStatement): T;
+	visitExpressionStatement(stm: UCExpressionStatement): T;
+	visitLabeledStatement(stm: UCLabeledStatement): T;
+	visitAssertStatement(stm: UCAssertStatement): T;
+	visitIfStatement(stm: UCIfStatement): T;
+	visitDoUntilStatement(stm: UCDoUntilStatement): T;
+	visitWhileStatement(stm: UCWhileStatement): T;
+	visitSwitchStatement(stm: UCSwitchStatement): T;
+	visitCaseClause(stm: UCCaseClause): T;
+	visitDefaultClause(stm: UCDefaultClause): T;
+	visitForStatement(stm: UCForStatement): T;
+	visitForEachStatement(stm: UCForEachStatement): T;
+	visitReturnStatement(stm: UCReturnStatement): T;
+	visitGotoStatement(stm: UCGotoStatement): T;
 	visitExpression(expr: IExpression): T;
 }
 
@@ -198,7 +210,77 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression |
 		return expr;
 	}
 
-	visitStatement(stm: IStatement) {
+	visitExpressionStatement(stm: UCExpressionStatement) {
+		stm.expression?.accept<any>(this);
+		return stm;
+	}
+
+	visitLabeledStatement(stm: UCLabeledStatement) {
+		return stm;
+	}
+
+	visitAssertStatement(stm: UCAssertStatement) {
+		stm.expression?.accept<any>(this);
+		return stm;
+	}
+
+	visitIfStatement(stm: UCIfStatement) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		stm.else?.accept<any>(this);
+		return stm;
+	}
+
+	visitDoUntilStatement(stm: UCDoUntilStatement) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		return stm;
+	}
+
+	visitWhileStatement(stm: UCWhileStatement) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		return stm;
+	}
+
+	visitSwitchStatement(stm: UCSwitchStatement) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		return stm;
+	}
+
+	visitCaseClause(stm: UCCaseClause) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		return stm;
+	}
+
+	visitDefaultClause(stm: UCDefaultClause) {
+		stm.then?.accept<any>(this);
+		return stm;
+	}
+
+	visitForStatement(stm: UCForStatement) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		stm.init?.accept<any>(this);
+		stm.next?.accept<any>(this);
+		return stm;
+	}
+
+	visitForEachStatement(stm: UCForEachStatement) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		return stm;
+	}
+
+	visitReturnStatement(stm: UCReturnStatement) {
+		stm.expression?.accept<any>(this);
+		return stm;
+	}
+
+	visitGotoStatement(stm: UCGotoStatement) {
+		stm.expression?.accept<any>(this);
 		return stm;
 	}
 }

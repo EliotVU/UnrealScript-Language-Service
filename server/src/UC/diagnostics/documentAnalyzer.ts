@@ -13,13 +13,11 @@ import {
 	typeMatchesFlags, ITypeSymbol, getTypeFlagsName,
 } from '../Symbols';
 import {
-	UCBlock, IStatement,
-	UCExpressionStatement,
-	UCThenStatement, UCIfStatement, UCDoUntilStatement,
+	UCBlock, UCExpressionStatement,
+	UCIfStatement, UCDoUntilStatement,
 	UCForStatement, UCWhileStatement, UCReturnStatement,
-	UCAssertStatement,
-	UCSwitchStatement,
-	UCForEachStatement
+	UCAssertStatement, UCSwitchStatement,
+	UCForEachStatement, UCCaseClause
 } from '../statements';
 import { IExpression } from '../expressions';
 
@@ -411,37 +409,35 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		return symbol;
 	}
 
-	visitStatement(stm: IStatement) {
-		// TODO: Report statements which are missing an expression.
-		if (stm instanceof UCExpressionStatement) {
-			stm.expression?.accept<any>(this);
-			if (stm instanceof UCThenStatement) {
-				stm.then?.accept<any>(this);
-				if (stm instanceof UCIfStatement) {
-					this.visitIfStatement(stm);
-					stm.else?.accept<any>(this);
-				} else if (stm instanceof UCWhileStatement) {
-					this.visitWhileStatement(stm);
-				} else if (stm instanceof UCDoUntilStatement) {
-					this.visitDoUntilStatement(stm);
-				} else if (stm instanceof UCForStatement) {
-					this.visitForStatement(stm);
-					stm.init?.accept<any>(this);
-					stm.next?.accept<any>(this);
-				} else if (stm instanceof UCForEachStatement) {
-					// TODO: Verify we have an iterator function or array(UC3+).
-				} else if (stm instanceof UCSwitchStatement) {
-				}
-			} else if (stm instanceof UCReturnStatement) {
-				this.visitReturnStatement(stm);
-			} else if (stm instanceof UCAssertStatement) {
-				this.visitAssertStatement(stm);
+	private verifyStatementExpression(stm: UCExpressionStatement) {
+		if (!stm.expression) {
+			this.diagnostics.add({
+				range: stm.getRange(),
+				message: diagnosticMessages.EXPECTED_EXPRESSION
+			});
+		}
+	}
+
+	visitIfStatement(stm: UCIfStatement) {
+		super.visitIfStatement(stm);
+
+		this.verifyStatementExpression(stm);
+		if (stm.expression && config.checkTypes) {
+			const type = stm.expression.getType();
+			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
+				this.diagnostics.add({
+					range: stm.getRange(),
+					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
+				});
 			}
 		}
 		return stm;
 	}
 
-	visitIfStatement(stm: UCIfStatement) {
+	visitWhileStatement(stm: UCWhileStatement) {
+		super.visitWhileStatement(stm);
+
+		this.verifyStatementExpression(stm);
 		if (stm.expression && config.checkTypes) {
 			const type = stm.expression.getType();
 			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
@@ -451,21 +447,21 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 		}
+		return stm;
 	}
 
-	visitWhileStatement(stm: UCWhileStatement) {
-		if (stm.expression && config.checkTypes) {
-			const type = stm.expression.getType();
-			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
-				this.diagnostics.add({
-					range: stm.getRange(),
-					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
-				});
-			}
-		}
+	visitSwitchStatement(stm: UCSwitchStatement) {
+		super.visitSwitchStatement(stm);
+
+		this.verifyStatementExpression(stm);
+		return stm;
 	}
+
 
 	visitDoUntilStatement(stm: UCDoUntilStatement) {
+		super.visitDoUntilStatement(stm);
+
+		this.verifyStatementExpression(stm);
 		if (stm.expression && config.checkTypes) {
 			const type = stm.expression.getType();
 			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
@@ -475,9 +471,13 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 		}
+		return stm;
 	}
 
+	// TODO: Test if any of the three expression can be omitted?
 	visitForStatement(stm: UCForStatement) {
+		super.visitForStatement(stm);
+
 		if (stm.expression && config.checkTypes) {
 			const type = stm.expression.getType();
 			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
@@ -487,9 +487,27 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 		}
+		return stm;
+	}
+
+	// TODO: Verify we have an iterator function or array(UC3+).
+	visitForEachStatement(stm: UCForEachStatement) {
+		super.visitForEachStatement(stm);
+
+		this.verifyStatementExpression(stm);
+		return stm;
+	}
+
+	visitCaseClause(stm: UCCaseClause) {
+		super.visitCaseClause(stm);
+
+		this.verifyStatementExpression(stm);
+		return stm;
 	}
 
 	visitReturnStatement(stm: UCReturnStatement) {
+		super.visitReturnStatement(stm);
+
 		if (!config.checkTypes) return stm;
 
 		if (this.context instanceof UCMethodSymbol) {
@@ -509,13 +527,18 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				}
 			} else if (expectedType) {
 				// TODO: Expect a return expression!
+				this.verifyStatementExpression(stm);
 			}
 		} else {
 			// TODO: Return not allowed here?
 		}
+		return stm;
 	}
 
 	visitAssertStatement(stm: UCAssertStatement) {
+		super.visitAssertStatement(stm);
+
+		this.verifyStatementExpression(stm);
 		if (stm.expression && config.checkTypes) {
 			const type = stm.expression.getType();
 			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
@@ -525,6 +548,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 		}
+		return stm;
 	}
 
 	visitExpression(expr: IExpression) {
