@@ -135,8 +135,17 @@ function struct e {} InlinedStructReturnType() {
 }
 
 function TestQualifiedStruct( Test.AStruct struct ) {
+
+}
+
+function string returnAssignment(){
 	// Test an assignment within a return statement.
- 	return 1 -= $"2";
+	local string str;
+
+	if ((str $= 2) == "2") {
+
+	}
+	return str $= 5;
 }
 
 function AddObj(Object obj) {
@@ -170,7 +179,7 @@ delegate byte Test() {
 	str = PrependDollar "str";
 
 	// Statement tests
-	if (str == "") str = " " else ; ;
+	if (str == "") str = " "; else ; ;
 
 	assert (str != "");
 

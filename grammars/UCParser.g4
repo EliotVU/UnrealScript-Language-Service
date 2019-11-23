@@ -567,7 +567,7 @@ replicationModifier
 	;
 
 replicationStatement
-	: replicationModifier? 'if' (OPEN_PARENS expression CLOSE_PARENS)
+	: replicationModifier? 'if' (OPEN_PARENS expr=expression CLOSE_PARENS)
 		identifier (COMMA identifier)* SEMICOLON
 	;
 
@@ -635,7 +635,7 @@ functionSpecifier
 functionName: identifier | operatorName;
 
 parameters: paramDecl (COMMA paramDecl)*;
-paramDecl: paramModifier* typeDecl variable (ASSIGNMENT expression)?;
+paramDecl: paramModifier* typeDecl variable (ASSIGNMENT expr=expression)?;
 
 returnTypeModifier
 	: 'coerce' // UC3+
@@ -712,13 +712,13 @@ statement
 expressionStatement: expressionWithAssignment SEMICOLON;
 
 ifStatement
-	: 'if' (OPEN_PARENS expression CLOSE_PARENS)
+	: 'if' (OPEN_PARENS expr=expression? CLOSE_PARENS)
 		codeBlockOptional
 	  elseStatement?
 	;
 
 elseStatement: 'else' codeBlockOptional;
-foreachStatement: 'foreach' primaryExpression codeBlockOptional;
+foreachStatement: 'foreach' expr=primaryExpression codeBlockOptional;
 
 forStatement
 	: 'for' (OPEN_PARENS (initExpr=expressionWithAssignment SEMICOLON) (condExpr=expressionWithAssignment SEMICOLON) nextExpr=expressionWithAssignment CLOSE_PARENS)
@@ -726,18 +726,18 @@ forStatement
 	;
 
 whileStatement
-	: 'while' (OPEN_PARENS expression CLOSE_PARENS)
+	: 'while' (OPEN_PARENS expr=expression? CLOSE_PARENS)
 		codeBlockOptional
 	;
 
 doStatement
 	: 'do'
 		codeBlockOptional
-	  'until' (OPEN_PARENS expression CLOSE_PARENS)
+	  'until' (OPEN_PARENS expr=expression? CLOSE_PARENS)
 	;
 
 switchStatement
-	: 'switch' (OPEN_PARENS expression CLOSE_PARENS)
+	: 'switch' (OPEN_PARENS expr=expression? CLOSE_PARENS)
 		// Note: Switch braces are NOT optional
 		OPEN_BRACE
 			caseClause*
@@ -746,7 +746,7 @@ switchStatement
 	;
 
 caseClause
-	: 'case' expression? COLON
+	: 'case' expr=expression? COLON
 		statement*
 	;
 
@@ -755,13 +755,13 @@ defaultClause
 		statement*
 	;
 
-returnStatement: 'return' expression? SEMICOLON;
+returnStatement: 'return' expr=expression? SEMICOLON;
 breakStatement: 'break' SEMICOLON;
 continueStatement: 'continue' SEMICOLON;
 stopStatement: 'stop' SEMICOLON;
 labeledStatement: identifier COLON;
-gotoStatement: 'goto' expression SEMICOLON;
-assertStatement: 'assert' (OPEN_PARENS expression CLOSE_PARENS) SEMICOLON;
+gotoStatement: 'goto' expr=expression? SEMICOLON;
+assertStatement: 'assert' (OPEN_PARENS expr=expression? CLOSE_PARENS) SEMICOLON;
 
 // All valid operator names (for declarations)
 operatorName
@@ -818,15 +818,6 @@ expression
 
 assignmentExpression
 	: left=primaryExpression id=ASSIGNMENT right=primaryExpression
-	| left=primaryExpression id=(ASSIGNMENT_INCR
-	| ASSIGNMENT_DECR
-	| ASSIGNMENT_AT
-	| ASSIGNMENT_DOLLAR
-	| ASSIGNMENT_AND
-	| ASSIGNMENT_OR
-	| ASSIGNMENT_STAR
-	| ASSIGNMENT_CARET
-	| ASSIGNMENT_DIV) right=primaryExpression
 	;
 
 primaryExpression
@@ -835,9 +826,9 @@ primaryExpression
 	| primaryExpression '.' identifier														#propertyAccessExpression
 	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 								#callExpression
 
-	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? primaryExpression				#newExpression
-	| 'class' 		(LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)				#metaClassExpression
-	| 'arraycount' 	(OPEN_PARENS primaryExpression CLOSE_PARENS)							#arrayCountExpression
+	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? expr=primaryExpression			#newExpression
+	| 'class' 		(LT identifier GT) (OPEN_PARENS expr=expression CLOSE_PARENS)			#metaClassExpression
+	| 'arraycount' 	(OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#arrayCountExpression
 	| 'super' 		(OPEN_PARENS identifier CLOSE_PARENS)?									#superExpression
 
 	| id=INCR right=primaryExpression														#preOperatorExpression
@@ -852,6 +843,16 @@ primaryExpression
 	| id=AT right=primaryExpression															#preOperatorExpression
 	| left=primaryExpression id=INCR 														#postOperatorExpression
 	| left=primaryExpression id=DECR 														#postOperatorExpression
+
+	| left=primaryExpression id=(ASSIGNMENT_INCR
+		| ASSIGNMENT_DECR
+		| ASSIGNMENT_AT
+		| ASSIGNMENT_DOLLAR
+		| ASSIGNMENT_AND
+		| ASSIGNMENT_OR
+		| ASSIGNMENT_STAR
+		| ASSIGNMENT_CARET
+		| ASSIGNMENT_DIV) right=primaryExpression											#binaryOperatorExpression
 
 	| left=primaryExpression id=EXP right=primaryExpression 								#binaryOperatorExpression
 	| left=primaryExpression id=(STAR|DIV) right=primaryExpression 							#binaryOperatorExpression
