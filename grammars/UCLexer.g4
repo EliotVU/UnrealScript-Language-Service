@@ -178,6 +178,7 @@ KW_RNG: 'rng';
 KW_ARRAYCOUNT: 'arraycount';
 KW_NAMEOF: 'nameof';
 KW_SIZEOF: 'sizeof';
+KW_REF: 'ref';
 
 // Note: Keywords must precede the ID token.
 ID:	[a-zA-Z_][a-zA-Z0-9_]*;

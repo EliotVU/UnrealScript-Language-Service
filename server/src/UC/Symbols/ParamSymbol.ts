@@ -11,7 +11,8 @@ export enum ParamModifiers {
 	Optional		= 0x0002,
 	Init 			= 0x0004, // NOT SUPPORTED
 	Skip			= 0x0008, // NOT SUPPORTED
-	Coerce			= 0x0010
+	Coerce			= 0x0010,
+	Ref				= 0x0020, // NOT SUPPORTED
 	// const is available as a @FieldModifier
 }
 
@@ -34,6 +35,10 @@ export class UCParamSymbol extends UCPropertySymbol {
 
 	isOut(): boolean {
 		return (this.paramModifiers & ParamModifiers.Out) !== 0;
+	}
+
+	isRef(): boolean {
+		return (this.paramModifiers & ParamModifiers.Ref) !== 0;
 	}
 
 	getKind(): SymbolKind {
@@ -93,6 +98,10 @@ export class UCParamSymbol extends UCPropertySymbol {
 
 		if (this.isConst()) {
 			text.push('const');
+		}
+
+		if (this.isRef()) {
+			text.push('ref');
 		}
 
 		return text;

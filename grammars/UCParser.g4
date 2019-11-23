@@ -68,6 +68,7 @@ identifier
 	| 'privatewrite'
 	| 'localized'
 	| 'out'
+	| 'ref'
 	| 'optional'
 	| 'init'
 	| 'skip'
@@ -643,6 +644,7 @@ returnTypeModifier
 
 paramModifier
 	: 'out'
+	| 'ref'	// XCom or late UC3+ (Seen in other licenseed games).
 	| 'optional'
 	| 'init'
 	| 'skip'

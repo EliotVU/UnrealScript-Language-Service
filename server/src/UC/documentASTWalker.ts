@@ -704,6 +704,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 				case UCGrammar.UCParser.KW_COERCE:
 					paramModifiers |= ParamModifiers.Coerce;
 					break;
+				case UCGrammar.UCParser.KW_REF:
+					paramModifiers |= ParamModifiers.Ref;
+					break;
 			}
 		}
 

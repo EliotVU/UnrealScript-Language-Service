@@ -330,7 +330,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 					this.diagnostics.add({
 						range: symbol.id.range,
 						message: {
-							text: `To assign a default value to a parameter, it must be marked as 'optional'!`,
+							text: `To assign a default value to a parameter, it must be marked as 'optional'.`,
 							severity: DiagnosticSeverity.Error
 						}
 					});
@@ -339,7 +339,19 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				this.diagnostics.add({
 					range: symbol.id.range,
 					message: {
-						text: `Assigning a default value to a parameter, is only available as of UC3+!`,
+						text: `Assigning a default value to a parameter, is only available as of UC3.`,
+						severity: DiagnosticSeverity.Error
+					},
+				});
+			}
+		}
+
+		if (config.generation !== UCGeneration.UC3) {
+			if (symbol.isRef()) {
+				this.diagnostics.add({
+					range: symbol.id.range,
+					message: {
+						text: `'ref' is only available in some versions of UC3 (such as XCom2).`,
 						severity: DiagnosticSeverity.Error
 					},
 				});

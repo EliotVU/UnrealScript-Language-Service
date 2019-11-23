@@ -630,7 +630,7 @@ repository:
 
   param-modifier:
     name: storage.modifier.uc
-    match: \b(?:(?i)optional|out|coerce|const|init|skip)\b
+    match: \b(?:(?i)optional|out|coerce|const|init|skip|ref)\b
 
   parameter-declaration:
     patterns:
