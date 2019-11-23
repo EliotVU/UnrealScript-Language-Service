@@ -15,7 +15,7 @@ import {
 	UCEnumSymbol, UCEnumMemberSymbol,
 	UCConstSymbol, ISymbol, UCSymbol
 } from '.';
-import { UCObjectTypeSymbol } from './TypeSymbol';
+import { resolveType } from './TypeSymbol';
 
 export class UCPropertySymbol extends UCFieldSymbol {
 	public type?: ITypeSymbol;
@@ -73,10 +73,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	getType() {
-		if (this.type && (this.type.getTypeFlags() & UCTypeFlags.Object) !== 0 && (this.type as UCObjectTypeSymbol).baseType) {
-			return (this.type as UCObjectTypeSymbol).baseType;
-		}
-		return this.type;
+		return resolveType(this.type);
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
@@ -112,8 +109,8 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		const symbol = this.type && this.type.getSymbolAtPos(position);
-		return symbol || this.arrayDimRef && this.arrayDimRef.getSymbolAtPos(position);
+		const symbol = this.type?.getSymbolAtPos(position) || this.arrayDimRef?.getSymbolAtPos(position);
+		return symbol;
 	}
 
 	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {

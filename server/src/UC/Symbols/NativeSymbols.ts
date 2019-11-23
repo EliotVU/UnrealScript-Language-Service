@@ -8,7 +8,7 @@ import {
 	NAME_OBJECTPROPERTY, NAME_FLOATPROPERTY, NAME_NAMEPROPERTY,
 	NAME_STRINGPROPERTY, NAME_STRPROPERTY, NAME_BOOLPROPERTY,
 	NAME_POINTERPROPERTY, NAME_MAPPROPERTY, NAME_DELEGATEPROPERTY,
-	NAME_ARRAYPROPERTY, NAME_CLASSPROPERTY, Name
+	NAME_ARRAYPROPERTY, NAME_CLASSPROPERTY, Name, NAME_RETURNVALUE
 } from '../names';
 
 import {
@@ -25,7 +25,12 @@ import {
 	UCNameTypeSymbol, UCBoolTypeSymbol,
 	UCButtonTypeSymbol
 } from ".";
-import { UCPredefinedTypeSymbol, StaticObjectType, StaticIntType, StaticVectorType, StaticFloatType, StaticRotatorType, StaticRangeType, StaticByteType, StaticStringType, StaticNameType, StaticBoolType, ITypeSymbol } from './TypeSymbol';
+import {
+	UCPredefinedTypeSymbol, StaticObjectType, StaticIntType,
+	StaticVectorType, StaticFloatType, StaticRotatorType,
+	StaticRangeType, StaticByteType, StaticStringType,
+	StaticNameType, StaticBoolType, ITypeSymbol, StaticDelegateType
+} from './TypeSymbol';
 import { ObjectsTable } from './Package';
 
 export const NativeProperty = new UCClassSymbol({ name: NAME_PROPERTY, range: DEFAULT_RANGE });
@@ -88,51 +93,83 @@ LengthProperty.type = StaticIntType;
 NativeArray.addSymbol(LengthProperty);
 
 const InsertFunction = new UCMethodSymbol({ name: toName('Insert'), range: DEFAULT_RANGE });
-NativeArray.addSymbol(InsertFunction);
-
 const IndexParam = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE });
 IndexParam.type = StaticIntType;
-InsertFunction.addSymbol(IndexParam);
-
 const CountParam = new UCParamSymbol({ name: toName('Count'), range: DEFAULT_RANGE });
 CountParam.type = StaticIntType;
+InsertFunction.addSymbol(IndexParam);
 InsertFunction.addSymbol(CountParam);
-
 InsertFunction.params = [IndexParam, CountParam];
+NativeArray.addSymbol(InsertFunction);
 
 const RemoveFunction = new UCMethodSymbol({ name: toName('Remove'), range: DEFAULT_RANGE });
-NativeArray.addSymbol(RemoveFunction);
-
 const IndexParam2 = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE });
 IndexParam2.type = StaticIntType;
-InsertFunction.addSymbol(IndexParam2);
-
 const CountParam2 = new UCParamSymbol({ name: toName('Count'), range: DEFAULT_RANGE });
 CountParam2.type = StaticIntType;
+RemoveFunction.addSymbol(IndexParam2);
 RemoveFunction.addSymbol(CountParam2);
-
 RemoveFunction.params = [IndexParam2, CountParam2];
+NativeArray.addSymbol(RemoveFunction);
 
 const AddFunction = new UCMethodSymbol({ name: toName('Add'), range: DEFAULT_RANGE });
+const CountParam3 = new UCParamSymbol({ name: toName('Count'), range: DEFAULT_RANGE });
+CountParam3.type = StaticIntType;
+AddFunction.addSymbol(CountParam3);
+AddFunction.params = [CountParam3];
 NativeArray.addSymbol(AddFunction);
 
 const AddItemFunction = new UCMethodSymbol({ name: toName('AddItem'), range: DEFAULT_RANGE });
+const ItemParam = new UCParamSymbol({ name: toName('Item'), range: DEFAULT_RANGE });
+ItemParam.type = StaticObjectType;
+AddItemFunction.addSymbol(ItemParam);
+AddItemFunction.params = [ItemParam];
 NativeArray.addSymbol(AddItemFunction);
 
 const InsertItemFunction = new UCMethodSymbol({ name: toName('InsertItem'), range: DEFAULT_RANGE });
+const IndexParam3 = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE });
+IndexParam3.type = StaticIntType;
+const ItemParam2 = new UCParamSymbol({ name: toName('Item'), range: DEFAULT_RANGE });
+ItemParam2.type = StaticObjectType;
+InsertItemFunction.addSymbol(IndexParam3);
+InsertItemFunction.addSymbol(ItemParam2);
+InsertItemFunction.params = [IndexParam3, ItemParam2];
 NativeArray.addSymbol(InsertItemFunction);
 
 const RemoveItemFunction = new UCMethodSymbol({ name: toName('RemoveItem'), range: DEFAULT_RANGE });
+const ItemParam3 = new UCParamSymbol({ name: toName('Item'), range: DEFAULT_RANGE });
+ItemParam3.type = StaticObjectType;
+RemoveItemFunction.addSymbol(ItemParam3);
+RemoveItemFunction.params = [ItemParam3];
 NativeArray.addSymbol(RemoveItemFunction);
 
 const FindFunction = new UCMethodSymbol({ name: toName('Find'), range: DEFAULT_RANGE });
+const ItemParam4 = new UCParamSymbol({ name: toName('Item'), range: DEFAULT_RANGE });
+ItemParam4.type = StaticObjectType;
+FindFunction.addSymbol(ItemParam4);
+FindFunction.params = [ItemParam4];
 NativeArray.addSymbol(FindFunction);
 
 const SortFunction = new UCMethodSymbol({ name: toName('Sort'), range: DEFAULT_RANGE });
+const PredicateParam = new UCParamSymbol({ name: toName('Predicate'), range: DEFAULT_RANGE });
+PredicateParam.type = StaticDelegateType;
+SortFunction.addSymbol(PredicateParam);
+SortFunction.params = [PredicateParam];
 NativeArray.addSymbol(SortFunction);
 
+export const ReturnValueIdentifier = { name: NAME_RETURNVALUE, range: DEFAULT_RANGE };
+
+const VectorReturnValue = new UCParamSymbol(ReturnValueIdentifier);
+VectorReturnValue.type = StaticVectorType;
+
+const RotatorReturnValue = new UCParamSymbol(ReturnValueIdentifier);
+RotatorReturnValue.type = StaticRotatorType;
+
+const RangeReturnValue = new UCParamSymbol(ReturnValueIdentifier);
+RangeReturnValue.type = StaticRangeType;
+
 export const VectMethodLike = new UCMethodLikeSymbol(toName('Vect'));
-VectMethodLike.returnType = StaticVectorType;
+VectMethodLike.returnValue = VectorReturnValue;
 
 const XParam = new UCParamSymbol({ name: toName('X'), range: DEFAULT_RANGE });
 XParam.type = StaticFloatType;
@@ -149,7 +186,7 @@ VectMethodLike.addSymbol(ZParam);
 VectMethodLike.params = [XParam, YParam, ZParam];
 
 export const RotMethodLike = new UCMethodLikeSymbol(toName('Rot'));
-RotMethodLike.returnType = StaticRotatorType;
+RotMethodLike.returnValue = RotatorReturnValue;
 
 const PitchParam = new UCParamSymbol({ name: toName('Pitch'), range: DEFAULT_RANGE });
 PitchParam.type = StaticIntType;
@@ -166,7 +203,7 @@ RotMethodLike.addSymbol(RollParam);
 RotMethodLike.params = [PitchParam, YawParam, RollParam];
 
 export const RngMethodLike = new UCMethodLikeSymbol(toName('Rng'));
-RngMethodLike.returnType = StaticRangeType;
+RngMethodLike.returnValue = RangeReturnValue;
 
 const MinParam = new UCParamSymbol({ name: toName('Min'), range: DEFAULT_RANGE });
 MinParam.type = StaticFloatType;

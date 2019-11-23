@@ -20,7 +20,13 @@ import {
 	UCDefaultPropertiesBlock,
 	UCObjectSymbol,
 } from './Symbols';
-import { UCBlock, IStatement, UCExpressionStatement, UCLabeledStatement, UCAssertStatement, UCIfStatement, UCDoUntilStatement, UCWhileStatement, UCSwitchStatement, UCCaseClause, UCDefaultClause, UCForStatement, UCForEachStatement, UCReturnStatement, UCGotoStatement } from './statements';
+import {
+	UCBlock, IStatement, UCExpressionStatement,
+	UCLabeledStatement, UCAssertStatement, UCIfStatement,
+	UCDoUntilStatement, UCWhileStatement, UCSwitchStatement,
+	UCCaseClause, UCDefaultClause, UCForStatement,
+	UCForEachStatement, UCReturnStatement, UCGotoStatement
+} from './statements';
 import { IExpression } from './expressions';
 
 export interface SymbolWalker<T> {
@@ -164,8 +170,8 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression |
 	}
 
 	visitMethod(symbol: UCMethodSymbol): ISymbol {
-		if (symbol.returnType) {
-			symbol.returnType.accept<any>(this);
+		if (symbol.returnValue) {
+			symbol.returnValue.accept<any>(this);
 		}
 		return this.visitStructBase(symbol);
 	}

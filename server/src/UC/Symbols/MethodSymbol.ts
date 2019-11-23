@@ -2,13 +2,13 @@ import { SymbolKind, CompletionItemKind, Position, Location } from 'vscode-langu
 
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
-import { Name } from '../names';
+import { Name, NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
 
 import {
 	DEFAULT_RANGE,
 	UCStructSymbol, UCParamSymbol,
-	ITypeSymbol, ISymbol,
-	IWithReference, UCTypeFlags, UCSymbol, UCObjectTypeSymbol
+	ISymbol,
+	IWithReference, UCTypeFlags, UCSymbol, ParamModifiers
 } from '.';
 
 export enum MethodSpecifiers {
@@ -28,7 +28,7 @@ export enum MethodSpecifiers {
 export class UCMethodSymbol extends UCStructSymbol {
 	public specifiers: MethodSpecifiers = MethodSpecifiers.None;
 
-	public returnType?: ITypeSymbol;
+	public returnValue?: UCParamSymbol;
 	public overriddenMethod?: UCMethodSymbol;
 
 	public params?: UCParamSymbol[];
@@ -72,10 +72,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getType() {
-		if (this.returnType && (this.returnType.getTypeFlags() & UCTypeFlags.Object) !== 0 && (this.returnType as UCObjectTypeSymbol).baseType) {
-			return (this.returnType as UCObjectTypeSymbol).baseType;
-		}
-		return this.returnType;
+		return this.returnValue?.getType();
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
@@ -94,8 +91,8 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		if (this.returnType) {
-			const returnSymbol = this.returnType.getSymbolAtPos(position);
+		if (this.returnValue) {
+			const returnSymbol = this.returnValue.getSymbolAtPos(position);
 			if (returnSymbol) {
 				return returnSymbol;
 			}
@@ -105,7 +102,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 
 	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
 		if (context === '.') {
-			const resolvedType = this.returnType && this.returnType.getReference();
+			const resolvedType = this.returnValue?.getType()?.getReference();
 			if (resolvedType instanceof UCSymbol) {
 				return resolvedType.getCompletionSymbols(document, context);
 			}
@@ -118,8 +115,15 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		if (this.returnType) {
-			this.returnType.index(document, context);
+		if (this.returnValue) {
+			this.returnValue.index(document, context);
+
+			// For UC1 and UC2 we have to hardcode the "coerce" modifier for the Spawn's return type.
+			if (this.getId() === NAME_SPAWN
+				&& this.outer?.getId() === NAME_ACTOR
+				&& this.outer.outer?.getId() === NAME_ENGINE) {
+				this.returnValue.paramModifiers |= ParamModifiers.Coerce;
+			}
 		}
 
 		super.index(document, context);
@@ -154,7 +158,9 @@ export class UCMethodSymbol extends UCStructSymbol {
 		text.push(...modifiers);
 
 		text.push(this.getTypeKeyword());
-		text.push(this.buildReturnType());
+		if (this.returnValue) {
+			text.push(this.returnValue.getTextForReturnValue());
+		}
 		text.push(this.getQualifiedName() + this.buildParameters());
 
 		return text.filter(s => s).join(' ');
@@ -174,12 +180,6 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return text;
 	}
 
-	// TODO: Print return modifiers? (e.g. coerce)
-	protected buildReturnType(): string | undefined {
-		return this.returnType && this.returnType.getTypeText();
-	}
-
-	// TODO: Print param modifiers?
 	protected buildParameters(): string {
 		return this.params
 			? `(${this.params.map(f => f.getTextForSignature()).join(', ')})`
@@ -209,7 +209,7 @@ export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference
 	}
 
 	getReference(): ISymbol | undefined {
-		return this.returnType && this.returnType.getReference();
+		return this.returnValue?.getType()?.getReference();
 	}
 }
 

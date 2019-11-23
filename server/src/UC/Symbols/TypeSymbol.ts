@@ -470,3 +470,11 @@ export function typeMatchesFlags(type: ITypeSymbol | undefined, expected: UCType
 	}
 	return false;
 }
+
+/** Resolves a type to its base type if set. e.g. "Class<Actor>" would be resolved to "Actor". */
+export function resolveType(type?: ITypeSymbol): ITypeSymbol | undefined {
+	if (type && (type.getTypeFlags() & UCTypeFlags.Object) !== 0 && (type as UCObjectTypeSymbol).baseType) {
+		return (type as UCObjectTypeSymbol).baseType;
+	}
+	return type;
+}

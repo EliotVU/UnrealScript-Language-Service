@@ -91,14 +91,14 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getDocumentation(): string | undefined {
-		return this.description && this.description.map(t => t.text!).join('\n');
+		return this.description?.map(t => t.text!).join('\n');
 	}
 
 	toSymbolInfo(): SymbolInformation {
 		return SymbolInformation.create(
 			this.getId().toString(), this.getKind(),
 			this.getRange(), undefined,
-			this.outer && this.outer.getId().toString()
+			this.outer?.getId().toString()
 		);
 	}
 

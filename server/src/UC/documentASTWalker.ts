@@ -15,7 +15,7 @@ import {
 	toName,
 	NAME_CLASS, NAME_ARRAY, NAME_REPLICATION,
 	NAME_NONE, NAME_NAME, NAME_DELEGATE, NAME_ENUMCOUNT,
-	NAME_DEFAULT, NAME_OBJECT, NAME_MAP
+	NAME_DEFAULT, NAME_OBJECT, NAME_MAP, NAME_RETURNVALUE
 } from './names';
 
 import {
@@ -35,7 +35,8 @@ import {
 	UCNameTypeSymbol, UCBoolTypeSymbol,
 	UCPointerTypeSymbol, UCButtonTypeSymbol,
 	UCDelegateTypeSymbol, UCArrayTypeSymbol,
-	UCMapTypeSymbol, UCPredefinedTypeSymbol, ObjectsTable
+	UCMapTypeSymbol, UCPredefinedTypeSymbol, ObjectsTable,
+	DEFAULT_RANGE, ReturnValueIdentifier
 } from './Symbols';
 
 import { ErrorDiagnostic } from './diagnostics/diagnostic';
@@ -61,9 +62,11 @@ import {
 	UCNoneLiteral, UCStringLiteral, UCNameLiteral,
 	UCBoolLiteral, UCFloatLiteral, UCIntLiteral, UCObjectLiteral,
 	UCVectLiteral, UCRotLiteral, UCRngLiteral,
-	UCNameOfLiteral, UCArrayCountExpression, UCSizeOfLiteral, UCArrayCountLiteral,
+	UCNameOfLiteral, UCArrayCountExpression,
+	UCSizeOfLiteral, UCArrayCountLiteral,
 	UCDefaultAssignmentExpression, UCDefaultStructLiteral,
-	UCAssignmentOperatorExpression, UCPostOperatorExpression, UCByteLiteral, UCEmptyArgument
+	UCAssignmentOperatorExpression, UCPostOperatorExpression,
+	UCByteLiteral, UCEmptyArgument
 } from './expressions';
 
 function idFromCtx(ctx: ParserRuleContext) {
@@ -612,15 +615,25 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const symbol = new type(identifier, range);
 		symbol.specifiers = specifiers;
 		symbol.modifiers = modifiers;
-
 		if (precedence) {
 			(symbol as UCBinaryOperatorSymbol).precedence = precedence;
 		}
-
 		this.declare(symbol, ctx);
 
-		if (ctx._returnType) {
-			symbol.returnType = this.visitTypeDecl(ctx._returnType);
+		if (ctx._returnParam) {
+			let paramModifiers: ParamModifiers = ParamModifiers.ReturnParam;
+			const modifierNode = ctx._returnParam.returnTypeModifier();
+			if (modifierNode?.start.type === UCGrammar.UCParser.KW_COERCE) {
+				paramModifiers |= ParamModifiers.Coerce;
+			}
+
+			const typeSymbol = this.visitTypeDecl(ctx._returnParam.typeDecl());
+			const returnValue = new UCParamSymbol(ReturnValueIdentifier, rangeFromBounds(ctx.start, ctx.stop));
+			returnValue.type = typeSymbol;
+			returnValue.paramModifiers = paramModifiers;
+
+			this.declare(returnValue);
+			symbol.returnValue = returnValue;
 		}
 
 		this.push(symbol);

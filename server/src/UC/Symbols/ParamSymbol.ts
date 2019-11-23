@@ -5,6 +5,7 @@ import { IExpression } from '../expressions';
 import { UCDocument } from '../document';
 import { UCPropertySymbol, UCStructSymbol } from '.';
 
+// "const" is available as a @FieldModifier
 export enum ParamModifiers {
 	None 			= 0x0000,
 	Out 			= 0x0001,
@@ -12,8 +13,10 @@ export enum ParamModifiers {
 	Init 			= 0x0004, // NOT SUPPORTED
 	Skip			= 0x0008, // NOT SUPPORTED
 	Coerce			= 0x0010,
-	Ref				= 0x0020, // NOT SUPPORTED
-	// const is available as a @FieldModifier
+	Return			= 0x0020,
+	Ref				= 0x0040, // NOT SUPPORTED
+
+	ReturnParam 	= Out | Return
 }
 
 export class UCParamSymbol extends UCPropertySymbol {
@@ -54,12 +57,22 @@ export class UCParamSymbol extends UCPropertySymbol {
 
 		const modifiers = this.buildModifiers();
 		text.push(...modifiers);
-
 		if (this.type) {
 			text.push(this.type.getTypeText());
 		}
 		text.push(this.getId().toString());
 
+		return text.filter(s => s).join(' ');
+	}
+
+	getTextForReturnValue(): string {
+		const text: Array<string | undefined> = [];
+		if (this.isCoerced()) {
+			text.push('coerce');
+		}
+		if (this.type) {
+			text.push(this.type.getTypeText());
+		}
 		return text.filter(s => s).join(' ');
 	}
 
@@ -72,13 +85,13 @@ export class UCParamSymbol extends UCPropertySymbol {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		const symbol = this.defaultExpression && this.defaultExpression.getSymbolAtPos(position);
-		return symbol || super.getContainedSymbolAtPos(position);
+		const symbol = this.defaultExpression?.getSymbolAtPos(position) || super.getContainedSymbolAtPos(position);
+		return symbol;
 	}
 
 	public index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
-		this.defaultExpression && this.defaultExpression.index(document, context);
+		this.defaultExpression?.index(document, context);
 	}
 
 	protected buildModifiers(): string[] {

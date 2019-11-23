@@ -576,9 +576,13 @@ replicationStatement
  * public simulated function coerce class<Actor> test(optional int p1, int p2) const;
  */
 functionDecl
-	: functionSpecifier+ (returnTypeModifier? returnType=typeDecl)?
+	: functionSpecifier+ returnParam=functionReturnParam?
 	  functionName (OPEN_PARENS params=parameters? CLOSE_PARENS) 'const'?
 	  functionBody
+	;
+
+functionReturnParam
+	: returnTypeModifier? typeDecl
 	;
 
 functionBody

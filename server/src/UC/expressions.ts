@@ -24,7 +24,8 @@ import {
 	typeMatchesFlags, Identifier,
 	UCArrayTypeSymbol, getTypeFlagsName, tryFindClassSymbol, UCConstSymbol,
 	StaticByteType, StaticFloatType, StaticIntType, StaticNoneType,
-	StaticStringType, StaticNameType, StaticBoolType, CastTypeSymbolMap
+	StaticStringType, StaticNameType, StaticBoolType,
+	CastTypeSymbolMap, resolveType
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
@@ -123,8 +124,15 @@ export class UCCallExpression extends UCExpression {
 		if (type) {
 			const symbol = type.getReference();
 			if (symbol instanceof UCMethodSymbol) {
-				// TODO: Coerce return type
-				return symbol.getType();
+				const returnValue = symbol.returnValue;
+				if (returnValue) {
+					if (returnValue.isCoerced() && this.arguments) {
+						const firstArgumentType = this.arguments[0]?.getType();
+						return resolveType(firstArgumentType);
+					}
+					return resolveType(returnValue.getType());
+				}
+				return undefined;
 			}
 		}
 		return type;
@@ -485,8 +493,10 @@ abstract class UCBaseOperatorExpression extends UCExpression {
 	}
 
 	getType() {
-		const ref = this.operator.getReference();
-		return ref instanceof UCBaseOperatorSymbol ? ref.getType() : undefined;
+		const operatorSymbol = this.operator.getReference();
+		if (operatorSymbol instanceof UCBaseOperatorSymbol) {
+			return operatorSymbol.getType();
+		}
 	}
 
 	getContainedSymbolAtPos(position: Position) {
@@ -557,8 +567,10 @@ export class UCBinaryOperatorExpression extends UCExpression {
 	}
 
 	getType() {
-		const ref = this.operator!.getReference();
-		return ref instanceof UCBinaryOperatorSymbol ? ref.getType() : undefined;
+		const operatorSymbol = this.operator?.getReference();
+		if (operatorSymbol instanceof UCBinaryOperatorSymbol) {
+			return operatorSymbol.getType();
+		}
 	}
 
 	getContainedSymbolAtPos(position: Position) {
