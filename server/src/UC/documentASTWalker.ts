@@ -731,12 +731,13 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		const identifier: Identifier = idFromCtx(varNode.identifier());
 		const symbol = new UCParamSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		symbol.type = typeSymbol;
+		if (ctx._expr) {
+			symbol.defaultExpression = ctx._expr.accept(this);
+			paramModifiers |= ParamModifiers.Optional;
+		}
 		symbol.modifiers = modifiers;
 		symbol.paramModifiers = paramModifiers;
 
-		if (ctx._expr) {
-			symbol.defaultExpression = ctx._expr.accept(this);
-		}
 
 		symbol.walk(this, varNode);
 		this.declare(symbol);
