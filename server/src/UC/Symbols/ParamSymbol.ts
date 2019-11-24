@@ -89,11 +89,6 @@ export class UCParamSymbol extends UCPropertySymbol {
 		return symbol;
 	}
 
-	public index(document: UCDocument, context: UCStructSymbol) {
-		super.index(document, context);
-		this.defaultExpression?.index(document, context);
-	}
-
 	protected buildModifiers(): string[] {
 		const text: string[] = [];
 

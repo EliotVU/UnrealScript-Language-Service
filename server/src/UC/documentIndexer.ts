@@ -1,6 +1,7 @@
-import { UCStructSymbol, UCClassSymbol, UCStateSymbol, UCMethodSymbol, UCReplicationBlock, UCDefaultPropertiesBlock, UCObjectSymbol } from './Symbols';
+import { UCStructSymbol, UCClassSymbol, UCStateSymbol, UCMethodSymbol, UCReplicationBlock, UCDefaultPropertiesBlock, UCObjectSymbol, UCParamSymbol } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 import { UCDocument } from './document';
+import { SymbolKind } from 'vscode-languageserver';
 
 /**
  * Will initiate the indexing of all struct symbols that contain a block.
@@ -35,6 +36,18 @@ export class DocumentIndexer extends DefaultSymbolWalker {
 		if (symbol.block) {
 			symbol.block.index(this.document, symbol);
 		}
+
+		for (let child = symbol.children; child; child = child.next) {
+			// Parameter?
+			if (child.getKind() === SymbolKind.Variable) {
+				child.accept<any>(this);
+			}
+		}
+		return symbol;
+	}
+
+	visitParameter(symbol: UCParamSymbol) {
+		symbol.defaultExpression?.index(this.document, symbol.outer as UCStructSymbol);
 		return symbol;
 	}
 
