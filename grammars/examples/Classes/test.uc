@@ -1,15 +1,20 @@
 class Test extends Core.Object
 	native;
 
-const CONST_SIZEOF 			= sizeof(Object);
-const CONST_CLASS 			= class'Object';
-const CONST_VECT 			= vect(0,0,0);
-const CONST_ROT 			= rot(0,0,0);
-const CONST_RNG 			= rng(0,0);
-const CONST_STRING			= "string";
-const CONST_NAME 			= 'name';
-const CONST_NUMBER			= 4;
-const CONST_BOOL			= true;
+const CONST_SIZEOF 					= sizeof(Object);
+const CONST_CLASS 					= class'Object';
+const CONST_VECT 					= vect(0,0,0);
+const CONST_ROT 					= rot(0,0,0);
+const CONST_RNG 					= rng(0,0);
+const CONST_STRING					= "string";
+const CONST_NAME 					= 'name';
+const CONST_NUMBER					= 4e+2;
+const CONST_LEADING_NUMBER			= +004;
+const CONST_HEXDECIMAL				= -0x04;
+const CONST_FLOAT1					= 0.f;
+const CONST_FLOAT2					= +0.fe-2f;
+const CONST_FLOAT3					= 0f;
+const CONST_BOOL					= true;
 
 enum AEnum {
 	A_1,

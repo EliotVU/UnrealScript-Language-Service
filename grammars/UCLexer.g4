@@ -8,11 +8,33 @@ channels { MACRO, COMMENTS_CHANNEL }
 	isDefineContext: boolean = false;
 }
 
-fragment EXPONENT: [eE] [+-]? [0-9]+;
-fragment HEX_DIGIT: [0-9] | [A-F] | [a-f];
-fragment ESC_SEQ: '\\' .;
+fragment DIGIT
+	: [0-9]
+	;
 
-fragment CALL_MACRO_CHAR: '\u0060';
+fragment HEX_DIGIT
+	: [0-9a-fA-F]
+	;
+
+fragment SIGN
+	: [+-]
+	;
+
+fragment EXPONENT
+	: [eE] SIGN? DIGIT+
+	;
+
+fragment FLOATING_SUFFIX
+	: [fF]
+	;
+
+fragment ESC_SEQ
+	: '\\' .
+	;
+
+fragment CALL_MACRO_CHAR
+	: '\u0060'
+	;
 
 LINE_COMMENT
 	: '//' ~[\r\n]*
@@ -185,13 +207,13 @@ ID:	[a-zA-Z_][a-zA-Z0-9_]*;
 // ID:	[a-z_][a-z0-9_]*;
 
 FLOAT
-	: [0-9]+ '.' [0-9fF]+ EXPONENT? [fF]?
-	| [0-9]+ ([fF] | EXPONENT [fF]?)
+	: /* SIGN? */ DIGIT+ '.' [0-9fF]* EXPONENT? FLOATING_SUFFIX?
+	| /* SIGN? */ DIGIT+ (FLOATING_SUFFIX | EXPONENT FLOATING_SUFFIX?)
 	;
 
 INTEGER
-	: [0-9] [xX] HEX_DIGIT+
-	| [0-9]+
+	: /* SIGN? */ DIGIT+ [xX] HEX_DIGIT+
+	| /* SIGN? */ DIGIT+
 	;
 
 ESCAPE: '\\';
