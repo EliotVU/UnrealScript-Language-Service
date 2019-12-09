@@ -19,6 +19,7 @@ import {
 	UCReplicationBlock,
 	UCDefaultPropertiesBlock,
 	UCObjectSymbol,
+	UCQualifiedTypeSymbol,
 } from './Symbols';
 import {
 	UCBlock, IStatement, UCExpressionStatement,
@@ -32,6 +33,7 @@ import { IExpression } from './expressions';
 export interface SymbolWalker<T> {
 	visit(symbol: ISymbol): T;
 	visitPackage(symbol: UCPackage): T;
+	visitQualifiedType(symbol: UCQualifiedTypeSymbol): T;
 	visitObjectType(symbol: UCObjectTypeSymbol): T;
 	visitMapType(symbol: UCMapTypeSymbol): T;
 	visitDelegateType(symbol: UCDelegateTypeSymbol): T;
@@ -73,6 +75,12 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression |
 	}
 
 	visitPackage(symbol: UCPackage): ISymbol {
+		return symbol;
+	}
+
+	visitQualifiedType(symbol: UCQualifiedTypeSymbol): ISymbol {
+		symbol.left?.accept<any>(this);
+		symbol.type.accept<any>(this);
 		return symbol;
 	}
 

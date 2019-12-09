@@ -32,22 +32,22 @@ export abstract class UCSymbol implements ISymbol {
 		return this.id.range;
 	}
 
-	getId(): Name {
+	getName(): Name {
 		return this.id.name;
 	}
 
 	getHash(): number {
 		let hash: number = this.id.name.hash;
 		for (var outer = this.outer; outer; outer = outer.outer) {
-			hash = hash ^ (outer.getId().hash >> 4);
+			hash = hash ^ (outer.getName().hash >> 4);
 		}
 		return hash;
 	}
 
-	getQualifiedName(): string {
-		let text = this.getId().toString();
+	getPath(): string {
+		let text = this.getName().toString();
 		for (var outer = this.outer; outer; outer = outer.outer) {
-			text = outer.getId() + '.' + text;
+			text = outer.getName() + '.' + text;
 		}
 		return text;
 	}
@@ -60,8 +60,9 @@ export abstract class UCSymbol implements ISymbol {
 		return UCTypeFlags.Error;
 	}
 
+	/** Returns a tooltip for this symbol, usually mirroring the written code, but minimalized and formatted. */
 	getTooltip(): string {
-		return this.getQualifiedName();
+		return this.getPath();
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
@@ -76,6 +77,7 @@ export abstract class UCSymbol implements ISymbol {
 		return undefined;
 	}
 
+	// TODO: Refactor ISymbol to CompletionItem, so that we are not forcing ourselves to recognize a UCKeyword as a Symbol.
 	getCompletionSymbols(_document: UCDocument, _context: string): ISymbol[] {
 		return [];
 	}
@@ -96,24 +98,13 @@ export abstract class UCSymbol implements ISymbol {
 
 	toSymbolInfo(): SymbolInformation {
 		return SymbolInformation.create(
-			this.getId().toString(), this.getKind(),
+			this.getName().toString(), this.getKind(),
 			this.getRange(), undefined,
-			this.outer?.getId().toString()
+			this.outer?.getName().toString()
 		);
-	}
-
-	toCompletionItem(_document: UCDocument): CompletionItem {
-		const item = CompletionItem.create(this.getId().toString());
-		item.detail = this.getTooltip();
-		item.kind = this.getCompletionItemKind();
-		item.data = this.getQualifiedName();
-		return item;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visit(this);
-	}
-
-	walk(_visitor: DocumentASTWalker, _ctx: ParseTree) {
 	}
 }

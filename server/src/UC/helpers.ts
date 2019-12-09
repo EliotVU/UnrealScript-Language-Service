@@ -12,19 +12,18 @@ import { Token, ParserRuleContext } from 'antlr4ts';
 
 import { TokenExt } from './Parser/CommonTokenStreamExt';
 import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, tryFindClassSymbol } from './Symbols';
-import { getDocumentByUri, getIndexedReferences } from "./indexer";
+import { getDocumentByURI, getIndexedReferences } from "./indexer";
 import { UCDocument } from './document';
 
 export function rangeFromBound(token: Token): Range {
 	const length = (token as TokenExt).length;
-
+	const line = token.line - 1;
 	const start: Position = {
-		line: token.line - 1,
+		line,
 		character: token.charPositionInLine
 	};
-
 	const end: Position = {
-		line: token.line - 1,
+		line,
 		character: token.charPositionInLine + length
 	};
 	return { start, end };
@@ -32,17 +31,15 @@ export function rangeFromBound(token: Token): Range {
 
 export function rangeFromBounds(startToken: Token, stopToken: Token = startToken): Range {
 	const length = (stopToken as TokenExt).length;
-
-	return {
-		start: {
-			line: startToken.line - 1,
-			character: startToken.charPositionInLine
-		},
-		end: {
-			line: stopToken.line - 1,
-			character: stopToken.charPositionInLine + length
-		}
+	const start: Position = {
+		line: startToken.line - 1,
+		character: startToken.charPositionInLine
 	};
+	const end: Position = {
+		line: stopToken.line - 1,
+		character: stopToken.charPositionInLine + length
+	};
+	return { start, end };
 }
 
 export function rangeFromCtx(ctx: ParserRuleContext): Range {
@@ -51,13 +48,11 @@ export function rangeFromCtx(ctx: ParserRuleContext): Range {
 		line: ctx.start.line - 1,
 		character: ctx.start.charPositionInLine
 	};
-	return {
-		start,
-		end: ctx.stop ? {
-			line: ctx.stop.line - 1,
-			character: ctx.stop.charPositionInLine + length
-		} : start
+	const end: Position = {
+		line: ctx.stop!.line - 1,
+		character: ctx.stop!.charPositionInLine + length
 	};
+	return { start, end };
 }
 
 export function intersectsWith(range: Range, position: Position): boolean {
@@ -111,10 +106,10 @@ function getDocumentCompletionContext(document: UCDocument, position: Position):
 }
 
 export async function getSymbolTooltip(uri: string, position: Position): Promise<Hover | undefined> {
-	const document = getDocumentByUri(uri);
+	const document = getDocumentByURI(uri);
 	const ref = document && getDocumentSymbol(document, position);
 	if (ref && ref instanceof UCSymbol) {
-		const contents = [{ language: 'unrealscript', value: ref.getTooltip()}];
+		const contents = [{ language: 'unrealscript', value: ref.getTooltip() }];
 
 		const documentation = ref.getDocumentation();
 		if (documentation) {
@@ -129,13 +124,13 @@ export async function getSymbolTooltip(uri: string, position: Position): Promise
 }
 
 export async function getSymbolDefinition(uri: string, position: Position): Promise<ISymbol | undefined> {
-	const document = getDocumentByUri(uri);
+	const document = getDocumentByURI(uri);
 	const ref = document && getDocumentSymbol(document, position) as unknown as IWithReference;
 	if (!ref) {
 		return undefined;
 	}
 
-	const symbol = ref.getReference && ref.getReference();
+	const symbol = ref.getRef?.();
 	if (symbol instanceof UCSymbol) {
 		return symbol;
 	}
@@ -143,12 +138,12 @@ export async function getSymbolDefinition(uri: string, position: Position): Prom
 }
 
 export async function getSymbol(uri: string, position: Position): Promise<ISymbol | undefined> {
-	const document = getDocumentByUri(uri);
+	const document = getDocumentByURI(uri);
 	return document && getDocumentSymbol(document, position);
 }
 
 export async function getSymbols(uri: string): Promise<SymbolInformation[] | undefined> {
-	const document = getDocumentByUri(uri);
+	const document = getDocumentByURI(uri);
 	if (!document) {
 		return undefined;
 	}
@@ -173,19 +168,21 @@ export async function getSymbols(uri: string): Promise<SymbolInformation[] | und
 
 export async function getSymbolReferences(uri: string, position: Position): Promise<Location[] | undefined> {
 	const symbol = await getSymbolDefinition(uri, position);
-	if (!(symbol instanceof UCSymbol)) {
+	if (!symbol) {
 		return undefined;
 	}
 
 	const references = getIndexedReferences(symbol.getHash());
-	return references && Array
-		.from(references.values())
+	if (!references) {
+		return undefined;
+	}
+	return Array.from(references.values())
 		.map(ref => ref.location);
 }
 
 export async function getSymbolHighlights(uri: string, position: Position): Promise<DocumentHighlight[] | undefined> {
 	const symbol = await getSymbolDefinition(uri, position);
-	if (!(symbol instanceof UCSymbol)) {
+	if (!symbol) {
 		return undefined;
 	}
 
@@ -206,8 +203,12 @@ export async function getSymbolHighlights(uri: string, position: Position): Prom
 }
 
 export async function getCompletableSymbolItems(uri: string, position: Position, context: string): Promise<CompletionItem[] | undefined> {
-	const document = getDocumentByUri(uri);
-	const contextSymbol = document && getDocumentCompletionContext(document, position);
+	const document = getDocumentByURI(uri);
+	if (!document) {
+		return undefined;
+	}
+
+	const contextSymbol = getDocumentCompletionContext(document, position);
 	if (!contextSymbol) {
 		return undefined;
 	}
@@ -218,8 +219,8 @@ export async function getCompletableSymbolItems(uri: string, position: Position,
 			&& contextSymbol.block
 			&& contextSymbol.block.getSymbolAtPos(position);
 
-		if (context === '.' && symbol && (<IWithReference>symbol).getReference) {
-			const resolvedSymbol = (<IWithReference>symbol).getReference();
+		if (context === '.' && symbol && (<IWithReference>symbol).getRef) {
+			const resolvedSymbol = (<IWithReference>symbol).getRef();
 			if (resolvedSymbol instanceof UCSymbol) {
 				symbols = resolvedSymbol.getCompletionSymbols(document, context);
 			}
@@ -228,20 +229,30 @@ export async function getCompletableSymbolItems(uri: string, position: Position,
 		}
 	}
 
-	const contextCompletions = symbols.map(symbol => symbol.toCompletionItem(document));
+	const contextCompletions = symbols.map(symbol => symbolToCompletionItem(symbol));
 	return contextCompletions;
+}
+
+function symbolToCompletionItem(symbol: ISymbol): CompletionItem {
+	if (symbol instanceof UCSymbol) {
+		return {
+			label: symbol.getName().toString(),
+			kind: symbol.getCompletionItemKind(),
+			detail: symbol.getTooltip(),
+			documentation: symbol.getDocumentation(),
+			data: symbol.getPath()
+		};
+	}
+
+	return {
+		label: symbol.getName().toString()
+	};
 }
 
 export async function getFullCompletionItem(item: CompletionItem): Promise<CompletionItem> {
 	if (item.data) {
 		const symbol = tryFindClassSymbol(item.data);
 		if (!symbol) {
-			return item;
-		}
-
-		const uri = symbol.getUri();
-		if (!uri) {
-			console.warn("no uri for symbol", symbol);
 			return item;
 		}
 		item.documentation = symbol.getDocumentation();

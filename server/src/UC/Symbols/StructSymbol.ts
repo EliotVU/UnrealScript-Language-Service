@@ -76,7 +76,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	addSymbol(symbol: UCFieldSymbol): Name | undefined {
+	addSymbol(symbol: UCFieldSymbol): number | undefined {
 		symbol.outer = this;
 		symbol.next = this.children;
 		symbol.containingStruct = this;
@@ -87,7 +87,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 
 	getSymbol(id: Name, kind?: SymbolKind): UCSymbol | undefined {
 		for (let child = this.children; child; child = child.next) {
-			if (child.getId() === id) {
+			if (child.getName() === id) {
 				if (kind !== undefined && (child.getTypeFlags() & kind) === 0) {
 					continue;
 				}
@@ -107,7 +107,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			this.extendsType.index(document, context);
 			// Ensure that we don't overwrite super assignment from our descendant class.
 			if (!this.super) {
-				this.super = this.extendsType.getReference() as UCStructSymbol;
+				this.super = this.extendsType.getRef() as UCStructSymbol;
 			}
 		}
 
@@ -115,7 +115,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			try {
 				child.index(document, this);
 			} catch (err) {
-				console.error(`Encountered an error while indexing '${child.getQualifiedName()}': ${err}`);
+				console.error(`Encountered an error while indexing '${child.getPath()}': ${err}`);
 			}
 		}
 	}
@@ -130,7 +130,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
  */
 export function findSuperStruct(struct: UCStructSymbol, id: Name): UCStructSymbol | undefined {
 	for (let other = struct.super; other; other = other.super) {
-		if (other.getId() === id) {
+		if (other.getName() === id) {
 			return other;
 		}
 	}

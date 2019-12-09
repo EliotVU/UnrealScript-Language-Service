@@ -8,7 +8,7 @@ import { ReliableKeyword, UnreliableKeyword, IfKeyword } from './Keywords';
 import {
 	ISymbol, UCSymbol,
 	UCClassSymbol, UCStructSymbol,
-	UCSymbolReference
+	UCSymbolReference, UCTypeFlags
 } from '.';
 
 export class UCReplicationBlock extends UCStructSymbol {
@@ -18,9 +18,13 @@ export class UCReplicationBlock extends UCStructSymbol {
 		return SymbolKind.Constructor;
 	}
 
+	getTypeFlags() {
+		return UCTypeFlags.Error;
+	}
+
 	// Just return the keyword identifier.
 	getTooltip(): string {
-		return this.getId().toString();
+		return this.getName().toString();
 	}
 
 	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
@@ -42,7 +46,7 @@ export class UCReplicationBlock extends UCStructSymbol {
 	index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
 		for (let ref of this.symbolRefs.values()) {
-			const symbol = context.findSuperSymbol(ref.getId());
+			const symbol = context.findSuperSymbol(ref.getName());
 			if (!symbol) {
 				continue;
 			}

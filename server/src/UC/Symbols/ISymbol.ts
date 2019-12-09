@@ -7,24 +7,40 @@ import { Name } from '../names';
 import { UCTypeFlags } from '.';
 
 export interface ISymbol {
+	/** Parent symbol, mirroring Unreal Engine's Object class structure. */
 	outer?: ISymbol;
+
+	/**
+	 * The next symbol in the hash chain.
+	 * e.g. consider package "Engine" and the class "Engine.Engine" which resides in package "Engine",
+	 * the class would be the @nextInHash of package "Engine".
+	 **/
 	nextInHash?: ISymbol | undefined;
 
-	getId(): Name;
+	getName(): Name;
 	getHash(): number;
-	getQualifiedName(): string;
-	getKind(): SymbolKind;
-	getTypeFlags(): UCTypeFlags;
-	getTooltip(): string;
 
-	toCompletionItem(document: UCDocument): CompletionItem;
+	/**
+	 * Returns a path presented in a qualified identifier format.
+	 * e.g. "Core.Object.Outer".
+	 **/
+	getPath(): string;
+
+	/** Returns the corresponding VS.SymbolKind, for presentation purposes. */
+	getKind(): SymbolKind;
+
+	/**
+	 * Returns an internal representation of a UnrealScript type.
+	 * e.g. this let's expose @UCEnumMemberSymbol as a byte type etc.
+	 **/
+	getTypeFlags(): UCTypeFlags;
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result;
 }
 
 export interface ISymbolContainer<T extends ISymbol> {
-	addSymbol(symbol: T): Name | undefined;
-	getSymbol(id: Name, type?: UCTypeFlags): T | undefined;
+	addSymbol(symbol: T): number | undefined;
+	getSymbol(id: Name | number, type?: UCTypeFlags, outer?: ISymbol): T | undefined;
 }
 
 export interface IContextInfo {
@@ -46,7 +62,7 @@ export interface ISymbolReference {
 }
 
 export interface IWithReference extends ISymbol {
-	getReference(): ISymbol | undefined;
+	getRef(): ISymbol | undefined;
 }
 
 export interface Identifier {

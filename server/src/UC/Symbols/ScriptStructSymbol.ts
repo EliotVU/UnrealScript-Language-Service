@@ -27,7 +27,7 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 	}
 
 	getTooltip(): string {
-		return `struct ${this.getQualifiedName()}`;
+		return `struct ${this.getPath()}`;
 	}
 
 	getCompletionSymbols(_document: UCDocument): ISymbol[] {

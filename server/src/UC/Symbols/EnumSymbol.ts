@@ -23,7 +23,7 @@ export class UCEnumSymbol extends UCStructSymbol {
 	}
 
 	getTooltip(): string {
-		return `enum ${this.getQualifiedName()}`;
+		return `enum ${this.getPath()}`;
 	}
 
 	getCompletionSymbols(document: UCDocument): ISymbol[] {

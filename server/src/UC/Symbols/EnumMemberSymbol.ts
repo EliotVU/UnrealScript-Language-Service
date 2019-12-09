@@ -24,7 +24,7 @@ export class UCEnumMemberSymbol extends UCFieldSymbol {
 	}
 
 	getTooltip(): string {
-		return `${this.getTypeKeyword()} ${this.getQualifiedName()} = ${this.value}`;
+		return `${this.getTypeKeyword()} ${this.getPath()} = ${this.value}`;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

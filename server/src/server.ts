@@ -1,8 +1,8 @@
 import * as path from 'path';
 import * as glob from 'glob';
 
-import { interval, Subject } from 'rxjs';
-import { debounce, map, switchMapTo, filter, delay } from 'rxjs/operators';
+import { interval, Subject, BehaviorSubject } from 'rxjs';
+import { debounce, switchMapTo, filter, delay } from 'rxjs/operators';
 
 import {
 	createConnection,
@@ -16,33 +16,56 @@ import {
 	ResponseError,
 	ErrorCodes,
 	Location,
-	SymbolKind,
 	CompletionTriggerKind
 } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
 import { getCompletableSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
-import { filePathByClassIdMap$, getDocumentByUri, queuIndexDocument, getIndexedReferences, config, defaultSettings, lastIndexedDocuments$, getDocumentById, applyMacroSymbols } from './UC/indexer';
+import { getDocumentByURI, queuIndexDocument, getIndexedReferences, config, defaultSettings, lastIndexedDocuments$, getDocumentById, applyMacroSymbols, getPackageByDir, createDocument, documentsMap, createPackage, removeDocument } from './UC/indexer';
 import { ServerSettings, EAnalyzeOption } from './settings';
-import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol, UCObjectTypeSymbol, UCTypeFlags, UCPackage, ObjectsTable } from './UC/Symbols';
+import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol, UCObjectTypeSymbol, UCTypeFlags, addHashedSymbol } from './UC/Symbols';
 import { toName } from './UC/names';
+import { UCDocument } from './UC/document';
 
 /** Emits true when the workspace is prepared and ready for indexing. */
 const isIndexReady$ = new Subject<boolean>();
+const documents$ = new BehaviorSubject<UCDocument[]>([]);
 
 /** Emits a document that is pending an update. */
 const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
 
 const textDocuments: TextDocuments = new TextDocuments();
-
 let hasWorkspaceFolderCapability: boolean = false;
 let currentSettings: ServerSettings = defaultSettings;
 
-export let connection = createConnection(ProposedFeatures.all);
+function getWorkspaceFiles(folders: WorkspaceFolder[]): string[] {
+	const flattenedFiles: string[] = [];
+	folders
+		.map(folder => {
+			const folderPath = URI.parse(folder.uri).fsPath;
+			return glob.sync(path.join(folderPath, "**/+(*.uc|*.uci)"), { realpath: true });
+		})
+		.forEach(files => {
+			flattenedFiles.push(...files);
+		});
+
+	return flattenedFiles;
+}
+
+function createDocuments(files: string[]): UCDocument[] {
+	return files.map(filePath => createDocument(filePath, getPackageByDir(filePath)));
+}
+
+function removeDocuments(files: string[]) {
+	for (let filePath of files) {
+		removeDocument(filePath);
+	}
+}
+
+export const connection = createConnection(ProposedFeatures.all);
 
 connection.onInitialize((params: InitializeParams) => {
-	let capabilities = params.capabilities;
-
+	const capabilities = params.capabilities;
 	hasWorkspaceFolderCapability = !!(capabilities.workspace && !!capabilities.workspace.workspaceFolders);
 
 	return {
@@ -64,43 +87,7 @@ connection.onInitialize((params: InitializeParams) => {
 	};
 });
 
-connection.onInitialized(async () => {
-	if (hasWorkspaceFolderCapability) {
-		async function buildClassesMapFromFolders(folders: WorkspaceFolder[]) {
-			const pathsMap = new Map<string, string>();
-
-			for (let folder of folders) {
-				const folderPath = URI.parse(folder.uri).fsPath;
-				try {
-					const files = glob.sync(path.join(folderPath, "**/+(*.uc|*.uci)"));
-					for (let file of files) {
-						pathsMap.set(path.basename(file, '.uc').toLowerCase(), file);
-					}
-				} catch (exc) {
-					connection.console.error(exc.toString());
-				}
-			}
-			return pathsMap;
-		}
-
-		const folders = await connection.workspace.getWorkspaceFolders();
-		if (folders) {
-			const map = await buildClassesMapFromFolders(folders);
-			filePathByClassIdMap$.next(map);
-		} else {
-			connection.console.warn("No workspace folders!");
-		}
-
-		connection.workspace.onDidChangeWorkspaceFolders(async (e) => {
-			const folders = e.added;
-			if (folders.length > 0) {
-				const classesFilePathsMap = await buildClassesMapFromFolders(folders);
-				const mergedMap = new Map<string, string>([...filePathByClassIdMap$.getValue(), ...classesFilePathsMap]);
-				filePathByClassIdMap$.next(mergedMap);
-			}
-		});
-	}
-
+connection.onInitialized(() => {
 	lastIndexedDocuments$
 		.pipe(
 			filter(() => currentSettings.unrealscript.analyzeDocuments !== EAnalyzeOption.None),
@@ -109,13 +96,13 @@ connection.onInitialized(async () => {
 		.subscribe(documents => {
 			if (currentSettings.unrealscript.analyzeDocuments === EAnalyzeOption.OnlyActive) {
 				// Only analyze active documents.
-				documents = documents.filter(document => textDocuments.get(URI.parse(document.filePath).toString()))
+				documents = documents.filter(document => textDocuments.get(document.uri))
 			}
 
 			for (const document of documents) {
 				const diagnostics = document.analyze();
 				connection.sendDiagnostics({
-					uri: document.filePath,
+					uri: document.uri,
 					diagnostics
 				});
 			}
@@ -128,8 +115,11 @@ connection.onInitialized(async () => {
 			debounce(() => interval(50))
 		)
 		.subscribe(({ textDocument, isDirty }) => {
-			const document = getDocumentByUri(textDocument.uri);
-			console.assert(document, 'Failed to fetch document at: ' + textDocument.uri);
+			const document = getDocumentByURI(textDocument.uri);
+			if (!document) {
+				// Don't index documents that are not part of the workspace.
+				return;
+			}
 
 			if (isDirty) {
 				document.invalidate();
@@ -140,21 +130,11 @@ connection.onInitialized(async () => {
 			}
 		}, (error) => connection.console.error(error));
 
-	filePathByClassIdMap$
-		.pipe(
-			filter(classesMap => classesMap.size > 0),
-			map((classesMap) => {
-				return Array
-					.from(classesMap.values())
-					.map(filePath => {
-						const uri = URI.file(filePath).toString();
-						return uri;
-					});
-			})
-		)
-		.subscribe(((classes) => {
+	documents$
+		.pipe(filter(documents => documents.length > 0))
+		.subscribe(((documents) => {
 			// TODO: does not respect multiple globals.uci files
-			const globalUci = getDocumentById('globals.uci');
+			const globalUci = getDocumentById(toName('globals.uci'));
 			if (globalUci) {
 				queuIndexDocument(globalUci);
 			}
@@ -163,7 +143,6 @@ connection.onInitialized(async () => {
 				const indexStartTime = Date.now();
 				connection.window.showInformationMessage('Indexing UnrealScript classes!');
 
-				const documents = classes.map(uri => getDocumentByUri(uri));
 				documents.forEach(document => {
 					if (document.hasBeenIndexed) {
 						return;
@@ -175,17 +154,50 @@ connection.onInitialized(async () => {
 				const time = Date.now() - indexStartTime;
 				connection.window.showInformationMessage('UnrealScript classes have been indexed in ' + new Date(time).getSeconds() + ' seconds!');
 			} else {
-				const openDocuments = textDocuments.all();
-				openDocuments.forEach(doc => {
-					const document = getDocumentByUri(doc.uri);
-					if (document && !document.hasBeenIndexed) {
-						queuIndexDocument(document);
-					}
-				});
+				textDocuments
+					.all()
+					.forEach(doc => pendingTextDocuments$.next({ textDocument: doc, isDirty: false }));
 			}
 			isIndexReady$.next(true);
 		})
-	);
+		);
+
+	if (hasWorkspaceFolderCapability) {
+		connection.workspace.getWorkspaceFolders().then((folders) => {
+			if (folders) {
+				const files = getWorkspaceFiles(folders);
+				if (files) {
+					const documents = createDocuments(files);
+					documents$.next(documents);
+				}
+			}
+		});
+
+		connection.workspace.onDidChangeWorkspaceFolders((event) => {
+			if (event.added) {
+				const files = getWorkspaceFiles(event.added);
+				if (files) {
+					createDocuments(files);
+					documents$.next(Array.from(documentsMap.values()));
+				}
+			}
+
+			// FIXME: Doesn't clean up any implicit created packages, nor names.
+			if (event.removed) {
+				const files = getWorkspaceFiles(event.removed);
+				if (files) {
+					removeDocuments(files);
+					documents$.next(Array.from(documentsMap.values()));
+				}
+			}
+		});
+	}
+
+	textDocuments.onDidOpen(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: false }));
+	textDocuments.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
+	// We need to re--index the document, incase that the end-user edited a document without saving its changes.
+	textDocuments.onDidClose(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
+	textDocuments.listen(connection);
 });
 
 connection.onDidChangeConfiguration((change) => {
@@ -196,19 +208,15 @@ connection.onDidChangeConfiguration((change) => {
 
 	const intSymbols = Object.entries(config.intrinsicSymbols);
 	for (let [key, value] of intSymbols) {
-		let [packageName, symbolName] = key.split('.');
-		let pkg = ObjectsTable.getSymbol<UCPackage>(toName(packageName), UCTypeFlags.Package);
-		if (!pkg) {
-			pkg = new UCPackage(toName(packageName));
-			ObjectsTable.addSymbol(pkg);
-		}
-
+		let [pkgNameStr, symbolName] = key.split('.');
 		if (value.type === 'class') {
+			const pkg = createPackage(pkgNameStr);
 			const symbol = new UCClassSymbol({ name: toName(symbolName), range: DEFAULT_RANGE });
 			if (value.extends) {
 				symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCTypeFlags.Class);
 			}
-			pkg.addSymbol(symbol);
+			symbol.outer = pkg;
+			addHashedSymbol(symbol);
 		} else {
 			console.error('Unsupported symbol type!', value.type, 'try \'class\'!');
 		}
@@ -216,10 +224,6 @@ connection.onDidChangeConfiguration((change) => {
 
 	isIndexReady$.next(true);
 });
-
-textDocuments.onDidOpen(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: false }));
-textDocuments.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
-textDocuments.listen(connection);
 
 connection.onDocumentSymbol((e) => getSymbols(e.textDocument.uri));
 connection.onHover((e) => getSymbolTooltip(e.textDocument.uri, e.position));
@@ -306,6 +310,11 @@ connection.onPrepareRename(async (e) => {
 		throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
 	}
 
+	// Symbol without a defined type e.g. defaultproperties, replication etc.
+	if (symbol.getTypeFlags() === UCTypeFlags.Error) {
+		throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
+	}
+
 	if (symbol instanceof UCFieldSymbol) {
 		if (symbol instanceof UCClassSymbol) {
 			throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename a class!');
@@ -314,16 +323,13 @@ connection.onPrepareRename(async (e) => {
 		throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
 	}
 
+	// Intrinsic type?
 	if (symbol.id.range === DEFAULT_RANGE) {
 		throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
 	}
 
-	if (symbol.getKind() === SymbolKind.Constructor) {
-		throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename a constructor!');
-	}
-
 	// Disallow symbols with invalid identifiers, such as an operator.
-	if (!VALID_ID_REGEXP.test(symbol.getId().toString())) {
+	if (!VALID_ID_REGEXP.test(symbol.getName().toString())) {
 		throw new ResponseError(ErrorCodes.InvalidParams, 'You cannot rename this element!');
 	}
 

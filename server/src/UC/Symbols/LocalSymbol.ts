@@ -21,7 +21,7 @@ export class UCLocalSymbol extends UCPropertySymbol {
 	}
 
 	protected getTooltipId(): string {
-		return this.getId().toString();
+		return this.getName().toString();
 	}
 
 	protected buildModifiers(): string[] {

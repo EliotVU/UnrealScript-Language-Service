@@ -1,20 +1,17 @@
-import * as path from 'path';
-
-import { URI } from 'vscode-uri';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { Subject } from 'rxjs';
 import { performance } from 'perf_hooks';
 
 import { UCOptions, ServerSettings, EAnalyzeOption } from '../settings';
 import { UCPreprocessorParser } from '../antlr/UCPreprocessorParser';
 
-import { ISymbolReference, UCPackage, TRANSIENT_PACKAGE, UCEnumMemberSymbol, ObjectsTable } from './Symbols';
+import { ISymbolReference, UCPackage, TRANSIENT_PACKAGE, UCEnumMemberSymbol, ObjectsTable, addHashedSymbol, UCTypeFlags } from './Symbols';
 import { UCDocument } from './document';
 import { Name, toName } from './names';
 import { DocumentIndexer } from './documentIndexer';
+import { URI } from 'vscode-uri';
 
-export const filePathByClassIdMap$ = new BehaviorSubject(new Map<string, string>());
-export const documentByURIMap = new Map<string, UCDocument>();
-const packageByDirMap = new Map<string, UCPackage>();
+export const documentsByPathMap = new Map<string, UCDocument>();
+export const documentsMap = new Map<number, UCDocument>();
 
 export enum UCGeneration {
 	UC1 = "1",
@@ -60,7 +57,6 @@ let pendingIndexedDocuments: UCDocument[] = [];
 export function indexDocument(document: UCDocument, text?: string) {
 	try {
 		document.build(text);
-
 		document.hasBeenIndexed = true;
 		const start = performance.now();
 		if (document.class) {
@@ -68,19 +64,16 @@ export function indexDocument(document: UCDocument, text?: string) {
 				document.class.index(document, document.class);
 			} catch (err) {
 				console.error(
-					`An error was thrown while indexing document: "${document.filePath}",
+					`An error was thrown while indexing document: "${document.uri}",
 					\n
 					\t stack: "${err.stack}"`
 				);
 			}
 		}
 		console.info(document.fileName + ': indexing time ' + (performance.now() - start));
-
 		pendingIndexedDocuments.push(document);
-
-		// See postLink() below.
 	} catch (err) {
-		console.error(`An error occurred during the indexation of document ${document.filePath}`, err);
+		console.error(`An error occurred during the indexation of document ${document.uri}`, err);
 	}
 }
 
@@ -92,7 +85,7 @@ function postIndexDocument(document: UCDocument) {
 			document.class.accept<any>(indexer);
 		} catch (err) {
 			console.error(
-				`An error was thrown while post indexing document: "${document.filePath}",
+				`An error was thrown while post indexing document: "${document.uri}",
 				\n
 				\t stack: "${err.stack}"`
 			);
@@ -102,7 +95,6 @@ function postIndexDocument(document: UCDocument) {
 
 export function queuIndexDocument(document: UCDocument, text?: string) {
 	indexDocument(document, text);
-
 	if (pendingIndexedDocuments) {
 		const startTime = performance.now();
 		for (const doc of pendingIndexedDocuments) {
@@ -115,8 +107,8 @@ export function queuIndexDocument(document: UCDocument, text?: string) {
 	}
 }
 
-function findPackageNameInDir(dir: string): string {
-	const directories = dir.split('/');
+function parsePackageNameInDir(dir: string): string {
+	const directories = dir.split(/\\|\//);
 	for (let i = directories.length - 1; i >= 0; -- i) {
 		if (i > 0 && directories[i].toLowerCase() === 'classes') {
 			return directories[i - 1];
@@ -125,73 +117,72 @@ function findPackageNameInDir(dir: string): string {
 	return '';
 }
 
-function getPackageByUri(uri: string): UCPackage {
-	const dir = path.parse(uri).dir;
-	let pkg = packageByDirMap.get(dir);
-	if (pkg) {
-		return pkg;
-	}
-
-	const packageName = findPackageNameInDir(dir);
-	if (!packageName) {
+export function getPackageByDir(dir: string): UCPackage {
+	const pkgNameStr = parsePackageNameInDir(dir);
+	if (!pkgNameStr) {
 		return TRANSIENT_PACKAGE;
 	}
+	return createPackage(pkgNameStr);
+}
 
-	pkg = new UCPackage(toName(packageName));
-	ObjectsTable.addSymbol(pkg);
-	packageByDirMap.set(dir, pkg);
+export function createPackage(pkgNameStr: string): UCPackage {
+	const pkgName = toName(pkgNameStr);
+	let pkg = ObjectsTable.getSymbol<UCPackage>(pkgName, UCTypeFlags.Package);
+	if (!pkg) {
+		pkg = new UCPackage(pkgName);
+		addHashedSymbol(pkg);
+	}
 	return pkg;
 }
 
-export function getDocumentByUri(uri: string): UCDocument {
-	let document = documentByURIMap.get(uri);
+export function createDocument(filePath: string, pkg: UCPackage) {
+	let document = documentsByPathMap.get(filePath);
 	if (document) {
 		return document;
 	}
 
-	const pkg = getPackageByUri(uri);
-	document = new UCDocument(uri, pkg);
-	documentByURIMap.set(uri, document);
+	document = new UCDocument(filePath, pkg);
+	documentsByPathMap.set(filePath, document);
+	documentsMap.set(document.name.hash, document);
 	return document;
 }
 
-export function getUriById(id: string): string | undefined {
-	const filePath = filePathByClassIdMap$.getValue().get(id);
-	return filePath ? URI.file(filePath).toString() : undefined;
-}
-
-export function getDocumentById(id: string): UCDocument | undefined {
-	const uri = getUriById(id);
-	if (!uri) {
-		return undefined;
+export function removeDocument(filePath: string) {
+	const document = documentsByPathMap.get(filePath);
+	if (!document) {
+		return;
 	}
-	return getDocumentByUri(uri);
+
+	// TODO: Re-index dependencies? (blocked by lack of a dependencies tree!)
+	document.invalidate();
+	documentsByPathMap.delete(filePath);
+	documentsMap.delete(document.name.hash);
+
+	// TODO: See if our package has any remaining members, if not, try to remove the package.
+	// if (document.classPackage) {
+
+	// }
 }
 
-// let ClassCompletionItems: CompletionItem[] = [];
+export function getDocumentByURI(uri: string): UCDocument | undefined {
+	const filePath = URI.parse(uri).fsPath;
+	const document = documentsByPathMap.get(filePath);
+	return document;
+}
 
-// ClassIdToFilePathMap$.subscribe(classesMap => {
-// 	ClassCompletionItems = Array.from(classesMap.values())
-// 		.map(value => {
-// 			return {
-// 				label: path.basename(value, '.uc'),
-// 				kind: CompletionItemKind.Class
-// 			};
-// 		});
-// });
+export function getDocumentById(id: Name): UCDocument | undefined {
+	return documentsMap.get(id.hash);
+}
 
 export const IndexedReferencesMap = new Map<number, Set<ISymbolReference>>();
-
 export function getIndexedReferences(hash: number) {
 	return IndexedReferencesMap.get(hash);
 }
 
-const EnumMemberMap = new WeakMap<Name, UCEnumMemberSymbol>();
-
+const EnumMemberMap = new Map<number, UCEnumMemberSymbol>();
 export function getEnumMember(enumName: Name): UCEnumMemberSymbol | undefined {
-	return EnumMemberMap.get(enumName);
+	return EnumMemberMap.get(enumName.hash);
 }
-
 export function setEnumMember(enumMember: UCEnumMemberSymbol) {
-	EnumMemberMap.set(enumMember.getId(), enumMember);
+	EnumMemberMap.set(enumMember.getName().hash, enumMember);
 }

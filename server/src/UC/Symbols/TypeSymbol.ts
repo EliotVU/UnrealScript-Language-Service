@@ -3,7 +3,7 @@ import { Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { intersectsWithRange } from '../helpers';
 import { SymbolWalker } from '../symbolWalker';
-import { UnrecognizedTypeDiagnostic, ErrorDiagnostic } from '../diagnostics/diagnostic';
+import { ErrorDiagnostic } from '../diagnostics/diagnostic';
 
 import {
 	ISymbol, Identifier, IWithReference,
@@ -11,7 +11,12 @@ import {
 	UCStructSymbol, UCClassSymbol, UCFieldSymbol,
 	NativeClass, ObjectsTable, DEFAULT_RANGE, NativeArray
 } from '.';
-import { NAME_NONE, Name, NAME_BYTE, NAME_FLOAT, NAME_INT, NAME_STRING, NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_BUTTON, NAME_OBJECT, NAME_VECTOR, NAME_ROTATOR, NAME_RANGE, NAME_DEFAULT, NAME_DELEGATE, NAME_ARRAY, NAME_MAP } from '../names';
+import {
+	NAME_NONE, Name, NAME_BYTE, NAME_FLOAT, NAME_INT, NAME_STRING,
+	NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_BUTTON, NAME_OBJECT,
+	NAME_VECTOR, NAME_ROTATOR, NAME_RANGE, NAME_DELEGATE,
+	NAME_ARRAY, NAME_MAP
+} from '../names';
 import { UCPackage, tryFindClassSymbol, tryFindSymbolInPackage } from './Package';
 import { IExpression } from '../expressions';
 
@@ -31,20 +36,21 @@ export enum UCTypeFlags {
 
 	// OBJECT TYPES
 	Object			= 1 << 9,
-	Package			= 1 << 10 | Object, // For use cases like e.g. "class Actor extends Core.Object" where "Core" would be of type "Package".
-	Class			= 1 << 11 | Object, // A class like class<CLASSNAME>.
-	Interface		= 1 << 12 | Object,
-	Enum			= 1 << 13 | Object,
-	Struct			= 1 << 14 | Object,
-	Property		= 1 << 15 | Object,
-	Function		= 1 << 16 | Object,
-	State			= 1 << 17 | Object,
-	Const			= 1 << 18 | Object,
+	Archetype 		= 1 << 10 | Object,
+	Package			= 1 << 11 | Object, // For use cases like e.g. "class Actor extends Core.Object" where "Core" would be of type "Package".
+	Class			= 1 << 12 | Object, // A class like class<CLASSNAME>.
+	Interface		= 1 << 13 | Object,
+	Enum			= 1 << 14 | Object,
+	Struct			= 1 << 15 | Object,
+	Property		= 1 << 16 | Object,
+	Function		= 1 << 17 | Object,
+	State			= 1 << 18 | Object,
+	Const			= 1 << 19 | Object,
 
 	// Special case for property type validations.
-	Type			= 1 << 19,
+	Type			= 1 << 20,
 	// Reffers the special "None" identifier, if we do actual reffer an undefined symbol, we should be an @Error.
-	None			= 1 << 20,
+	None			= 1 << 21,
 
 	NumberCoerce	= Float | Int | Byte,
 	EnumCoerce		= Enum | Int | Byte,
@@ -56,7 +62,10 @@ export enum UCTypeFlags {
 	// Can be coerced to type "String", if marked with "coerce".
 	CoerceString	= Name | String | Object | NumberCoerce | Bool | None,
 
-	Replicatable	= Function | Property
+	Replicatable	= Function | Property,
+
+	// Types that can be assigned to by an identifier literal.
+	IdentifierTypes = EnumCoerce | Class | Delegate
 }
 
 export interface ITypeSymbol extends UCSymbol, IWithReference {
@@ -91,8 +100,8 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		return this.type.getTypeFlags();
 	}
 
-	getReference(): ISymbol | undefined {
-		return this.type.getReference();
+	getRef(): ISymbol | undefined {
+		return this.type.getRef();
 	}
 
 	getTooltip(): string {
@@ -111,7 +120,7 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 	index(document: UCDocument, context: UCStructSymbol) {
 		if (this.left) {
 			this.left.index(document, context);
-			const leftContext = this.left.getReference();
+			const leftContext = this.left.getRef();
 			if (!leftContext) {
 				// We don't want to index type in this case, so that we don't match a false positive,
 				// -- where say package was not found, but its member is (in another package).
@@ -128,13 +137,12 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
-		this.left?.accept(visitor);
-		return visitor.visitObjectType(this.type);
+		return visitor.visitQualifiedType(this);
 	}
 }
 
 export class UCPredefinedTypeSymbol extends UCSymbol implements ITypeSymbol {
-	getReference(): ISymbol | undefined {
+	getRef(): ISymbol | undefined {
 		return undefined;
 	}
 
@@ -273,7 +281,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 	}
 
 	getTooltip(): string {
-		if (this.reference) {
+		if (this.reference instanceof UCSymbol) {
 			return this.reference.getTooltip();
 		}
 		return '';
@@ -281,9 +289,9 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 
 	getTypeText(): string {
 		if (this.baseType) {
-			return this.getId() + `<${this.baseType.getTypeText()}>`;
+			return this.getName() + `<${this.baseType.getTypeText()}>`;
 		}
-		return this.getId().toString();
+		return this.getName().toString();
 	}
 
 	getTypeFlags(): UCTypeFlags {
@@ -312,7 +320,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 			return;
 		}
 
-		const id = this.getId();
+		const id = this.getName();
 		let symbol: ISymbol | undefined;
 		switch (this.validTypeKind) {
 			case UCTypeFlags.Package: {
@@ -341,22 +349,12 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 				break;
 			}
 
-			// Special case for object literals like Property'Engine.Member.Member...'
-			// FIXME: How to handle ambiguous literals such as class'Engine' versus class'Engine.Interactions',
-			// -- where Engine either be the class or package named "Engine".
-			case UCTypeFlags.Object: {
-				symbol = tryFindClassSymbol(id) || ObjectsTable.getSymbol(id)
-					// FIXME: Hacky case for literals like Property'TempColor', only enums and structs are added to the objects table.
-					|| context.findSuperSymbol(id);
-				break;
-			}
-
 			default:
-				// Dirty hack, UCPackage is not a type of UCStructSymbol,
-				// -- handles cases like class'Engine.Interactions', where package 'Engine' is our context.
-				symbol = context instanceof UCPackage
-					? tryFindSymbolInPackage(id, context)
-					: context.findSuperSymbol(id);
+				if (context instanceof UCStructSymbol) {
+					symbol = context.findSuperSymbol(id);
+				} else if (context as unknown instanceof UCPackage) {
+					symbol = tryFindSymbolInPackage(id, context);
+				}
 				break;
 		}
 		symbol && this.setReference(symbol, document);
@@ -415,6 +413,17 @@ export class UCMapTypeSymbol extends UCObjectTypeSymbol {
 	}
 }
 
+export const CastTypeClassMap: Readonly<WeakMap<Name, typeof UCPredefinedTypeSymbol>> = new WeakMap([
+	[NAME_BYTE, UCByteTypeSymbol],
+	[NAME_FLOAT, UCFloatTypeSymbol],
+	[NAME_INT, UCIntTypeSymbol],
+	[NAME_STRING, UCStringTypeSymbol],
+	[NAME_NAME, UCNameTypeSymbol],
+	[NAME_BOOL, UCBoolTypeSymbol],
+	// Oddly... conversion to a button is actually valid!
+	[NAME_BUTTON, UCButtonTypeSymbol]
+]);
+
 export const StaticObjectType 	= new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE, UCTypeFlags.Class);
 export const StaticArrayType 	= new UCArrayTypeSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });
 export const StaticMapType 		= new UCMapTypeSymbol({ name: NAME_MAP, range: DEFAULT_RANGE });
@@ -430,13 +439,16 @@ export const StaticVectorType 	= new UCObjectTypeSymbol({ name: NAME_VECTOR, ran
 export const StaticRotatorType 	= new UCObjectTypeSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE });
 export const StaticRangeType 	= new UCObjectTypeSymbol({ name: NAME_RANGE, range: DEFAULT_RANGE });
 
-// TODO: Deprecate this, but this is blocked by a lack of an analytical expression walker.
-export function analyzeTypeSymbol(document: UCDocument, type: ITypeSymbol | UCSymbolReference) {
-	if (type.getReference()) {
-		return;
-	}
-	document.nodes.push(new UnrecognizedTypeDiagnostic(type));
-}
+export const CastTypeSymbolMap: Readonly<WeakMap<Name, ITypeSymbol>> = new WeakMap([
+	[NAME_BYTE, StaticByteType],
+	[NAME_FLOAT, StaticFloatType],
+	[NAME_INT, StaticIntType],
+	[NAME_STRING, StaticStringType],
+	[NAME_NAME, StaticNameType],
+	[NAME_BOOL, StaticBoolType],
+	// Oddly... conversion to a button is actually valid!
+	[NAME_BUTTON, StaticBoolType]
+]);
 
 export function analyzeExpressionType(expression: IExpression, expected: UCTypeFlags) {
 	const type = expression.getType();

@@ -4,20 +4,19 @@ import { Name } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import { UCDocument } from '../document';
 
-import { UCStructSymbol, tryFindClassSymbol } from '.';
+import { UCStructSymbol } from '.';
 import { UCObjectTypeSymbol, UCTypeFlags } from './TypeSymbol';
 import { Identifier } from './ISymbol';
 
 /**
- * Can represent either a subobject aka archetype, or an instance of a defaultproperties declaration.
+ * Represents an instanced Archetype found within in a defaultproperties e.g. "begin object class=classID name=objectName".
  */
 export class UCObjectSymbol extends UCStructSymbol {
 	public objectName?: Name;
 	public classId?: Identifier;
-	public classType?: UCObjectTypeSymbol;
 
-	getId(): Name {
-		return this.objectName || super.getId();
+	getName(): Name {
+		return this.objectName || super.getName();
 	}
 
 	getKind(): SymbolKind {
@@ -25,22 +24,14 @@ export class UCObjectSymbol extends UCStructSymbol {
 	}
 
 	getTypeFlags() {
-		return UCTypeFlags.Object;
+		return UCTypeFlags.Archetype;
 	}
 
 	index(document: UCDocument, _context: UCStructSymbol) {
 		if (this.classId) {
-			this.classType = new UCObjectTypeSymbol(this.classId, undefined, UCTypeFlags.Class);
-
-			const objectClass = tryFindClassSymbol(this.classId.name);
-			if (objectClass) {
-				this.classType.setReference(objectClass, document);
-
-				// TODO: Find @super, for declarations where no class=NAME was specified
-				this.super = objectClass;
-			}
+			// TODO: Find @super, for declarations where no class=NAME was specified
+			this.extendsType = new UCObjectTypeSymbol(this.classId, undefined, UCTypeFlags.Class);
 		}
-
 		super.index(document, this);
 	}
 

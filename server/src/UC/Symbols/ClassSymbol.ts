@@ -25,7 +25,7 @@ export class UCClassSymbol extends UCStructSymbol {
 	}
 
 	getTooltip(): string {
-		return `class ${this.getQualifiedName()}`;
+		return `class ${this.getPath()}`;
 	}
 
 	getSymbolAtPos(position: Position) {
@@ -85,7 +85,7 @@ export class UCClassSymbol extends UCStructSymbol {
 			this.withinType.index(document, context);
 
 			// Overwrite extendsRef super, we inherit from the within class instead.
-			this.super = this.withinType.getReference() as UCClassSymbol;
+			this.super = this.withinType.getRef() as UCClassSymbol;
 		}
 
 		if (this.dependsOnTypes) {
@@ -109,10 +109,9 @@ export class UCClassSymbol extends UCStructSymbol {
 }
 
 export class UCDocumentClassSymbol extends UCClassSymbol {
-	public document?: UCDocument;
+	public document: UCDocument;
 
 	getUri(): string {
-		console.assert(this.document, 'Document was accessed before being initialized! Make sure that the class is indexed first!');
-		return this.document!.filePath;
+		return this.document.uri;
 	}
 }

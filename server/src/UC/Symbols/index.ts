@@ -1,5 +1,5 @@
 export * from './ISymbol';
-export * from "./Symbol";
+export * from './Symbol';
 export * from './SymbolReference';
 export * from './TypeSymbol';
 export * from './Package';

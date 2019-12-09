@@ -1,6 +1,5 @@
 import { CompletionItem, CompletionItemKind, SymbolKind } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import { Name, toName } from '../names';
 
@@ -12,7 +11,7 @@ export class UCKeyword implements ISymbol, CompletionItem {
 	constructor(public name: Name, public label: string = name.toString()) {
 	}
 
-	getId(): Name {
+	getName(): Name {
 		return this.name;
 	}
 
@@ -21,23 +20,15 @@ export class UCKeyword implements ISymbol, CompletionItem {
 	}
 
 	getKind(): SymbolKind {
-		return this.kind;
+		return SymbolKind.Null;
 	}
 
 	getTypeFlags() {
 		return UCTypeFlags.Error;
 	}
 
-	getQualifiedName(): string {
+	getPath(): string {
 		throw new Error('Method not implemented.');
-	}
-
-	getTooltip(): string {
-		throw new Error('Method not implemented.');
-	}
-
-	toCompletionItem(_document: UCDocument): CompletionItem {
-		return this;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

@@ -1,4 +1,7 @@
-import { DiagnosticSeverity, SymbolKind } from 'vscode-languageserver';
+import { DiagnosticSeverity, SymbolKind, Range } from 'vscode-languageserver';
+
+import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
+import * as diagnosticMessages from './diagnosticMessages.json';
 
 import { DefaultSymbolWalker } from '../symbolWalker';
 import {
@@ -11,6 +14,8 @@ import {
 	UCMethodSymbol, UCBinaryOperatorSymbol,
 	UCReplicationBlock, UCObjectSymbol, UCTypeFlags,
 	typeMatchesFlags, ITypeSymbol, getTypeFlagsName,
+	NativeClass, NativeEnum, UCQualifiedTypeSymbol,
+	IContextInfo, UCFieldSymbol, LengthProperty,
 } from '../Symbols';
 import {
 	UCBlock, UCExpressionStatement,
@@ -19,51 +24,78 @@ import {
 	UCAssertStatement, UCSwitchStatement,
 	UCForEachStatement, UCCaseClause
 } from '../statements';
-import { IExpression } from '../expressions';
-
+import {
+	IExpression, UCObjectLiteral, UCParenthesizedExpression, UCCallExpression,
+	UCElementAccessExpression, UCPropertyAccessExpression, UCConditionalExpression,
+	UCBaseOperatorExpression, UCBinaryOperatorExpression, UCMemberExpression,
+	UCSuperExpression, UCDefaultStructLiteral, UCAssignmentExpression,
+	UCIdentifierLiteralExpression, UCArrayCountExpression, UCArrayCountLiteral,
+	UCNameOfLiteral, UCSizeOfLiteral, UCMetaClassExpression, UCDefaultAssignmentExpression,
+	UCAssignmentOperatorExpression, UCEmptyArgument
+} from '../expressions';
 import { UCDocument } from '../document';
-import { toHash, NAME_STRUCT, NAME_STATE, NAME_DELEGATE } from '../names';
+import { NAME_STRUCT, NAME_STATE, NAME_DELEGATE } from '../names';
 import { config, UCGeneration } from '../indexer';
-
-import { DiagnosticCollection } from './diagnostic';
-
-import * as diagnosticMessages from './diagnosticMessages.json';
 
 export class DocumentAnalyzer extends DefaultSymbolWalker {
 	private scopes: UCStructSymbol[] = [];
 	private context?: UCStructSymbol;
+	private state: IContextInfo = {};
+	private cachedState: IContextInfo = {};
 
 	constructor(private document: UCDocument, private diagnostics: DiagnosticCollection) {
 		super();
 
 		if (document.class) {
-			this.push(document.class);
+			this.pushScope(document.class);
 			document.class.accept<any>(this);
 		}
 	}
 
-	push(context?: UCStructSymbol) {
+	pushScope(context?: UCStructSymbol) {
 		this.context = context;
 		if (context) {
 			this.scopes.push(context);
 		}
 	}
 
-	pop(): UCStructSymbol | undefined {
+	popScope(): UCStructSymbol | undefined {
 		this.scopes.pop();
 		this.context = this.scopes[this.scopes.length - 1];
 		return this.context;
 	}
 
+	resetState() {
+		this.state = {};
+	}
+
+	suspendState() {
+		this.cachedState = this.state;
+		this.state = {};
+	}
+
+	resumeState() {
+		this.state = this.cachedState;
+	}
+
+	visitQualifiedType(symbol: UCQualifiedTypeSymbol) {
+		symbol.left?.accept<any>(this);
+		if (symbol.left && !symbol.left.getRef()) {
+			return symbol;
+		}
+		symbol.type.accept<any>(this);
+		return symbol;
+	}
+
 	visitObjectType(symbol: UCObjectTypeSymbol) {
 		super.visitObjectType(symbol);
 
-		const referredSymbol = symbol.getReference();
-		if (config.checkTypes && !referredSymbol) {
+		const referredSymbol = symbol.getRef();
+		if (!referredSymbol) {
 			this.diagnostics.add({
 				range: symbol.id.range,
 				message: diagnosticMessages.TYPE_0_NOT_FOUND,
-				args: [symbol.getId().toString()]
+				args: [symbol.getName().toString()]
 			});
 		}
 		return symbol;
@@ -79,12 +111,12 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		super.visitDelegateType(symbol);
 
 		if (config.checkTypes && symbol.baseType) {
-			const referredSymbol = symbol.baseType.getReference();
+			const referredSymbol = symbol.baseType.getRef();
 			if (referredSymbol && !(referredSymbol instanceof UCDelegateSymbol)) {
 				this.diagnostics.add({
 					range: symbol.baseType.id.range,
 					message: diagnosticMessages.TYPE_0_CANNOT_EXTEND_TYPE_OF_1,
-					args: [NAME_DELEGATE.toString(), referredSymbol.getQualifiedName()]
+					args: [NAME_DELEGATE.toString(), referredSymbol.getPath()]
 				});
 			}
 		}
@@ -94,8 +126,8 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	visitClass(symbol: UCClassSymbol) {
 		super.visitClass(symbol);
 
-		const className = symbol.getId();
-		if (className.hash !== toHash(this.document.fileName)) {
+		const className = symbol.getName();
+		if (className.hash !== this.document.name.hash) {
 			this.diagnostics.add({
 				range: symbol.id.range,
 				message: diagnosticMessages.CLASS_NAME_0_MUST_MATCH_DOCUMENT_NAME_1,
@@ -106,7 +138,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	}
 
 	visitConst(symbol: UCConstSymbol) {
-		this.push(this.document.class);
+		this.pushScope(this.document.class);
 		super.visitConst(symbol);
 		if (symbol.expression) {
 			// TODO: Check if expression is static
@@ -119,7 +151,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				}
 			});
 		}
-		this.pop();
+		this.popScope();
 		return symbol;
 	}
 
@@ -129,20 +161,20 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	}
 
 	visitScriptStruct(symbol: UCScriptStructSymbol) {
-		this.push(symbol);
+		this.pushScope(symbol);
 		super.visitScriptStruct(symbol);
 
 		if (config.checkTypes && symbol.extendsType) {
-			const referredSymbol = symbol.extendsType.getReference();
+			const referredSymbol = symbol.extendsType.getRef();
 			if (referredSymbol && referredSymbol.getTypeFlags() !== UCTypeFlags.Struct) {
 				this.diagnostics.add({
 					range: symbol.extendsType.id.range,
 					message: diagnosticMessages.TYPE_0_CANNOT_EXTEND_TYPE_OF_1,
-					args: [NAME_STRUCT.toString(), referredSymbol.getQualifiedName()]
+					args: [NAME_STRUCT.toString(), referredSymbol.getPath()]
 				});
 			}
 		}
-		this.pop();
+		this.popScope();
 		return symbol;
 	}
 
@@ -197,7 +229,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	}
 
 	visitMethod(symbol: UCMethodSymbol) {
-		this.push(symbol);
+		this.pushScope(symbol);
 		super.visitMethod(symbol);
 
 		if (symbol.params) {
@@ -213,7 +245,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 						this.diagnostics.add({
 							range: param.id.range,
 							message: {
-								text: `Parameter '${param.getId()}' must be marked 'optional' after an optional parameter.`,
+								text: `Parameter '${param.getName()}' must be marked 'optional' after an optional parameter.`,
 								severity: DiagnosticSeverity.Error
 							}
 						});
@@ -224,7 +256,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 			symbol.requiredParamsCount = requiredParamsCount;
 		}
 
-		if (symbol.getKind() === SymbolKind.Operator) {
+		if (symbol.isOperatorKind()) {
 			if (!symbol.isFinal()) {
 				this.diagnostics.add({
 					range: symbol.id.range,
@@ -235,7 +267,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 
-			if (symbol instanceof UCBinaryOperatorSymbol) {
+			if (symbol.isOperator()) {
 				if (!symbol.params || symbol.params.length !== 2) {
 					this.diagnostics.add({
 						range: symbol.id.range,
@@ -269,33 +301,33 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		if (symbol.overriddenMethod) {
 			// TODO: check difference
 		}
-		this.pop();
+		this.popScope();
 		return symbol;
 	}
 
 	visitState(symbol: UCStateSymbol) {
-		this.push(symbol);
+		this.pushScope(symbol);
 		super.visitState(symbol);
 
 		if (config.checkTypes && symbol.extendsType) {
-			const referredSymbol = symbol.extendsType.getReference();
+			const referredSymbol = symbol.extendsType.getRef();
 			if (referredSymbol && referredSymbol.getTypeFlags() !== UCTypeFlags.State) {
 				this.diagnostics.add({
 					range: symbol.extendsType.id.range,
 					message: diagnosticMessages.TYPE_0_CANNOT_EXTEND_TYPE_OF_1,
-					args: [NAME_STATE.toString(), referredSymbol.getQualifiedName()]
+					args: [NAME_STATE.toString(), referredSymbol.getPath()]
 				});
 			}
 		}
 
 		if (symbol.ignoreRefs) for (const ref of symbol.ignoreRefs) {
 			// TODO: How does uscript behave when an operator is referred?
-			const referredSymbol = ref.getReference();
+			const referredSymbol = ref.getRef();
 			if (!referredSymbol) {
 				this.diagnostics.add({
 					range: ref.id.range,
 					message: diagnosticMessages.COULDNT_FIND_0,
-					args: [ref.getId().toString()]
+					args: [ref.getName().toString()]
 				});
 			} else if (referredSymbol instanceof UCMethodSymbol) {
 				if (referredSymbol.isFinal()) {
@@ -311,13 +343,13 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				this.diagnostics.add({
 					range: ref.id.range,
 					message: {
-						text: `'${referredSymbol.getId()}' is not a function.`,
+						text: `'${referredSymbol.getName()}' is not a function.`,
 						severity: DiagnosticSeverity.Error
 					}
 				});
 			}
 		}
-		this.pop();
+		this.popScope();
 		return symbol;
 	}
 
@@ -361,16 +393,16 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	}
 
 	visitReplicationBlock(symbol: UCReplicationBlock) {
-		this.push(this.document.class || symbol);
+		this.pushScope(this.document.class || symbol);
 		super.visitReplicationBlock(symbol);
 
 		for (let symbolRef of symbol.symbolRefs.values()) {
-			const symbol = symbolRef.getReference();
+			const symbol = symbolRef.getRef();
 			if (!symbol) {
 				this.diagnostics.add({
 					range: symbolRef.id.range,
 					message: {
-						text: `Variable '${symbolRef.getId()}' not found!`,
+						text: `Variable '${symbolRef.getName()}' not found!`,
 						severity: DiagnosticSeverity.Error
 					}
 				});
@@ -383,7 +415,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 					this.diagnostics.add({
 						range: symbolRef.id.range,
 						message: {
-							text: `Variable or Function '${symbol.getQualifiedName()}' needs to be declared in class '${this.document.class!.getQualifiedName()}'!`,
+							text: `Variable or Function '${symbol.getPath()}' needs to be declared in class '${this.document.class!.getPath()}'!`,
 							severity: DiagnosticSeverity.Error
 						}
 					});
@@ -392,21 +424,20 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				this.diagnostics.add({
 					range: symbolRef.id.range,
 					message: {
-						text: `Type of '${symbol.getId()}' is neither a variable nor function!`,
+						text: `Type of '${symbol.getName()}' is neither a variable nor function!`,
 						severity: DiagnosticSeverity.Error
 					}
 				});
 			}
 		}
-		this.pop();
+		this.popScope();
 		return symbol;
 	}
 
 	visitObjectSymbol(symbol: UCObjectSymbol) {
-		this.push(symbol.super || symbol);
+		this.pushScope(symbol);
 		super.visitStructBase(symbol);
-		symbol.classType?.accept<any>(this);
-		this.pop();
+		this.popScope();
 		return symbol;
 	}
 
@@ -415,7 +446,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 			try {
 				statement.accept<any>(this);
 			} catch (err) {
-				console.error('Hit a roadblock while analyzing a statement', this.context ? this.context.getQualifiedName() : '???', err);
+				console.error('Hit a roadblock while analyzing a statement', this.context ? this.context.getPath() : '???', err);
 			}
 		}
 		return symbol;
@@ -564,19 +595,345 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	}
 
 	visitExpression(expr: IExpression) {
-		expr.analyze(this.document, this.context);
+		if (expr instanceof UCParenthesizedExpression) {
+			expr.expression?.accept<any>(this);
+		} else if (expr instanceof UCMetaClassExpression) {
+			expr.expression?.accept<any>(this);
+			expr.classRef?.accept<any>(this);
+			// TODO: verify class type by inheritance
+		} else if (expr instanceof UCCallExpression) {
+			this.state.hasArguments = true;
+			expr.expression.accept<any>(this);
+			this.state.hasArguments = false;
+			expr.arguments?.forEach(arg => arg.accept<any>(this));
+
+			const type = expr.expression.getType();
+			const symbol = type?.getRef();
+			if (symbol instanceof UCMethodSymbol) {
+				let i = 0;
+				let passedArgumentsCount = 0; // excluding optional parameters.
+				if (expr.arguments) for (; i < expr.arguments.length; ++i) {
+					const arg = expr.arguments[i];
+					const param = symbol.params?.[i];
+					if (!param) {
+						this.pushError(arg.getRange(), `Unexpected argument!`);
+						++passedArgumentsCount;
+						continue;
+					}
+
+					if (!param.isOptional()) {
+						++passedArgumentsCount;
+						if (arg instanceof UCEmptyArgument) {
+							this.pushError(arg.getRange(),
+								`An argument for non-optional parameter '${param.getName()}' is missing.`
+							);
+							continue;
+						}
+					}
+
+					if (arg instanceof UCEmptyArgument) {
+						continue;
+					}
+
+					const argType = arg.getType();
+					if (!argType) {
+						// We already have generated an error diagnostic when type is an error.
+						// Thus we can skip further skips that would only overload the programmer.
+						continue;
+					}
+
+					if (param.isOut()) {
+						const argSymbol = arg.getType()?.getRef();
+						// if (!argSymbol) {
+						// 	this.pushError(
+						// 		arg.getRange(),
+						// 		`Non-resolved argument cannot be passed to an 'out' parameter.`)
+						// 	);
+						// } else
+						if (argSymbol instanceof UCFieldSymbol) {
+							if (argSymbol === LengthProperty) {
+								this.pushError(arg.getRange(),
+									`Cannot pass array property 'Length' to an 'out' parameter.`
+								);
+							}
+							else if (argSymbol.isConst()) {
+								this.pushError(arg.getRange(),
+									`Argument '${argSymbol.getName()}' cannot be passed to an 'out' parameter, because it is a constant.`
+								);
+							}
+						}
+					}
+
+					if (config.checkTypes) {
+						const expectedFlags = param.getType()?.getTypeFlags() || UCTypeFlags.Error;
+						if (argType && !typeMatchesFlags(argType, expectedFlags)) {
+							this.pushError(arg.getRange(),
+								`Argument of type '${getTypeFlagsName(argType)}' is not assignable to parameter of type '${UCTypeFlags[expectedFlags]}'.`
+							);
+						}
+					}
+				}
+
+				// When we have more params than required, we'll catch an unexpected argument error, see above.
+				if (symbol.requiredParamsCount && passedArgumentsCount < symbol.requiredParamsCount) {
+					const totalPassedParamsCount = i;
+					this.pushError(expr.getRange(), `Expected ${symbol.requiredParamsCount} arguments, but got ${totalPassedParamsCount}.`);
+				}
+			} else {
+				// TODO: Validate if expressed symbol is callable,
+				// i.e. either a 'Function/Delegate', 'Class', or a 'Struct' like Vector/Rotator.
+			}
+		} else if (expr instanceof UCElementAccessExpression) {
+			if (expr.expression) {
+				expr.expression.accept<any>(this);
+				if (config.checkTypes) {
+					const type = expr.getType();
+					if (!type) {
+						this.diagnostics.add({
+							range: expr.getRange(),
+							message: {
+								text: `Type of '${expr.getMemberSymbol()?.getPath()}' is not a valid array.`,
+								severity: DiagnosticSeverity.Error
+							}
+						});
+					}
+				}
+			}
+
+			if (expr.argument) {
+				expr.argument.accept<any>(this);
+				if (config.checkTypes) {
+					const type = expr.argument.getType();
+					if (!type || (type.getTypeFlags() & UCTypeFlags.NumberCoerce) === 0) {
+						this.diagnostics.add({
+							range: expr.argument.getRange(),
+							message: {
+								text: `Element access expression type is invalid.`,
+								severity: DiagnosticSeverity.Error
+							}
+						});
+					}
+				}
+			} else {
+				this.diagnostics.add({
+					range: expr.getRange(),
+					message: {
+						text: `An element access expression should take an argument.`,
+						severity: DiagnosticSeverity.Error
+					}
+				});
+			}
+		} else if (expr instanceof UCPropertyAccessExpression) {
+			this.suspendState();
+			expr.left.accept<any>(this);
+			this.resumeState();
+
+			const memberContext = expr.left.getType()?.getRef() as UCStructSymbol;
+			this.pushScope(memberContext);
+			expr.member.accept<any>(this);
+			this.popScope();
+		} else if (expr instanceof UCConditionalExpression) {
+			expr.condition.accept<any>(this);
+			expr.true?.accept<any>(this);
+			expr.false?.accept<any>(this);
+		} else if (expr instanceof UCBaseOperatorExpression) {
+			expr.expression.accept<any>(this);
+			const operatorSymbol = expr.operator.getRef();
+			if (!operatorSymbol) {
+				this.diagnostics.add({
+					range: expr.operator.getRange(),
+					message: {
+						text: `Invalid unary operator '{0}'.`,
+						severity: DiagnosticSeverity.Error
+					},
+					args: [expr.operator.getName().toString()]
+				});
+			}
+		} else if (expr instanceof UCBinaryOperatorExpression) {
+			if (expr.left) {
+				expr.left.accept<any>(this);
+
+				const type = expr.left.getType();
+				this.state.typeFlags = type?.getTypeFlags();
+			} else {
+				this.pushError(expr.getRange(), "Missing left expression!");
+				return expr;
+			}
+			if (expr.right) {
+				expr.right.accept<any>(this);
+			} else {
+				this.pushError(expr.getRange(), "Missing right expression!");
+				return expr;
+			}
+
+			if (expr instanceof UCAssignmentExpression || expr instanceof UCAssignmentOperatorExpression) {
+				// TODO: Validate type compatibility, but this requires us to match an overloaded operator first!
+				const letType = expr.left!.getType();
+				const letSymbol = letType?.getRef();
+				if (letSymbol) {
+					if (letSymbol instanceof UCPropertySymbol) {
+						// Properties with a defined array dimension cannot be assigned!
+						if (letSymbol.isFixedArray()) {
+							this.diagnostics.add({
+								range: letType!.getRange(),
+								message: {
+									text: `Cannot assign to '${letSymbol.getName()}' because it is a fixed array.`,
+									severity: DiagnosticSeverity.Error
+								}
+							});
+						}
+
+						if (letSymbol.isConst()) {
+							this.diagnostics.add({
+								range: letType!.getRange(),
+								message: {
+									text: `Cannot assign to '${letSymbol.getName()}' because it is a constant.`,
+									severity: DiagnosticSeverity.Error
+								}
+							});
+						}
+					} else if (letSymbol instanceof UCMethodSymbol && !(letSymbol instanceof UCDelegateSymbol)) {
+						this.diagnostics.add({
+							range: letType!.getRange(),
+							message: {
+								text: `Cannot assign to '${letSymbol.getName()}' because it is a function. Did you mean to assign a delegate?`,
+								severity: DiagnosticSeverity.Error
+							}
+						});
+						// TODO: Distinguish a delegate from a regular method!
+						// TODO: throw error unless it's a delegate.
+					}
+				}
+			} else if (expr instanceof UCDefaultAssignmentExpression) {
+				if (config.checkTypes) {
+					const letType = expr.left!.getType();
+					if (letType && letType.getTypeFlags() === UCTypeFlags.Error) {
+						this.pushError(
+							expr.left!.getRange(),
+							`Type of '${letType.getName()}' cannot be assigned a default value!`
+						);
+					}
+
+					if (expr.right) {
+						const leftType = expr.left!.getType();
+						const rightType = expr.right.getType();
+						if (rightType && leftType) {
+							const flags = leftType.getTypeFlags();
+							if (!typeMatchesFlags(rightType, flags)) {
+								this.pushError(
+									expr.left!.getRange(),
+									`Variable of type '${getTypeFlagsName(leftType)}' cannot be assigned to type '${getTypeFlagsName(rightType)}'`
+								);
+							}
+						} else {
+							// TODO: Invalid type?
+						}
+
+					} else {
+						this.pushError(expr.getRange(), "Missing value!");
+					}
+				}
+			}
+		} else if (expr instanceof UCIdentifierLiteralExpression) {
+			if (!this.context || !this.state.typeFlags) {
+				return expr;
+			} else if ((this.state.typeFlags & UCTypeFlags.IdentifierTypes) === 0) {
+				return expr;
+			}
+			// We don't support objects, although this may be true in the check above due the fact that a class is also an Object.
+			else if (this.state.typeFlags === UCTypeFlags.Object) {
+				return expr;
+			}
+
+			if (!expr.typeRef) {
+				if (this.context) {
+					this.diagnostics.add({
+						range: expr.getRange(),
+						message: {
+							text: diagnosticMessages.ID_0_DOES_NOT_EXIST_ON_TYPE_1.text,
+							severity: DiagnosticSeverity.Error
+						},
+						args: [expr.getId().toString(), this.context.getPath()]
+					});
+				} else {
+					this.diagnostics.add({
+						range: expr.getRange(),
+						message: {
+							text: diagnosticMessages.COULDNT_FIND_0.text,
+							severity: DiagnosticSeverity.Error
+						},
+						args: [expr.getId().toString()]
+					});
+				}
+			}
+		} else if (expr instanceof UCMemberExpression) {
+			if (!expr.typeRef && this.context) {
+				this.diagnostics.add({
+					range: expr.getRange(),
+					message: {
+						text: diagnosticMessages.ID_0_DOES_NOT_EXIST_ON_TYPE_1.text,
+						severity: DiagnosticSeverity.Error
+					},
+					args: [expr.getId().toString(), this.context.getPath()]
+				});
+			}
+		} else if (expr instanceof UCSuperExpression) {
+			// TODO: verify class type by inheritance
+			if (expr.structTypeRef && !expr.structTypeRef.getRef()) {
+				this.diagnostics.add({
+					range: expr.getRange(),
+					message: {
+						text: diagnosticMessages.TYPE_0_NOT_FOUND.text,
+						severity: DiagnosticSeverity.Error
+					},
+					args: [expr.structTypeRef.getName().toString()]
+				});
+			}
+		} else if (expr instanceof UCDefaultStructLiteral) {
+			expr.arguments?.forEach(arg => arg?.accept<any>(this));
+		} else if (expr instanceof UCObjectLiteral) {
+			// TODO: verify class type by inheritance
+			const castSymbol = expr.castRef.getRef();
+			expr.castRef.accept<any>(this);
+
+			if (expr.objectRef) {
+				expr.objectRef.accept<any>(this);
+
+				const objectSymbol = expr.objectRef.getRef();
+				if (config.checkTypes && objectSymbol) {
+					if (castSymbol === NativeClass && !(objectSymbol instanceof UCClassSymbol)) {
+						this.pushError(expr.objectRef.id.range, `Type of '${objectSymbol.getPath()}' is not a class!`);
+					} else if (castSymbol === NativeEnum && !(objectSymbol instanceof UCEnumSymbol)) {
+						this.pushError(expr.objectRef.id.range, `Type of '${objectSymbol.getPath()}' is not an enum!`);
+					}
+				}
+			}
+		} else if (expr instanceof UCArrayCountExpression) {
+			expr.argument?.accept<any>(this);
+		} else if (expr instanceof UCArrayCountLiteral) {
+			// TODO: Validate that referred property is a valid static array!
+			expr.argumentRef?.accept<any>(this);
+		} else if (expr instanceof UCNameOfLiteral) {
+			expr.argumentRef?.accept<any>(this);
+		} else if (expr instanceof UCSizeOfLiteral) {
+			expr.argumentRef?.accept<any>(this);
+		}
 		return expr;
+	}
+
+	private pushError(range: Range, text: string): void {
+		this.diagnostics.add({ range, message: { text, severity: DiagnosticSeverity.Error } });
 	}
 }
 
-function createExpectedTypeMessage(expected: UCTypeFlags, type?: ITypeSymbol) {
+function createExpectedTypeMessage(expected: UCTypeFlags, type?: ITypeSymbol): IDiagnosticMessage {
 	return {
 		text: `Expected type '${UCTypeFlags[expected]}', but got type '${type ? UCTypeFlags[type.getTypeFlags()] : UCTypeFlags.Error}'.`,
 		severity: DiagnosticSeverity.Error
 	};
 }
 
-function createTypeCannotBeAssignedToMessage(expected: UCTypeFlags, type?: ITypeSymbol) {
+function createTypeCannotBeAssignedToMessage(expected: UCTypeFlags, type?: ITypeSymbol): IDiagnosticMessage {
 	return {
 		text: `Type '${getTypeFlagsName(type)}' is not assignable to type '${UCTypeFlags[expected]}'.`,
 		severity: DiagnosticSeverity.Error

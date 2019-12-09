@@ -22,7 +22,8 @@ export enum MethodSpecifiers {
 	Static 			= 0x0040,
 	Final 			= 0x0080,
 
-	HasKind			= Function | Operator | PreOperator | PostOperator | Event | Delegate
+	OperatorKind 	= Operator | PreOperator | PostOperator,
+	HasKind			= Function | OperatorKind | Event | Delegate
 }
 
 export class UCMethodSymbol extends UCStructSymbol {
@@ -51,15 +52,19 @@ export class UCMethodSymbol extends UCStructSymbol {
 	 * Returns true if this method is marked as a (binary) operator.
 	 * Beware that this returns false even when the method is a preoperator!
 	 */
-	isOperator() {
+	isOperator(): this is UCBinaryOperatorSymbol {
 		return (this.specifiers & MethodSpecifiers.Operator) !== 0;
 	}
 
-	isPreOperator() {
+	isOperatorKind(): this is UCBaseOperatorSymbol {
+		return (this.specifiers & MethodSpecifiers.OperatorKind) !== 0;
+	}
+
+	isPreOperator(): this is UCPreOperatorSymbol {
 		return (this.specifiers & MethodSpecifiers.PreOperator) !== 0;
 	}
 
-	isPostOperator() {
+	isPostOperator(): this is UCPostOperatorSymbol {
 		return (this.specifiers & MethodSpecifiers.PostOperator) !== 0;
 	}
 
@@ -102,7 +107,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 
 	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
 		if (context === '.') {
-			const resolvedType = this.returnValue?.getType()?.getReference();
+			const resolvedType = this.returnValue?.getType()?.getRef();
 			if (resolvedType instanceof UCSymbol) {
 				return resolvedType.getCompletionSymbols(document, context);
 			}
@@ -119,9 +124,9 @@ export class UCMethodSymbol extends UCStructSymbol {
 			this.returnValue.index(document, context);
 
 			// For UC1 and UC2 we have to hardcode the "coerce" modifier for the Spawn's return type.
-			if (this.getId() === NAME_SPAWN
-				&& this.outer?.getId() === NAME_ACTOR
-				&& this.outer.outer?.getId() === NAME_ENGINE) {
+			if (this.getName() === NAME_SPAWN
+				&& this.outer?.getName() === NAME_ACTOR
+				&& this.outer.outer?.getName() === NAME_ENGINE) {
 				this.returnValue.paramModifiers |= ParamModifiers.Coerce;
 			}
 		}
@@ -129,10 +134,10 @@ export class UCMethodSymbol extends UCStructSymbol {
 		super.index(document, context);
 
 		if (context.super) {
-			const overriddenMethod = context.super.findSuperSymbol(this.getId());
+			const overriddenMethod = context.super.findSuperSymbol(this.getName());
 			if (overriddenMethod instanceof UCMethodSymbol) {
 				document.indexReference(overriddenMethod, {
-					location: Location.create(document.filePath, this.id.range)
+					location: Location.create(document.uri, this.id.range)
 				});
 				this.overriddenMethod = overriddenMethod;
 			}
@@ -161,7 +166,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 		if (this.returnValue) {
 			text.push(this.returnValue.getTextForReturnValue());
 		}
-		text.push(this.getQualifiedName() + this.buildParameters());
+		text.push(this.getPath() + this.buildParameters());
 
 		return text.filter(s => s).join(' ');
 	}
@@ -208,8 +213,8 @@ export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference
 		return '(intrinsic)';
 	}
 
-	getReference(): ISymbol | undefined {
-		return this.returnValue?.getType()?.getReference();
+	getRef(): ISymbol | undefined {
+		return this.returnValue?.getType()?.getRef();
 	}
 }
 

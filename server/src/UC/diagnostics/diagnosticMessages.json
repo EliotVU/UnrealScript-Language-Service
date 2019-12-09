@@ -6,7 +6,7 @@
 	},
 
 	"ID_0_DOES_NOT_EXIST_ON_TYPE_1": {
-		"text": "'{0} Does not exist on type '{1}'.",
+		"text": "'{0} does not exist on type '{1}'.",
 		"code": "1",
 		"severity": 1
 	},

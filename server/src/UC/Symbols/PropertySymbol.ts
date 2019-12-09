@@ -1,11 +1,7 @@
 import { SymbolKind, CompletionItemKind, Position, Range } from 'vscode-languageserver-types';
 
-import * as UCParser from '../../antlr/UCParser';
-
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
-import { DocumentASTWalker } from '../documentASTWalker';
-import { rangeFromBound } from '../helpers';
 import { NAME_ENUMCOUNT } from '../names';
 import { config, UCGeneration } from '../indexer';
 
@@ -16,23 +12,25 @@ import {
 	UCConstSymbol, ISymbol, UCSymbol
 } from '.';
 import { resolveType } from './TypeSymbol';
+import { FieldModifiers } from './FieldSymbol';
 
 export class UCPropertySymbol extends UCFieldSymbol {
+	// The type if specified, i.e. "var Object Outer;" Object here is represented by @type, including the resolved symbol.
 	public type?: ITypeSymbol;
 
-	// Array dimension if specified, string should consist of an integer.
-	private arrayDim?: string;
-	public arrayDimRange?: Range;
+	// The array dimension if specified, undefined if @arrayDimRef is truthy.
+	public arrayDim?: number;
 
 	// Array dimension is statically based on a declared symbol, such as a const or enum member.
 	public arrayDimRef?: ITypeSymbol;
+	public arrayDimRange?: Range;
 
 	/**
 	 * Returns true if this property is declared as a static array type (false if it's is dynamic!).
 	 * Note that this property will be seen as a static array even if the @arrayDim value is invalid.
 	 */
 	isFixedArray(): boolean {
-		return !!this.arrayDimRef || Boolean(this.arrayDim);
+		return (this.modifiers & FieldModifiers.WithDimension) !== 0;
 	}
 
 	isDynamicArray(): boolean {
@@ -44,24 +42,25 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	 * Returns undefined if unresolved.
 	 */
 	getArrayDimSize(): number | undefined {
-		const symbol = this.arrayDimRef?.getReference();
-		if (symbol) {
-			if (symbol instanceof UCConstSymbol) {
-				return symbol.getComputedValue();
-			}
+		if (this.arrayDimRef) {
+			const symbol = this.arrayDimRef.getRef();
+			if (symbol) {
+				if (symbol instanceof UCConstSymbol) {
+					return symbol.getComputedValue();
+				}
 
-			if (config.generation === UCGeneration.UC3) {
-				if (symbol instanceof UCEnumSymbol) {
-					return (<UCEnumMemberSymbol>symbol.getSymbol(NAME_ENUMCOUNT)).value;
-				}
-				if (symbol instanceof UCEnumMemberSymbol) {
-					return symbol.value;
+				if (config.generation === UCGeneration.UC3) {
+					if (symbol instanceof UCEnumSymbol) {
+						return (<UCEnumMemberSymbol>symbol.getSymbol(NAME_ENUMCOUNT)).value;
+					}
+					if (symbol instanceof UCEnumMemberSymbol) {
+						return symbol.value;
+					}
 				}
 			}
-		} else if (this.arrayDim) {
-			return Number(this.arrayDim);
+			return undefined;
 		}
-		return undefined;
+		return this.arrayDim;
 	}
 
 	getKind(): SymbolKind {
@@ -85,7 +84,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	protected getTooltipId() {
-		return this.getQualifiedName();
+		return this.getPath();
 	}
 
 	getTooltip() {
@@ -115,7 +114,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 
 	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
 		if (context === '.') {
-			const resolvedType = this.type?.getReference();
+			const resolvedType = this.type?.getRef();
 			if (resolvedType instanceof UCSymbol) {
 				return resolvedType.getCompletionSymbols(document, context);
 			}
@@ -136,25 +135,5 @@ export class UCPropertySymbol extends UCFieldSymbol {
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitProperty(this);
-	}
-
-	walk(visitor: DocumentASTWalker, ctx: UCParser.VariableContext) {
-		const arrayDimNode = ctx._arrayDim;
-		if (!arrayDimNode) {
-			return;
-		}
-
-		const qualifiedNode = arrayDimNode.qualifiedIdentifier();
-		if (qualifiedNode) {
-			this.arrayDimRef = qualifiedNode.accept(visitor);
-			this.arrayDimRange = this.arrayDimRef?.getRange();
-			return;
-		}
-
-		const intNode = arrayDimNode.INTEGER();
-		if (intNode) {
-			this.arrayDim = intNode.text;
-			this.arrayDimRange = rangeFromBound(intNode.symbol);
-		}
 	}
 }

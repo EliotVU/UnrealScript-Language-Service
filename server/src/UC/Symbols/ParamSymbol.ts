@@ -2,8 +2,7 @@ import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-
 
 import { SymbolWalker } from '../symbolWalker';
 import { IExpression } from '../expressions';
-import { UCDocument } from '../document';
-import { UCPropertySymbol, UCStructSymbol } from '.';
+import { UCPropertySymbol } from '.';
 
 // "const" is available as a @FieldModifier
 export enum ParamModifiers {
@@ -60,7 +59,7 @@ export class UCParamSymbol extends UCPropertySymbol {
 		if (this.type) {
 			text.push(this.type.getTypeText());
 		}
-		text.push(this.getId().toString());
+		text.push(this.getName().toString());
 
 		return text.filter(s => s).join(' ');
 	}
@@ -81,7 +80,7 @@ export class UCParamSymbol extends UCPropertySymbol {
 	}
 
 	protected getTooltipId(): string {
-		return this.getId().toString();
+		return this.getName().toString();
 	}
 
 	getContainedSymbolAtPos(position: Position) {

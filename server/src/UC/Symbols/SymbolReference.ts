@@ -26,7 +26,7 @@ export class UCSymbolReference extends UCSymbol implements IWithReference {
 	}
 
 	getTooltip(): string {
-		if (this.reference) {
+		if (this.reference instanceof UCSymbol) {
 			return this.reference.getTooltip();
 		}
 		return '';
@@ -49,20 +49,16 @@ export class UCSymbolReference extends UCSymbol implements IWithReference {
 
 	setReference(symbol: ISymbol, document: UCDocument, noIndex?: boolean, range?: Range): ISymbolReference | undefined {
 		this.reference = symbol;
-		if (noIndex) {
-			return;
-		}
 
-		if (symbol) {
-			const ref: ISymbolReference = {
-				location: Location.create(document.filePath, range || this.id.range),
-			};
-			document.indexReference(symbol, ref);
-			return ref;
+		if (noIndex) {
+			return undefined;
 		}
+		const ref: ISymbolReference = { location: Location.create(document.uri, range || this.id.range) };
+		document.indexReference(symbol, ref);
+		return ref;
 	}
 
-	getReference(): ISymbol | undefined {
+	getRef(): ISymbol | undefined {
 		return this.reference;
 	}
 }
