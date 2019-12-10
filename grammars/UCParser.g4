@@ -313,11 +313,11 @@ modifierValue
 	;
 
 modifierArgument
-	: OPEN_PARENS modifierValue CLOSE_PARENS
+	: OPEN_PARENS modifierValue? CLOSE_PARENS
 	;
 
 modifierArguments
-	: OPEN_PARENS (modifierValue COMMA?)+ CLOSE_PARENS
+	: OPEN_PARENS (modifierValue COMMA?)* CLOSE_PARENS
 	;
 
 constDecl
@@ -891,7 +891,7 @@ primaryExpression
 	// | id=identifier right=primaryExpression													#preNamedOperatorExpression
 	// | left=primaryExpression id=identifier													#postNamedOperatorExpression
 
-	| (OPEN_PARENS expr=expression CLOSE_PARENS) 											#parenthesizedExpression
+	| (OPEN_PARENS expr=primaryExpression CLOSE_PARENS) 									#parenthesizedExpression
 	;
 
 classPropertyAccessSpecifier
