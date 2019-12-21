@@ -67,11 +67,11 @@ export class UCDocument {
 		if (config.generation === UCGeneration.UC3) {
 			const startPreprocressing = performance.now();
 			const macroParser = createPreprocessor(this, lexer);
+			lexer.reset();
 			if (macroParser) {
 				try {
 					const macroTree = preprocessDocument(this, macroParser, walker);
 					if (macroTree) {
-						lexer.reset();
 						tokens.initMacroTree(macroTree, walker as ANTLRErrorListener<Number>);
 					}
 				} catch (err) {
