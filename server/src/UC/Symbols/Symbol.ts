@@ -1,13 +1,11 @@
-import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Position } from 'vscode-languageserver-types';
+import { Range, SymbolKind, SymbolInformation, CompletionItemKind, Position } from 'vscode-languageserver-types';
 
 import { Token } from 'antlr4ts';
-import { ParseTree } from 'antlr4ts/tree/ParseTree';
 
 import { UCDocument } from "../document";
 import { SymbolWalker } from '../symbolWalker';
 import { intersectsWithRange } from '../helpers';
 import { Name } from '../names';
-import { DocumentASTWalker } from '../documentASTWalker';
 
 import { ISymbol, Identifier, UCStructSymbol, UCTypeFlags } from ".";
 
@@ -77,7 +75,7 @@ export abstract class UCSymbol implements ISymbol {
 		return undefined;
 	}
 
-	// TODO: Refactor ISymbol to CompletionItem, so that we are not forcing ourselves to recognize a UCKeyword as a Symbol.
+	// TODO: Refactor ISymbol to CompletionItem.
 	getCompletionSymbols(_document: UCDocument, _context: string): ISymbol[] {
 		return [];
 	}

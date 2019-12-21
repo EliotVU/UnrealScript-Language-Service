@@ -34,8 +34,8 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			}
 		}
 
-		let parent = this.super || this.outer as UCStructSymbol;
-		for (; parent; parent = parent.super || parent.outer as UCStructSymbol) {
+		let parent = this.super ?? this.outer as UCStructSymbol;
+		for (; parent; parent = parent.super ?? parent.outer as UCStructSymbol) {
 			for (let child = parent.children; child; child = child.next) {
 				if (child.acceptCompletion(document, this)) {
 					symbols.push(child);
@@ -55,15 +55,9 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		let symbol: ISymbol | undefined;
-		if (this.extendsType && (symbol = this.extendsType.getSymbolAtPos(position))) {
-			return symbol;
-		}
-
-		if (this.block && (symbol = this.block.getSymbolAtPos(position))) {
-			return symbol;
-		}
-		return this.getChildSymbolAtPos(position);
+		return this.extendsType?.getSymbolAtPos(position)
+			?? this.block?.getSymbolAtPos(position)
+			?? this.getChildSymbolAtPos(position);
 	}
 
 	getChildSymbolAtPos(position: Position) {
@@ -98,7 +92,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	}
 
 	findSuperSymbol(id: Name, kind?: SymbolKind): UCSymbol | undefined {
-		return this.getSymbol(id, kind) || this.super && this.super.findSuperSymbol(id, kind);
+		return this.getSymbol(id, kind) ?? this.super?.findSuperSymbol(id, kind);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {

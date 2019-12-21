@@ -4,7 +4,6 @@ import { UCDocument } from '../document';
 import { Name } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 
-import { ReliableKeyword, UnreliableKeyword, IfKeyword } from './Keywords';
 import {
 	ISymbol, UCSymbol,
 	UCClassSymbol, UCStructSymbol,
@@ -29,8 +28,7 @@ export class UCReplicationBlock extends UCStructSymbol {
 
 	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
 		return super
-			.getCompletionSymbols(document, context)
-			.concat(ReliableKeyword, UnreliableKeyword, IfKeyword);
+			.getCompletionSymbols(document, context);
 	}
 
 	getContainedSymbolAtPos(position: Position) {
