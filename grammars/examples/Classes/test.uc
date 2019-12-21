@@ -140,7 +140,9 @@ function struct e {} InlinedStructReturnType() {
 }
 
 function TestQualifiedStruct( Test.AStruct struct ) {
-
+	class'Engine';
+	class'Engine.Engine';
+	package'Engine';
 }
 
 function string returnAssignment(){
