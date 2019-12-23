@@ -1,6 +1,7 @@
 # UnrealScript
 [![Marketplace Version](https://vsmarketplacebadge.apphb.com/version/EliotVU.uc.svg "Current Release")](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 [![Build Status](https://travis-ci.org/EliotVU/UnrealScript-Language-Service.svg?branch=master)](https://travis-ci.org/EliotVU/UnrealScript-Language-Service)
+[![Gitter](https://badges.gitter.im/unrealscript/Language-Service.svg)](https://gitter.im/unrealscript/Language-Service?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 This work-in-progress extension for Visual Studio Code, adds language support for UnrealScript, including:
 
