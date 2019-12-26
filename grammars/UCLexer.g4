@@ -42,7 +42,7 @@ LINE_COMMENT
 	;
 
 BLOCK_COMMENT
-	: '/*' .*? '*/'
+	: '/*' (BLOCK_COMMENT|.)*? '*/'
 	-> channel(COMMENTS_CHANNEL)
 	;
 

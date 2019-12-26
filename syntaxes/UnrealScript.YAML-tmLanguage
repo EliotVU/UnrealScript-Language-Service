@@ -15,18 +15,55 @@ patterns:
 repository:
   comment:
     patterns:
-      - name: comment.block.uc
-        begin: /\*
-        beginCaptures:
-          '0':
-            name: punctuation.definition.comment.uc
-        end: \*/
-        endCaptures:
-          '0':
-            name: punctuation.definition.comment.uc
+      - include: '#blockComment'
       - name: comment.line.double-slash.uc
         begin: //
         end: \n
+
+  blockComment:
+    patterns:
+      - name: comment.block.documentation.uc
+        begin: (/\*\*)
+        beginCaptures:
+          '0':
+            name: punctuation.definition.comment.uc
+        patterns:
+          - begin: (/\*)
+            name: comment.block.uc
+            end: (\*/)
+
+          - include: '#commentDoc'
+        end: (\*/)
+        endCaptures:
+          '0':
+            name: punctuation.definition.comment.uc
+
+      - name: comment.block.uc
+        begin: (/\*)
+        beginCaptures:
+          '0':
+            name: punctuation.definition.comment.uc
+        patterns:
+          - begin: (/\*)
+            name: comment.block.uc
+            end: (\*/)
+        end: (\*/)
+        endCaptures:
+          '0':
+            name: punctuation.definition.comment.uc
+
+  commentDoc:
+    patterns:
+      - match: (?:(@(?i)param)\:?\s*(\w+))
+        captures:
+          '1':
+            name: storage.type.class.jsdoc.uc
+          '2':
+            name: variable.other.jsdoc.uc
+      - match: (?:(@\w+))
+        captures:
+          '1':
+            name: storage.type.class.jsdoc.uc
 
   directive:
     name: meta.preprocessor.macro.uc
