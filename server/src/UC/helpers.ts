@@ -6,14 +6,23 @@ import {
 	Position,
 	Range,
 	DocumentHighlight,
-	DocumentHighlightKind
+	DocumentHighlightKind,
+	CompletionItemKind
 } from 'vscode-languageserver';
-import { Token, ParserRuleContext } from 'antlr4ts';
+import { Token, ParserRuleContext, TokenStream } from 'antlr4ts';
 
 import { TokenExt } from './Parser/CommonTokenStreamExt';
-import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, tryFindClassSymbol } from './Symbols';
-import { getDocumentByURI, getIndexedReferences } from "./indexer";
-import { UCDocument } from './document';
+import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, tryFindClassSymbol, ObjectsTable } from './Symbols';
+import { getDocumentByURI, getIndexedReferences, config, UCGeneration } from "./indexer";
+import { UCDocument, DocumentParseData } from './document';
+
+import { UCLexer } from '../antlr/UCLexer';
+import { UCParser } from '../antlr/UCParser';
+
+import * as c3 from 'antlr4-c3';
+import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
+
+export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 
 export function rangeFromBound(token: Token): Range {
 	const length = (token as TokenExt).length;
@@ -202,35 +211,138 @@ export async function getSymbolHighlights(uri: string, position: Position): Prom
 		));
 }
 
-export async function getCompletableSymbolItems(uri: string, position: Position, context: string): Promise<CompletionItem[] | undefined> {
+export async function getCompletableSymbolItems(uri: string, data: DocumentParseData | undefined, position: Position): Promise<CompletionItem[] | undefined> {
 	const document = getDocumentByURI(uri);
-	if (!document) {
+	if (!document || !data) {
 		return undefined;
 	}
 
-	const contextSymbol = getDocumentCompletionContext(document, position);
-	if (!contextSymbol) {
-		return undefined;
+	const core = new c3.CodeCompletionCore(data.parser);
+	core.ignoredTokens = new Set([
+		UCLexer.ID,
+		UCLexer.PLUS, UCLexer.MINUS,
+		UCLexer.STAR, UCLexer.BITWISE_OR,
+		UCLexer.ASSIGNMENT,
+		UCLexer.OPEN_PARENS, UCLexer.CLOSE_PARENS,
+		UCLexer.OPEN_BRACKET, UCLexer.CLOSE_BRACKET,
+		UCLexer.OPEN_BRACE, UCLexer.CLOSE_BRACE,
+		UCLexer.LSHIFT, UCLexer.RSHIFT,
+		UCLexer.SEMICOLON, UCLexer.COLON, UCLexer.COMMA
+	]);
+
+	if (config.generation === UCGeneration.UC1) {
+		core.ignoredTokens.add(UCLexer.KW_EXTENDS);
+		core.ignoredTokens.add(UCLexer.KW_NATIVE);
+	} else {
+		core.ignoredTokens.add(UCLexer.KW_EXPANDS);
+		core.ignoredTokens.add(UCLexer.KW_INTRINSIC);
 	}
 
-	let symbols: ISymbol[] = [];
-	if (contextSymbol instanceof UCSymbol) {
-		const symbol = contextSymbol instanceof UCStructSymbol
-			&& contextSymbol.block
-			&& contextSymbol.block.getSymbolAtPos(position);
+	if (config.generation === UCGeneration.UC3) {
+		core.ignoredTokens.add(UCLexer.KW_CPPSTRUCT);
+	} else {
+		core.ignoredTokens.add(UCLexer.KW_STRUCTDEFAULTPROPERTIES);
+		core.ignoredTokens.add(UCLexer.KW_STRUCTCPPTEXT);
+	}
 
-		if (context === '.' && symbol && (<IWithReference>symbol).getRef) {
-			const resolvedSymbol = (<IWithReference>symbol).getRef();
-			if (resolvedSymbol instanceof UCSymbol) {
-				symbols = resolvedSymbol.getCompletionSymbols(document, context);
+	core.preferredRules = new Set([
+		UCParser.RULE_varDecl, UCParser.RULE_paramDecl, UCParser.RULE_localDecl,
+		UCParser.RULE_typeDecl,
+		UCParser.RULE_functionBody, UCParser.RULE_codeBlockOptional, UCParser.RULE_statement
+	]);
+
+	const getIntersectingContext = (context?: ParserRuleContext): ParserRuleContext | undefined => {
+		if (!context) {
+			return undefined;
+		}
+
+		if (intersectsWith(rangeFromBounds(context.start, context.stop), position)) {
+			if (context.children) for (let child of context.children) {
+				if (child instanceof ParserRuleContext) {
+					const ctx = getIntersectingContext(child);
+					if (ctx) {
+						return ctx;
+					}
+				}
 			}
-		} else {
-			symbols = contextSymbol.getCompletionSymbols(document, context);
+			return context;
+		}
+		return undefined;
+	};
+
+	const getCaretTokenIndex = (context?: ParserRuleContext): number => {
+		if (!context) {
+			return 0;
+		}
+		if (context.children) for (let child of context.children) {
+            if (child instanceof TerminalNode) {
+				if (intersectsWithRange(position, rangeFromBound(child.symbol))) {
+					return child.symbol.tokenIndex;
+				}
+            }
+        }
+		return 0;
+	};
+
+	const getCaretTokenIndexFromStream = (stream: TokenStream): number => {
+		let i = 0;
+		let token: Token | undefined = undefined;
+		while (token = stream.get(i)) {
+			if (position.line === token.line - 1
+				&& position.character >= token.charPositionInLine
+				&& position.character < token.charPositionInLine + token.text!.length) {
+				return token.tokenIndex;
+			}
+			++ i;
+		}
+		return 0;
+	};
+
+	const context = getIntersectingContext(data.context);
+	const caret = getCaretTokenIndexFromStream(data.parser.inputStream);
+	const candidates = core.collectCandidates(caret, context);
+
+	const items: CompletionItem[] = [];
+	for (let [ type ] of candidates.tokens) {
+		const displayName = data.parser.vocabulary.getDisplayName(type);
+		const tokenName = displayName.substr(1, displayName.length - 2);
+		if (!VALID_ID_REGEXP.test(tokenName)) {
+			continue;
+		}
+		items.push({
+			label: tokenName,
+			kind: CompletionItemKind.Keyword
+		});
+	}
+	for (let [ rule, rules ] of candidates.rules) {
+		switch (rule) {
+			case UCParser.RULE_typeDecl:
+			case UCParser.RULE_varDecl:
+			case UCParser.RULE_paramDecl:
+			case UCParser.RULE_localDecl:
+				const types = Array.from(ObjectsTable.getAll()).map(symbol => symbolToCompletionItem(symbol));
+				items.push(...types);
+				break;
+
+			case UCParser.RULE_functionBody:
+			case UCParser.RULE_codeBlockOptional:
+			case UCParser.RULE_statement:
+				const contextSymbol = getDocumentCompletionContext(document, position);
+				if (!contextSymbol) {
+					return undefined;
+				}
+
+				if (contextSymbol instanceof UCSymbol) {
+					const symbol = contextSymbol instanceof UCStructSymbol
+						&& contextSymbol.block
+						&& contextSymbol.block.getSymbolAtPos(position);
+
+					items.push(...contextSymbol.getCompletionSymbols(document, '').map(i => symbolToCompletionItem(i)));
+				}
+				break;
 		}
 	}
-
-	const contextCompletions = symbols.map(symbol => symbolToCompletionItem(symbol));
-	return contextCompletions;
+	return items;
 }
 
 function symbolToCompletionItem(symbol: ISymbol): CompletionItem {

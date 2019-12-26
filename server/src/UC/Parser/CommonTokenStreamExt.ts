@@ -9,33 +9,41 @@ export interface TokenExt extends WritableToken {
 	length: number;
 }
 
+const DEFAULT_INPUT = new CaseInsensitiveStream('');
+
 export class CommonTokenStreamExt extends CommonTokenStream {
 	readonly evaluatedTokens = new Map<number, TokenExt[]>();
 
 	initMacroTree(macroTree: MacroProgramContext, errListener: ANTLRErrorListener<number>) {
 		const smNodes = macroTree.macroStatement();
-		for (let smNode of smNodes) {
-			const macroCtx = smNode.macro();
-			if (macroCtx.isActive && macroCtx instanceof MacroCallContext) {
-				// TODO: Cache the evaluated tokens from within the `define context itself,
-				// -- so that we don't have to repeat this step for each macro call.
-				let tokens = macroCtx.evaluatedTokens;
-				if (!tokens) {
-					const value = macroCtx._expr.value.toString();
-					if (value === '...') {
-						// stumbled on an empty definition.
-						continue;
-					}
-					const rawText = value.replace('\\', '');
-					const rawLexer = new UCLexer(new CaseInsensitiveStream(rawText));
-					rawLexer.removeErrorListeners(); rawLexer.addErrorListener(errListener);
-					tokens = rawLexer.getAllTokens();
-					macroCtx.evaluatedTokens = tokens;
-				}
+		if (smNodes) {
+			const rawLexer = new UCLexer(DEFAULT_INPUT);
+			rawLexer.removeErrorListeners();
+			rawLexer.addErrorListener(errListener);
 
-				if (tokens) {
-					const token = smNode.MACRO_CHAR();
-					this.evaluatedTokens.set(token.symbol.startIndex, tokens as TokenExt[]);
+			for (let smNode of smNodes) {
+				const macroCtx = smNode.macro();
+				if (macroCtx.isActive && macroCtx instanceof MacroCallContext) {
+					// TODO: Cache the evaluated tokens from within the `define context itself,
+					// -- so that we don't have to repeat this step for each macro call.
+					let tokens = macroCtx.evaluatedTokens;
+					if (!tokens) {
+						const value = macroCtx._expr.value.toString();
+						if (value === '...') {
+							// stumbled on an empty definition.
+							continue;
+						}
+						const rawText = value.replace('\\', '');
+						const rawInput = new CaseInsensitiveStream(rawText);
+						rawLexer.inputStream = rawInput;
+						tokens = rawLexer.getAllTokens();
+						macroCtx.evaluatedTokens = tokens;
+					}
+
+					if (tokens) {
+						const token = smNode.MACRO_CHAR();
+						this.evaluatedTokens.set(token.symbol.startIndex, tokens as TokenExt[]);
+					}
 				}
 			}
 		}

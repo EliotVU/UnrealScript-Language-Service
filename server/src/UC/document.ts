@@ -8,7 +8,7 @@ import { performance } from 'perf_hooks';
 import { UCLexer } from '../antlr/UCLexer';
 import { UCParser, ProgramContext } from '../antlr/UCParser';
 import { UCPreprocessorParser } from '../antlr/UCPreprocessorParser';
-import { CommonTokenStream, ANTLRErrorListener } from 'antlr4ts';
+import { CommonTokenStream, ANTLRErrorListener, ParserRuleContext } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 
@@ -22,6 +22,11 @@ import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import { CommonTokenStreamExt } from './Parser/CommonTokenStreamExt';
 import { DocumentASTWalker } from './documentASTWalker';
 import { Name, toName } from './names';
+
+export interface DocumentParseData {
+	context?: ProgramContext;
+	parser: UCParser;
+}
 
 export class UCDocument {
 	/** Parsed file name filtered of path and extension. */
@@ -54,7 +59,7 @@ export class UCDocument {
 		this.scope.addSymbol(symbol);
 	}
 
-	public build(text: string = this.readText()) {
+	public build(text: string = this.readText()): DocumentParseData {
 		console.log('building document ' + this.fileName);
 
 		const inputStream = new CaseInsensitiveStream(text);
@@ -128,6 +133,7 @@ export class UCDocument {
 			console.info(this.fileName + ': transforming time ' + (performance.now() - startWalking));
 		}
 		tokens.release(tokens.mark());
+		return { context, parser };
 	}
 
 	public readText(): string {

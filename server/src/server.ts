@@ -15,17 +15,16 @@ import {
 	TextEdit,
 	ResponseError,
 	ErrorCodes,
-	Location,
-	CompletionTriggerKind
+	Location
 } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
-import { getCompletableSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem } from './UC/helpers';
+import { getCompletableSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem, VALID_ID_REGEXP } from './UC/helpers';
 import { getDocumentByURI, queuIndexDocument, getIndexedReferences, config, defaultSettings, lastIndexedDocuments$, getDocumentById, applyMacroSymbols, getPackageByDir, createDocument, documentsMap, createPackage, removeDocument } from './UC/indexer';
 import { ServerSettings, EAnalyzeOption } from './settings';
 import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol, UCObjectTypeSymbol, UCTypeFlags, addHashedSymbol } from './UC/Symbols';
 import { toName } from './UC/names';
-import { UCDocument } from './UC/document';
+import { UCDocument, DocumentParseData } from './UC/document';
 
 /** Emits true when the workspace is prepared and ready for indexing. */
 const isIndexReady$ = new Subject<boolean>();
@@ -37,6 +36,8 @@ const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty:
 const textDocuments: TextDocuments = new TextDocuments();
 let hasWorkspaceFolderCapability: boolean = false;
 let currentSettings: ServerSettings = defaultSettings;
+
+let activeDocumentParseData: DocumentParseData | undefined;
 
 function getWorkspaceFiles(folders: WorkspaceFolder[]): string[] {
 	const flattenedFiles: string[] = [];
@@ -126,7 +127,10 @@ connection.onInitialized(() => {
 			}
 
 			if (!document.hasBeenIndexed) {
-				queuIndexDocument(document, textDocument.getText());
+				const parser = queuIndexDocument(document, textDocument.getText());
+				if (textDocuments.get(textDocument.uri)) {
+					activeDocumentParseData = parser;
+				}
 			}
 		}, (error) => connection.console.error(error));
 
@@ -244,63 +248,8 @@ connection.onDefinition(async (e) => {
 connection.onReferences((e) => getSymbolReferences(e.textDocument.uri, e.position));
 connection.onDocumentHighlight((e) => getSymbolHighlights(e.textDocument.uri, e.position));
 
-connection.onCompletion(async (e) => {
-	let context = '';
-	let position = e.position;
-	if (e.context && e.context.triggerKind <= CompletionTriggerKind.TriggerCharacter) {
-		const doc = textDocuments.get(e.textDocument.uri);
-		if (!doc) {
-			return undefined;
-		}
-
-		// TODO: Perhaps we should re-use ANTLR's lexer,
-		// -- or try using a naive backtracking lexer until the first '.' token is hit, where "(), [] etc" are considered white space.
-		const text = doc.getText();
-		let parenthesisLevel = 0;
-		let bracketLevel = 0;
-		let shouldSkipNextChars = false;
-		for (let colOffset = doc.offsetAt(position); colOffset >= 0; --colOffset) {
-			const char = text[colOffset];
-			if (char === ' ' || char === '\t' || char === '\n' || char === ';') {
-				shouldSkipNextChars = false;
-				continue;
-			}
-
-			if ((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')) {
-				shouldSkipNextChars = context !== '.';
-			} else if (char === '(') {
-				--parenthesisLevel;
-				continue;
-			} else if (char === ')') {
-				++parenthesisLevel;
-				continue;
-			} else if (char === '[') {
-				--bracketLevel;
-				continue;
-			} else if (char === ']') {
-				++bracketLevel;
-				continue;
-			}
-
-			if (parenthesisLevel > 0 || bracketLevel > 0) {
-				continue;
-			}
-
-			if (char === '.') {
-				context = '.';
-				shouldSkipNextChars = false;
-				continue;
-			}
-
-			if (shouldSkipNextChars) {
-				continue;
-			}
-
-			position = doc.positionAt(colOffset);
-			break;
-		}
-	}
-	return getCompletableSymbolItems(e.textDocument.uri, position, context);
+connection.onCompletion((e) => {
+	return getCompletableSymbolItems(e.textDocument.uri, activeDocumentParseData, e.position);
 });
 connection.onCompletionResolve(getFullCompletionItem);
 
@@ -336,7 +285,6 @@ connection.onPrepareRename(async (e) => {
 	return symbol.id.range;
 });
 
-const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 connection.onRenameRequest(async (e) => {
 	if (!VALID_ID_REGEXP.test(e.newName)) {
 		throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid identifier!');

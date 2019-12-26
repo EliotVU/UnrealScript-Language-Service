@@ -5,10 +5,11 @@ import { UCOptions, ServerSettings, EAnalyzeOption } from '../settings';
 import { UCPreprocessorParser } from '../antlr/UCPreprocessorParser';
 
 import { ISymbolReference, UCPackage, TRANSIENT_PACKAGE, UCEnumMemberSymbol, ObjectsTable, addHashedSymbol, UCTypeFlags } from './Symbols';
-import { UCDocument } from './document';
+import { UCDocument, DocumentParseData } from './document';
 import { Name, toName } from './names';
 import { DocumentIndexer } from './documentIndexer';
 import { URI } from 'vscode-uri';
+import { UCParser } from '../antlr/UCParser';
 
 export const documentsByPathMap = new Map<string, UCDocument>();
 export const documentsMap = new Map<number, UCDocument>();
@@ -54,9 +55,9 @@ export function applyMacroSymbols(symbols?: { [key: string]: string }) {
 export const lastIndexedDocuments$ = new Subject<UCDocument[]>();
 let pendingIndexedDocuments: UCDocument[] = [];
 
-export function indexDocument(document: UCDocument, text?: string) {
+export function indexDocument(document: UCDocument, text?: string): DocumentParseData | undefined {
 	try {
-		document.build(text);
+		const parseData = document.build(text);
 		document.hasBeenIndexed = true;
 		const start = performance.now();
 		if (document.class) {
@@ -72,6 +73,7 @@ export function indexDocument(document: UCDocument, text?: string) {
 		}
 		console.info(document.fileName + ': indexing time ' + (performance.now() - start));
 		pendingIndexedDocuments.push(document);
+		return parseData;
 	} catch (err) {
 		console.error(`An error occurred during the indexation of document ${document.uri}`, err);
 	}
@@ -93,8 +95,8 @@ function postIndexDocument(document: UCDocument) {
 	}
 }
 
-export function queuIndexDocument(document: UCDocument, text?: string) {
-	indexDocument(document, text);
+export function queuIndexDocument(document: UCDocument, text?: string): DocumentParseData | undefined {
+	const parseData = indexDocument(document, text);
 	if (pendingIndexedDocuments) {
 		const startTime = performance.now();
 		for (const doc of pendingIndexedDocuments) {
@@ -105,6 +107,7 @@ export function queuIndexDocument(document: UCDocument, text?: string) {
 		lastIndexedDocuments$.next(pendingIndexedDocuments);
 		pendingIndexedDocuments = [];
 	}
+	return parseData;
 }
 
 function parsePackageNameInDir(dir: string): string {
