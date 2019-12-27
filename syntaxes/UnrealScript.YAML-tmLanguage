@@ -1075,7 +1075,7 @@ repository:
           '1':
             name: variable.language.this.uc
 
-      - match: ((?i)super)(?:\s*\(\s*(\w+\s*)\))?
+      - match: \b((?i)super)\b(?:\s*\(\s*(\w+\s*)\))?
         captures:
           '1':
             name: variable.language.super.uc

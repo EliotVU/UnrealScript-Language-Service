@@ -105,6 +105,8 @@ var private{public} native int NativeInt[2], NativeIntTwo[2]{INT};
 // FIXME: Multicategories are breaking variable highlighting.
 var(Category1, Category2) config(Test) string Description;
 
+var int superVar;
+
 native function string const() const;
 
 static final preoperator string $(string A) {
@@ -292,4 +294,6 @@ defaultproperties
 	defaultBool=true			|defaultBool=false
 	defaultName=CONST_NAME		|defaultName=MyName
 	defaultStr=CONST_STRING		|defaultStr="string"
+
+	superVar=0
 }
