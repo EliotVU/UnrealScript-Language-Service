@@ -25,14 +25,14 @@ export class UCEnumSymbol extends UCStructSymbol {
 		return `enum ${this.getPath()}`;
 	}
 
-	getCompletionSymbols(document: UCDocument): ISymbol[] {
+	getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, _kind?: UCTypeFlags): C[] {
 		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
 			if (child.acceptCompletion(document, this)) {
 				symbols.push(child);
 			}
 		}
-		return symbols;
+		return symbols as C[];
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

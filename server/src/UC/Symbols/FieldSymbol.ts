@@ -53,7 +53,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	}
 
 	getCompletionContext(_position: Position): ISymbol | undefined {
-		return this;
+		return undefined;
 	}
 
 	isPublic(): boolean {

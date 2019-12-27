@@ -72,15 +72,6 @@ export class UCClassSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
-	getCompletionContext(position: Position) {
-		for (let symbol = this.children; symbol; symbol = symbol.next) {
-			if (intersectsWith(symbol.getRange(), position)) {
-				return symbol.getCompletionContext(position);
-			}
-		}
-		return this;
-	}
-
 	index(document: UCDocument, context: UCClassSymbol) {
 		if (this.withinType) {
 			this.withinType.index(document, context);

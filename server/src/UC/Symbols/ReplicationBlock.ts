@@ -23,11 +23,6 @@ export class UCReplicationBlock extends UCStructSymbol {
 		return this.getName().toString();
 	}
 
-	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
-		return super
-			.getCompletionSymbols(document, context);
-	}
-
 	getContainedSymbolAtPos(position: Position) {
 		for (let ref of this.symbolRefs.values()) {
 			const symbol = ref.getSymbolAtPos(position);

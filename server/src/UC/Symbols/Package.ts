@@ -15,8 +15,8 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
         return this.symbols.size;
     }
 
-	getAll() {
-		return this.symbols.values();
+	getAll<C extends T>() {
+		return this.symbols.values() as IterableIterator<C>;
 	}
 
 	addSymbol(symbol: T): number {

@@ -521,10 +521,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 	visitFunctionDecl(ctx: UCGrammar.FunctionDeclContext) {
 		const nameNode: UCGrammar.FunctionNameContext | undefined = ctx.functionName();
-		if (!nameNode) {
-			console.error('no name node found for function!', ctx.toString());
-			return undefined;
-		}
 
 		let modifiers: FieldModifiers = 0;
 		let specifiers: MethodSpecifiers = MethodSpecifiers.None;
@@ -599,7 +595,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		}
 
 		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const identifier: Identifier = idFromCtx(nameNode);
+		// nameNode may be undefined if the end-user is in process of writing a new function.
+		const identifier: Identifier = nameNode
+			? idFromCtx(nameNode)
+			: { name: NAME_NONE, range };
 		const symbol = new type(identifier, range);
 		symbol.specifiers = specifiers;
 		symbol.modifiers = modifiers;
@@ -659,22 +658,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			this.pop();
 		}
 		return symbol;
-	}
-
-	visitFunctionName(ctx: UCGrammar.FunctionNameContext): Identifier {
-		const idNode = ctx.identifier();
-		if (idNode) {
-			return idFromCtx(idNode);
-		}
-		const opNode = ctx.operatorName();
-		if (opNode) {
-			const identifier: Identifier = {
-				name: toName(opNode.text),
-				range: rangeFromBound(opNode.start)
-			};
-			return identifier;
-		}
-		return { name: NAME_NONE, range: rangeFromBound(ctx.start) } as Identifier;
 	}
 
 	visitFunctionBody(ctx: UCGrammar.FunctionBodyContext) {

@@ -95,10 +95,13 @@ function getDocumentSymbol(document: UCDocument, position: Position): ISymbol | 
 	return undefined;
 }
 
-function getDocumentCompletionContext(document: UCDocument, position: Position): ISymbol | undefined {
+/**
+ * Returns the deepest UCStructSymbol that is intersecting with @param position
+ **/
+function getDocumentContext(document: UCDocument, position: Position): ISymbol | undefined {
 	const symbols = document.getSymbols();
 	for (let symbol of symbols) {
-		if (symbol instanceof UCStructSymbol) {
+		if (symbol instanceof UCFieldSymbol) {
 			const child = symbol.getCompletionContext(position);
 			if (child) {
 				return child;
@@ -211,40 +214,6 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
 		return undefined;
 	}
 
-	const core = new c3.CodeCompletionCore(data.parser);
-	core.ignoredTokens = new Set([
-		UCLexer.ID,
-		UCLexer.PLUS, UCLexer.MINUS,
-		UCLexer.STAR, UCLexer.BITWISE_OR,
-		UCLexer.ASSIGNMENT,
-		UCLexer.OPEN_PARENS, UCLexer.CLOSE_PARENS,
-		UCLexer.OPEN_BRACKET, UCLexer.CLOSE_BRACKET,
-		UCLexer.OPEN_BRACE, UCLexer.CLOSE_BRACE,
-		UCLexer.LSHIFT, UCLexer.RSHIFT,
-		UCLexer.SEMICOLON, UCLexer.COLON, UCLexer.COMMA
-	]);
-
-	if (config.generation === UCGeneration.UC1) {
-		core.ignoredTokens.add(UCLexer.KW_EXTENDS);
-		core.ignoredTokens.add(UCLexer.KW_NATIVE);
-	} else {
-		core.ignoredTokens.add(UCLexer.KW_EXPANDS);
-		core.ignoredTokens.add(UCLexer.KW_INTRINSIC);
-	}
-
-	if (config.generation === UCGeneration.UC3) {
-		core.ignoredTokens.add(UCLexer.KW_CPPSTRUCT);
-	} else {
-		core.ignoredTokens.add(UCLexer.KW_STRUCTDEFAULTPROPERTIES);
-		core.ignoredTokens.add(UCLexer.KW_STRUCTCPPTEXT);
-	}
-
-	core.preferredRules = new Set([
-		UCParser.RULE_varDecl, UCParser.RULE_paramDecl, UCParser.RULE_localDecl,
-		UCParser.RULE_typeDecl,
-		UCParser.RULE_functionBody, UCParser.RULE_codeBlockOptional, UCParser.RULE_statement
-	]);
-
 	const getIntersectingContext = (context?: ParserRuleContext): ParserRuleContext | undefined => {
 		if (!context) {
 			return undefined;
@@ -292,6 +261,42 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
 		return 0;
 	};
 
+	const core = new c3.CodeCompletionCore(data.parser);
+	core.ignoredTokens = new Set([
+		UCLexer.ID,
+		UCLexer.PLUS, UCLexer.MINUS,
+		UCLexer.STAR, UCLexer.BITWISE_OR,
+		UCLexer.ASSIGNMENT,
+		UCLexer.OPEN_PARENS, UCLexer.CLOSE_PARENS,
+		UCLexer.OPEN_BRACKET, UCLexer.CLOSE_BRACKET,
+		UCLexer.OPEN_BRACE, UCLexer.CLOSE_BRACE,
+		UCLexer.LSHIFT, UCLexer.RSHIFT,
+		UCLexer.SEMICOLON, UCLexer.COLON, UCLexer.COMMA
+	]);
+
+	if (config.generation === UCGeneration.UC1) {
+		core.ignoredTokens.add(UCLexer.KW_EXTENDS);
+		core.ignoredTokens.add(UCLexer.KW_NATIVE);
+	} else {
+		core.ignoredTokens.add(UCLexer.KW_EXPANDS);
+		core.ignoredTokens.add(UCLexer.KW_INTRINSIC);
+	}
+
+	if (config.generation === UCGeneration.UC3) {
+		core.ignoredTokens.add(UCLexer.KW_CPPSTRUCT);
+	} else {
+		core.ignoredTokens.add(UCLexer.KW_STRUCTDEFAULTPROPERTIES);
+		core.ignoredTokens.add(UCLexer.KW_STRUCTCPPTEXT);
+	}
+
+	core.preferredRules = new Set([
+		UCParser.RULE_varDecl, UCParser.RULE_paramDecl, UCParser.RULE_localDecl,
+		UCParser.RULE_typeDecl, UCParser.RULE_primitiveType, UCParser.RULE_qualifiedIdentifier, UCParser.RULE_identifier,
+		UCParser.RULE_arrayType, UCParser.RULE_classType, UCParser.RULE_delegateType, UCParser.RULE_mapType,
+		UCParser.RULE_functionName, UCParser.RULE_functionBody,
+		UCParser.RULE_codeBlockOptional, UCParser.RULE_statement
+	]);
+
 	const context = getIntersectingContext(data.context);
 	const caret = getCaretTokenIndexFromStream(data.parser.inputStream);
 	const candidates = core.collectCandidates(caret, context);
@@ -308,32 +313,94 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
 			kind: CompletionItemKind.Keyword
 		});
 	}
+
+	const contextSymbol = getDocumentContext(document, position);
 	for (let [ rule, rules ] of candidates.rules) {
 		switch (rule) {
-			case UCParser.RULE_typeDecl:
-			case UCParser.RULE_varDecl:
-			case UCParser.RULE_paramDecl:
-			case UCParser.RULE_localDecl:
-				const types = Array.from(ObjectsTable.getAll()).map(symbol => symbolToCompletionItem(symbol));
-				items.push(...types);
-				break;
+			// TODO: suggest top-level contained symbols (e.g. Actor.ENetMode)
+			case UCParser.RULE_qualifiedIdentifier: {
+				if (context?.parent) {
+					if (context.parent.ruleIndex !== UCParser.RULE_typeDecl) {
+						break;
+					}
+				}
+			}
 
-			case UCParser.RULE_functionBody:
+			case UCParser.RULE_identifier: {
+				if (context?.parent?.ruleIndex === UCParser.RULE_functionName) {
+					if (contextSymbol instanceof UCMethodSymbol) {
+						const symbolItems = contextSymbol
+							.getCompletionSymbols(document, '', UCTypeFlags.Function)
+							.map(symbol => symbolToCompletionItem(symbol));
+
+						items.push(...symbolItems);
+					}
+					break;
+				}
+
+				if (context?.parent?.ruleIndex !== UCParser.RULE_qualifiedIdentifier) {
+					// Do not suggest any items (except for generic tokens)
+					return [];
+				}
+			}
+
+			case UCParser.RULE_typeDecl: case UCParser.RULE_primitiveType: {
+				const typeItems = Array
+					.from(ObjectsTable.getAll())
+					.map(symbol => symbolToCompletionItem(symbol));
+
+				items.push(...typeItems);
+				break;
+			}
+
+			case UCParser.RULE_classType: {
+				const typeItems = Array
+					.from(ObjectsTable.getAll<UCClassSymbol>())
+					.filter(symbol => symbol.getKind() === UCTypeFlags.Class)
+					.map(symbol => symbolToCompletionItem(symbol));
+
+				items.push(...typeItems);
+			}
+
+			case UCParser.RULE_delegateType: {
+				const typeItems = Array
+					.from(ObjectsTable.getAll<UCClassSymbol>())
+					.filter(symbol => symbol.getKind() === UCTypeFlags.Class)
+					.map(symbol => symbolToCompletionItem(symbol));
+
+				items.push(...typeItems);
+
+				// if (contextSymbol instanceof UCStructSymbol) {
+				// 	const symbolItems = contextSymbol
+				// 		.getCompletionSymbols(document, '', UCTypeFlags.Function)
+				// 		.map(symbol => symbolToCompletionItem(symbol));
+
+				// 	items.push(...symbolItems);
+				// }
+			}
+
+			case UCParser.RULE_functionName: {
+				if (contextSymbol instanceof UCMethodSymbol) {
+					const symbolItems = contextSymbol
+						.getCompletionSymbols(document, '', UCTypeFlags.Function)
+						.map(symbol => symbolToCompletionItem(symbol));
+
+					items.push(...symbolItems);
+				}
+				break;
+			}
+
 			case UCParser.RULE_codeBlockOptional:
-			case UCParser.RULE_statement:
-				const contextSymbol = getDocumentCompletionContext(document, position);
-				if (!contextSymbol) {
-					return undefined;
-				}
+			case UCParser.RULE_statement: {
+				if (contextSymbol instanceof UCStructSymbol) {
+					const symbolItems = contextSymbol
+						.getCompletionSymbols(document, '')
+						.map(symbol => symbolToCompletionItem(symbol));
 
-				if (contextSymbol instanceof UCSymbol) {
-					const symbol = contextSymbol instanceof UCStructSymbol
-						&& contextSymbol.block
-						&& contextSymbol.block.getSymbolAtPos(position);
-
-					items.push(...contextSymbol.getCompletionSymbols(document, '').map(i => symbolToCompletionItem(i)));
+					items.push(...symbolItems);
 				}
 				break;
+			}
 		}
 	}
 	return items;
