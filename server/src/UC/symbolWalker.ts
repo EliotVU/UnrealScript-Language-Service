@@ -213,11 +213,21 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression |
 	}
 
 	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock): ISymbol {
-		return this.visitStructBase(symbol);
+		if (symbol.block) {
+			symbol.block.accept<any>(this);
+		}
+		return symbol;
+		// Each child is already registered as a statement, thus will be indexed by the block.index call!
+		// return this.visitStructBase(symbol);
 	}
 
 	visitObjectSymbol(symbol: UCObjectSymbol): ISymbol {
-		return this.visitStructBase(symbol);
+		if (symbol.block) {
+			symbol.block.accept<any>(this);
+		}
+		return symbol;
+		// Each child is already registered as a statement, thus will be indexed by the block.index call!
+		// return this.visitStructBase(symbol);
 	}
 
 	visitExpression(expr: IExpression) {

@@ -22,7 +22,8 @@ import {
 	CastTypeSymbolMap, resolveType, UCQualifiedTypeSymbol,
 	getSymbolOuterHash, getSymbolHash, OuterObjectsTable,
 	UCPackage, CORE_PACKAGE, findOrIndexClassSymbol,
-	UCObjectSymbol
+	UCObjectSymbol,
+	DefaultArray
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
@@ -206,32 +207,40 @@ export class UCElementAccessExpression extends UCExpression {
 				return type.baseType.baseType;
 			}
 			return type.baseType;
-		} else if (this.getMemberSymbol() instanceof UCPropertySymbol && (this.getMemberSymbol() as UCPropertySymbol)?.isFixedArray()) {
-			// metaclass is resolved in @UCMemberExpression's .getType
-			return type;
+		} else {
+			const symbol = this.getMemberSymbol();
+			if (symbol instanceof UCPropertySymbol && symbol.isFixedArray()) {
+				// metaclass is resolved in @UCMemberExpression's .getType
+				return type;
+			}
 		}
 		return undefined;
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		if (this.expression) {
-			const symbol = this.expression.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
-		}
-
-		if (this.argument) {
-			const symbol = this.argument.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
-		}
+		return this.expression?.getSymbolAtPos(position) ?? this.argument?.getSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol, info?) {
 		this.expression?.index(document, context, info);
 		this.argument?.index(document, context, info);
+	}
+}
+
+export class UCDefaultElementAccessExpression extends UCElementAccessExpression {
+	index(document: UCDocument, context?: UCStructSymbol, info?) {
+		this.expression?.index(document, context, info);
+		// this.argument?.index(document, context, info);
+
+		if (this.argument && this.argument instanceof UCIdentifierLiteralExpression)  {
+			const id = this.argument.id;
+			const symbol = (context instanceof UCStructSymbol && context.findSuperSymbol(id.name)) ?? getEnumMember(id.name);
+			if (symbol) {
+				const type = new UCObjectTypeSymbol(id);
+				type.setReference(symbol, document);
+				this.argument.typeRef = type;
+			}
+		}
 	}
 }
 
@@ -248,8 +257,7 @@ export class UCPropertyAccessExpression extends UCExpression {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		const symbol = this.left.getSymbolAtPos(position) || this.member.getSymbolAtPos(position);
-		return symbol;
+		return this.left.getSymbolAtPos(position) ?? this.member.getSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
@@ -275,26 +283,7 @@ export class UCConditionalExpression extends UCExpression {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		if (this.condition) {
-			const symbol = this.condition.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
-		}
-
-		if (this.true) {
-			const symbol = this.true.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
-		}
-
-		if (this.false) {
-			const symbol = this.false.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
-		}
+		return this.condition.getSymbolAtPos(position) ?? this.true?.getSymbolAtPos(position) ?? this.false?.getSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context?: UCStructSymbol, info?) {
@@ -371,19 +360,7 @@ export class UCBinaryOperatorExpression extends UCExpression {
 			return symbol;
 		}
 
-		if (this.left) {
-			const symbol = this.left.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
-		}
-
-		if (this.right) {
-			const symbol = this.right.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
-		}
+		return this.left?.getSymbolAtPos(position) ?? this.right?.getSymbolAtPos(position);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol, info: IContextInfo = {}) {
@@ -423,15 +400,76 @@ export class UCDefaultAssignmentExpression extends UCBinaryOperatorExpression {
 	}
 }
 
+/**
+ * Resembles "propertyMember.methodMember(arguments)"".
+ *
+ * @method getMemberSymbol will always return the instance of "methodMember".
+ * @method getType will always return the type of instance "propertyMember", because our array operations have no return type.
+ */
+export class UCDefaultMemberCallExpression extends UCExpression {
+	public propertyMember: UCMemberExpression;
+	public methodMember: UCMemberExpression;
+	public arguments?: Array<IExpression>;
+
+	getMemberSymbol() {
+		return this.methodMember.getMemberSymbol();
+	}
+
+	getType() {
+		const type = this.propertyMember.getType();
+		if (type instanceof UCArrayTypeSymbol) {
+			// Resolve metaclass class<Actor> to Actor
+			if (type.baseType instanceof UCObjectTypeSymbol && type.baseType.baseType) {
+				return type.baseType.baseType;
+			}
+			return type.baseType;
+		}
+		return type;
+	}
+
+	getContainedSymbolAtPos(position: Position) {
+		const symbol = this.propertyMember.getSymbolAtPos(position) ?? this.methodMember.getSymbolAtPos(position);
+		if (symbol) {
+			return symbol;
+		}
+
+		if (this.arguments) for (let arg of this.arguments) {
+			const symbol = arg.getSymbolAtPos(position);
+			if (symbol) {
+				return symbol;
+			}
+		}
+	}
+
+	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
+		this.propertyMember.index(document, context, info);
+
+		const type = this.propertyMember.getType();
+		if (type) {
+			// As far as I know, default operations are only allowed on arrays.
+			if (type instanceof UCArrayTypeSymbol) {
+				const id = this.methodMember.id;
+				const symbol = DefaultArray.findSuperSymbol(id.name);
+				if (symbol) {
+					const type = new UCObjectTypeSymbol(id);
+					type.setReference(symbol, document);
+					this.methodMember.typeRef = type;
+				}
+			} // else, we don't have to index UCMemberExpressions here.
+		}
+
+		if (this.arguments) for (let i = 0; i < this.arguments.length; ++i) {
+			const arg = this.arguments[i];
+			arg.index(document, context, info);
+		}
+	}
+}
+
 export class UCMemberExpression extends UCExpression {
 	public typeRef?: ITypeSymbol;
 
-	constructor(protected id: Identifier) {
+	constructor(readonly id: Identifier) {
 		super(id.range);
-	}
-
-	getId(): Name {
-		return this.id.name;
 	}
 
 	getMemberSymbol() {

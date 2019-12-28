@@ -14,8 +14,8 @@ import { rangeFromBounds, rangeFromBound, rangeFromCtx } from './helpers';
 import {
 	toName,
 	NAME_CLASS, NAME_ARRAY, NAME_REPLICATION,
-	NAME_NONE, NAME_NAME, NAME_DELEGATE, NAME_ENUMCOUNT,
-	NAME_DEFAULT, NAME_OBJECT, NAME_MAP
+	NAME_NONE, NAME_DELEGATE, NAME_ENUMCOUNT,
+	NAME_DEFAULT, NAME_MAP
 } from './names';
 
 import {
@@ -66,7 +66,8 @@ import {
 	UCSizeOfLiteral, UCArrayCountLiteral,
 	UCDefaultAssignmentExpression, UCDefaultStructLiteral,
 	UCAssignmentOperatorExpression, UCPostOperatorExpression,
-	UCByteLiteral, UCEmptyArgument, UCIdentifierLiteralExpression
+	UCByteLiteral, UCEmptyArgument, UCIdentifierLiteralExpression,
+	UCDefaultMemberCallExpression, UCDefaultElementAccessExpression
 } from './expressions';
 
 function idFromCtx(ctx: ParserRuleContext) {
@@ -743,7 +744,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		symbol.modifiers = modifiers;
 		symbol.paramModifiers = paramModifiers;
 
-
 		this.initVariable(symbol, varNode);
 		this.declare(symbol, ctx);
 		return symbol;
@@ -874,10 +874,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitStructDefaultPropertiesBlock(ctx: UCGrammar.StructDefaultPropertiesBlockContext) {
-		const identifier: Identifier = {
-			name: NAME_DEFAULT,
-			range: rangeFromBound(ctx.start)
-		};
+		const identifier: Identifier = { name: NAME_DEFAULT, range: rangeFromBound(ctx.start) };
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const symbol = new UCDefaultPropertiesBlock(identifier, range);
 		symbol.super = this.scope<UCStructSymbol>();
@@ -885,18 +882,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		this.declare(symbol, ctx);
 		this.push(symbol);
 		try {
-			const statementNodes = ctx.defaultStatement();
-			if (statementNodes) {
+			const statements = ctx.defaultStatement()?.map(node => node.accept<any>(this));
+			if (statements) {
 				const block = new UCBlock(range);
-				block.statements = Array(statementNodes.length);
+				block.statements = statements;
 				symbol.block = block;
-
-				let i = 0;
-				for (const member of statementNodes) {
-					const statement = member.accept(this);
-
-					block.statements[i ++] = statement;
-				}
 			}
 		} finally {
 			this.pop();
@@ -905,10 +895,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitDefaultPropertiesBlock(ctx: UCGrammar.DefaultPropertiesBlockContext) {
-		const identifier: Identifier = {
-			name: NAME_DEFAULT,
-			range: rangeFromBound(ctx.start)
-		};
+		const identifier: Identifier = { name: NAME_DEFAULT, range: rangeFromBound(ctx.start) };
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const symbol = new UCDefaultPropertiesBlock(identifier, range);
 		symbol.super = this.scope<UCStructSymbol>();
@@ -916,18 +903,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		this.declare(symbol, ctx);
 		this.push(symbol);
 		try {
-			const statementNodes = ctx.defaultStatement();
-			if (statementNodes) {
+			const statements = ctx.defaultStatement()?.map(node => node.accept<any>(this));
+			if (statements) {
 				const block = new UCBlock(range);
-				block.statements = Array(statementNodes.length);
+				block.statements = statements;
 				symbol.block = block;
-
-				let i = 0;
-				for (const member of statementNodes) {
-					const statement = member.accept(this);
-
-					block.statements[i ++] = statement;
-				}
 			}
 		} finally {
 			this.pop();
@@ -936,86 +916,69 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	}
 
 	visitObjectDecl(ctx: UCGrammar.ObjectDeclContext) {
-		const identifier: Identifier = { name: NAME_OBJECT, range: rangeFromBound(ctx.start) };
+		let nameIdentifier: Identifier | undefined;
+		let classIdentifier: Identifier | undefined;
+
+		const attrs = ctx.objectAttribute();
+		if (attrs) for (let objAttr of attrs) {
+			switch (objAttr._id.type) {
+				case UCLexer.KW_NAME:
+					nameIdentifier = { name: toName(objAttr._value.text), range: rangeFromBound(objAttr._value.start) };
+					break;
+
+				case UCLexer.KW_CLASS:
+					classIdentifier = { name: toName(objAttr._value.text), range: rangeFromBound(objAttr._value.start) };
+					break;
+
+				default:
+					throw Error("Invalid object attribute!");
+			}
+		}
+
 		const range = rangeFromBounds(ctx.start, ctx.stop);
+		const identifier = nameIdentifier || { name: NAME_NONE, range };
 		const symbol = new UCObjectSymbol(identifier, range);
+		if (classIdentifier) {
+			symbol.extendsType = new UCObjectTypeSymbol(classIdentifier, undefined, UCTypeFlags.Class);
+		}
 		this.declare(symbol, ctx);
 		this.push(symbol);
 		try {
 			const statementNodes = ctx.defaultStatement();
-			if (statementNodes) {
+			const statements = ([] as ParserRuleContext[])
+				.concat(attrs, statementNodes)
+				.map(node => node.accept<any>(this));
+			if (statements) {
 				const block = new UCBlock(range);
-				block.statements = Array(statementNodes.length);
+				block.statements = statements;
 				symbol.block = block;
-
-				let i = 0;
-				for (const member of statementNodes) {
-					const statement = member.accept(this);
-
-					block.statements[i ++] = statement;
-				}
 			}
 		} finally {
 			this.pop();
-		}
-
-		if (symbol.block && symbol.block.statements) {
-			let max = 2;
-			for (let i = 0; i < Math.min(symbol.block.statements.length, max); ++ i) {
-				const statement = symbol.block.statements[i];
-				if (!statement) {
-					++ max; // skip, e.g. may have been an objectDecl
-					continue;
-				}
-
-				// Note: expressions haven't been index yet, so we have to work with raw data.
-				if (statement instanceof UCDefaultAssignmentExpression) {
-					const symbolName = statement.left instanceof UCMemberExpression
-						&& statement.left.getId();
-
-					if (!symbolName) { // not found?
-						continue;
-					}
-
-					const right = statement.right instanceof UCMemberExpression && statement.right;
-					if (!right) {
-						continue;
-					}
-
-					// TODO: re-assign id with new name and range!, this hower requires us to walk the statements in two phases.
-					switch (symbolName) {
-						case NAME_NAME:
-							symbol.objectName = right.getId();
-							break;
-
-						case NAME_CLASS:
-							symbol.classId = { name: right.getId(), range: right.getRange() } as Identifier;
-							break;
-
-						default:
-							console.error("Invalid first variable for an object declaration!");
-							break;
-					}
-				}
-			}
 		}
 		return symbol;
 	}
 
 	visitDefaultStatement(ctx: UCGrammar.DefaultStatementContext) {
-		const statementNode = ctx.defaultAssignmentExpression();
-		if (statementNode) {
-			return statementNode.accept(this);
-		}
-
-		const objectNode = ctx.objectDecl();
-		if (objectNode) {
-			objectNode.accept(this);
-		}
+		const child = ctx.getChild(0);
+		return child?.accept<any>(this);
 	}
 
 	visitDefaultLiteral(ctx: UCGrammar.DefaultLiteralContext) {
-		return ctx.getChild(0).accept(this);
+		const child = ctx.getChild(0);
+		return child?.accept<any>(this);
+	}
+
+	visitDefaultArgument(ctx: UCGrammar.DefaultArgumentContext) {
+		const child = ctx.getChild(0);
+		return child?.accept<any>(this);
+	}
+
+	visitObjectAttribute(ctx: UCGrammar.ObjectAttributeContext) {
+		const expression = new UCDefaultAssignmentExpression(rangeFromBounds(ctx.start, ctx.stop));
+		expression.left = new UCMemberExpression(idFromToken(ctx._id));
+		expression.right = new UCIdentifierLiteralExpression(idFromCtx(ctx._value));
+		return expression;
 	}
 
 	visitDefaultAssignmentExpression(ctx: UCGrammar.DefaultAssignmentExpressionContext) {
@@ -1035,19 +998,19 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		return memberFromIdCtx(ctx.identifier());
 	}
 
-	visitDefaultPropertyAccessExpression(ctx: UCGrammar.DefaultPropertyAccessExpressionContext) {
-		// FIXME: Stub
-		return memberFromIdCtx(ctx.identifier());
+	visitDefaultMemberCallExpression(ctx: UCGrammar.DefaultMemberCallExpressionContext) {
+		const expression = new UCDefaultMemberCallExpression(rangeFromBounds(ctx.start, ctx.stop));
+		expression.propertyMember = memberFromIdCtx(ctx.identifier(0));
+		expression.methodMember = memberFromIdCtx(ctx.identifier(1));
+		expression.arguments = ctx.arguments()?.accept<any>(this);
+		return expression;
 	}
 
 	visitDefaultElementAccessExpression(ctx: UCGrammar.DefaultElementAccessExpressionContext) {
-		// FIXME: Stub
-		return memberFromIdCtx(ctx.identifier());
-	}
-
-	visitDefaultCallExpression(ctx: UCGrammar.DefaultCallExpressionContext) {
-		// FIXME: Stub
-		return memberFromIdCtx(ctx.identifier());
+		const expression = new UCDefaultElementAccessExpression(rangeFromBounds(ctx.start, ctx.stop));
+		expression.expression = memberFromIdCtx(ctx.identifier());
+		expression.argument = ctx._arg?.accept<any>(this);
+		return expression;
 	}
 
 	visitExpressionStatement(ctx: UCGrammar.ExpressionStatementContext) {

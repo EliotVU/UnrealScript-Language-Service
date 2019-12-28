@@ -904,56 +904,71 @@ classPropertyAccessSpecifier
 argument: COMMA | expression COMMA?;
 arguments: argument+;
 
+// (~CLOSE_BRACE { this.notifyErrorListeners('Redundant token!'); })
 defaultPropertiesBlock
 	:
 		'defaultproperties'
 		// UnrealScriptBug: Must be on the line after keyword!
-		OPEN_BRACE
-			defaultStatement*
-		CLOSE_BRACE
+		(OPEN_BRACE defaultStatement* CLOSE_BRACE)
 	;
 
 structDefaultPropertiesBlock
 	:
 		'structdefaultproperties'
 		// UnrealScriptBug: Must be on the line after keyword!
-		OPEN_BRACE
-			defaultStatement*
-		CLOSE_BRACE
+		(OPEN_BRACE defaultStatement* CLOSE_BRACE)
 	;
 
 // TODO: Perhaps do what we do in the directive rule, just skip until we hit a new line or a "|".
 defaultStatement
 	: objectDecl
 	| defaultAssignmentExpression
-
-	// TODO: Add a warning, from a technical point of view,
-	// -- the UC compiler just skips any character till it hits a newline character.
-	| SEMICOLON
+	| defaultMemberCallExpression
 
 	// "command chaining", e.g. "IntA=1|IntB=2" is valid code,
 	// -- but if the | were a space, the second variable will be ignored (by the compiler).
 	| BITWISE_OR
+
+	// TODO: Add a warning, from a technical point of view,
+	// -- the UC compiler just skips any character till it hits a newline character.
+	| SEMICOLON
 	;
 
 defaultExpression
-	: identifier DOT defaultExpression 							#defaultPropertyAccessExpression
-	| identifier (OPEN_PARENS INTEGER CLOSE_PARENS)				#defaultElementAccessExpression
-	| identifier (OPEN_PARENS arguments? CLOSE_PARENS )			#defaultCallExpression
-	| identifier (OPEN_BRACKET INTEGER CLOSE_BRACKET)			#defaultElementAccessExpression
-	| identifier												#defaultMemberExpression
+	: identifier (OPEN_BRACKET arg=defaultArgument CLOSE_BRACKET)				#defaultElementAccessExpression
+	| identifier (OPEN_PARENS arg=defaultArgument CLOSE_PARENS)					#defaultElementAccessExpression
+	| identifier																#defaultMemberExpression
+	;
+
+// TODO: does UC coerce float here?
+defaultArgument
+	: intLiteral
+	| floatLiteral
+	// TODO: Is this possible?
+	// | qualifiedIdentifierLiteral
+	| identifierLiteral
 	;
 
 defaultAssignmentExpression
 	: defaultExpression ASSIGNMENT ((OPEN_BRACE defaultLiteral CLOSE_BRACE) | defaultLiteral)
 	;
 
+// TODO: (verify) Could the first identifier be a defaultExpression e.g. Array(0).ArrayMember.Add(1)?
+defaultMemberCallExpression
+	: identifier DOT propId=identifier (OPEN_PARENS arguments? CLOSE_PARENS)?
+	;
+
 objectDecl
 	:
 		// UnrealScriptBug: name= and class= are required to be on the same line as the keyword!
-		'begin' 'object'
+		('begin' 'object') objectAttribute+
 			defaultStatement*
-		'end' 'object'
+		('end' 'object')
+	;
+
+objectAttribute
+	: id=KW_NAME ASSIGNMENT value=identifier
+	| id=KW_CLASS ASSIGNMENT value=identifier
 	;
 
 // (variableList)

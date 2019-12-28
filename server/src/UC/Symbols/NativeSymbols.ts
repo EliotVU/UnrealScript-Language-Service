@@ -15,7 +15,7 @@ import {
 import {
 	StaticIntType, StaticFloatType,
 	StaticVectorType, StaticRotatorType, StaticRangeType,
-	StaticDelegateType, StaticObjectType
+	StaticDelegateType
 } from './TypeSymbol';
 
 export * from './CoreSymbols';
@@ -56,7 +56,6 @@ NativeArray.addSymbol(AddFunction);
 
 const AddItemFunction = new UCMethodSymbol({ name: toName('AddItem'), range: DEFAULT_RANGE });
 const ItemParam = new UCParamSymbol({ name: toName('Item'), range: DEFAULT_RANGE });
-ItemParam.type = StaticObjectType;
 AddItemFunction.addSymbol(ItemParam);
 AddItemFunction.params = [ItemParam];
 NativeArray.addSymbol(AddItemFunction);
@@ -65,7 +64,6 @@ const InsertItemFunction = new UCMethodSymbol({ name: toName('InsertItem'), rang
 const IndexParam3 = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE });
 IndexParam3.type = StaticIntType;
 const ItemParam2 = new UCParamSymbol({ name: toName('Item'), range: DEFAULT_RANGE });
-ItemParam2.type = StaticObjectType;
 InsertItemFunction.addSymbol(IndexParam3);
 InsertItemFunction.addSymbol(ItemParam2);
 InsertItemFunction.params = [IndexParam3, ItemParam2];
@@ -73,14 +71,12 @@ NativeArray.addSymbol(InsertItemFunction);
 
 const RemoveItemFunction = new UCMethodSymbol({ name: toName('RemoveItem'), range: DEFAULT_RANGE });
 const ItemParam3 = new UCParamSymbol({ name: toName('Item'), range: DEFAULT_RANGE });
-ItemParam3.type = StaticObjectType;
 RemoveItemFunction.addSymbol(ItemParam3);
 RemoveItemFunction.params = [ItemParam3];
 NativeArray.addSymbol(RemoveItemFunction);
 
 const FindFunction = new UCMethodSymbol({ name: toName('Find'), range: DEFAULT_RANGE });
 const ItemParam4 = new UCParamSymbol({ name: toName('Item'), range: DEFAULT_RANGE });
-ItemParam4.type = StaticObjectType;
 FindFunction.addSymbol(ItemParam4);
 FindFunction.params = [ItemParam4];
 NativeArray.addSymbol(FindFunction);

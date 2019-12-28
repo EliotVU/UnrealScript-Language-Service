@@ -16,6 +16,13 @@ const CONST_FLOAT2					= +0.fe-2f;
 const CONST_FLOAT3					= 0f;
 const CONST_BOOL					= true;
 
+// To test enum and constant values usage in defaultproperties.
+const DEFAULT_CONST	= 0;
+enum EDefault {
+	D_Zero,
+	D_One
+};
+
 enum AEnum {
 	A_1,
 	A_2
@@ -85,6 +92,7 @@ var delegate<Test> 			defaultDelegate;
 var map{string, float} 		defaultStringToFloatMap;
 var class<Test> 			defaultClassMeta[4];
 var array<class<Test> > 	defaultArrayOfClasses;
+var Test					defaultTestRef;
 
 // Test for non-quoted tooltip
 var array<Object> MetaData<Tooltip = tooltip for my array. | test=0>;
@@ -178,14 +186,14 @@ delegate byte Test() {
 	i = 0;
 	i = int(0.f);
 	i = 256;
-	i = &str;
-	i = ToInt"test\s";
-	i = ToInt str;
+	// i = &str;
+	// i = ToInt"test\s";
+	// i = ToInt str;
 
 	str = $"Test";
-	str = "Test"PrependDollar;
-	str = str PrependDollar;
-	str = PrependDollar "str";
+	// str = "Test"PrependDollar;
+	// str = str PrependDollar;
+	// str = PrependDollar "str";
 
 	// Statement tests
 	if (str == "") str = " "; else ; ;
@@ -217,7 +225,7 @@ delegate byte Test() {
 	}
 
 	if (false) {
-		goto loop;
+		// goto loop;
 	} else if (true) {
 		;
 	}
@@ -227,7 +235,7 @@ delegate byte Test() {
 		AddObj(obj);
 
     // Test accessable properties via an object literal.
-	str = StrProperty'str'.default.Name;
+	// str = StrProperty'str'.default.Name;
 
 	obj = new class'Test';
 
@@ -260,14 +268,19 @@ function InputObject(Object obj) {
 
 function InputArray(Array<Object> objs) {
 	local int l;
+	local Object obj;
 	local Class objClass;
 
+	objs.AddItem(self);
+	objs.AddItem("self");
+	objs.RemoveItem(self);
+	obj = objs.Find(self);
+
 	l = objs.Length;
-	objClass = objs[0].Class;
+	objClass = obj.Class;
 }
 
 function Array<Object> GetObjects() {
-
 }
 
 function TestFunction();
@@ -275,25 +288,36 @@ function TestFunction();
 // test missing expressions
 function byte TestInvalidCode(){
 	// Missing expression test!
-	if ( < 0 ) {
+	// if ( < 0 ) {
 
-	}
+	// }
 
-	if ( 0 > ) {
+	// if ( 0 > ) {
 
-	}
+	// }
 }
 
 defaultproperties
 {
-	defaultIntDynamicArray(0)=1
-	// defaultIntDynamicArray.Add(1)
-	// defaultIntDynamicArray.Remove(1)
-	// defaultIntDynamicArray.Empty
+	defaultIntDynamicArray(DEFAULT_CONST)=1
+	defaultIntDynamicArray(D_Zero)=1
+	defaultIntDynamicArray(D_One)=1
+
+	defaultIntDynamicArray.Add(1)
+	defaultIntDynamicArray.Remove(1)
+	defaultIntDynamicArray.RemoveIndex(0)
+	defaultIntDynamicArray.Replace(0, 1)
+	defaultIntDynamicArray.Empty
+
 	defaultInt=1024				|defaultFloat=1.0f			|defaultByte=1
 	defaultBool=true			|defaultBool=false
 	defaultName=CONST_NAME		|defaultName=MyName
 	defaultStr=CONST_STRING		|defaultStr="string"
 
 	superVar=0
+
+	begin object class=Test name=Test0
+		superVar=0
+	end object
+	defaultTestRef=Test0
 }

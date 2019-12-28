@@ -38,15 +38,10 @@ export class DocumentIndexer extends DefaultSymbolWalker {
 
 		for (let child = symbol.children; child; child = child.next) {
 			// Parameter?
-			if (child instanceof UCParamSymbol) {
-				child.accept<any>(this);
+			if (child instanceof UCParamSymbol && child.defaultExpression) {
+				child.defaultExpression.index(this.document, symbol);
 			}
 		}
-		return symbol;
-	}
-
-	visitParameter(symbol: UCParamSymbol) {
-		symbol.defaultExpression?.index(this.document, symbol.outer as UCStructSymbol);
 		return symbol;
 	}
 

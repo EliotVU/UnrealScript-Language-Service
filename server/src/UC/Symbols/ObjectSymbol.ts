@@ -1,24 +1,14 @@
 import { SymbolKind } from 'vscode-languageserver-types';
 
-import { Name } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import { UCDocument } from '../document';
 
-import { UCStructSymbol } from '.';
-import { UCObjectTypeSymbol, UCTypeFlags } from './TypeSymbol';
-import { Identifier } from './ISymbol';
+import { UCStructSymbol, UCTypeFlags } from '.';
 
 /**
  * Represents an instanced Archetype found within in a defaultproperties e.g. "begin object class=classID name=objectName".
  */
 export class UCObjectSymbol extends UCStructSymbol {
-	public objectName?: Name;
-	public classId?: Identifier;
-
-	getName(): Name {
-		return this.objectName || super.getName();
-	}
-
 	getKind(): SymbolKind {
 		return SymbolKind.Constructor;
 	}
@@ -28,9 +18,10 @@ export class UCObjectSymbol extends UCStructSymbol {
 	}
 
 	index(document: UCDocument, _context: UCStructSymbol) {
-		if (this.classId) {
-			// TODO: Find @super, for declarations where no class=NAME was specified
-			this.extendsType = new UCObjectTypeSymbol(this.classId, undefined, UCTypeFlags.Class);
+		// TODO: Find @super, for declarations where no class=NAME was specified
+		if (this.extendsType) {
+			// FIXME: extendsType is indexed twice (by assignmentExpresion "class=ClassNameManually")
+			// -- set the type reference here so that turn on "noIndex".
 		}
 		super.index(document, this);
 	}

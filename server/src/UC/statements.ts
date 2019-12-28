@@ -3,7 +3,7 @@ import { Position, Range } from 'vscode-languageserver';
 import { intersectsWith } from './helpers';
 import { UCDocument } from './document';
 
-import { UCStructSymbol, ISymbol, IContextInfo } from './Symbols';
+import { UCStructSymbol, ISymbol, IContextInfo, UCObjectSymbol } from './Symbols';
 import { IExpression } from './expressions';
 import { SymbolWalker } from './symbolWalker';
 import { Name } from './names';
@@ -91,6 +91,9 @@ export class UCBlock implements IStatement {
 	index(_document: UCDocument, _context: UCStructSymbol, info: IContextInfo = {}) {
 		const typeFlags = info.typeFlags;
 		for (let statement of this.statements) if (statement) {
+			if (statement instanceof UCObjectSymbol) {
+				continue;
+			}
 			statement.index.apply(statement, arguments);
 			info.typeFlags = typeFlags; // Reset any modification (during the last index() call) made to typeFlags
 		}

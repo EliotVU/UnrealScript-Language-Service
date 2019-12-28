@@ -1,4 +1,4 @@
-import { DiagnosticSeverity, SymbolKind, Range } from 'vscode-languageserver';
+import { DiagnosticSeverity, Range } from 'vscode-languageserver';
 
 import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
 import * as diagnosticMessages from './diagnosticMessages.json';
@@ -11,7 +11,7 @@ import {
 	UCScriptStructSymbol, UCStateSymbol,
 	UCArrayTypeSymbol, UCDelegateTypeSymbol,
 	UCDelegateSymbol, UCPropertySymbol,
-	UCMethodSymbol, UCBinaryOperatorSymbol,
+	UCMethodSymbol,
 	UCReplicationBlock, UCObjectSymbol, UCTypeFlags,
 	typeMatchesFlags, ITypeSymbol, getTypeFlagsName,
 	NativeClass, NativeEnum, UCQualifiedTypeSymbol,
@@ -31,10 +31,10 @@ import {
 	UCSuperExpression, UCDefaultStructLiteral, UCAssignmentExpression,
 	UCIdentifierLiteralExpression, UCArrayCountExpression, UCArrayCountLiteral,
 	UCNameOfLiteral, UCSizeOfLiteral, UCMetaClassExpression, UCDefaultAssignmentExpression,
-	UCAssignmentOperatorExpression, UCEmptyArgument
+	UCAssignmentOperatorExpression, UCEmptyArgument, UCDefaultMemberCallExpression
 } from '../expressions';
 import { UCDocument } from '../document';
-import { NAME_STRUCT, NAME_STATE, NAME_DELEGATE } from '../names';
+import { NAME_STRUCT, NAME_STATE, NAME_DELEGATE, NAME_NONE } from '../names';
 import { config, UCGeneration } from '../indexer';
 
 export class DocumentAnalyzer extends DefaultSymbolWalker {
@@ -435,8 +435,21 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 	}
 
 	visitObjectSymbol(symbol: UCObjectSymbol) {
-		this.pushScope(symbol);
-		super.visitStructBase(symbol);
+		this.pushScope(symbol.super || symbol);
+		if (symbol.getName() === NAME_NONE) {
+			this.diagnostics.add({
+				range: symbol.id.range,
+				message: {
+					text: `Object declaration is missing a name!`,
+					severity: DiagnosticSeverity.Error
+				}
+			});
+		}
+		// Disabled because we don't want to analyze object children, because each child is already registered as a statement!
+		// super.visitStructBase(symbol);
+		if (symbol.block) {
+			symbol.block.accept<any>(this);
+		}
 		this.popScope();
 		return symbol;
 	}
@@ -610,75 +623,8 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 			const type = expr.expression.getType();
 			const symbol = type?.getRef();
 			if (symbol instanceof UCMethodSymbol) {
-				let i = 0;
-				let passedArgumentsCount = 0; // excluding optional parameters.
-				if (expr.arguments) for (; i < expr.arguments.length; ++i) {
-					const arg = expr.arguments[i];
-					const param = symbol.params?.[i];
-					if (!param) {
-						this.pushError(arg.getRange(), `Unexpected argument!`);
-						++passedArgumentsCount;
-						continue;
-					}
-
-					if (!param.isOptional()) {
-						++passedArgumentsCount;
-						if (arg instanceof UCEmptyArgument) {
-							this.pushError(arg.getRange(),
-								`An argument for non-optional parameter '${param.getName()}' is missing.`
-							);
-							continue;
-						}
-					}
-
-					if (arg instanceof UCEmptyArgument) {
-						continue;
-					}
-
-					const argType = arg.getType();
-					if (!argType) {
-						// We already have generated an error diagnostic when type is an error.
-						// Thus we can skip further skips that would only overload the programmer.
-						continue;
-					}
-
-					if (param.isOut()) {
-						const argSymbol = arg.getType()?.getRef();
-						// if (!argSymbol) {
-						// 	this.pushError(
-						// 		arg.getRange(),
-						// 		`Non-resolved argument cannot be passed to an 'out' parameter.`)
-						// 	);
-						// } else
-						if (argSymbol instanceof UCFieldSymbol) {
-							if (argSymbol === LengthProperty) {
-								this.pushError(arg.getRange(),
-									`Cannot pass array property 'Length' to an 'out' parameter.`
-								);
-							}
-							else if (argSymbol.isConst()) {
-								this.pushError(arg.getRange(),
-									`Argument '${argSymbol.getName()}' cannot be passed to an 'out' parameter, because it is a constant.`
-								);
-							}
-						}
-					}
-
-					if (config.checkTypes) {
-						const expectedFlags = param.getType()?.getTypeFlags() || UCTypeFlags.Error;
-						if (argType && !typeMatchesFlags(argType, expectedFlags)) {
-							this.pushError(arg.getRange(),
-								`Argument of type '${getTypeFlagsName(argType)}' is not assignable to parameter of type '${UCTypeFlags[expectedFlags]}'.`
-							);
-						}
-					}
-				}
-
-				// When we have more params than required, we'll catch an unexpected argument error, see above.
-				if (symbol.requiredParamsCount && passedArgumentsCount < symbol.requiredParamsCount) {
-					const totalPassedParamsCount = i;
-					this.pushError(expr.getRange(), `Expected ${symbol.requiredParamsCount} arguments, but got ${totalPassedParamsCount}.`);
-				}
+				// FIXME: inferred type, this is unfortunately complicated :(
+				this.checkArguments(symbol, expr);
 			} else {
 				// TODO: Validate if expressed symbol is callable,
 				// i.e. either a 'Function/Delegate', 'Class', or a 'Struct' like Vector/Rotator.
@@ -834,6 +780,18 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 					}
 				}
 			}
+		} else if (expr instanceof UCDefaultMemberCallExpression) {
+			expr.propertyMember.accept<any>(this);
+			expr.methodMember.accept<any>(this);
+			expr.arguments?.forEach(arg => arg.accept<any>(this));
+
+			const type = expr.methodMember.getType();
+			const symbol = type?.getRef();
+			if (symbol instanceof UCMethodSymbol) {
+				this.checkArguments(symbol, expr, expr.getType());
+			} else {
+				this.pushError(expr.methodMember.getRange(), `Operation can only be applied to an array!`);
+			}
 		} else if (expr instanceof UCIdentifierLiteralExpression) {
 			if (!this.context || !this.state.typeFlags) {
 				return expr;
@@ -853,7 +811,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 							text: diagnosticMessages.ID_0_DOES_NOT_EXIST_ON_TYPE_1.text,
 							severity: DiagnosticSeverity.Error
 						},
-						args: [expr.getId().toString(), this.context.getPath()]
+						args: [expr.id.name.toString(), this.context.getPath()]
 					});
 				} else {
 					this.diagnostics.add({
@@ -862,7 +820,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 							text: diagnosticMessages.COULDNT_FIND_0.text,
 							severity: DiagnosticSeverity.Error
 						},
-						args: [expr.getId().toString()]
+						args: [expr.id.name.toString()]
 					});
 				}
 			}
@@ -874,7 +832,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 						text: diagnosticMessages.ID_0_DOES_NOT_EXIST_ON_TYPE_1.text,
 						severity: DiagnosticSeverity.Error
 					},
-					args: [expr.getId().toString(), this.context.getPath()]
+					args: [expr.id.name.toString(), this.context.getPath()]
 				});
 			}
 		} else if (expr instanceof UCSuperExpression) {
@@ -919,6 +877,85 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 			expr.argumentRef?.accept<any>(this);
 		}
 		return expr;
+	}
+
+	private checkArguments(symbol: UCMethodSymbol, expr: UCCallExpression | UCDefaultMemberCallExpression, inferredType?: ITypeSymbol) {
+		let i = 0;
+		let passedArgumentsCount = 0; // excluding optional parameters.
+
+		const args = expr.arguments;
+		if (args) for (; i < args.length; ++i) {
+			const arg = args[i];
+			const param = symbol.params?.[i];
+			if (!param) {
+				this.pushError(arg.getRange(), `Unexpected argument!`);
+				++passedArgumentsCount;
+				continue;
+			}
+
+			if (!param.isOptional()) {
+				++passedArgumentsCount;
+				if (arg instanceof UCEmptyArgument) {
+					this.pushError(arg.getRange(),
+						`An argument for non-optional parameter '${param.getName()}' is missing.`
+					);
+					continue;
+				}
+			}
+
+			if (arg instanceof UCEmptyArgument) {
+				continue;
+			}
+
+			const argType = arg.getType();
+			if (!argType) {
+				// We already have generated an error diagnostic when type is an error.
+				// Thus we can skip further skips that would only overload the programmer.
+				continue;
+			}
+
+			if (param.isOut()) {
+				const argSymbol = arg.getType()?.getRef();
+				// if (!argSymbol) {
+				// 	this.pushError(
+				// 		arg.getRange(),
+				// 		`Non-resolved argument cannot be passed to an 'out' parameter.`)
+				// 	);
+				// } else
+				if (argSymbol instanceof UCFieldSymbol) {
+					if (argSymbol === LengthProperty) {
+						this.pushError(arg.getRange(),
+							`Cannot pass array property 'Length' to an 'out' parameter.`
+						);
+					}
+					else if (argSymbol.isConst()) {
+						this.pushError(arg.getRange(),
+							`Argument '${argSymbol.getName()}' cannot be passed to an 'out' parameter, because it is a constant.`
+						);
+					}
+				}
+			}
+
+			if (config.checkTypes) {
+				const paramType = param.getType() ?? inferredType;
+				// We'll play nice by not pushing any errors if the method's param has no found or defined type,
+				// -- the 'type not found' error will suffice.
+				if (paramType) {
+					const expectedFlags = paramType.getTypeFlags();
+					if (argType && !typeMatchesFlags(argType, expectedFlags)) {
+						this.pushError(arg.getRange(),
+							`Argument of type '${getTypeFlagsName(argType)}' is not assignable to parameter of type '${UCTypeFlags[expectedFlags]}'.`
+						);
+					}
+				}
+			}
+		}
+
+		// When we have more params than required, we'll catch an unexpected argument error, see above.
+		if (symbol.requiredParamsCount && passedArgumentsCount < symbol.requiredParamsCount) {
+			const totalPassedParamsCount = i;
+			this.pushError(expr.getRange(), `Expected ${symbol.requiredParamsCount} arguments, but got ${totalPassedParamsCount}.`);
+		}
 	}
 
 	private pushError(range: Range, text: string): void {
