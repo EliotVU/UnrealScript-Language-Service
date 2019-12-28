@@ -30,7 +30,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	 * Note that this property will be seen as a static array even if the @arrayDim value is invalid.
 	 */
 	isFixedArray(): boolean {
-		return (this.modifiers & FieldModifiers.WithDimension) !== 0;
+		return (this.modifiers & FieldModifiers.WithDimension) === FieldModifiers.WithDimension;
 	}
 
 	isDynamicArray(): boolean {
@@ -99,8 +99,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		text.push(this.getTooltipId());
 
 		if (this.isFixedArray()) {
-			// We want to avoid printing out 'undefined', so always fall back to 0 instead.
-			const arrayDim = this.getArrayDimSize() || 0;
+			const arrayDim = this.getArrayDimSize() ?? '';
 			text.push(text.pop() + `[${arrayDim}]`);
 		}
 
@@ -108,8 +107,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		const symbol = this.type?.getSymbolAtPos(position) || this.arrayDimRef?.getSymbolAtPos(position);
-		return symbol;
+		return this.type?.getSymbolAtPos(position) || this.arrayDimRef?.getSymbolAtPos(position);
 	}
 
 	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {

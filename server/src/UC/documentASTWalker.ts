@@ -814,7 +814,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		if (varNodes) for (const varNode of varNodes) {
 			const symbol: UCPropertySymbol = varNode.accept(this);
 			symbol.type = typeSymbol;
-			symbol.modifiers = modifiers;
+			symbol.modifiers |= modifiers;
 			this.declare(symbol, ctx);
 		}
 		return undefined;
