@@ -15,7 +15,7 @@ import {
 	UCReplicationBlock, UCObjectSymbol, UCTypeFlags,
 	typeMatchesFlags, ITypeSymbol, getTypeFlagsName,
 	NativeClass, NativeEnum, UCQualifiedTypeSymbol,
-	IContextInfo, UCFieldSymbol, LengthProperty,
+	IContextInfo, UCFieldSymbol, LengthProperty, StaticBoolType,
 } from '../Symbols';
 import {
 	UCBlock, UCExpressionStatement,
@@ -480,7 +480,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		this.verifyStatementExpression(stm);
 		if (stm.expression && config.checkTypes) {
 			const type = stm.expression.getType();
-			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
+			if (!typeMatchesFlags(type, StaticBoolType)) {
 				this.diagnostics.add({
 					range: stm.getRange(),
 					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
@@ -496,7 +496,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		this.verifyStatementExpression(stm);
 		if (stm.expression && config.checkTypes) {
 			const type = stm.expression.getType();
-			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
+			if (!typeMatchesFlags(type, StaticBoolType)) {
 				this.diagnostics.add({
 					range: stm.getRange(),
 					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
@@ -520,7 +520,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		this.verifyStatementExpression(stm);
 		if (stm.expression && config.checkTypes) {
 			const type = stm.expression.getType();
-			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
+			if (!typeMatchesFlags(type, StaticBoolType)) {
 				this.diagnostics.add({
 					range: stm.getRange(),
 					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
@@ -536,7 +536,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
 		if (stm.expression && config.checkTypes) {
 			const type = stm.expression.getType();
-			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
+			if (!typeMatchesFlags(type, StaticBoolType)) {
 				this.diagnostics.add({
 					range: stm.getRange(),
 					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
@@ -574,7 +574,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 					// TODO: No return expression expected!
 				} else {
 					const flags = expectedType.getTypeFlags();
-					if (!typeMatchesFlags(type, flags)) {
+					if (!typeMatchesFlags(type, expectedType)) {
 						this.diagnostics.add({
 							range: stm.getRange(),
 							message: createTypeCannotBeAssignedToMessage(flags, type)
@@ -597,7 +597,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		this.verifyStatementExpression(stm);
 		if (stm.expression && config.checkTypes) {
 			const type = stm.expression.getType();
-			if (!typeMatchesFlags(type, UCTypeFlags.Bool)) {
+			if (!typeMatchesFlags(type, StaticBoolType)) {
 				this.diagnostics.add({
 					range: stm.getRange(),
 					message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
@@ -764,8 +764,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 						const leftType = expr.left!.getType();
 						const rightType = expr.right.getType();
 						if (rightType && leftType) {
-							const flags = leftType.getTypeFlags();
-							if (!typeMatchesFlags(rightType, flags)) {
+							if (!typeMatchesFlags(rightType, leftType)) {
 								this.pushError(
 									expr.left!.getRange(),
 									`Variable of type '${getTypeFlagsName(leftType)}' cannot be assigned to type '${getTypeFlagsName(rightType)}'`
@@ -941,8 +940,8 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				// We'll play nice by not pushing any errors if the method's param has no found or defined type,
 				// -- the 'type not found' error will suffice.
 				if (paramType) {
-					const expectedFlags = paramType.getTypeFlags();
-					if (argType && !typeMatchesFlags(argType, expectedFlags)) {
+					if (argType && !typeMatchesFlags(argType, paramType, param.isCoerced())) {
+						const expectedFlags = paramType.getTypeFlags();
 						this.pushError(arg.getRange(),
 							`Argument of type '${getTypeFlagsName(argType)}' is not assignable to parameter of type '${UCTypeFlags[expectedFlags]}'.`
 						);

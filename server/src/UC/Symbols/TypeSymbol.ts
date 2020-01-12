@@ -3,7 +3,6 @@ import { Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { intersectsWithRange } from '../helpers';
 import { SymbolWalker } from '../symbolWalker';
-import { ErrorDiagnostic } from '../diagnostics/diagnostic';
 
 import {
 	ISymbol, Identifier, IWithReference,
@@ -18,7 +17,6 @@ import {
 	NAME_ARRAY, NAME_MAP
 } from '../names';
 import { UCPackage, tryFindClassSymbol, tryFindSymbolInPackage } from './Package';
-import { IExpression } from '../expressions';
 
 export enum UCTypeFlags {
 	// A type that couldn't be found.
@@ -60,7 +58,7 @@ export enum UCTypeFlags {
 	NameCoerce		= Name | String,
 
 	// Can be coerced to type "String", if marked with "coerce".
-	CoerceString	= Name | String | Object | NumberCoerce | Bool | None,
+	CoerceToString	= Name | String | Object | NumberCoerce | Bool | None,
 
 	Replicatable	= Function | Property,
 
@@ -450,35 +448,40 @@ export const CastTypeSymbolMap: Readonly<WeakMap<Name, ITypeSymbol>> = new WeakM
 	[NAME_BUTTON, StaticBoolType]
 ]);
 
-export function analyzeExpressionType(expression: IExpression, expected: UCTypeFlags) {
-	const type = expression.getType();
-	if (type && type.getTypeFlags() !== expected) {
-		return new ErrorDiagnostic(expression.getRange()!,
-			`Expected a type of '${UCTypeFlags[expected]}', but got type '${UCTypeFlags[type.getTypeFlags()]}'.`
-		);
-	}
-}
-
-export function typeMatchesFlags(type: ITypeSymbol | undefined, expected: UCTypeFlags): boolean {
-	if (expected === UCTypeFlags.Error) {
+// TODO: Handle class hierarchy
+// TODO: Handle coercing
+export function typeMatchesFlags(type: ITypeSymbol | undefined, expectedType: ITypeSymbol, coerce: boolean = false): boolean {
+	if (expectedType.getTypeFlags() === UCTypeFlags.Error) {
 		return false;
 	}
 
 	if (type) {
+		const expectedFlags = expectedType.getTypeFlags();
 		const flags = type.getTypeFlags();
-		if ((flags & UCTypeFlags.NumberCoerce) !== 0) {
-			return (expected & UCTypeFlags.NumberCoerce) !== 0 || (expected & UCTypeFlags.Enum) === UCTypeFlags.Enum;
-		} else if ((flags & UCTypeFlags.Enum) === UCTypeFlags.Enum) {
-			return (expected & UCTypeFlags.EnumCoerce) !== 0;
-		} else if (flags === UCTypeFlags.None) {
-			return (expected & UCTypeFlags.NoneCoerce) !== 0;
-		} else if (flags === UCTypeFlags.Name) {
-			return (expected & UCTypeFlags.NameCoerce) !== 0;
-		} else if ((flags & UCTypeFlags.Object) !== 0) {
-			// TODO: Check for subclass?
-			return (expected & UCTypeFlags.Object) !== 0;
+		if (coerce && expectedFlags & UCTypeFlags.String) {
+			return (flags & UCTypeFlags.CoerceToString) !== 0;
 		}
-		return flags === expected;
+
+		if ((flags & UCTypeFlags.NumberCoerce) !== 0) {
+			return (expectedFlags & UCTypeFlags.NumberCoerce) !== 0 || (expectedFlags & UCTypeFlags.Enum) === UCTypeFlags.Enum;
+		} else if ((flags & UCTypeFlags.Enum) === UCTypeFlags.Enum) {
+			return (expectedFlags & UCTypeFlags.EnumCoerce) !== 0;
+		} else if (flags === UCTypeFlags.None) {
+			return (expectedFlags & UCTypeFlags.NoneCoerce) !== 0;
+		} else if (flags === UCTypeFlags.String) {
+			return (expectedFlags & UCTypeFlags.String) !== 0;
+		} else if (flags === UCTypeFlags.Name) {
+			return (expectedFlags & UCTypeFlags.Name | (UCTypeFlags.String*Number(coerce))) !== 0;
+		} else if ((flags & UCTypeFlags.Struct) === UCTypeFlags.Struct) {
+			return (expectedFlags & UCTypeFlags.Struct) === UCTypeFlags.Struct
+				&& expectedType.getName() === type.getName();
+		} else if ((flags & UCTypeFlags.Object) !== 0) {
+			if ((expectedFlags & UCTypeFlags.Struct) === UCTypeFlags.Struct) {
+				return false;
+			}
+			return (expectedFlags & UCTypeFlags.Object) !== 0;
+		}
+		return flags === expectedFlags;
 	}
 	return false;
 }

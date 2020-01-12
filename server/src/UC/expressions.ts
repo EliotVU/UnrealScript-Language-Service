@@ -3,7 +3,6 @@ import { Position, Range } from 'vscode-languageserver';
 import { getEnumMember, config } from './indexer';
 import { intersectsWith } from './helpers';
 import { UCDocument } from './document';
-import { Name } from './names';
 
 import {
 	ISymbol, UCSymbol, UCMethodSymbol,
@@ -23,7 +22,9 @@ import {
 	getSymbolOuterHash, getSymbolHash, OuterObjectsTable,
 	UCPackage, CORE_PACKAGE, findOrIndexClassSymbol,
 	UCObjectSymbol,
-	DefaultArray
+	DefaultArray,
+	typeMatchesFlags,
+	findSymbol
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
@@ -324,20 +325,47 @@ export abstract class UCBaseOperatorExpression extends UCExpression {
 export class UCPostOperatorExpression extends UCBaseOperatorExpression {
 	index(document: UCDocument, context: UCStructSymbol, info?) {
 		super.index(document, context, info);
-		const operatorSymbol = findPostOperatorSymbol(this.operator.getName(), context);
-		operatorSymbol && this.operator.setReference(operatorSymbol, document);
+		if (this.operator) {
+			const type = this.expression.getType();
+			if (type) {
+				const opId = this.operator.getName();
+				const operatorSymbol = findSymbol(context, opId, (
+					symbol => symbol instanceof UCBaseOperatorSymbol
+					&& symbol.isPostOperator()
+					&& symbol.params !== undefined
+					&& symbol.params.length === 1
+					&& typeMatchesFlags(symbol.params[0].getType(), type, symbol.params[0].isCoerced())
+				));
+				if (operatorSymbol) {
+					this.operator.setReference(operatorSymbol, document);
+				}
+			}
+		}
 	}
 }
 
 export class UCPreOperatorExpression extends UCBaseOperatorExpression {
 	index(document: UCDocument, context: UCStructSymbol, info?) {
 		super.index(document, context, info);
-		const operatorSymbol = findPreOperatorSymbol(this.operator.getName(), context);
-		operatorSymbol && this.operator.setReference(operatorSymbol, document);
+		if (this.operator) {
+			const type = this.expression.getType();
+			if (type) {
+				const opId = this.operator.getName();
+				const operatorSymbol = findSymbol(context, opId, (
+					symbol => symbol instanceof UCBaseOperatorSymbol
+					&& symbol.isPreOperator()
+					&& symbol.params !== undefined
+					&& symbol.params.length === 1
+					&& typeMatchesFlags(symbol.params[0].getType(), type, symbol.params[0].isCoerced())
+				));
+				if (operatorSymbol) {
+					this.operator.setReference(operatorSymbol, document);
+				}
+			}
+		}
 	}
 }
 
-// TODO: Index and match overloaded operators.
 export class UCBinaryOperatorExpression extends UCExpression {
 	public left?: IExpression;
 	public operator?: UCSymbolReference;
@@ -359,7 +387,6 @@ export class UCBinaryOperatorExpression extends UCExpression {
 		if (symbol && this.operator!.getRef()) {
 			return symbol;
 		}
-
 		return this.left?.getSymbolAtPos(position) ?? this.right?.getSymbolAtPos(position);
 	}
 
@@ -373,13 +400,22 @@ export class UCBinaryOperatorExpression extends UCExpression {
 		this.right?.index(document, context, info);
 
 		if (this.operator) {
-			// const leftType = this.left.getType();
-			// const rightType = this.right && this.right.getType();
-
-			const opName = this.operator.getName();
-			// const opName = toName(this.operator.getId().toString() + (leftType && leftType.getId()) + (rightType && rightType.getId()));
-			const operatorSymbol = findOperatorSymbol(opName, context);
-			operatorSymbol && this.operator.setReference(operatorSymbol, document);
+			const leftType = this.left?.getType();
+			const rightType = this.right?.getType();
+			if (leftType && rightType) {
+				const opId = this.operator.getName();
+				const operatorSymbol = findSymbol(context, opId, (
+					symbol => symbol instanceof UCBaseOperatorSymbol
+					&& symbol.isOperator()
+					&& symbol.params !== undefined
+					&& symbol.params.length === 2
+					&& typeMatchesFlags(symbol.params[0].getType(), leftType, symbol.params[0].isCoerced())
+					&& typeMatchesFlags(symbol.params[1].getType(), rightType, symbol.params[0].isCoerced())
+				));
+				if (operatorSymbol) {
+					this.operator.setReference(operatorSymbol, document);
+				}
+			}
 		}
 	}
 }
@@ -734,7 +770,7 @@ export class UCObjectLiteral extends UCExpression {
 
 	getType() {
 		// TODO: Coerce to specified class if castRef is of type 'Class'
-		if (this.castRef.getTypeFlags() & UCTypeFlags.Class) {
+		if ((this.castRef.getTypeFlags() & UCTypeFlags.Class) === UCTypeFlags.Class) {
 			return this.objectRef || this.castRef;
 		}
 		return this.castRef;
@@ -801,9 +837,13 @@ export abstract class UCStructLiteral extends UCExpression {
 	}
 
 	index(document: UCDocument, _context?: UCStructSymbol) {
+		if (this.structType.getRef()) {
+			return;
+		}
+
 		const symbol = ObjectsTable.getSymbol<UCStructSymbol>(this.structType.getName(), UCTypeFlags.Struct, CORE_PACKAGE);
 		if (symbol) {
-			this.structType.setReference(symbol, document, undefined, this.getRange());
+			this.structType.setReference(symbol, document, true);
 		}
 	}
 }
@@ -934,54 +974,5 @@ export class UCMetaClassExpression extends UCExpression {
 	index(document: UCDocument, context?: UCStructSymbol, info?) {
 		this.expression?.index(document, context, info);
 		this.classRef?.index(document, context!);
-	}
-}
-
-// TODO: What about UCState? Can states properly declare operators?
-function findOperatorSymbol(id: Name, context: UCStructSymbol): UCSymbol | undefined {
-	let scope = context instanceof UCMethodSymbol ? context.outer : context;
-	if (scope instanceof UCStateSymbol) {
-		scope = scope.outer;
-	}
-	for (; scope instanceof UCStructSymbol; scope = scope.super) {
-		for (var child = scope.children; child; child = child.next) {
-			if (child.getName() === id) {
-				if (child instanceof UCMethodSymbol && child.isOperator()) {
-					return child;
-				}
-			}
-		}
-	}
-}
-
-function findPreOperatorSymbol(id: Name, context: UCStructSymbol): UCSymbol | undefined {
-	let scope = context instanceof UCMethodSymbol ? context.outer : context;
-	if (scope instanceof UCStateSymbol) {
-		scope = scope.outer;
-	}
-	for (; scope instanceof UCStructSymbol; scope = scope.super) {
-		for (var child = scope.children; child; child = child.next) {
-			if (child.getName() === id) {
-				if (child instanceof UCMethodSymbol && child.isPreOperator()) {
-					return child;
-				}
-			}
-		}
-	}
-}
-
-function findPostOperatorSymbol(id: Name, context: UCStructSymbol): UCSymbol | undefined {
-	let scope = context instanceof UCMethodSymbol ? context.outer : context;
-	if (scope instanceof UCStateSymbol) {
-		scope = scope.outer;
-	}
-	for (; scope instanceof UCStructSymbol; scope = scope.super) {
-		for (var child = scope.children; child; child = child.next) {
-			if (child.getName() === id) {
-				if (child instanceof UCMethodSymbol && child.isPostOperator()) {
-					return child;
-				}
-			}
-		}
 	}
 }

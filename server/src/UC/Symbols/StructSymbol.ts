@@ -9,7 +9,7 @@ import { SymbolWalker } from '../symbolWalker';
 import {
 	ISymbol, ISymbolContainer,
 	UCFieldSymbol,
-	UCSymbol, ITypeSymbol
+	UCSymbol, ITypeSymbol, UCStateSymbol, UCMethodSymbol
 } from ".";
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
@@ -122,11 +122,35 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 /**
  * Looks up the @struct's hierachy for a matching @id
  */
-export function findSuperStruct(struct: UCStructSymbol, id: Name): UCStructSymbol | undefined {
-	for (let other = struct.super; other; other = other.super) {
+export function findSuperStruct(context: UCStructSymbol, id: Name): UCStructSymbol | undefined {
+	for (let other = context.super; other; other = other.super) {
 		if (other.getName() === id) {
 			return other;
 		}
 	}
 	return undefined;
+}
+
+/**
+ * Searches a @param context for a symbol with a matching @param id along with a @param predicate,
+ * - if there was no predicate match, the last id matched symbol will be returned instead.
+ */
+export function findSymbol(context: UCStructSymbol, id: Name, predicate: (symbol: UCFieldSymbol) => boolean): UCSymbol | undefined {
+	let scope = context instanceof UCMethodSymbol ? context.outer : context;
+	if (scope instanceof UCStateSymbol) {
+		scope = scope.outer;
+	}
+
+	let bestChild: UCSymbol | undefined = undefined;
+	for (; scope instanceof UCStructSymbol; scope = scope.super) {
+		for (var child = scope.children; child; child = child.next) {
+			if (child.getName() === id) {
+				if (predicate(child)) {
+					return child;
+				}
+				bestChild = child;
+			}
+		}
+	}
+	return bestChild;
 }

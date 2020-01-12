@@ -258,10 +258,6 @@ export abstract class UCBaseOperatorSymbol extends UCMethodSymbol {
 	acceptCompletion(document: UCDocument, context: ISymbol): boolean {
 		// TODO: Perhaps only list operators with a custom Identifier? i.e. "Dot" and "Cross".
 		return false;
-
-		// FIXME: Should check outer, but currently it's too much of a pain to step through.
-		// Basically we don't want operators to be visible when the context is not in the same document!
-		// return context instanceof UCStructSymbol && context.getUri() === document.filePath;
 	}
 }
 
