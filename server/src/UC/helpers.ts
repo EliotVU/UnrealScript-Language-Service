@@ -12,7 +12,7 @@ import { DocumentParseData, UCDocument } from './document';
 import { config, getDocumentByURI, getIndexedReferences, UCGeneration } from './indexer';
 import { TokenExt } from './Parser/CommonTokenStreamExt';
 import {
-    ISymbol, IWithReference, ObjectsTable, tryFindClassSymbol, UCStructSymbol, UCSymbol
+    Identifier, ISymbol, IWithReference, ObjectsTable, tryFindClassSymbol, UCStructSymbol, UCSymbol
 } from './Symbols';
 
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
@@ -344,8 +344,7 @@ function symbolToCompletionItem(symbol: ISymbol): CompletionItem {
 			label: symbol.getName().toString(),
 			kind: symbol.getCompletionItemKind(),
 			detail: symbol.getTooltip(),
-			documentation: symbol.getDocumentation(),
-			data: symbol.getPath()
+			data: symbol.id
 		};
 	}
 
@@ -355,12 +354,13 @@ function symbolToCompletionItem(symbol: ISymbol): CompletionItem {
 }
 
 export async function getFullCompletionItem(item: CompletionItem): Promise<CompletionItem> {
-	if (item.data) {
-		const symbol = tryFindClassSymbol(item.data);
-		if (!symbol) {
-			return item;
+    // Assuming data has a reference to an @Identifier object.
+    const id = item.data as Identifier | undefined;
+	if (typeof id === 'object') {
+		const symbol = tryFindClassSymbol(id.name);
+		if (symbol) {
+            item.documentation = symbol.getDocumentation();
 		}
-		item.documentation = symbol.getDocumentation();
 	}
 	return item;
 }
