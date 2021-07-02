@@ -1,9 +1,8 @@
 import { SymbolKind } from 'vscode-languageserver-types';
 
-import { SymbolWalker } from '../symbolWalker';
 import { UCDocument } from '../document';
-
-import { UCStructSymbol, UCTypeFlags } from '.';
+import { SymbolWalker } from '../symbolWalker';
+import { UCStructSymbol, UCTypeFlags } from './';
 
 /**
  * Represents an instanced Archetype found within in a defaultproperties e.g. "begin object class=classID name=objectName".

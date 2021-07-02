@@ -1,11 +1,11 @@
-import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
+import { CompletionItemKind, SymbolKind } from 'vscode-languageserver-types';
 
 import { SymbolWalker } from '../symbolWalker';
-import { UCFieldSymbol, UCTypeFlags } from '.';
+import { UCFieldSymbol, UCTypeFlags } from './';
 
 export class UCEnumMemberSymbol extends UCFieldSymbol {
 	// Unrealscript only supports (automatic) byte values.
-	public value: number;
+	public value!: number;
 
 	getKind(): SymbolKind {
 		return SymbolKind.EnumMember;

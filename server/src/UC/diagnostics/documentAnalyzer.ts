@@ -1,41 +1,32 @@
 import { DiagnosticSeverity, Range } from 'vscode-languageserver';
 
-import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
-import * as diagnosticMessages from './diagnosticMessages.json';
-
-import { DefaultSymbolWalker } from '../symbolWalker';
+import { UCDocument } from '../document';
 import {
-	UCStructSymbol, UCClassSymbol,
-	UCParamSymbol, UCConstSymbol,
-	UCEnumSymbol, UCObjectTypeSymbol,
-	UCScriptStructSymbol, UCStateSymbol,
-	UCArrayTypeSymbol, UCDelegateTypeSymbol,
-	UCDelegateSymbol, UCPropertySymbol,
-	UCMethodSymbol,
-	UCReplicationBlock, UCObjectSymbol, UCTypeFlags,
-	typeMatchesFlags, ITypeSymbol, getTypeFlagsName,
-	NativeClass, NativeEnum, UCQualifiedTypeSymbol,
-	IContextInfo, UCFieldSymbol, LengthProperty, StaticBoolType,
-} from '../Symbols';
+    IExpression, UCArrayCountExpression, UCArrayCountLiteral, UCAssignmentExpression,
+    UCAssignmentOperatorExpression, UCBaseOperatorExpression, UCBinaryOperatorExpression,
+    UCCallExpression, UCConditionalExpression, UCDefaultAssignmentExpression,
+    UCDefaultMemberCallExpression, UCDefaultStructLiteral, UCElementAccessExpression,
+    UCEmptyArgument, UCIdentifierLiteralExpression, UCMemberExpression, UCMetaClassExpression,
+    UCNameOfLiteral, UCObjectLiteral, UCParenthesizedExpression, UCPropertyAccessExpression,
+    UCSizeOfLiteral, UCSuperExpression
+} from '../expressions';
+import { config, UCGeneration } from '../indexer';
+import { NAME_DELEGATE, NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
 import {
-	UCBlock, UCExpressionStatement,
-	UCIfStatement, UCDoUntilStatement,
-	UCForStatement, UCWhileStatement, UCReturnStatement,
-	UCAssertStatement, UCSwitchStatement,
-	UCForEachStatement, UCCaseClause
+    UCAssertStatement, UCBlock, UCCaseClause, UCDoUntilStatement, UCExpressionStatement,
+    UCForEachStatement, UCForStatement, UCIfStatement, UCReturnStatement, UCSwitchStatement,
+    UCWhileStatement
 } from '../statements';
 import {
-	IExpression, UCObjectLiteral, UCParenthesizedExpression, UCCallExpression,
-	UCElementAccessExpression, UCPropertyAccessExpression, UCConditionalExpression,
-	UCBaseOperatorExpression, UCBinaryOperatorExpression, UCMemberExpression,
-	UCSuperExpression, UCDefaultStructLiteral, UCAssignmentExpression,
-	UCIdentifierLiteralExpression, UCArrayCountExpression, UCArrayCountLiteral,
-	UCNameOfLiteral, UCSizeOfLiteral, UCMetaClassExpression, UCDefaultAssignmentExpression,
-	UCAssignmentOperatorExpression, UCEmptyArgument, UCDefaultMemberCallExpression
-} from '../expressions';
-import { UCDocument } from '../document';
-import { NAME_STRUCT, NAME_STATE, NAME_DELEGATE, NAME_NONE } from '../names';
-import { config, UCGeneration } from '../indexer';
+    getTypeFlagsName, IContextInfo, ITypeSymbol, LengthProperty, NativeClass, NativeEnum,
+    StaticBoolType, typeMatchesFlags, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol,
+    UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumSymbol, UCFieldSymbol, UCMethodSymbol,
+    UCObjectSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
+    UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeFlags
+} from '../Symbols';
+import { DefaultSymbolWalker } from '../symbolWalker';
+import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
+import * as diagnosticMessages from './diagnosticMessages.json';
 
 export class DocumentAnalyzer extends DefaultSymbolWalker {
 	private scopes: UCStructSymbol[] = [];

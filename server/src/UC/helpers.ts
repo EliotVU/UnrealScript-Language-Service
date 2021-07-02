@@ -1,26 +1,19 @@
-import {
-	CompletionItem,
-	Hover,
-	Location,
-	SymbolInformation,
-	Position,
-	Range,
-	DocumentHighlight,
-	DocumentHighlightKind,
-	CompletionItemKind
-} from 'vscode-languageserver';
-import { Token, ParserRuleContext, TokenStream } from 'antlr4ts';
-
-import { TokenExt } from './Parser/CommonTokenStreamExt';
-import { IWithReference, ISymbol, UCSymbol, UCStructSymbol, tryFindClassSymbol, ObjectsTable } from './Symbols';
-import { getDocumentByURI, getIndexedReferences, config, UCGeneration } from "./indexer";
-import { UCDocument, DocumentParseData } from './document';
-
-import { UCLexer } from '../antlr/UCLexer';
-import { UCParser } from '../antlr/UCParser';
-
 import * as c3 from 'antlr4-c3';
+import { ParserRuleContext, Token, TokenStream } from 'antlr4ts';
 import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
+import {
+    CompletionItem, CompletionItemKind, DocumentHighlight, DocumentHighlightKind, Hover, Location,
+    Position, Range, SymbolInformation
+} from 'vscode-languageserver';
+
+import { UCLexer } from './antlr/generated/UCLexer';
+import { UCParser } from './antlr/generated/UCParser';
+import { DocumentParseData, UCDocument } from './document';
+import { config, getDocumentByURI, getIndexedReferences, UCGeneration } from './indexer';
+import { TokenExt } from './Parser/CommonTokenStreamExt';
+import {
+    ISymbol, IWithReference, ObjectsTable, tryFindClassSymbol, UCStructSymbol, UCSymbol
+} from './Symbols';
 
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 

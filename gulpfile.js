@@ -11,7 +11,7 @@ const SYNTAX_TASK = (function(){
 	const SYNTAX_DIR = 'syntaxes/';
 
 	gulp.task(TASK_NAME, (cb) => {
-		const jsonData = jsyaml.safeLoad(fs.readFileSync(path.join(SYNTAX_DIR, SYNTAX_FILE), 'utf-8'));
+		const jsonData = jsyaml.load(fs.readFileSync(path.join(SYNTAX_DIR, SYNTAX_FILE), 'utf-8'));
 		const content = JSON.stringify(jsonData);
 		const outPath = path.join(SYNTAX_DIR, OUT_SYNTAX_FILE);
 		fs.writeFileSync(outPath, content);

@@ -1,12 +1,11 @@
 import { Position, Range } from 'vscode-languageserver';
 
-import { intersectsWith } from './helpers';
 import { UCDocument } from './document';
-
-import { UCStructSymbol, ISymbol, IContextInfo, UCObjectSymbol } from './Symbols';
 import { IExpression } from './expressions';
-import { SymbolWalker } from './symbolWalker';
+import { intersectsWith } from './helpers';
 import { Name } from './names';
+import { IContextInfo, ISymbol, UCObjectSymbol, UCStructSymbol } from './Symbols';
+import { SymbolWalker } from './symbolWalker';
 
 export interface IStatement {
 	getRange(): Range;
@@ -61,7 +60,7 @@ export abstract class UCThenStatement extends UCExpressionStatement {
 }
 
 export class UCBlock implements IStatement {
-	statements: Array<IStatement | undefined>;
+	statements!: Array<IStatement | undefined>;
 
 	constructor(protected range: Range) {
 

@@ -1,9 +1,8 @@
-import { CommonTokenStream, Token, WritableToken, ANTLRErrorListener } from 'antlr4ts';
+import { ANTLRErrorListener, CommonTokenStream, Token, WritableToken } from 'antlr4ts';
 
+import { UCLexer } from '../antlr/generated/UCLexer';
+import { MacroCallContext, MacroProgramContext } from '../antlr/generated/UCPreprocessorParser';
 import { CaseInsensitiveStream } from './CaseInsensitiveStream';
-
-import { MacroProgramContext, MacroCallContext } from '../../antlr/UCPreprocessorParser';
-import { UCLexer } from '../../antlr/UCLexer';
 
 export interface TokenExt extends WritableToken {
 	length: number;

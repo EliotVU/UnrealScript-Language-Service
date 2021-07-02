@@ -1,30 +1,17 @@
 import { Position, Range } from 'vscode-languageserver';
 
-import { getEnumMember, config } from './indexer';
-import { intersectsWith } from './helpers';
 import { UCDocument } from './document';
-
+import { intersectsWith } from './helpers';
+import { config, getEnumMember } from './indexer';
 import {
-	ISymbol, UCSymbol, UCMethodSymbol,
-	UCObjectTypeSymbol, UCStructSymbol,
-	UCPropertySymbol, UCSymbolReference,
-	StaticVectorType, VectMethodLike,
-	StaticRotatorType, RotMethodLike,
-	StaticRangeType, RngMethodLike,
-	ITypeSymbol, UCStateSymbol, ObjectsTable,
-	findSuperStruct, UCTypeFlags,
-	IContextInfo, Identifier,
-	UCBaseOperatorSymbol, UCBinaryOperatorSymbol,
-	UCArrayTypeSymbol, tryFindClassSymbol, UCConstSymbol,
-	StaticByteType, StaticFloatType, StaticIntType, StaticNoneType,
-	StaticStringType, StaticNameType, StaticBoolType,
-	CastTypeSymbolMap, resolveType, UCQualifiedTypeSymbol,
-	getSymbolOuterHash, getSymbolHash, OuterObjectsTable,
-	UCPackage, CORE_PACKAGE, findOrIndexClassSymbol,
-	UCObjectSymbol,
-	DefaultArray,
-	typeMatchesFlags,
-	findSymbol
+    CastTypeSymbolMap, CORE_PACKAGE, DefaultArray, findOrIndexClassSymbol, findSuperStruct,
+    findSymbol, getSymbolHash, getSymbolOuterHash, IContextInfo, Identifier, ISymbol, ITypeSymbol,
+    ObjectsTable, OuterObjectsTable, resolveType, RngMethodLike, RotMethodLike, StaticBoolType,
+    StaticByteType, StaticFloatType, StaticIntType, StaticNameType, StaticNoneType, StaticRangeType,
+    StaticRotatorType, StaticStringType, StaticVectorType, tryFindClassSymbol, typeMatchesFlags,
+    UCArrayTypeSymbol, UCBaseOperatorSymbol, UCBinaryOperatorSymbol, UCConstSymbol, UCMethodSymbol,
+    UCObjectSymbol, UCObjectTypeSymbol, UCPackage, UCPropertySymbol, UCQualifiedTypeSymbol,
+    UCStateSymbol, UCStructSymbol, UCSymbol, UCSymbolReference, UCTypeFlags, VectMethodLike
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
@@ -92,7 +79,7 @@ export class UCParenthesizedExpression extends UCExpression {
 		return symbol;
 	}
 
-	index(document: UCDocument, context?: UCStructSymbol, info?) {
+	index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
 		this.expression?.index(document, context, info);
 	}
 }
@@ -113,7 +100,7 @@ export class UCArrayCountExpression extends UCExpression {
 		return symbol;
 	}
 
-	index(document: UCDocument, context?: UCStructSymbol, info?) {
+	index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
 		this.argument?.index(document, context, info);
 	}
 }
@@ -125,7 +112,7 @@ export class UCEmptyArgument extends UCExpression {
 }
 
 export class UCCallExpression extends UCExpression {
-	public expression: IExpression;
+	public expression!: IExpression;
 	public arguments?: Array<IExpression>;
 
 	getMemberSymbol() {
@@ -192,7 +179,7 @@ export class UCCallExpression extends UCExpression {
 }
 
 export class UCElementAccessExpression extends UCExpression {
-	public expression: IExpression;
+	public expression!: IExpression;
 	public argument?: IExpression;
 
 	getMemberSymbol() {
@@ -222,14 +209,14 @@ export class UCElementAccessExpression extends UCExpression {
 		return this.expression?.getSymbolAtPos(position) ?? this.argument?.getSymbolAtPos(position);
 	}
 
-	index(document: UCDocument, context?: UCStructSymbol, info?) {
+	index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
 		this.expression?.index(document, context, info);
 		this.argument?.index(document, context, info);
 	}
 }
 
 export class UCDefaultElementAccessExpression extends UCElementAccessExpression {
-	index(document: UCDocument, context?: UCStructSymbol, info?) {
+	index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
 		this.expression?.index(document, context, info);
 		// this.argument?.index(document, context, info);
 
@@ -246,8 +233,8 @@ export class UCDefaultElementAccessExpression extends UCElementAccessExpression 
 }
 
 export class UCPropertyAccessExpression extends UCExpression {
-	public left: IExpression;
-	public member: UCMemberExpression;
+	public left!: IExpression;
+	public member!: UCMemberExpression;
 
 	getMemberSymbol() {
 		return this.member.getMemberSymbol();
@@ -271,7 +258,7 @@ export class UCPropertyAccessExpression extends UCExpression {
 }
 
 export class UCConditionalExpression extends UCExpression {
-	public condition: IExpression;
+	public condition!: IExpression;
 	public true?: IExpression;
 	public false?: IExpression;
 
@@ -287,19 +274,19 @@ export class UCConditionalExpression extends UCExpression {
 		return this.condition.getSymbolAtPos(position) ?? this.true?.getSymbolAtPos(position) ?? this.false?.getSymbolAtPos(position);
 	}
 
-	index(document: UCDocument, context?: UCStructSymbol, info?) {
-		this.condition?.index(document, context, info);
+	index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
+		this.condition.index(document, context, info);
 		this.true?.index(document, context, info);
 		this.false?.index(document, context, info);
 	}
 }
 
 export abstract class UCBaseOperatorExpression extends UCExpression {
-	public expression: IExpression;
-	public operator: UCSymbolReference;
+	public expression!: IExpression;
+	public operator!: UCSymbolReference;
 
 	getMemberSymbol() {
-		return this.expression.getMemberSymbol();
+		return this.expression?.getMemberSymbol();
 	}
 
 	getType() {
@@ -314,18 +301,18 @@ export abstract class UCBaseOperatorExpression extends UCExpression {
 		if (symbol && this.operator.getRef()) {
 			return symbol;
 		}
-		return this.expression?.getSymbolAtPos(position);
+		return this.expression.getSymbolAtPos(position);
 	}
 
-	index(document: UCDocument, context: UCStructSymbol, info?) {
-		this.expression?.index(document, context, info);
+	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
+		this.expression.index(document, context, info);
 	}
 }
 
 export class UCPostOperatorExpression extends UCBaseOperatorExpression {
-	index(document: UCDocument, context: UCStructSymbol, info?) {
+	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
 		super.index(document, context, info);
-		if (this.operator) {
+		if (this.operator && this.expression) {
 			const type = this.expression.getType();
 			if (type) {
 				const opId = this.operator.getName();
@@ -345,9 +332,9 @@ export class UCPostOperatorExpression extends UCBaseOperatorExpression {
 }
 
 export class UCPreOperatorExpression extends UCBaseOperatorExpression {
-	index(document: UCDocument, context: UCStructSymbol, info?) {
+	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
 		super.index(document, context, info);
-		if (this.operator) {
+		if (this.operator && this.expression) {
 			const type = this.expression.getType();
 			if (type) {
 				const opId = this.operator.getName();
@@ -443,8 +430,8 @@ export class UCDefaultAssignmentExpression extends UCBinaryOperatorExpression {
  * @method getType will always return the type of instance "propertyMember", because our array operations have no return type.
  */
 export class UCDefaultMemberCallExpression extends UCExpression {
-	public propertyMember: UCMemberExpression;
-	public methodMember: UCMemberExpression;
+	public propertyMember!: UCMemberExpression;
+	public methodMember!: UCMemberExpression;
 	public arguments?: Array<IExpression>;
 
 	getMemberSymbol() {
@@ -713,7 +700,7 @@ export class UCNameLiteral extends UCLiteral {
 }
 
 export class UCBoolLiteral extends UCLiteral {
-	value: boolean;
+	value!: boolean;
 
 	getType() {
 		return StaticBoolType;
@@ -725,7 +712,7 @@ export class UCBoolLiteral extends UCLiteral {
 }
 
 export class UCFloatLiteral extends UCLiteral {
-	value: number;
+	value!: number;
 
 	getType() {
 		return StaticFloatType;
@@ -737,7 +724,7 @@ export class UCFloatLiteral extends UCLiteral {
 }
 
 export class UCIntLiteral extends UCLiteral {
-	value: number;
+	value!: number;
 
 	getType() {
 		return StaticIntType;
@@ -749,7 +736,7 @@ export class UCIntLiteral extends UCLiteral {
 }
 
 export class UCByteLiteral extends UCLiteral {
-	value: number;
+	value!: number;
 
 	getType() {
 		return StaticByteType;
@@ -761,7 +748,7 @@ export class UCByteLiteral extends UCLiteral {
 }
 
 export class UCObjectLiteral extends UCExpression {
-	public castRef: ITypeSymbol;
+	public castRef!: ITypeSymbol;
 	public objectRef?: UCObjectTypeSymbol | UCQualifiedTypeSymbol;
 
 	getMemberSymbol() {
@@ -821,7 +808,7 @@ export class UCObjectLiteral extends UCExpression {
 
 // Struct literals are limited to Vector, Rotator, and Range.
 export abstract class UCStructLiteral extends UCExpression {
-	structType: UCObjectTypeSymbol;
+	structType!: UCObjectTypeSymbol;
 
 	getMemberSymbol() {
 		return this.structType.getRef();
@@ -971,7 +958,7 @@ export class UCMetaClassExpression extends UCExpression {
 		return this.expression?.getSymbolAtPos(position) || subSymbol?.getRef() && this.classRef;
 	}
 
-	index(document: UCDocument, context?: UCStructSymbol, info?) {
+	index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
 		this.expression?.index(document, context, info);
 		this.classRef?.index(document, context!);
 	}

@@ -1,9 +1,8 @@
-import { Range, Position, Location } from 'vscode-languageserver-types';
+import { Location, Position, Range } from 'vscode-languageserver-types';
 
-import { intersectsWith, intersectsWithRange } from '../helpers';
 import { UCDocument } from '../document';
-
-import { Identifier, ISymbol, UCSymbol, UCStructSymbol, ITypeSymbol } from '.';
+import { intersectsWith, intersectsWithRange } from '../helpers';
+import { Identifier, ISymbol, ITypeSymbol, UCStructSymbol, UCSymbol } from './';
 import { ISymbolReference } from './ISymbol';
 
 export enum FieldModifiers {

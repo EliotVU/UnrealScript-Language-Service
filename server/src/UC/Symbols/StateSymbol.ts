@@ -1,10 +1,9 @@
-import { SymbolKind, Position, Location } from 'vscode-languageserver-types';
+import { Location, Position, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
-
-import { UCSymbolReference, UCStructSymbol, UCTypeFlags } from ".";
+import { SymbolWalker } from '../symbolWalker';
+import { UCStructSymbol, UCSymbolReference, UCTypeFlags } from './';
 
 export class UCStateSymbol extends UCStructSymbol {
 	public overriddenState?: UCStateSymbol;

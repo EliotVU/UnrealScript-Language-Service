@@ -1,11 +1,11 @@
-import * as path from 'path';
 import { expect } from 'chai';
-import { UCLexer } from '../antlr/UCLexer';
+import * as path from 'path';
 
-import { UCDocument, preprocessDocument, createPreprocessor } from './document';
-import { TRANSIENT_PACKAGE } from './Symbols';
+import { UCLexer } from './antlr/generated/UCLexer';
+import { createPreprocessor, preprocessDocument, UCDocument } from './document';
+import { applyMacroSymbols, indexDocument } from './indexer';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
-import { indexDocument, applyMacroSymbols } from './indexer';
+import { TRANSIENT_PACKAGE } from './Symbols';
 
 const GRAMMARS_DIR = path.resolve(__dirname, '../../../grammars/examples');
 const MACRO_FILE = 'macro.uci';

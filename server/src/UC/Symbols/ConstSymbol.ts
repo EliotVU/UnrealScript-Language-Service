@@ -1,9 +1,9 @@
-import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
+import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
 
-import { SymbolWalker } from '../symbolWalker';
-import { IExpression } from '../expressions';
 import { UCDocument } from '../document';
-import { UCFieldSymbol, UCStructSymbol, UCTypeFlags } from ".";
+import { IExpression } from '../expressions';
+import { SymbolWalker } from '../symbolWalker';
+import { UCFieldSymbol, UCStructSymbol, UCTypeFlags } from './';
 
 export class UCConstSymbol extends UCFieldSymbol {
 	public expression?: IExpression;

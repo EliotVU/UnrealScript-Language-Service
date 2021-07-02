@@ -1,10 +1,11 @@
-import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
+import { CompletionItemKind, Position, Range, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 import { SymbolWalker } from '../symbolWalker';
-
-import { UCStructSymbol, UCObjectTypeSymbol, ITypeSymbol, ISymbol, UCTypeFlags } from '.';
+import {
+    Identifier, ISymbol, ITypeSymbol, UCObjectTypeSymbol, UCStructSymbol, UCTypeFlags
+} from './';
 
 export class UCClassSymbol extends UCStructSymbol {
 	public withinType?: ITypeSymbol;
@@ -109,7 +110,9 @@ export class UCClassSymbol extends UCStructSymbol {
 }
 
 export class UCDocumentClassSymbol extends UCClassSymbol {
-	public document: UCDocument;
+	constructor(id: Identifier, range: Range = id.range, private document: UCDocument) {
+		super(id, range);
+	}
 
 	getUri(): string {
 		return this.document.uri;

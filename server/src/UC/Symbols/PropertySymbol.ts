@@ -1,18 +1,15 @@
-import { SymbolKind, CompletionItemKind, Position, Range } from 'vscode-languageserver-types';
+import { CompletionItemKind, Position, Range, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { SymbolWalker } from '../symbolWalker';
-import { NAME_ENUMCOUNT } from '../names';
 import { config, UCGeneration } from '../indexer';
-
+import { NAME_ENUMCOUNT } from '../names';
+import { SymbolWalker } from '../symbolWalker';
 import {
-	ITypeSymbol, UCTypeFlags,
-	UCFieldSymbol, UCStructSymbol,
-	UCEnumSymbol, UCEnumMemberSymbol,
-	UCConstSymbol, ISymbol, UCSymbol
-} from '.';
-import { resolveType } from './TypeSymbol';
+    ISymbol, ITypeSymbol, UCConstSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCFieldSymbol,
+    UCStructSymbol, UCSymbol, UCTypeFlags
+} from './';
 import { FieldModifiers } from './FieldSymbol';
+import { resolveType } from './TypeSymbol';
 
 export class UCPropertySymbol extends UCFieldSymbol {
 	// The type if specified, i.e. "var Object Outer;" Object here is represented by @type, including the resolved symbol.

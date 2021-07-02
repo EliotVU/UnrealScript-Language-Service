@@ -1,14 +1,11 @@
-import { SymbolKind, Position } from 'vscode-languageserver-types';
+import { Position, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { Name } from '../names';
 import { SymbolWalker } from '../symbolWalker';
-
 import {
-	ISymbol, UCSymbol,
-	UCClassSymbol, UCStructSymbol,
-	UCSymbolReference, UCTypeFlags
-} from '.';
+    ISymbol, UCClassSymbol, UCStructSymbol, UCSymbol, UCSymbolReference, UCTypeFlags
+} from './';
 
 export class UCReplicationBlock extends UCStructSymbol {
 	public symbolRefs = new Map<Name, UCSymbolReference>();

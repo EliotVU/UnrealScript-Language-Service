@@ -1,16 +1,13 @@
 import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
 
-import { intersectsWith } from '../helpers';
 import { UCDocument } from '../document';
-import { UCBlock } from '../statements';
+import { intersectsWith } from '../helpers';
 import { Name } from '../names';
+import { UCBlock } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
-
 import {
-	ISymbol, ISymbolContainer,
-	UCFieldSymbol,
-	UCSymbol, ITypeSymbol, UCStateSymbol, UCMethodSymbol
-} from ".";
+    ISymbol, ISymbolContainer, ITypeSymbol, UCFieldSymbol, UCMethodSymbol, UCStateSymbol, UCSymbol
+} from './';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: ITypeSymbol;

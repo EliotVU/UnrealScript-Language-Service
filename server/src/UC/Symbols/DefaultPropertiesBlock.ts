@@ -2,8 +2,7 @@ import { SymbolKind } from 'vscode-languageserver';
 
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
-
-import { UCSymbol, UCStructSymbol, UCTypeFlags } from '.';
+import { UCStructSymbol, UCSymbol, UCTypeFlags } from './';
 
 export class UCDefaultPropertiesBlock extends UCStructSymbol {
 	getKind(): SymbolKind {

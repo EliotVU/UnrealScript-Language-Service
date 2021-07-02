@@ -2,21 +2,17 @@ import { Position, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { intersectsWithRange } from '../helpers';
-import { SymbolWalker } from '../symbolWalker';
-
 import {
-	ISymbol, Identifier, IWithReference,
-	UCSymbol, UCSymbolReference,
-	UCStructSymbol, UCClassSymbol, UCFieldSymbol,
-	NativeClass, ObjectsTable, DEFAULT_RANGE, NativeArray
-} from '.';
-import {
-	NAME_NONE, Name, NAME_BYTE, NAME_FLOAT, NAME_INT, NAME_STRING,
-	NAME_NAME, NAME_BOOL, NAME_POINTER, NAME_BUTTON, NAME_OBJECT,
-	NAME_VECTOR, NAME_ROTATOR, NAME_RANGE, NAME_DELEGATE,
-	NAME_ARRAY, NAME_MAP
+    Name, NAME_ARRAY, NAME_BOOL, NAME_BUTTON, NAME_BYTE, NAME_DELEGATE, NAME_FLOAT, NAME_INT,
+    NAME_MAP, NAME_NAME, NAME_NONE, NAME_OBJECT, NAME_POINTER, NAME_RANGE, NAME_ROTATOR,
+    NAME_STRING, NAME_VECTOR
 } from '../names';
-import { UCPackage, tryFindClassSymbol, tryFindSymbolInPackage } from './Package';
+import { SymbolWalker } from '../symbolWalker';
+import {
+    DEFAULT_RANGE, Identifier, ISymbol, IWithReference, NativeArray, NativeClass, ObjectsTable,
+    UCClassSymbol, UCFieldSymbol, UCStructSymbol, UCSymbol, UCSymbolReference
+} from './';
+import { tryFindClassSymbol, tryFindSymbolInPackage, UCPackage } from './Package';
 
 export enum UCTypeFlags {
 	// A type that couldn't be found.
@@ -70,7 +66,7 @@ export interface ITypeSymbol extends UCSymbol, IWithReference {
 	getTypeText(): string;
 	getTypeFlags(): UCTypeFlags;
 
-	index(document: UCDocument, context?: UCStructSymbol);
+	index(document: UCDocument, context?: UCStructSymbol): void;
 }
 
 export function isTypeSymbol(symbol: ITypeSymbol): symbol is ITypeSymbol {
@@ -106,11 +102,11 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		return this.type.getTooltip();
 	}
 
-	getSymbolAtPos(position: Position) {
+	override getSymbolAtPos(position: Position) {
 		return this.getContainedSymbolAtPos(position);
 	}
 
-	getContainedSymbolAtPos(position: Position) {
+	override getContainedSymbolAtPos(position: Position): ISymbol | undefined {
 		const symbol = this.left?.getSymbolAtPos(position) || this.type.getSymbolAtPos(position);
 		return symbol;
 	}

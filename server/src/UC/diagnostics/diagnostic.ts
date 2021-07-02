@@ -1,4 +1,4 @@
-import { Range, DiagnosticSeverity, Diagnostic } from 'vscode-languageserver-types';
+import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver-types';
 
 export interface IDiagnosticNode {
 	getRange(): Range;

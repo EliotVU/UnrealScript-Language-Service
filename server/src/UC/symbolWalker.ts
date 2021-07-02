@@ -1,34 +1,15 @@
-import {
-	ISymbol,
-	UCClassSymbol,
-	UCEnumSymbol,
-	UCEnumMemberSymbol,
-	UCStructSymbol,
-	UCConstSymbol,
-	UCPropertySymbol,
-	UCLocalSymbol,
-	UCParamSymbol,
-	UCMethodSymbol,
-	UCStateSymbol,
-	UCObjectTypeSymbol,
-	UCMapTypeSymbol,
-	UCDelegateTypeSymbol,
-	UCArrayTypeSymbol,
-	UCPackage,
-	UCScriptStructSymbol,
-	UCReplicationBlock,
-	UCDefaultPropertiesBlock,
-	UCObjectSymbol,
-	UCQualifiedTypeSymbol,
-} from './Symbols';
-import {
-	UCBlock, IStatement, UCExpressionStatement,
-	UCLabeledStatement, UCAssertStatement, UCIfStatement,
-	UCDoUntilStatement, UCWhileStatement, UCSwitchStatement,
-	UCCaseClause, UCDefaultClause, UCForStatement,
-	UCForEachStatement, UCReturnStatement, UCGotoStatement
-} from './statements';
 import { IExpression } from './expressions';
+import {
+    IStatement, UCAssertStatement, UCBlock, UCCaseClause, UCDefaultClause, UCDoUntilStatement,
+    UCExpressionStatement, UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement,
+    UCLabeledStatement, UCReturnStatement, UCSwitchStatement, UCWhileStatement
+} from './statements';
+import {
+    ISymbol, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol, UCDefaultPropertiesBlock,
+    UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCLocalSymbol, UCMapTypeSymbol,
+    UCMethodSymbol, UCObjectSymbol, UCObjectTypeSymbol, UCPackage, UCParamSymbol, UCPropertySymbol,
+    UCQualifiedTypeSymbol, UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol
+} from './Symbols';
 
 export interface SymbolWalker<T> {
 	visit(symbol: ISymbol): T;

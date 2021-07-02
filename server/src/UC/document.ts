@@ -1,27 +1,25 @@
-import * as path from 'path';
+import { ANTLRErrorListener, CommonTokenStream } from 'antlr4ts';
+import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import * as fs from 'fs';
-
+import * as path from 'path';
+import { performance } from 'perf_hooks';
+import { Diagnostic } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
-import { Diagnostic } from 'vscode-languageserver';
-import { performance } from 'perf_hooks';
-import { UCLexer } from '../antlr/UCLexer';
-import { UCParser, ProgramContext } from '../antlr/UCParser';
-import { UCPreprocessorParser } from '../antlr/UCPreprocessorParser';
-import { CommonTokenStream, ANTLRErrorListener, ParserRuleContext } from 'antlr4ts';
-import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
-import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
-
-import { UCClassSymbol, ISymbol, ISymbolReference, UCPackage, UCSymbol, SymbolsTable } from './Symbols';
-
-import { IDiagnosticNode, DiagnosticCollection } from './diagnostics/diagnostic';
+import { UCLexer } from './antlr/generated/UCLexer';
+import { ProgramContext, UCParser } from './antlr/generated/UCParser';
+import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
+import { DiagnosticCollection, IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
-import { IndexedReferencesMap, applyMacroSymbols, config, UCGeneration } from './indexer';
-
-import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
-import { CommonTokenStreamExt } from './Parser/CommonTokenStreamExt';
 import { DocumentASTWalker } from './documentASTWalker';
+import { applyMacroSymbols, config, IndexedReferencesMap, UCGeneration } from './indexer';
 import { Name, toName } from './names';
+import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
+import { CommonTokenStreamExt } from './Parser/CommonTokenStreamExt';
+import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
+import {
+    ISymbol, ISymbolReference, SymbolsTable, UCClassSymbol, UCPackage, UCSymbol
+} from './Symbols';
 
 export interface DocumentParseData {
 	context?: ProgramContext;

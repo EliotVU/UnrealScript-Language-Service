@@ -1,10 +1,8 @@
-import { SymbolKind, Location, CompletionItem, Range } from 'vscode-languageserver-types';
+import { Location, Range, SymbolKind } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../document';
-import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
-
-import { UCTypeFlags } from '.';
+import { SymbolWalker } from '../symbolWalker';
+import { UCTypeFlags } from './';
 
 export interface ISymbol {
 	/** Parent symbol, mirroring Unreal Engine's Object class structure. */

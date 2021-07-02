@@ -1,74 +1,53 @@
-import { Range, Position } from 'vscode-languageserver-types';
-
-import { ANTLRErrorListener, RecognitionException, Recognizer, Token, ParserRuleContext, CommonTokenStream } from 'antlr4ts';
+import {
+    ANTLRErrorListener, CommonTokenStream, ParserRuleContext, RecognitionException, Recognizer,
+    Token
+} from 'antlr4ts';
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
+import { Position, Range } from 'vscode-languageserver-types';
 
-import * as UCGrammar from '../antlr/UCParser';
-import { UCLexer } from '../antlr/UCLexer';
-import { UCParserVisitor } from '../antlr/UCParserVisitor';
-import { UCPreprocessorParserVisitor } from '../antlr/UCPreprocessorParserVisitor';
-import * as UCMacro from '../antlr/UCPreprocessorParser';
-
-import { rangeFromBounds, rangeFromBound, rangeFromCtx } from './helpers';
-import {
-	toName,
-	NAME_CLASS, NAME_ARRAY, NAME_REPLICATION,
-	NAME_NONE, NAME_DELEGATE, NAME_ENUMCOUNT,
-	NAME_DEFAULT, NAME_MAP
-} from './names';
-
-import {
-	Identifier, ISymbol, ISymbolContainer, UCConstSymbol,
-	UCDefaultPropertiesBlock, UCEnumMemberSymbol, UCEnumSymbol,
-	UCMethodSymbol, UCLocalSymbol, UCObjectSymbol,
-	UCPropertySymbol, UCScriptStructSymbol, UCStateSymbol,
-	UCStructSymbol, UCSymbol, UCSymbolReference,
-	ITypeSymbol, UCObjectTypeSymbol, UCQualifiedTypeSymbol,
-	UCDocumentClassSymbol, UCReplicationBlock,
-	MethodSpecifiers, UCEventSymbol, UCBinaryOperatorSymbol,
-	UCDelegateSymbol, UCPostOperatorSymbol, UCPreOperatorSymbol,
-	FieldModifiers, ParamModifiers,
-	UCParamSymbol, UCTypeFlags,
-	UCIntTypeSymbol, UCFloatTypeSymbol,
-	UCByteTypeSymbol, UCStringTypeSymbol,
-	UCNameTypeSymbol, UCBoolTypeSymbol,
-	UCPointerTypeSymbol, UCButtonTypeSymbol,
-	UCDelegateTypeSymbol, UCArrayTypeSymbol,
-	UCMapTypeSymbol, UCPredefinedTypeSymbol,
-	ReturnValueIdentifier, addHashedSymbol
-} from './Symbols';
-
+import { UCLexer } from './antlr/generated/UCLexer';
+import * as UCGrammar from './antlr/generated/UCParser';
+import { UCParserVisitor } from './antlr/generated/UCParserVisitor';
+import * as UCMacro from './antlr/generated/UCPreprocessorParser';
+import { UCPreprocessorParserVisitor } from './antlr/generated/UCPreprocessorParserVisitor';
 import { ErrorDiagnostic } from './diagnostics/diagnostic';
-
-import {
-	UCBlock, IStatement, UCExpressionStatement, UCLabeledStatement,
-	UCReturnStatement, UCGotoStatement, UCIfStatement, UCWhileStatement,
-	UCDoUntilStatement, UCForEachStatement, UCForStatement, UCSwitchStatement,
-	UCCaseClause, UCDefaultClause, UCAssertStatement
-} from './statements';
-
-import { setEnumMember } from './indexer';
-
 import { UCDocument } from './document';
 import {
-	IExpression,
-	UCConditionalExpression, UCBinaryOperatorExpression,
-	UCPreOperatorExpression, UCParenthesizedExpression,
-	UCPropertyAccessExpression, UCCallExpression, UCElementAccessExpression,
-	UCNewExpression, UCMetaClassExpression, UCSuperExpression,
-	UCPredefinedAccessExpression, UCPropertyClassAccessExpression,
-	UCMemberExpression,
-	UCNoneLiteral, UCStringLiteral, UCNameLiteral,
-	UCBoolLiteral, UCFloatLiteral, UCIntLiteral, UCObjectLiteral,
-	UCVectLiteral, UCRotLiteral, UCRngLiteral,
-	UCNameOfLiteral, UCArrayCountExpression,
-	UCSizeOfLiteral, UCArrayCountLiteral,
-	UCDefaultAssignmentExpression, UCDefaultStructLiteral,
-	UCAssignmentOperatorExpression, UCPostOperatorExpression,
-	UCByteLiteral, UCEmptyArgument, UCIdentifierLiteralExpression,
-	UCDefaultMemberCallExpression, UCDefaultElementAccessExpression
+    IExpression, UCArrayCountExpression, UCArrayCountLiteral, UCAssignmentOperatorExpression,
+    UCBinaryOperatorExpression, UCBoolLiteral, UCByteLiteral, UCCallExpression,
+    UCConditionalExpression, UCDefaultAssignmentExpression, UCDefaultElementAccessExpression,
+    UCDefaultMemberCallExpression, UCDefaultStructLiteral, UCElementAccessExpression,
+    UCEmptyArgument, UCFloatLiteral, UCIdentifierLiteralExpression, UCIntLiteral,
+    UCMemberExpression, UCMetaClassExpression, UCNameLiteral, UCNameOfLiteral, UCNewExpression,
+    UCNoneLiteral, UCObjectLiteral, UCParenthesizedExpression, UCPostOperatorExpression,
+    UCPredefinedAccessExpression, UCPreOperatorExpression, UCPropertyAccessExpression,
+    UCPropertyClassAccessExpression, UCRngLiteral, UCRotLiteral, UCSizeOfLiteral, UCStringLiteral,
+    UCSuperExpression, UCVectLiteral
 } from './expressions';
+import { rangeFromBound, rangeFromBounds, rangeFromCtx } from './helpers';
+import { setEnumMember } from './indexer';
+import {
+    NAME_ARRAY, NAME_CLASS, NAME_DEFAULT, NAME_DELEGATE, NAME_ENUMCOUNT, NAME_MAP, NAME_NONE,
+    NAME_REPLICATION, toName
+} from './names';
+import {
+    IStatement, UCAssertStatement, UCBlock, UCCaseClause, UCDefaultClause, UCDoUntilStatement,
+    UCExpressionStatement, UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement,
+    UCLabeledStatement, UCReturnStatement, UCSwitchStatement, UCWhileStatement
+} from './statements';
+import {
+    addHashedSymbol, FieldModifiers, Identifier, ISymbol, ISymbolContainer, ITypeSymbol,
+    MethodSpecifiers, ParamModifiers, ReturnValueIdentifier, UCArrayTypeSymbol,
+    UCBinaryOperatorSymbol, UCBoolTypeSymbol, UCButtonTypeSymbol, UCByteTypeSymbol, UCConstSymbol,
+    UCDefaultPropertiesBlock, UCDelegateSymbol, UCDelegateTypeSymbol, UCDocumentClassSymbol,
+    UCEnumMemberSymbol, UCEnumSymbol, UCEventSymbol, UCFloatTypeSymbol, UCIntTypeSymbol,
+    UCLocalSymbol, UCMapTypeSymbol, UCMethodSymbol, UCNameTypeSymbol, UCObjectSymbol,
+    UCObjectTypeSymbol, UCParamSymbol, UCPointerTypeSymbol, UCPostOperatorSymbol,
+    UCPredefinedTypeSymbol, UCPreOperatorSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
+    UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStringTypeSymbol, UCStructSymbol,
+    UCSymbol, UCSymbolReference, UCTypeFlags
+} from './Symbols';
 
 function idFromCtx(ctx: ParserRuleContext) {
 	const identifier: Identifier = {
@@ -192,7 +171,7 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, type?: U
 
 export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpression | IStatement | Identifier | undefined> implements UCPreprocessorParserVisitor<any>, UCParserVisitor<any>, ANTLRErrorListener<Token> {
 	private scopes: ISymbolContainer<ISymbol>[] = [];
-	tokenStream: CommonTokenStream;
+	tokenStream: CommonTokenStream | undefined;
 
 	TypeKeywordToTypeSymbolMap: { [key: number]: typeof UCPredefinedTypeSymbol } = {
 		[UCLexer.KW_BYTE]		: UCByteTypeSymbol,
@@ -225,7 +204,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 	declare(symbol: UCSymbol, ctx?: ParserRuleContext) {
 		if (ctx) {
-			symbol.description = fetchSurroundingComments(this.tokenStream, ctx);
+			symbol.description = fetchSurroundingComments(this.tokenStream!, ctx);
 		}
 
 		const scope = this.scope();
@@ -272,7 +251,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		return identifier;
 	}
 
-	visitQualifiedIdentifier(ctx) {
+	visitQualifiedIdentifier(ctx: UCGrammar.QualifiedIdentifierContext) {
 		return createQualifiedType(ctx);
 	}
 
@@ -369,9 +348,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 		}
 
 		const identifier: Identifier = idFromCtx(ctx.identifier());
-		const symbol = new UCDocumentClassSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
+		const symbol = new UCDocumentClassSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop), this.document);
 		symbol.outer = this.document.classPackage;
-		symbol.document = this.document;
 		this.document.class = symbol; // Important!, must be assigned before further parsing.
 		addHashedSymbol(symbol);
 
@@ -433,7 +411,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 	visitConstDecl(ctx: UCGrammar.ConstDeclContext) {
 		const identifier: Identifier = idFromCtx(ctx.identifier());
 		const symbol = new UCConstSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
-		symbol.description = fetchSurroundingComments(this.tokenStream, ctx);
+		symbol.description = fetchSurroundingComments(this.tokenStream!, ctx);
 
 		if (ctx._expr) {
 			symbol.expression = ctx._expr.accept(this);
@@ -457,7 +435,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 			let count: number = 0;
 			const memberNodes = ctx.enumMember();
 			for (const memberNode of memberNodes) {
-				const memberSymbol = memberNode.accept(this);
+				const memberSymbol: UCEnumMemberSymbol = memberNode.accept(this);
 				// HACK: overwrite define() outer let.
 				memberSymbol.outer = symbol;
 				memberSymbol.value = count++;
@@ -465,11 +443,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 
 			// Insert the compiler-generated enum member "EnumCount".
 			// TODO: Insert another generated member, e.g. NM_MAX for ENetMode
-			const enumCountMember = new UCEnumMemberSymbol({ name: NAME_ENUMCOUNT, range: symbol.getRange() } as Identifier);
+			const enumId: Identifier = { name: NAME_ENUMCOUNT, range: symbol.getRange() };
+			const enumCountMember = new UCEnumMemberSymbol(enumId, enumId.range);
 			this.declare(enumCountMember);
 			enumCountMember.outer = symbol;
 			enumCountMember.value = count;
-		} finally {
+			} finally {
 			this.pop();
 		}
 		return symbol;

@@ -1,21 +1,11 @@
+import { NAME_ARRAY, NAME_RETURNVALUE, toName } from '../names';
 import {
-	toName,
-	NAME_ARRAY, NAME_RETURNVALUE
-} from '../names';
-
+    DEFAULT_RANGE, UCMethodLikeSymbol, UCMethodSymbol, UCParamSymbol, UCPropertySymbol,
+    UCStructSymbol
+} from './';
 import {
-	DEFAULT_RANGE,
-	UCStructSymbol,
-	UCPropertySymbol,
-	UCMethodSymbol,
-	UCMethodLikeSymbol,
-	UCParamSymbol
-} from ".";
-
-import {
-	StaticIntType, StaticFloatType,
-	StaticVectorType, StaticRotatorType, StaticRangeType,
-	StaticDelegateType
+    StaticDelegateType, StaticFloatType, StaticIntType, StaticRangeType, StaticRotatorType,
+    StaticVectorType
 } from './TypeSymbol';
 
 export * from './CoreSymbols';

@@ -1,8 +1,8 @@
-import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
+import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
 
-import { SymbolWalker } from '../symbolWalker';
 import { IExpression } from '../expressions';
-import { UCPropertySymbol } from '.';
+import { SymbolWalker } from '../symbolWalker';
+import { UCPropertySymbol } from './';
 
 // "const" is available as a @FieldModifier
 export enum ParamModifiers {

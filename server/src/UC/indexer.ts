@@ -1,15 +1,16 @@
-import { Subject } from 'rxjs';
 import { performance } from 'perf_hooks';
-
-import { UCOptions, ServerSettings, EAnalyzeOption } from '../settings';
-import { UCPreprocessorParser } from '../antlr/UCPreprocessorParser';
-
-import { ISymbolReference, UCPackage, TRANSIENT_PACKAGE, UCEnumMemberSymbol, ObjectsTable, addHashedSymbol, UCTypeFlags } from './Symbols';
-import { UCDocument, DocumentParseData } from './document';
-import { Name, toName } from './names';
-import { DocumentIndexer } from './documentIndexer';
+import { Subject } from 'rxjs';
 import { URI } from 'vscode-uri';
-import { UCParser } from '../antlr/UCParser';
+
+import { EAnalyzeOption, ServerSettings, UCOptions } from '../settings';
+import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
+import { DocumentParseData, UCDocument } from './document';
+import { DocumentIndexer } from './documentIndexer';
+import { Name, toName } from './names';
+import {
+    addHashedSymbol, ISymbolReference, ObjectsTable, TRANSIENT_PACKAGE, UCEnumMemberSymbol,
+    UCPackage, UCTypeFlags
+} from './Symbols';
 
 export const documentsByPathMap = new Map<string, UCDocument>();
 export const documentsMap = new Map<number, UCDocument>();

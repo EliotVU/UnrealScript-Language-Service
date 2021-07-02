@@ -1,6 +1,6 @@
-import { DefaultErrorStrategy, Parser, RecognitionException, ParserRuleContext } from 'antlr4ts';
+import { DefaultErrorStrategy, Parser, ParserRuleContext, RecognitionException } from 'antlr4ts';
 
-import { UCParser } from '../../antlr/UCParser';
+import { UCParser } from '../antlr/generated/UCParser';
 
 export class UCMissingSemicolonException extends Error {
 	constructor(private context: ParserRuleContext) {

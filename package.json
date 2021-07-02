@@ -171,11 +171,11 @@
 	},
 	"scripts": {
 		"vscode:prepublish": "cd client && npm run update-vscode && cd .. && npm run webpack",
-		"webpack": "npm run clean && webpack --mode production --config ./client/webpack.config.js && webpack --mode production --config ./server/webpack.config.js",
+		"build": "npm run compile:grammar && npm run compile:preprocessor && npm run clean && webpack --mode production --config ./client/webpack.config.js && webpack --mode production --config ./server/webpack.config.js",
 		"compile": "tsc -b",
-		"compile:grammar": "antlr4ts -visitor -no-listener grammars/UCLexer.g4 -o server/src/antlr && antlr4ts -visitor -no-listener grammars/UCParser.g4 -o server/src/antlr",
-		"compile:preprocessor": "antlr4ts -visitor -no-listener grammars/UCPreprocessorParser.g4 -o server/src/antlr",
-		"watch": "tsc -b -w",
+		"compile:grammar": "antlr4ts -visitor -no-listener grammars/UCLexer.g4 -o server/src/UC/antlr/generated && antlr4ts -visitor -no-listener grammars/UCParser.g4 -o server/src/UC/antlr/generated",
+		"compile:preprocessor": "antlr4ts -visitor -no-listener grammars/UCPreprocessorParser.g4 -o server/src/UC/antlr/generated",
+		"watch": "start gulp & tsc -b -w",
 		"clean": "rimraf client/out && rimraf server/out",
 		"postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
 		"test": "cd server && npm test"
@@ -193,6 +193,7 @@
 		"ts-loader": "^9.2.3",
 		"tslint": "^6.1.3",
 		"typescript": "^4.3.5",
+		"typescript-eslint-language-service": "^4.1.4",
 		"webpack": "^5.41.1",
 		"webpack-cli": "^4.7.2"
 	},

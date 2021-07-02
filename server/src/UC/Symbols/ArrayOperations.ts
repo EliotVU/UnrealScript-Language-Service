@@ -1,6 +1,5 @@
 import { NAME_ARRAY, toName } from '../names';
-
-import { UCStructSymbol, DEFAULT_RANGE, StaticIntType, UCParamSymbol, UCMethodSymbol } from '.';
+import { DEFAULT_RANGE, StaticIntType, UCMethodSymbol, UCParamSymbol, UCStructSymbol } from './';
 
 /** (defaultproperties) Acts as a template for array operations such as MyArray.Replace(item1, item2) etc.  */
 export const DefaultArray = new UCStructSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });

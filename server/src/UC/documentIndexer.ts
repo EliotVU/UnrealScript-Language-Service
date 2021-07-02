@@ -1,6 +1,9 @@
-import { UCStructSymbol, UCClassSymbol, UCStateSymbol, UCMethodSymbol, UCReplicationBlock, UCDefaultPropertiesBlock, UCObjectSymbol, UCParamSymbol } from './Symbols';
-import { DefaultSymbolWalker } from './symbolWalker';
 import { UCDocument } from './document';
+import {
+    UCClassSymbol, UCDefaultPropertiesBlock, UCMethodSymbol, UCObjectSymbol, UCParamSymbol,
+    UCReplicationBlock, UCStateSymbol, UCStructSymbol
+} from './Symbols';
+import { DefaultSymbolWalker } from './symbolWalker';
 
 /**
  * Will initiate the indexing of all struct symbols that contain a block.

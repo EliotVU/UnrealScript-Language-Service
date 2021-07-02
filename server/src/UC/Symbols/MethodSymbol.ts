@@ -1,15 +1,12 @@
-import { SymbolKind, CompletionItemKind, Position, Location } from 'vscode-languageserver-types';
+import { CompletionItemKind, Location, Position, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { SymbolWalker } from '../symbolWalker';
 import { Name, NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
-
+import { SymbolWalker } from '../symbolWalker';
 import {
-	DEFAULT_RANGE,
-	UCStructSymbol, UCParamSymbol,
-	ISymbol,
-	IWithReference, UCTypeFlags, UCSymbol, ParamModifiers
-} from '.';
+    DEFAULT_RANGE, ISymbol, IWithReference, ParamModifiers, UCParamSymbol, UCStructSymbol, UCSymbol,
+    UCTypeFlags
+} from './';
 
 export enum MethodSpecifiers {
 	None 			= 0x0000,
@@ -84,7 +81,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return CompletionItemKind.Function;
 	}
 
-	getDocumentation() {
+	getDocumentation(): string | undefined {
 		const doc = super.getDocumentation();
 		if (doc) {
 			return doc;

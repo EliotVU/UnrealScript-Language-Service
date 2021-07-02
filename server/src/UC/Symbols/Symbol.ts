@@ -1,13 +1,13 @@
-import { Range, SymbolKind, SymbolInformation, CompletionItemKind, Position } from 'vscode-languageserver-types';
-
 import { Token } from 'antlr4ts';
+import {
+    CompletionItemKind, Position, Range, SymbolInformation, SymbolKind
+} from 'vscode-languageserver-types';
 
-import { UCDocument } from "../document";
-import { SymbolWalker } from '../symbolWalker';
+import { UCDocument } from '../document';
 import { intersectsWithRange } from '../helpers';
 import { Name } from '../names';
-
-import { ISymbol, Identifier, UCStructSymbol, UCTypeFlags } from ".";
+import { SymbolWalker } from '../symbolWalker';
+import { Identifier, ISymbol, UCStructSymbol, UCTypeFlags } from './';
 
 export const DEFAULT_POSITION = Position.create(0, 0);
 export const DEFAULT_RANGE = Range.create(DEFAULT_POSITION, DEFAULT_POSITION);

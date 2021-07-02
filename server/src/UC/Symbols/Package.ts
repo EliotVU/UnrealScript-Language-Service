@@ -1,10 +1,11 @@
 import { SymbolKind } from 'vscode-languageserver-types';
 
-import { SymbolWalker } from '../symbolWalker';
 import { getDocumentById, indexDocument } from '../indexer';
 import { Name, NAME_NONE } from '../names';
-
-import { ISymbol, ISymbolContainer, UCClassSymbol, DEFAULT_RANGE, UCSymbol, UCFieldSymbol, UCStructSymbol } from '.';
+import { SymbolWalker } from '../symbolWalker';
+import {
+    DEFAULT_RANGE, ISymbol, ISymbolContainer, UCClassSymbol, UCFieldSymbol, UCStructSymbol, UCSymbol
+} from './';
 import { UCTypeFlags } from './TypeSymbol';
 
 export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
