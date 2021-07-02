@@ -1,30 +1,30 @@
-import * as path from 'path';
 import * as glob from 'glob';
-
-import { interval, Subject, BehaviorSubject } from 'rxjs';
-import { debounce, switchMapTo, filter, delay } from 'rxjs/operators';
-
+import * as path from 'path';
+import { BehaviorSubject, interval, Subject } from 'rxjs';
+import { catchError, debounce, delay, filter, switchMapTo } from 'rxjs/operators';
+import { TextDocument } from 'vscode-languageserver-textdocument';
 import {
-	createConnection,
-	TextDocuments,
-	TextDocument,
-	ProposedFeatures,
-	InitializeParams,
-	WorkspaceFolder,
-	WorkspaceEdit,
-	TextEdit,
-	ResponseError,
-	ErrorCodes,
-	Location
-} from 'vscode-languageserver';
+    createConnection, ErrorCodes, InitializeParams, Location, ProposedFeatures, ResponseError,
+    TextDocuments, TextDocumentSyncKind, TextEdit, WorkspaceEdit, WorkspaceFolder
+} from 'vscode-languageserver/node';
 import { URI } from 'vscode-uri';
 
-import { getCompletableSymbolItems, getSymbolReferences, getSymbolDefinition, getSymbols, getSymbolTooltip, getSymbolHighlights, getFullCompletionItem, VALID_ID_REGEXP } from './UC/helpers';
-import { getDocumentByURI, queuIndexDocument, getIndexedReferences, config, defaultSettings, lastIndexedDocuments$, getDocumentById, applyMacroSymbols, getPackageByDir, createDocument, documentsMap, createPackage, removeDocument } from './UC/indexer';
-import { ServerSettings, EAnalyzeOption } from './settings';
-import { UCClassSymbol, UCFieldSymbol, DEFAULT_RANGE, UCSymbol, UCObjectTypeSymbol, UCTypeFlags, addHashedSymbol } from './UC/Symbols';
+import { EAnalyzeOption, ServerSettings } from './settings';
+import { DocumentParseData, UCDocument } from './UC/document';
+import {
+    getCompletableSymbolItems, getFullCompletionItem, getSymbolDefinition, getSymbolHighlights,
+    getSymbolReferences, getSymbols, getSymbolTooltip, VALID_ID_REGEXP
+} from './UC/helpers';
+import {
+    applyMacroSymbols, config, createDocument, createPackage, defaultSettings, documentsMap,
+    getDocumentById, getDocumentByURI, getIndexedReferences, getPackageByDir, lastIndexedDocuments$,
+    queuIndexDocument, removeDocument
+} from './UC/indexer';
 import { toName } from './UC/names';
-import { UCDocument, DocumentParseData } from './UC/document';
+import {
+    addHashedSymbol, DEFAULT_RANGE, UCClassSymbol, UCFieldSymbol, UCObjectTypeSymbol, UCSymbol,
+    UCTypeFlags
+} from './UC/Symbols';
 
 /** Emits true when the workspace is prepared and ready for indexing. */
 const isIndexReady$ = new Subject<boolean>();
@@ -33,7 +33,8 @@ const documents$ = new BehaviorSubject<UCDocument[]>([]);
 /** Emits a document that is pending an update. */
 const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
 
-const textDocuments: TextDocuments = new TextDocuments();
+const textDocuments = new TextDocuments<TextDocument>(TextDocument);
+
 let hasWorkspaceFolderCapability: boolean = false;
 let currentSettings: ServerSettings = defaultSettings;
 
@@ -63,6 +64,7 @@ function removeDocuments(files: string[]) {
 	}
 }
 
+
 export const connection = createConnection(ProposedFeatures.all);
 
 connection.onInitialize((params: InitializeParams) => {
@@ -71,7 +73,7 @@ connection.onInitialize((params: InitializeParams) => {
 
 	return {
 		capabilities: {
-			textDocumentSync: textDocuments.syncKind,
+			textDocumentSync: TextDocumentSyncKind.Full,
 			hoverProvider: true,
 			completionProvider: {
 				triggerCharacters: ['.', '(', '[', ',', '<', '`'],
@@ -113,7 +115,11 @@ connection.onInitialized(() => {
 		.pipe(
 			filter((value) => !!value),
 			switchMapTo(pendingTextDocuments$),
-			debounce(() => interval(50))
+			debounce(() => interval(50)),
+			catchError((err, c) => {
+				connection.console.error(`Indexing error: '${err}'`);
+				return c;
+			})
 		)
 		.subscribe(({ textDocument, isDirty }) => {
 			const document = getDocumentByURI(textDocument.uri);
@@ -132,7 +138,7 @@ connection.onInitialized(() => {
 					activeDocumentParseData = parser;
 				}
 			}
-		}, (error) => connection.console.error(error));
+		});
 
 	documents$
 		.pipe(filter(documents => documents.length > 0))
@@ -163,8 +169,7 @@ connection.onInitialized(() => {
 					.forEach(doc => pendingTextDocuments$.next({ textDocument: doc, isDirty: false }));
 			}
 			isIndexReady$.next(true);
-		})
-		);
+		}));
 
 	if (hasWorkspaceFolderCapability) {
 		connection.workspace.getWorkspaceFolders().then((folders) => {
