@@ -536,6 +536,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 				case UCGrammar.UCParser.KW_NATIVE:
 					modifiers |= FieldModifiers.Native;
 					break;
+				case UCGrammar.UCParser.KW_INTRINSIC:
+					modifiers |= FieldModifiers.Native;
+					break;
 				case UCGrammar.UCParser.KW_CONST:
 					modifiers |= FieldModifiers.Const;
 					break;
@@ -779,6 +782,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<ISymbol | IExpre
 				case UCGrammar.UCParser.KW_NATIVE:
 					modifiers |= FieldModifiers.Native;
 					break;
+                case UCGrammar.UCParser.KW_INTRINSIC:
+                    modifiers |= FieldModifiers.Native;
+                    break;
 				case UCGrammar.UCParser.KW_PROTECTED:
 					modifiers |= FieldModifiers.Protected;
 					break;

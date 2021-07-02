@@ -452,6 +452,7 @@ categoryList
 variableModifier
 	: ('localized'
 	| 'native'
+    | 'intrinsic'
 	| 'const'
 	| 'editconst'
 	| 'globalconfig'
@@ -631,6 +632,7 @@ functionSpecifier
 	| 'k2pure'
 	| 'k2override')
 	| ('native' (OPEN_PARENS nativeToken=INTEGER CLOSE_PARENS)?)
+	| ('intrinsic' (OPEN_PARENS nativeToken=INTEGER CLOSE_PARENS)?)
 	| ('operator' (OPEN_PARENS operatorPrecedence=INTEGER CLOSE_PARENS))
 	| ('public' exportBlockText?)
 	| ('protected' exportBlockText?)
