@@ -453,7 +453,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				console.error('Hit a roadblock while analyzing a statement', this.context ? this.context.getPath() : '???', err);
 			}
 		}
-		return symbol;
+		return undefined;
 	}
 
 	private verifyStatementExpression(stm: UCExpressionStatement) {
@@ -478,7 +478,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 		}
-		return stm;
+		return undefined;
 	}
 
 	visitWhileStatement(stm: UCWhileStatement) {
@@ -494,16 +494,15 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 		}
-		return stm;
+		return undefined;
 	}
 
 	visitSwitchStatement(stm: UCSwitchStatement) {
 		super.visitSwitchStatement(stm);
 
 		this.verifyStatementExpression(stm);
-		return stm;
+		return undefined;
 	}
-
 
 	visitDoUntilStatement(stm: UCDoUntilStatement) {
 		super.visitDoUntilStatement(stm);
@@ -518,7 +517,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 		}
-		return stm;
+		return undefined;
 	}
 
 	// TODO: Test if any of the three expression can be omitted?
@@ -534,7 +533,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 		}
-		return stm;
+		return undefined;
 	}
 
 	// TODO: Verify we have an iterator function or array(UC3+).
@@ -542,20 +541,21 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		super.visitForEachStatement(stm);
 
 		this.verifyStatementExpression(stm);
-		return stm;
+		return undefined;
 	}
 
 	visitCaseClause(stm: UCCaseClause) {
 		super.visitCaseClause(stm);
 
 		this.verifyStatementExpression(stm);
-		return stm;
+		return undefined;
 	}
 
 	visitReturnStatement(stm: UCReturnStatement) {
 		super.visitReturnStatement(stm);
 
-		if (!config.checkTypes) return stm;
+		if (!config.checkTypes)
+            return undefined;
 
 		if (this.context instanceof UCMethodSymbol) {
 			const expectedType = this.context.getType();
@@ -579,7 +579,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		} else {
 			// TODO: Return not allowed here?
 		}
-		return stm;
+		return undefined;
 	}
 
 	visitAssertStatement(stm: UCAssertStatement) {
@@ -595,7 +595,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				});
 			}
 		}
-		return stm;
+		return undefined;
 	}
 
 	visitExpression(expr: IExpression) {
@@ -694,13 +694,13 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 				this.state.typeFlags = type?.getTypeFlags();
 			} else {
 				this.pushError(expr.getRange(), "Missing left expression!");
-				return expr;
+				return undefined;
 			}
 			if (expr.right) {
 				expr.right.accept<any>(this);
 			} else {
 				this.pushError(expr.getRange(), "Missing right expression!");
-				return expr;
+				return undefined;
 			}
 
 			if (expr instanceof UCAssignmentExpression || expr instanceof UCAssignmentOperatorExpression) {
@@ -784,13 +784,13 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 			}
 		} else if (expr instanceof UCIdentifierLiteralExpression) {
 			if (!this.context || !this.state.typeFlags) {
-				return expr;
+				return undefined;
 			} else if ((this.state.typeFlags & UCTypeFlags.IdentifierTypes) === 0) {
-				return expr;
+				return undefined;
 			}
 			// We don't support objects, although this may be true in the check above due the fact that a class is also an Object.
 			else if (this.state.typeFlags === UCTypeFlags.Object) {
-				return expr;
+				return undefined;
 			}
 
 			if (!expr.typeRef) {
@@ -866,7 +866,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 		} else if (expr instanceof UCSizeOfLiteral) {
 			expr.argumentRef?.accept<any>(this);
 		}
-		return expr;
+		return undefined;
 	}
 
 	private checkArguments(symbol: UCMethodSymbol, expr: UCCallExpression | UCDefaultMemberCallExpression, inferredType?: ITypeSymbol) {

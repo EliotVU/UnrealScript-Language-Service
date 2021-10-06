@@ -1,6 +1,7 @@
+import { UCDocument } from './document';
 import { IExpression } from './expressions';
 import {
-    IStatement, UCAssertStatement, UCBlock, UCCaseClause, UCDefaultClause, UCDoUntilStatement,
+    UCAssertStatement, UCBlock, UCCaseClause, UCDefaultClause, UCDoUntilStatement,
     UCExpressionStatement, UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement,
     UCLabeledStatement, UCReturnStatement, UCSwitchStatement, UCWhileStatement
 } from './statements';
@@ -13,6 +14,7 @@ import {
 
 export interface SymbolWalker<T> {
 	visit(symbol: ISymbol): T;
+    visitDocument(document: UCDocument): T;
 	visitPackage(symbol: UCPackage): T;
 	visitQualifiedType(symbol: UCQualifiedTypeSymbol): T;
 	visitObjectType(symbol: UCObjectTypeSymbol): T;
@@ -50,10 +52,18 @@ export interface SymbolWalker<T> {
 	visitExpression(expr: IExpression): T;
 }
 
-export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression | IStatement | undefined> {
+export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 	visit(symbol: ISymbol): ISymbol {
 		return symbol;
 	}
+
+    visitDocument(document: UCDocument): undefined {
+        const symbols = document.getSymbols();
+        for (let symbol of symbols) {
+            symbol.accept(this);
+        }
+        return undefined;
+    }
 
 	visitPackage(symbol: UCPackage): ISymbol {
 		return symbol;
@@ -185,8 +195,8 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression |
 		return this.visitStructBase(symbol);
 	}
 
-	visitBlock(symbol: UCBlock): UCBlock {
-		return symbol;
+	visitBlock(symbol: UCBlock): undefined {
+        return undefined;
 	}
 
 	visitReplicationBlock(symbol: UCReplicationBlock): ISymbol {
@@ -212,57 +222,57 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression |
 	}
 
 	visitExpression(expr: IExpression) {
-		return expr;
+		return undefined;
 	}
 
 	visitExpressionStatement(stm: UCExpressionStatement) {
 		stm.expression?.accept<any>(this);
-		return stm;
+		return undefined;
 	}
 
 	visitLabeledStatement(stm: UCLabeledStatement) {
-		return stm;
+		return undefined;
 	}
 
 	visitAssertStatement(stm: UCAssertStatement) {
 		stm.expression?.accept<any>(this);
-		return stm;
+		return undefined;
 	}
 
 	visitIfStatement(stm: UCIfStatement) {
 		stm.then?.accept<any>(this);
 		stm.expression?.accept<any>(this);
 		stm.else?.accept<any>(this);
-		return stm;
+		return undefined;
 	}
 
 	visitDoUntilStatement(stm: UCDoUntilStatement) {
 		stm.then?.accept<any>(this);
 		stm.expression?.accept<any>(this);
-		return stm;
+		return undefined;
 	}
 
 	visitWhileStatement(stm: UCWhileStatement) {
 		stm.then?.accept<any>(this);
 		stm.expression?.accept<any>(this);
-		return stm;
+		return undefined;
 	}
 
 	visitSwitchStatement(stm: UCSwitchStatement) {
 		stm.then?.accept<any>(this);
 		stm.expression?.accept<any>(this);
-		return stm;
+		return undefined;
 	}
 
 	visitCaseClause(stm: UCCaseClause) {
 		stm.then?.accept<any>(this);
 		stm.expression?.accept<any>(this);
-		return stm;
+		return undefined;
 	}
 
 	visitDefaultClause(stm: UCDefaultClause) {
 		stm.then?.accept<any>(this);
-		return stm;
+		return undefined;
 	}
 
 	visitForStatement(stm: UCForStatement) {
@@ -270,22 +280,22 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression |
 		stm.expression?.accept<any>(this);
 		stm.init?.accept<any>(this);
 		stm.next?.accept<any>(this);
-		return stm;
+		return undefined;
 	}
 
 	visitForEachStatement(stm: UCForEachStatement) {
 		stm.then?.accept<any>(this);
 		stm.expression?.accept<any>(this);
-		return stm;
+		return undefined;
 	}
 
 	visitReturnStatement(stm: UCReturnStatement) {
 		stm.expression?.accept<any>(this);
-		return stm;
+		return undefined;
 	}
 
 	visitGotoStatement(stm: UCGotoStatement) {
 		stm.expression?.accept<any>(this);
-		return stm;
+		return undefined;
 	}
 }

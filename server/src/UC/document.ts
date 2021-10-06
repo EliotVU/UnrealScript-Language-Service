@@ -20,6 +20,7 @@ import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import {
     ISymbol, ISymbolReference, SymbolsTable, UCClassSymbol, UCPackage, UCSymbol
 } from './Symbols';
+import { SymbolWalker } from './symbolWalker';
 
 export interface DocumentParseData {
 	context?: ProgramContext;
@@ -43,7 +44,7 @@ export class UCDocument {
 	// List of symbols, including macro declarations.
 	private scope = new SymbolsTable<UCSymbol>();
 
-	constructor(filePath: string, public readonly classPackage: UCPackage) {
+	constructor(readonly filePath: string, public readonly classPackage: UCPackage) {
 		this.fileName = path.basename(filePath, '.uc');
 		this.name = toName(this.fileName);
 		this.uri = URI.file(filePath).toString();
@@ -198,6 +199,10 @@ export class UCDocument {
 		const gRefs = IndexedReferencesMap.get(key) || new Set<ISymbolReference>();
 		gRefs.add(ref);
 		IndexedReferencesMap.set(key, gRefs);
+	}
+
+    accept<Result>(visitor: SymbolWalker<Result>): Result {
+		return visitor.visitDocument(this);
 	}
 }
 
