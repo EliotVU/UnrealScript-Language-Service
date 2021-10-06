@@ -39,7 +39,7 @@ export class UCSymbolReference extends UCSymbol implements IWithReference {
 			return symbol;
 		}
 
-		if (this.reference && intersectsWithRange(position, this.id.range)) {
+		if (intersectsWithRange(position, this.id.range)) {
 			return this;
 		}
 	}
