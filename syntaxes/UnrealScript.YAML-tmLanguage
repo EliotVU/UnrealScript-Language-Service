@@ -204,8 +204,8 @@ repository:
   declarations:
     patterns:
       - include: '#class-declaration'
-      - include: '#cppblock'
       - include: '#type-declarations'
+      - include: '#cppblock'
       - include: '#replication'
       - include: '#method-modifier'
       - include: '#method-declaration'
@@ -232,7 +232,7 @@ repository:
           '0':
             name: punctuation.curlybrace.open.uc
         patterns:
-          - include: source.c++
+          - include: source.cpp
         end: \}
         endCaptures:
           '0':
@@ -299,7 +299,7 @@ repository:
               '0':
                 name: punctuation.curlybrace.open.uc
             patterns:
-              - include: source.c++
+              - include: source.cpp
             end: \}
             endCaptures:
               '0':
@@ -345,7 +345,7 @@ repository:
                   '0':
                     name: punctuation.curlybrace.open.uc
                 patterns:
-                  - include: source.c++
+                  - include: source.cpp
                 end: \}
                 endCaptures:
                   '0':
@@ -538,8 +538,8 @@ repository:
         patterns:
           - include: '#comment'
           - include: '#type-declarations'
-          - include: '#structdefaultproperties'
           - include: '#structcppblock'
+          - include: '#structdefaultproperties'
           - include: '#directive'
         end: \}
         endCaptures:
@@ -593,7 +593,7 @@ repository:
           '0':
             name: punctuation.curlybrace.open.uc
         patterns:
-          - include: source.c++
+          - include: source.cpp
         end: \}
         endCaptures:
           '0':
@@ -683,7 +683,7 @@ repository:
               '0':
                 name: punctuation.curlybrace.open.uc
             patterns:
-              - include: source.c++
+              - include: source.cpp
             end: \}
             endCaptures:
               '0':
@@ -772,7 +772,7 @@ repository:
               '0':
                 name: punctuation.curlybrace.open.uc
             patterns:
-              - include: source.c++
+              - include: source.cpp
             end: \}
             endCaptures:
               '0':
@@ -845,15 +845,15 @@ repository:
     begin: \b((?i)cpptext)\b
     beginCaptures:
       '1':
-        name: keyword.other.uc
+        name: keyword.other.cpptext.uc
     patterns:
-      - name: meta.block.uc
+      - name: meta.embedded.block.cpp.uc
         begin: \{
         beginCaptures:
           '0':
             name: punctuation.curlybrace.open.uc
         patterns:
-          - include: source.c++
+          - include: source.cpp
         end: \}
         endCaptures:
           '0':
@@ -864,15 +864,15 @@ repository:
     begin: \b((?i)structcpptext|cppstruct)\b
     beginCaptures:
       '1':
-        name: keyword.other.uc
+        name: keyword.other.cpptext.uc
     patterns:
-      - name: meta.block.uc
+      - name: meta.embedded.block.cpp.uc
         begin: \{
         beginCaptures:
           '0':
             name: punctuation.curlybrace.open.uc
         patterns:
-          - include: source.c++
+          - include: source.cpp
         end: \}
         endCaptures:
           '0':

@@ -165,7 +165,10 @@
 			{
 				"language": "unrealscript",
 				"scopeName": "source.uc",
-				"path": "./syntaxes/UnrealScript.tmLanguage.json"
+				"path": "./syntaxes/UnrealScript.tmLanguage.json",
+                "embeddedLanguages": {
+                    "meta.embedded.block.cpp.uc": "cpp"
+                }
 			}
 		]
 	},
