@@ -1,206 +1,233 @@
 {
-	"name": "uc",
-	"displayName": "UnrealScript",
-	"icon": "Icon.png",
-	"description": "UnrealScript Language support",
-	"author": "Eliot van Uytfanghe",
-	"publisher": "EliotVU",
-	"license": "MIT",
-	"version": "0.4.4",
-	"homepage": "http://EliotVU.com",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/EliotVU/UnrealScript-Language-Service"
-	},
-	"categories": [
-		"Programming Languages",
-		"Linters"
-	],
-	"keywords": [
-		"UC",
-		"UnrealScript",
-		"IntelliSense"
-	],
-	"activationEvents": [
-		"onLanguage:unrealscript"
-	],
-	"main": "./client/out/extension",
-	"contributes": {
-		"configuration": {
-			"type": "object",
-			"title": "UnrealScript",
-			"properties": {
-				"unrealscript.trace.server": {
-					"scope": "window",
-					"type": "string",
-					"enum": [
-						"off",
-						"messages",
-						"verbose"
-					],
-					"default": "off",
-					"description": "Traces the communication between VS Code and the language server."
-				},
-				"unrealscript.generation": {
-					"scope": "resource",
-					"type": "string",
-					"enum": [
-						"1",
-						"2",
-						"3"
-					],
-					"default": "3",
-					"description": "The UnrealScript generation your project is written in."
-				},
-				"unrealscript.indexAllDocuments": {
-					"scope": "window",
-					"type": "boolean",
-					"default": false
-				},
-				"unrealscript.analyzeDocuments": {
-					"scope": "window",
-					"type": "string",
-					"enum": [
-						"None",
-						"OnlyActive",
-						"All"
-					],
-					"description": "Analyzes any active document, or all documents, and report back \"problems\" if any.",
-					"default": "OnlyActive"
-				},
-				"unrealscript.checkTypes": {
-					"scope": "window",
-					"type": "boolean",
-					"description": "Checks and reports if an expression's type is a valid one. e.g. assignments and passed arguments.",
-					"default": false
-				},
-				"unrealscript.macroSymbols": {
-					"scope": "window",
-					"type": "object",
-					"description": "A map of predefined preprocessor symbols.",
-					"default": {
-						"debug": ""
-					}
-				},
-				"unrealscript.intrinsicSymbols": {
-					"scope": "window",
-					"type": "object",
-					"description": "A map of intrinsic(C++) symbols that have no reflected source code.",
-					"default": {
-						"Engine.Model": {
-							"type": "class",
-							"extends": "Object"
-						},
-						"Engine.Mesh": {
-							"type": "class",
-							"extends": "Object"
-						},
-						"Engine.MeshInstance": {
-							"type": "class",
-							"extends": "Object"
-						},
-						"Engine.MeshAnimation": {
-							"type": "class",
-							"extends": "Object"
-						},
-						"Engine.StaticMesh": {
-							"type": "class",
-							"extends": "Actor"
-						},
-						"Engine.StaticMeshInstance": {
-							"type": "class",
-							"extends": "Actor"
-						},
-						"Engine.ConvexVolume": {
-							"type": "class",
-							"extends": "Actor"
-						},
-						"Engine.Level": {
-							"type": "class",
-							"extends": "Object"
-						},
-						"Engine.NetConnection": {
-							"type": "class",
-							"extends": "Object"
-						},
-						"Engine.Viewport": {
-							"type": "class",
-							"extends": "Object"
-						},
-						"Engine.Primitive": {
-							"type": "class",
-							"extends": "Object"
-						},
-						"Engine.Client": {
-							"type": "class",
-							"extends": "Object"
-						},
-						"Engine.AudioSubsystem": {
-							"type": "class",
-							"extends": "Subsystem"
-						},
-						"Engine.RenderDevice": {
-							"type": "class",
-							"extends": "Object"
-						}
-					}
-				}
-			}
-		},
-		"languages": [
-			{
-				"id": "unrealscript",
-				"aliases": [
-					"UnrealScript",
-					"unrealscript"
-				],
-				"extensions": [
-					".uc",
-					".uci"
-				],
-				"configuration": "./language-configuration.json"
-			}
-		],
-		"grammars": [
-			{
-				"language": "unrealscript",
-				"scopeName": "source.uc",
-				"path": "./syntaxes/UnrealScript.tmLanguage.json",
+    "name": "uc",
+    "description": "UnrealScript Language support",
+    "displayName": "UnrealScript",
+    "version": "0.4.4",
+    "author": {
+        "name": "Eliot van Uytfanghe",
+        "url": "https://EliotVU.com"
+    },
+    "publisher": "EliotVU",
+    "homepage": "https://github.com/EliotVU/UnrealScript-Language-Service",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/EliotVU/UnrealScript-Language-Service"
+    },
+    "license": "MIT",
+    "enableProposedApi": true,
+    "capabilities": {
+        "virtualWorkspaces": {
+            "supported": false
+        }
+    },
+    "categories": [
+        "Programming Languages",
+        "Linters"
+    ],
+    "keywords": [
+        "UC",
+        "UnrealScript",
+        "IntelliSense"
+    ],
+    "engines": {
+        "vscode": "^1.57.0"
+    },
+    "icon": "Icon.png",
+    "dependencies": {
+        "antlr4ts": "0.5.0-alpha.4"
+    },
+    "devDependencies": {
+        "@types/node": "^16.11.6",
+        "antlr4ts-cli": "0.5.0-alpha.4",
+        "gulp": "^4.0.2",
+        "js-yaml": "^4.1.0",
+        "merge-options": "^3.0.4",
+        "rimraf": "^3.0.2",
+        "ts-loader": "^9.2.6",
+        "tslint": "^6.1.3",
+        "typescript": "^4.4.4",
+        "typescript-eslint-language-service": "^4.1.5",
+        "webpack": "^5.61.0",
+        "webpack-cli": "^4.9.1"
+    },
+    "scripts": {
+        "vscode:prepublish": "cd client && npm run update-vscode && cd .. && npm run webpack",
+        "build": "npm run compile:grammar && npm run compile:preprocessor && npm run clean && webpack --mode production --config ./client/webpack.config.js && webpack --mode production --config ./server/webpack.config.js",
+        "compile": "tsc -b",
+        "compile:grammar": "antlr4ts -visitor -no-listener grammars/UCLexer.g4 -o server/src/UC/antlr/generated && antlr4ts -visitor -no-listener grammars/UCParser.g4 -o server/src/UC/antlr/generated",
+        "compile:preprocessor": "antlr4ts -visitor -no-listener grammars/UCPreprocessorParser.g4 -o server/src/UC/antlr/generated",
+        "watch": "start gulp & tsc -b -w",
+        "clean": "rimraf client/out && rimraf server/out",
+        "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
+        "test": "cd server && npm test"
+    },
+    "activationEvents": [
+        "onLanguage:unrealscript",
+        "workspaceContains:**/*.upkg"
+    ],
+    "main": "./client/out/extension",
+    "extensionKind": [
+        "workspace"
+    ],
+    "contributes": {
+        "configuration": {
+            "type": "object",
+            "title": "UnrealScript",
+            "properties": {
+                "unrealscript.trace.server": {
+                    "scope": "window",
+                    "type": "string",
+                    "enum": [
+                        "off",
+                        "messages",
+                        "verbose"
+                    ],
+                    "default": "off",
+                    "description": "Traces the communication between VS Code and the language server."
+                },
+                "unrealscript.generation": {
+                    "scope": "resource",
+                    "type": "string",
+                    "enum": [
+                        "1",
+                        "2",
+                        "3"
+                    ],
+                    "default": "3",
+                    "description": "The UnrealScript generation your project is written in."
+                },
+                "unrealscript.indexAllDocuments": {
+                    "scope": "window",
+                    "type": "boolean",
+                    "default": false
+                },
+                "unrealscript.analyzeDocuments": {
+                    "scope": "window",
+                    "type": "string",
+                    "enum": [
+                        "None",
+                        "OnlyActive",
+                        "All"
+                    ],
+                    "description": "Analyzes any active document, or all documents, and report back \"problems\" if any.",
+                    "default": "OnlyActive"
+                },
+                "unrealscript.checkTypes": {
+                    "scope": "window",
+                    "type": "boolean",
+                    "description": "Checks and reports if an expression's type is a valid one. e.g. assignments and passed arguments.",
+                    "default": false
+                },
+                "unrealscript.macroSymbols": {
+                    "scope": "window",
+                    "type": "object",
+                    "description": "A map of predefined preprocessor symbols.",
+                    "default": {
+                        "debug": ""
+                    }
+                },
+                "unrealscript.intrinsicSymbols": {
+                    "scope": "window",
+                    "type": "object",
+                    "description": "A map of intrinsic(C++) symbols that have no reflected source code.",
+                    "default": {
+                        "Engine.Model": {
+                            "type": "class",
+                            "extends": "Object"
+                        },
+                        "Engine.Mesh": {
+                            "type": "class",
+                            "extends": "Object"
+                        },
+                        "Engine.MeshInstance": {
+                            "type": "class",
+                            "extends": "Object"
+                        },
+                        "Engine.MeshAnimation": {
+                            "type": "class",
+                            "extends": "Object"
+                        },
+                        "Engine.StaticMesh": {
+                            "type": "class",
+                            "extends": "Actor"
+                        },
+                        "Engine.StaticMeshInstance": {
+                            "type": "class",
+                            "extends": "Actor"
+                        },
+                        "Engine.ConvexVolume": {
+                            "type": "class",
+                            "extends": "Actor"
+                        },
+                        "Engine.Level": {
+                            "type": "class",
+                            "extends": "Object"
+                        },
+                        "Engine.NetConnection": {
+                            "type": "class",
+                            "extends": "Object"
+                        },
+                        "Engine.Viewport": {
+                            "type": "class",
+                            "extends": "Object"
+                        },
+                        "Engine.Primitive": {
+                            "type": "class",
+                            "extends": "Object"
+                        },
+                        "Engine.Client": {
+                            "type": "class",
+                            "extends": "Object"
+                        },
+                        "Engine.AudioSubsystem": {
+                            "type": "class",
+                            "extends": "Subsystem"
+                        },
+                        "Engine.RenderDevice": {
+                            "type": "class",
+                            "extends": "Object"
+                        }
+                    }
+                }
+            }
+        },
+        "languages": [
+            {
+                "id": "unrealscript",
+                "aliases": [
+                    "UnrealScript",
+                    "unrealscript"
+                ],
+                "extensions": [
+                    ".uc",
+                    ".uci"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "unrealscript",
+                "scopeName": "source.uc",
+                "path": "./syntaxes/UnrealScript.tmLanguage.json",
                 "embeddedLanguages": {
                     "meta.embedded.block.cpp.uc": "cpp"
                 }
-			}
-		]
-	},
-	"scripts": {
-		"vscode:prepublish": "cd client && npm run update-vscode && cd .. && npm run webpack",
-		"build": "npm run compile:grammar && npm run compile:preprocessor && npm run clean && webpack --mode production --config ./client/webpack.config.js && webpack --mode production --config ./server/webpack.config.js",
-		"compile": "tsc -b",
-		"compile:grammar": "antlr4ts -visitor -no-listener grammars/UCLexer.g4 -o server/src/UC/antlr/generated && antlr4ts -visitor -no-listener grammars/UCParser.g4 -o server/src/UC/antlr/generated",
-		"compile:preprocessor": "antlr4ts -visitor -no-listener grammars/UCPreprocessorParser.g4 -o server/src/UC/antlr/generated",
-		"watch": "start gulp & tsc -b -w",
-		"clean": "rimraf client/out && rimraf server/out",
-		"postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
-		"test": "cd server && npm test"
-	},
-	"engines": {
-		"vscode": "^1.57.0"
-	},
-	"devDependencies": {
-		"@types/node": "^15.14.0",
-		"antlr4ts-cli": "0.5.0-alpha.4",
-		"gulp": "^4.0.2",
-		"js-yaml": "^4.1.0",
-		"merge-options": "^3.0.4",
-		"rimraf": "^3.0.2",
-		"ts-loader": "^9.2.3",
-		"tslint": "^6.1.3",
-		"typescript": "^4.3.5",
-		"typescript-eslint-language-service": "^4.1.4",
-		"webpack": "^5.41.1",
-		"webpack-cli": "^4.7.2"
-	},
-	"dependencies": {
-		"antlr4ts": "^0.5.0-alpha.3"
-	}
+            }
+        ],
+        "codeActions": [
+            {
+                "languages": [
+                    "unrealscript"
+                ],
+                "actions": [
+                    {
+                        "kind": "refactor.extract.class",
+                        "title": "Generate Class",
+                        "description": ""
+                    }
+                ]
+            }
+        ]
+    }
 }

@@ -5,7 +5,7 @@ import { debounce, delay, filter, switchMapTo, tap } from 'rxjs/operators';
 import * as url from 'url';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import {
-    createConnection, ErrorCodes, FileOperationRegistrationOptions,
+    CodeActionKind, createConnection, ErrorCodes, FileOperationRegistrationOptions,
     InitializeParams, Location, Position, ProposedFeatures, Range, ResponseError, TextDocuments,
     TextDocumentSyncKind, TextEdit, WorkspaceChange, WorkspaceEdit, WorkspaceFolder
 } from 'vscode-languageserver/node';
@@ -14,7 +14,7 @@ import { URI } from 'vscode-uri';
 import { EAnalyzeOption, IntrinsicSymbolItemMap, UCLanguageServerSettings } from './settings';
 import { DocumentParseData, UCDocument } from './UC/document';
 import {
-    getCompletableSymbolItems, getFullCompletionItem, getSymbolDefinition,
+    getCodeActions, getCompletableSymbolItems, getFullCompletionItem, getSymbolDefinition,
     getSymbolHighlights, getSymbolReferences, getSymbols, getSymbolTooltip, VALID_ID_REGEXP
 } from './UC/helpers';
 import {
@@ -118,15 +118,24 @@ connection.onInitialize((params: InitializeParams) => {
             textDocumentSync: TextDocumentSyncKind.Full,
             hoverProvider: true,
             completionProvider: {
-                triggerCharacters: ['.', '(', '[', ',', '<', '`'],
+                triggerCharacters: ['.', '"', '\'', '`', '<'],
                 resolveProvider: true
             },
+            // signatureHelpProvider: {
+            //     triggerCharacters: ['(', ',', '<']
+            // },
             definitionProvider: true,
             documentSymbolProvider: true,
             documentHighlightProvider: true,
             referencesProvider: true,
             renameProvider: {
                 prepareProvider: true
+            },
+            codeActionProvider: {
+                codeActionKinds: [
+                    CodeActionKind.RefactorExtract
+                ],
+                dataSupport: true
             },
             executeCommandProvider: {
                 commands: [
@@ -447,6 +456,28 @@ connection.onRenameRequest(async (e) => {
     });
     const result: WorkspaceEdit = { changes };
     return result;
+});
+
+connection.onCodeAction(e => {
+    return getCodeActions(e.textDocument.uri, e.range);
+});
+
+connection.onExecuteCommand(e => {
+    switch (e.command) {
+        case 'create.class':
+            const uri = e.arguments![0] as string;
+            const className = e.arguments![1] as string;
+            const change = new WorkspaceChange();
+            change.createFile(uri, { ignoreIfExists: true });
+            change.getTextEditChange({ uri, version: 1 })
+                .add({
+                    newText: `class ${className} extends Object;`,
+                    range: Range.create(Position.create(0, 0), Position.create(0, 0))
+                });
+            connection.workspace.applyEdit(change.edit);
+            // TODO: Need to refresh the document that invoked this command.
+            break;
+    }
 });
 
 connection.listen();
