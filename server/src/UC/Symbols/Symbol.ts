@@ -34,6 +34,7 @@ export abstract class UCSymbol implements ISymbol {
 		return this.id.name;
 	}
 
+    // Particular use case to index symbol references by outer.
 	getHash(): number {
 		let hash: number = this.id.name.hash;
 		for (var outer = this.outer; outer; outer = outer.outer) {
@@ -43,11 +44,11 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getPath(): string {
-		let text = this.getName().toString();
+        const names: Name[] = [this.getName()];
 		for (var outer = this.outer; outer; outer = outer.outer) {
-			text = outer.getName() + '.' + text;
+            names.unshift(outer.getName());
 		}
-		return text;
+		return names.join('.');
 	}
 
 	getKind(): SymbolKind {
