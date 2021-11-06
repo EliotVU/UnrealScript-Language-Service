@@ -11,6 +11,10 @@ import { UCTypeFlags } from './TypeSymbol';
 export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 	protected symbols = new Map<number, T>();
 
+    count() {
+        return this.symbols.size;
+    }
+
 	getAll() {
 		return this.symbols.values();
 	}
@@ -22,9 +26,10 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 	addKey(key: number, symbol: T) {
 		const other = this.symbols.get(key);
 		if (other) {
-			if (other === symbol) {
-				return key;
-			} else {
+            if (other === symbol) {
+                return key;
+            }
+			if (other.getKind() !== symbol.getKind()) {
 				symbol.nextInHash = other;
 			}
 		}
@@ -43,7 +48,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 			return;
 		}
 
-		if (other === symbol) {
+		if (other.getKind() === symbol.getKind()) {
 			this.symbols.delete(key);
 			if (other.nextInHash) {
 				this.addKey(key, other.nextInHash as T);
@@ -51,7 +56,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 			}
 		} else {
 			for (let next = other; next; next = next.nextInHash as T) {
-				if (next.nextInHash === symbol) {
+				if (next.nextInHash && next.nextInHash.getKind() === symbol.getKind()) {
 					next.nextInHash = symbol.nextInHash;
 					break;
 				}
@@ -138,6 +143,7 @@ export function addHashedSymbol(symbol: UCSymbol) {
 	if (symbol.outer) {
 		OuterObjectsTable.addKey(getSymbolOuterHash(key, getSymbolHash(symbol.outer)), symbol);
 	}
+    return key;
 }
 
 export function removeHashedSymbol(symbol: UCSymbol) {
@@ -146,6 +152,7 @@ export function removeHashedSymbol(symbol: UCSymbol) {
 	if (symbol.outer) {
 		OuterObjectsTable.removeKey(getSymbolOuterHash(key, getSymbolHash(symbol.outer)), symbol);
 	}
+    return key;
 }
 
 export function findOrIndexClassSymbol(id: Name): UCClassSymbol | undefined {
