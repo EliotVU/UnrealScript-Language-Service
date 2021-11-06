@@ -15,6 +15,9 @@ const CONST_FLOAT1					= 0.f;
 const CONST_FLOAT2					= +0.fe-2f;
 const CONST_FLOAT3					= 0f;
 const CONST_BOOL					= true;
+// Test that 0 is not seen as a "falsy" value.
+const CONST_INT1                    = 0;
+const CONST_INT2                    = 1;
 
 // To test enum and constant values usage in defaultproperties.
 const DEFAULT_CONST	= 0;
