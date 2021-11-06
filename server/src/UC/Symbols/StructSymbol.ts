@@ -6,7 +6,8 @@ import { Name } from '../names';
 import { UCBlock } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ISymbol, ISymbolContainer, ITypeSymbol, UCFieldSymbol, UCMethodSymbol, UCStateSymbol, UCSymbol
+    ISymbol, ISymbolContainer, ITypeSymbol, UCFieldSymbol, UCMethodSymbol, UCStateSymbol, UCSymbol,
+    UCTypeFlags
 } from './';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {

@@ -13,7 +13,8 @@ import { DocumentCodeActionsBuilder } from './documentCodeActionsBuilder';
 import { config, getDocumentByURI, getIndexedReferences, UCGeneration } from './indexer';
 import { TokenExt } from './Parser/CommonTokenStreamExt';
 import {
-    Identifier, ISymbol, IWithReference, ObjectsTable, tryFindClassSymbol, UCStructSymbol, UCSymbol
+    Identifier, ISymbol, IWithReference, ObjectsTable, tryFindClassSymbol, UCClassSymbol,
+    UCFieldSymbol, UCMethodSymbol, UCStructSymbol, UCSymbol, UCTypeFlags
 } from './Symbols';
 
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
@@ -304,7 +305,7 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
 	const items: CompletionItem[] = [];
 	for (let [ type ] of candidates.tokens) {
 		const displayName = data.parser.vocabulary.getDisplayName(type);
-		const tokenName = displayName.substr(1, displayName.length - 2);
+		const tokenName = displayName.substring(1, displayName.length - 2);
 		if (!VALID_ID_REGEXP.test(tokenName)) {
 			continue;
 		}
