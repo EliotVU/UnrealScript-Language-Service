@@ -4,25 +4,38 @@ import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    Identifier, ISymbol, ITypeSymbol, UCObjectTypeSymbol, UCStructSymbol, UCTypeFlags
+    Identifier, ISymbol, ITypeSymbol, UCObjectTypeSymbol, UCQualifiedTypeSymbol, UCStructSymbol,
+    UCTypeFlags
 } from './';
 
 export class UCClassSymbol extends UCStructSymbol {
 	public withinType?: ITypeSymbol;
 
 	public dependsOnTypes?: UCObjectTypeSymbol[];
-	public implementsTypes?: UCObjectTypeSymbol[];
+	public implementsTypes?: (UCQualifiedTypeSymbol | UCObjectTypeSymbol)[];
+
+    // Maybe classFlags would make more sense,
+    // -- however merging IsInterface with UCTypeFlags gives us the convenience of OR'ing type filters.
+    public typeFlags = UCTypeFlags.Class;
+
+    isInterface(): boolean {
+        return (this.typeFlags & UCTypeFlags.IsInterface) === UCTypeFlags.IsInterface;
+    }
 
 	getKind(): SymbolKind {
-		return SymbolKind.Class;
+		return this.isInterface()
+            ? SymbolKind.Interface
+            : SymbolKind.Class;
 	}
 
 	getTypeFlags() {
-		return UCTypeFlags.Class;
+		return this.typeFlags;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Class;
+		return this.isInterface()
+            ? CompletionItemKind.Interface
+            : CompletionItemKind.Class;
 	}
 
 	getTooltip(): string {
