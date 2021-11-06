@@ -295,8 +295,8 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		return this.reference instanceof UCFieldSymbol && this.reference.getTypeFlags() || UCTypeFlags.Error;
 	}
 
-	getValidTypeKind(): UCTypeFlags | undefined {
-		return this.validTypeKind;
+	getValidTypeKind(): UCTypeFlags {
+		return this.validTypeKind || UCTypeFlags.Error;
 	}
 
 	setValidTypeKind(kind: UCTypeFlags) {
