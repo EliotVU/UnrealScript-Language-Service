@@ -6,7 +6,14 @@ export enum EAnalyzeOption {
 	All = "All"
 }
 
-export interface UCOptions {
+export type IntrinsicSymbolItemMap = {
+    [key: string]: {
+        type?: string;
+        extends?: string;
+    }
+}
+
+export interface UCLanguageServerSettings {
 	generation: UCGeneration;
 	indexAllDocuments?: boolean;
 	analyzeDocuments?: EAnalyzeOption;
@@ -14,14 +21,5 @@ export interface UCOptions {
 	macroSymbols?: {
 		[key: string]: string
 	};
-	intrinsicSymbols: {
-		[key: string]: {
-			type?: string;
-			extends?: string;
-		}
-	};
-}
-
-export interface ServerSettings {
-	unrealscript: UCOptions;
+	intrinsicSymbols: IntrinsicSymbolItemMap
 }

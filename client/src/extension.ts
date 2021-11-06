@@ -33,9 +33,10 @@ export function activate(context: ExtensionContext) {
 	const clientOptions: LanguageClientOptions = {
 		documentSelector: [{ scheme: 'file', language: 'unrealscript' }],
 		synchronize: {
-			configurationSection: 'unrealscript',
-			fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
+            configurationSection: 'unrealscript',
+			fileEvents: workspace.createFileSystemWatcher('**/*.{uc,uci}')
 		},
+        diagnosticCollectionName: 'UnrealScript',
 		outputChannelName: 'UnrealScript',
 	};
 
