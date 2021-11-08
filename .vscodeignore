@@ -1,7 +1,8 @@
 .vscode/**
 **/*.ts
-**/*.map
-.gitignore
+**/*.d.ts
+**/*.js.map
+**/.gitignore
 .gitattributes
 tsconfig.json
 contributing.md
@@ -15,14 +16,11 @@ grammars/
 scripts/
 syntaxes/UnrealScript.YAML-tmLanguage
 Icon.psd
+.eslintignore
 
 client/
-!client/node_modules/vscode-jsonrpc/**
-!client/node_modules/vscode-languageclient/**
-!client/node_modules/vscode-languageserver-protocol/**
-!client/node_modules/vscode-languageserver-types/**
-!client/node_modules/semver/**
 !client/out/extension.js
 
 server/
 !server/out/server.js
+!server/out/*.LICENSE.txt
