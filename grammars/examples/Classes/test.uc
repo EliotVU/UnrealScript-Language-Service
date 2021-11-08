@@ -1,7 +1,11 @@
 class Test extends Core.Object
 	native;
 
+var const int CONST_ARRAY[5];
+
 const CONST_SIZEOF 					= sizeof(Object);
+const CONST_ARRAYCOUNT              = arraycount(CONST_ARRAY);
+const CONST_NAMEOF                  = nameof(CONST_SIZEOF);
 const CONST_CLASS 					= class'Object';
 const CONST_VECT 					= vect(0,0,0);
 const CONST_ROT 					= rot(0,0,0);
