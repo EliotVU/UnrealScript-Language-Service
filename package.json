@@ -94,7 +94,17 @@
                         "3"
                     ],
                     "default": "3",
-                    "description": "The UnrealScript generation your project is written in."
+                    "description": "The UnrealScript generation your project is working withh.."
+                },
+                "unrealscript.licensee": {
+                    "scope": "resource",
+                    "type": "string",
+                    "enum": [
+                        "Epic",
+                        "XCom"
+                    ],
+                    "default": "Epic",
+                    "description": "The licensee's UnrealScript edition your project is working with. Changing this value requires a restart."
                 },
                 "unrealscript.indexAllDocuments": {
                     "scope": "window",

@@ -4,8 +4,8 @@ import {
     UCStructSymbol
 } from './';
 import {
-    StaticDelegateType, StaticFloatType, StaticIntType, StaticRangeType, StaticRotatorType,
-    StaticVectorType
+    StaticDelegateType, StaticFloatType, StaticIntType, StaticNameType, StaticRangeType,
+    StaticRotatorType, StaticVectorType
 } from './TypeSymbol';
 
 export * from './CoreSymbols';
@@ -66,9 +66,12 @@ RemoveItemFunction.params = [ItemParam3];
 NativeArray.addSymbol(RemoveItemFunction);
 
 const FindFunction = new UCMethodSymbol({ name: toName('Find'), range: DEFAULT_RANGE });
-const ItemParam4 = new UCParamSymbol({ name: toName('Item'), range: DEFAULT_RANGE });
+const ItemParam4 = new UCParamSymbol({ name: toName('Value|PropertyName'), range: DEFAULT_RANGE });
 FindFunction.addSymbol(ItemParam4);
-FindFunction.params = [ItemParam4];
+const ItemParam5 = new UCParamSymbol({ name: toName('Value'), range: DEFAULT_RANGE });
+ItemParam5.type = StaticNameType;
+FindFunction.addSymbol(ItemParam5);
+FindFunction.params = [ItemParam4, ItemParam5];
 NativeArray.addSymbol(FindFunction);
 
 const SortFunction = new UCMethodSymbol({ name: toName('Sort'), range: DEFAULT_RANGE });

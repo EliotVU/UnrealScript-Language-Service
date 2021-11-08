@@ -16,7 +16,7 @@ import {
     DefaultIgnoredTokensSet, getCompletableSymbolItems, getFullCompletionItem, getSignatureHelp,
     setIgnoredTokensSet
 } from './completion';
-import { EAnalyzeOption, IntrinsicSymbolItemMap, UCLanguageServerSettings } from './settings';
+import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
 import { UCLexer } from './UC/antlr/generated/UCLexer';
 import { DocumentParseData, UCDocument } from './UC/document';
 import {
@@ -25,13 +25,14 @@ import {
 } from './UC/helpers';
 import {
     applyMacroSymbols, clearMacroSymbols, config, createDocumentByPath, createPackage, documentsMap,
-    getDocumentById, getDocumentByURI, getIndexedReferences, getPackageByDir, lastIndexedDocuments$,
-    queuIndexDocument, removeDocumentByPath, UCGeneration
+    getDocumentById, getDocumentByURI, getIndexedReferences, getPackageByDir,
+    IntrinsicSymbolItemMap, lastIndexedDocuments$, queuIndexDocument, removeDocumentByPath,
+    UCGeneration, UELicensee
 } from './UC/indexer';
 import { toName } from './UC/names';
 import {
-    addHashedSymbol, DEFAULT_RANGE, ObjectsTable, UCClassSymbol, UCFieldSymbol, UCObjectTypeSymbol,
-    UCSymbol, UCTypeFlags
+    addHashedSymbol, DEFAULT_RANGE, NativeArray, ObjectsTable, UCClassSymbol, UCFieldSymbol,
+    UCMethodSymbol, UCObjectTypeSymbol, UCSymbol, UCTypeFlags
 } from './UC/Symbols';
 
 /**
@@ -379,6 +380,17 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
         } else {
             console.error('Unsupported symbol type!', value.type, 'try \'class\'!');
         }
+    }
+
+    const randomizeOrderName = toName('RandomizeOrder');
+    let randomizeOrderSymbol = NativeArray.getSymbol(randomizeOrderName);
+    if (randomizeOrderSymbol) {
+        if (config.licensee !== UELicensee.XCom) {
+            NativeArray.removeSymbol(randomizeOrderSymbol);
+        }
+    } else if (config.licensee === UELicensee.XCom) {
+        randomizeOrderSymbol = new UCMethodSymbol({ name: randomizeOrderName, range: DEFAULT_RANGE });
+        NativeArray.addSymbol(randomizeOrderSymbol);
     }
 }
 

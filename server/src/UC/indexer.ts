@@ -21,9 +21,31 @@ export enum UCGeneration {
     UC3 = "3"
 }
 
+export const enum UELicensee {
+    Epic = 'Epic',
+    XCom = 'XCom',
+}
+
+export type IntrinsicSymbolItemMap = {
+    [key: string]: {
+        type?: string;
+        extends?: string;
+    }
+}
+
+export type UCLanguageSettings = {
+    generation: UCGeneration;
+    licensee: UELicensee;
+    checkTypes?: boolean;
+    macroSymbols?: {
+        [key: string]: string
+    };
+    intrinsicSymbols: IntrinsicSymbolItemMap
+}
+
 export const defaultSettings: UCLanguageServerSettings = {
     generation: UCGeneration.UC3,
-    indexAllDocuments: false,
+    licensee: UELicensee.Epic,
     analyzeDocuments: EAnalyzeOption.OnlyActive,
     checkTypes: false,
     macroSymbols: {

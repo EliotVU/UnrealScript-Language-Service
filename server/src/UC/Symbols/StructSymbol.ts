@@ -86,13 +86,28 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	getSymbol(id: Name, kind?: UCTypeFlags): UCSymbol | undefined {
+    removeSymbol(symbol: UCFieldSymbol) {
+        if (this.children === symbol) {
+            this.children = symbol.next;
+            symbol.next = undefined;
+            return;
+        }
+
+        for (let child = this.children; child; child = child.next) {
+			if (child.next === symbol) {
+                child.next = symbol.next;
+                break;
+			}
+		}
+    }
+
+	getSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCTypeFlags): T | undefined {
 		for (let child = this.children; child; child = child.next) {
 			if (child.getName() === id) {
 				if (kind !== undefined && (child.getTypeFlags() & kind) === 0) {
 					continue;
 				}
-				return child;
+				return child as T;
 			}
 		}
 		return undefined;
