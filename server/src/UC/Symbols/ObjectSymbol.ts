@@ -1,43 +1,27 @@
 import { SymbolKind } from 'vscode-languageserver-types';
 
-import { Name } from '../names';
-import { SymbolWalker } from '../symbolWalker';
 import { UCDocument } from '../document';
-
-import { UCStructSymbol, ClassesTable } from '.';
-import { UCClassSymbol } from './ClassSymbol';
-import { UCObjectTypeSymbol, UCTypeKind } from './TypeSymbol';
-import { Identifier } from './ISymbol';
+import { SymbolWalker } from '../symbolWalker';
+import { UCStructSymbol, UCTypeFlags } from './';
 
 /**
- * Can represent either a subobject aka archetype, or an instance of a defaultproperties declaration.
+ * Represents an instanced Archetype found within in a defaultproperties e.g. "begin object class=classID name=objectName".
  */
 export class UCObjectSymbol extends UCStructSymbol {
-	public objectName?: Name;
-	public classId?: Identifier;
-	public classType?: UCObjectTypeSymbol;
-
-	getId(): Name {
-		return this.objectName || super.getId();
-	}
-
 	getKind(): SymbolKind {
 		return SymbolKind.Constructor;
 	}
 
-	index(document: UCDocument, context: UCStructSymbol) {
-		if (this.classId) {
-			this.classType = new UCObjectTypeSymbol(this.classId, undefined, UCTypeKind.Class);
+	getTypeFlags() {
+		return UCTypeFlags.Archetype;
+	}
 
-			const objectClass = ClassesTable.findSymbol(this.classId.name, true) as UCClassSymbol;
-			this.classType.setReference(objectClass, document);
-
-			if (objectClass) {
-				// TODO: Find @super, for declarations where no class=NAME was specified
-				this.super = objectClass;
-			}
+	index(document: UCDocument, _context: UCStructSymbol) {
+		// TODO: Find @super, for declarations where no class=NAME was specified
+		if (this.extendsType) {
+			// FIXME: extendsType is indexed twice (by assignmentExpresion "class=ClassNameManually")
+			// -- set the type reference here so that turn on "noIndex".
 		}
-
 		super.index(document, this);
 	}
 

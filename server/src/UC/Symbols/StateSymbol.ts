@@ -1,10 +1,9 @@
-import { SymbolKind, Position, Location } from 'vscode-languageserver-types';
+import { Location, Position, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
-
-import { UCSymbolReference, UCStructSymbol } from ".";
+import { SymbolWalker } from '../symbolWalker';
+import { UCStructSymbol, UCSymbolReference, UCTypeFlags } from './';
 
 export class UCStateSymbol extends UCStructSymbol {
 	public overriddenState?: UCStateSymbol;
@@ -12,6 +11,10 @@ export class UCStateSymbol extends UCStructSymbol {
 
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
+	}
+
+	getTypeFlags() {
+		return UCTypeFlags.State;
 	}
 
 	getTypeKeyword(): string {
@@ -29,7 +32,7 @@ export class UCStateSymbol extends UCStructSymbol {
 		text.push(...modifiers);
 
 		text.push(this.getTypeKeyword());
-		text.push(this.getQualifiedName());
+		text.push(this.getPath());
 
 		return text.filter(s => s).join(' ');
 	}
@@ -53,10 +56,10 @@ export class UCStateSymbol extends UCStructSymbol {
 		// Look for an overridden state, e.g. "state Pickup {}" would override "Pickup" of "Pickup.uc".
 		if (!this.super && context.super) {
 			// TODO: If truthy, should "extends ID" be disallowed? Need to investigate how UMake handles this situation.
-			const overriddenState = context.super.findSuperSymbol(this.getId());
+			const overriddenState = context.super.findSuperSymbol(this.getName());
 			if (overriddenState instanceof UCStateSymbol) {
 				document.indexReference(overriddenState, {
-					location: Location.create(document.filePath, this.id.range)
+					location: Location.create(document.uri, this.id.range)
 				});
 				this.overriddenState = overriddenState;
 				this.super = overriddenState;
@@ -65,7 +68,7 @@ export class UCStateSymbol extends UCStructSymbol {
 
 		super.index(document, context);
 		if (this.ignoreRefs) for (const ref of this.ignoreRefs) {
-			const symbol = this.findSuperSymbol(ref.getId());
+			const symbol = this.findSuperSymbol(ref.getName());
 			symbol && ref.setReference(symbol, document);
 		}
 	}

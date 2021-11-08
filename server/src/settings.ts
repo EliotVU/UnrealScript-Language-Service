@@ -1,4 +1,4 @@
-import { UCGeneration } from './UC/indexer';
+import { UCLanguageSettings } from './UC/indexer';
 
 export enum EAnalyzeOption {
 	None = "None",
@@ -6,22 +6,7 @@ export enum EAnalyzeOption {
 	All = "All"
 }
 
-export interface UCOptions {
-	generation: UCGeneration;
-	indexAllDocuments?: boolean;
-	analyzeDocuments?: EAnalyzeOption;
-	checkTypes?: boolean;
-	macroSymbols?: {
-		[key: string]: string
-	};
-	intrinsicSymbols: {
-		[key: string]: {
-			type?: string;
-			extends?: string;
-		}
-	};
-}
-
-export interface ServerSettings {
-	unrealscript: UCOptions;
+export type UCLanguageServerSettings = UCLanguageSettings & {
+    analyzeDocuments?: EAnalyzeOption;
+    indexAllDocuments?: boolean;
 }

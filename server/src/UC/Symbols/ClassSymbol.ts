@@ -1,35 +1,45 @@
-import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
+import { CompletionItemKind, Position, Range, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 import { SymbolWalker } from '../symbolWalker';
-
-import { UCStructSymbol, UCObjectTypeSymbol, ITypeSymbol, ISymbol, UCTypeKind } from '.';
+import {
+    Identifier, ISymbol, ITypeSymbol, UCObjectTypeSymbol, UCQualifiedTypeSymbol, UCStructSymbol,
+    UCTypeFlags
+} from './';
 
 export class UCClassSymbol extends UCStructSymbol {
 	public withinType?: ITypeSymbol;
 
 	public dependsOnTypes?: UCObjectTypeSymbol[];
-	public implementsTypes?: UCObjectTypeSymbol[];
+	public implementsTypes?: (UCQualifiedTypeSymbol | UCObjectTypeSymbol)[];
 
-	isType(): boolean {
-		return true;
-	}
+    // Maybe classFlags would make more sense,
+    // -- however merging IsInterface with UCTypeFlags gives us the convenience of OR'ing type filters.
+    public typeFlags = UCTypeFlags.Class;
+
+    isInterface(): boolean {
+        return (this.typeFlags & UCTypeFlags.IsInterface) === UCTypeFlags.IsInterface;
+    }
 
 	getKind(): SymbolKind {
-		return SymbolKind.Class;
+		return this.isInterface()
+            ? SymbolKind.Interface
+            : SymbolKind.Class;
 	}
 
-	getTypeKind() {
-		return UCTypeKind.Class;
+	getTypeFlags() {
+		return this.typeFlags;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Class;
+		return this.isInterface()
+            ? CompletionItemKind.Interface
+            : CompletionItemKind.Class;
 	}
 
 	getTooltip(): string {
-		return `class ${this.getQualifiedName()}`;
+		return `class ${this.getPath()}`;
 	}
 
 	getSymbolAtPos(position: Position) {
@@ -75,21 +85,12 @@ export class UCClassSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
-	getCompletionContext(position: Position) {
-		for (let symbol = this.children; symbol; symbol = symbol.next) {
-			if (intersectsWith(symbol.getRange(), position)) {
-				return symbol.getCompletionContext(position);
-			}
-		}
-		return this;
-	}
-
 	index(document: UCDocument, context: UCClassSymbol) {
 		if (this.withinType) {
 			this.withinType.index(document, context);
 
 			// Overwrite extendsRef super, we inherit from the within class instead.
-			this.super = this.withinType.getReference() as UCClassSymbol;
+			this.super = this.withinType.getRef() as UCClassSymbol;
 		}
 
 		if (this.dependsOnTypes) {
@@ -113,10 +114,11 @@ export class UCClassSymbol extends UCStructSymbol {
 }
 
 export class UCDocumentClassSymbol extends UCClassSymbol {
-	public document?: UCDocument;
+	constructor(id: Identifier, range: Range = id.range, private document: UCDocument) {
+		super(id, range);
+	}
 
 	getUri(): string {
-		console.assert(this.document, 'Document was accessed before being initialized! Make sure that the class is indexed first!');
-		return this.document!.filePath;
+		return this.document.uri;
 	}
 }

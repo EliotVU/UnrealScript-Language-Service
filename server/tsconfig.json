@@ -1,17 +1,35 @@
 {
-	"compilerOptions": {
-		"baseUrl": ".",
-		"paths": { "*": ["types/*"] },
-		"target": "es6",
-		"module": "commonjs",
-		"moduleResolution": "node",
-		"outDir": "out",
-		"rootDir": "src",
-		"lib": ["es6"],
-		"sourceMap": true,
-		"strictNullChecks": true,
-		"resolveJsonModule": true
-	},
-	"include": ["src"],
-	"exclude": ["node_modules", ".vscode-test"]
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "es2019",
+        "lib": [
+            "ES2019"
+        ],
+        "plugins": [
+            {
+                "name": "typescript-eslint-language-service"
+            }
+        ],
+        "baseUrl": ".",
+        "outDir": "out",
+        "rootDir": "src",
+        "sourceMap": true,
+        "strict": true,
+        "strictNullChecks": true,
+        "strictBindCallApply": false,
+        "downlevelIteration": true,
+        "resolveJsonModule": true,
+        "strictPropertyInitialization": false
+    },
+    "include": [
+        "src",
+    ],
+    "files": [
+        "src/UC/diagnostics/diagnosticMessages.json"
+    ],
+    "exclude": [
+        "node_modules",
+        ".vscode-test",
+        "/**/*.test.ts"
+    ],
 }

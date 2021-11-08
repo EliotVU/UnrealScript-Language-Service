@@ -28,7 +28,7 @@
 			"runtimeExecutable": "${execPath}",
 			"args": ["--extensionDevelopmentPath=${workspaceRoot}"],
 			"sourceMaps": true,
-			"outFiles": ["${workspaceRoot}/client/out/extension.js"]
+			"outFiles": ["${workspaceRoot}/client/out/**/*.js"]
 		},
 		{
 			"type": "node",
@@ -36,7 +36,7 @@
 			"name": "Attach to Server",
 			"port": 6010,
 			"sourceMaps": true,
-			"outFiles": ["${workspaceRoot}/server/out/server.js"]
+			"outFiles": ["${workspaceRoot}/server/out/**/*.js"]
 		}
 	],
 	"compounds": [

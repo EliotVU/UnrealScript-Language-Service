@@ -1,16 +1,11 @@
-import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
+import { CompletionItemKind, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
-
-import { UCTypeKind, UCStructSymbol, ISymbol } from '.';
+import { ISymbol, UCStructSymbol, UCTypeFlags } from './';
 
 export class UCEnumSymbol extends UCStructSymbol {
 	isProtected(): boolean {
-		return true;
-	}
-
-	isType(): boolean {
 		return true;
 	}
 
@@ -18,8 +13,8 @@ export class UCEnumSymbol extends UCStructSymbol {
 		return SymbolKind.Enum;
 	}
 
-	getTypeKind() {
-		return UCTypeKind.Byte;
+	getTypeFlags() {
+		return UCTypeFlags.Enum;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
@@ -27,17 +22,17 @@ export class UCEnumSymbol extends UCStructSymbol {
 	}
 
 	getTooltip(): string {
-		return `enum ${this.getQualifiedName()}`;
+		return `enum ${this.getPath()}`;
 	}
 
-	getCompletionSymbols(document: UCDocument): ISymbol[] {
+	getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, _kind?: UCTypeFlags): C[] {
 		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
 			if (child.acceptCompletion(document, this)) {
 				symbols.push(child);
 			}
 		}
-		return symbols;
+		return symbols as C[];
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

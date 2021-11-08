@@ -1,15 +1,12 @@
-import { SymbolKind, CompletionItemKind, Position, Location } from 'vscode-languageserver-types';
+import { CompletionItemKind, Location, Position, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
+import { Name, NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
 import { SymbolWalker } from '../symbolWalker';
-import { Name } from '../names';
-
 import {
-	DEFAULT_RANGE,
-	UCStructSymbol, UCParamSymbol,
-	ITypeSymbol, ISymbol,
-	IWithReference, UCTypeKind, UCSymbol
-} from '.';
+    DEFAULT_RANGE, ISymbol, IWithReference, ParamModifiers, UCParamSymbol, UCStructSymbol, UCSymbol,
+    UCTypeFlags
+} from './';
 
 export enum MethodSpecifiers {
 	None 			= 0x0000,
@@ -22,13 +19,14 @@ export enum MethodSpecifiers {
 	Static 			= 0x0040,
 	Final 			= 0x0080,
 
-	HasKind			= Function | Operator | PreOperator | PostOperator | Event | Delegate
+	OperatorKind 	= Operator | PreOperator | PostOperator,
+	HasKind			= Function | OperatorKind | Event | Delegate
 }
 
 export class UCMethodSymbol extends UCStructSymbol {
 	public specifiers: MethodSpecifiers = MethodSpecifiers.None;
 
-	public returnType?: ITypeSymbol;
+	public returnValue?: UCParamSymbol;
 	public overriddenMethod?: UCMethodSymbol;
 
 	public params?: UCParamSymbol[];
@@ -51,15 +49,19 @@ export class UCMethodSymbol extends UCStructSymbol {
 	 * Returns true if this method is marked as a (binary) operator.
 	 * Beware that this returns false even when the method is a preoperator!
 	 */
-	isOperator() {
+	isOperator(): this is UCBinaryOperatorSymbol {
 		return (this.specifiers & MethodSpecifiers.Operator) !== 0;
 	}
 
-	isPreOperator() {
+	isOperatorKind(): this is UCBaseOperatorSymbol {
+		return (this.specifiers & MethodSpecifiers.OperatorKind) !== 0;
+	}
+
+	isPreOperator(): this is UCPreOperatorSymbol {
 		return (this.specifiers & MethodSpecifiers.PreOperator) !== 0;
 	}
 
-	isPostOperator() {
+	isPostOperator(): this is UCPostOperatorSymbol {
 		return (this.specifiers & MethodSpecifiers.PostOperator) !== 0;
 	}
 
@@ -67,15 +69,19 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return SymbolKind.Function;
 	}
 
-	getTypeKind() {
-		return this.returnType ? this.returnType.getTypeKind() : UCTypeKind.Error;
+	getTypeFlags() {
+		return UCTypeFlags.Function;
+	}
+
+	getType() {
+		return this.returnValue?.getType();
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
 		return CompletionItemKind.Function;
 	}
 
-	getDocumentation() {
+	getDocumentation(): string | undefined {
 		const doc = super.getDocumentation();
 		if (doc) {
 			return doc;
@@ -87,23 +93,17 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		if (this.returnType) {
-			const returnSymbol = this.returnType.getSymbolAtPos(position);
-			if (returnSymbol) {
-				return returnSymbol;
-			}
-		}
-		return super.getContainedSymbolAtPos(position);
+		return this.returnValue?.getSymbolAtPos(position) ?? super.getContainedSymbolAtPos(position);
 	}
 
-	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
+	getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: string, kind?: UCTypeFlags) {
 		if (context === '.') {
-			const resolvedType = this.returnType && this.returnType.getReference();
+			const resolvedType = this.returnValue?.getType()?.getRef();
 			if (resolvedType instanceof UCSymbol) {
-				return resolvedType.getCompletionSymbols(document, context);
+				return resolvedType.getCompletionSymbols<C>(document, context, kind);
 			}
 		}
-		return super.getCompletionSymbols(document, context);
+		return super.getCompletionSymbols<C>(document, context, kind);
 	}
 
 	findSuperSymbol(id: Name, kind?: SymbolKind) {
@@ -111,17 +111,24 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
-		if (this.returnType) {
-			this.returnType.index(document, context);
+		if (this.returnValue) {
+			this.returnValue.index(document, context);
+
+			// For UC1 and UC2 we have to hardcode the "coerce" modifier for the Spawn's return type.
+			if (this.getName() === NAME_SPAWN
+				&& this.outer?.getName() === NAME_ACTOR
+				&& this.outer.outer?.getName() === NAME_ENGINE) {
+				this.returnValue.paramModifiers |= ParamModifiers.Coerce;
+			}
 		}
 
 		super.index(document, context);
 
 		if (context.super) {
-			const overriddenMethod = context.super.findSuperSymbol(this.getId());
+			const overriddenMethod = context.super.findSuperSymbol(this.getName());
 			if (overriddenMethod instanceof UCMethodSymbol) {
 				document.indexReference(overriddenMethod, {
-					location: Location.create(document.filePath, this.id.range)
+					location: Location.create(document.uri, this.id.range)
 				});
 				this.overriddenMethod = overriddenMethod;
 			}
@@ -147,8 +154,10 @@ export class UCMethodSymbol extends UCStructSymbol {
 		text.push(...modifiers);
 
 		text.push(this.getTypeKeyword());
-		text.push(this.buildReturnType());
-		text.push(this.getQualifiedName() + this.buildParameters());
+		if (this.returnValue) {
+			text.push(this.returnValue.getTextForReturnValue());
+		}
+		text.push(this.getPath() + this.buildParameters());
 
 		return text.filter(s => s).join(' ');
 	}
@@ -167,12 +176,6 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return text;
 	}
 
-	// TODO: Print return modifiers? (e.g. coerce)
-	protected buildReturnType(): string | undefined {
-		return this.returnType && this.returnType.getTypeText();
-	}
-
-	// TODO: Print param modifiers?
 	protected buildParameters(): string {
 		return this.params
 			? `(${this.params.map(f => f.getTextForSignature()).join(', ')})`
@@ -197,12 +200,16 @@ export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference
 		return true;
 	}
 
+    getTypeFlags() {
+		return UCTypeFlags.Function | UCTypeFlags.Delegate;
+	}
+
 	protected getTypeKeyword(): string {
 		return '(intrinsic)';
 	}
 
-	getReference(): ISymbol | undefined {
-		return this.returnType && this.returnType.getReference();
+	getRef(): ISymbol | undefined {
+		return this.returnValue?.getType()?.getRef();
 	}
 }
 
@@ -246,10 +253,6 @@ export abstract class UCBaseOperatorSymbol extends UCMethodSymbol {
 	acceptCompletion(document: UCDocument, context: ISymbol): boolean {
 		// TODO: Perhaps only list operators with a custom Identifier? i.e. "Dot" and "Cross".
 		return false;
-
-		// FIXME: Should check outer, but currently it's too much of a pain to step through.
-		// Basically we don't want operators to be visible when the context is not in the same document!
-		// return context instanceof UCStructSymbol && context.getUri() === document.filePath;
 	}
 }
 

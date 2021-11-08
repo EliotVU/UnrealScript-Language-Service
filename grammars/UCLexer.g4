@@ -8,11 +8,33 @@ channels { MACRO, COMMENTS_CHANNEL }
 	isDefineContext: boolean = false;
 }
 
-fragment EXPONENT: [eE] [+-]? [0-9]+;
-fragment HEX_DIGIT: [0-9] | [A-F] | [a-f];
-fragment ESC_SEQ: '\\' .;
+fragment DIGIT
+	: [0-9]
+	;
 
-fragment CALL_MACRO_CHAR: '\u0060';
+fragment HEX_DIGIT
+	: [0-9a-fA-F]
+	;
+
+fragment SIGN
+	: [+-]
+	;
+
+fragment EXPONENT
+	: [eE] SIGN? DIGIT+
+	;
+
+fragment FLOATING_SUFFIX
+	: [fF]
+	;
+
+fragment ESC_SEQ
+	: '\\' .
+	;
+
+fragment CALL_MACRO_CHAR
+	: '\u0060'
+	;
 
 LINE_COMMENT
 	: '//' ~[\r\n]*
@@ -20,7 +42,7 @@ LINE_COMMENT
 	;
 
 BLOCK_COMMENT
-	: '/*' .*? '*/'
+	: '/*' (BLOCK_COMMENT|.)*? '*/'
 	-> channel(COMMENTS_CHANNEL)
 	;
 
@@ -168,6 +190,8 @@ KW_SELF: 'self';
 KW_SUPER: 'super';
 KW_POINTER: 'pointer';
 KW_EXPANDS: 'expands';
+KW_IMPLEMENTS: 'implements';
+KW_DEPENDSON: 'dependson';
 KW_K2CALL: 'k2call';
 KW_K2PURE: 'k2pure';
 KW_K2OVERRIDE: 'k2override';
@@ -178,19 +202,20 @@ KW_RNG: 'rng';
 KW_ARRAYCOUNT: 'arraycount';
 KW_NAMEOF: 'nameof';
 KW_SIZEOF: 'sizeof';
+KW_REF: 'ref';
 
 // Note: Keywords must precede the ID token.
 ID:	[a-zA-Z_][a-zA-Z0-9_]*;
 // ID:	[a-z_][a-z0-9_]*;
 
 FLOAT
-	: [0-9]+ '.' [0-9fF]+ EXPONENT? [fF]?
-	| [0-9]+ ([fF] | EXPONENT [fF]?)
+	: /* SIGN? */ DIGIT+ '.' [0-9fF]* EXPONENT? FLOATING_SUFFIX?
+	| /* SIGN? */ DIGIT+ (FLOATING_SUFFIX | EXPONENT FLOATING_SUFFIX?)
 	;
 
 INTEGER
-	: [0-9] [xX] HEX_DIGIT+
-	| [0-9]+
+	: /* SIGN? */ DIGIT+ [xX] HEX_DIGIT+
+	| /* SIGN? */ DIGIT+
 	;
 
 ESCAPE: '\\';

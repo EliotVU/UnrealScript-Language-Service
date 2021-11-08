@@ -1,5 +1,4 @@
 {
-	"editor.insertSpaces": false,
 	"typescript.preferences.quoteStyle": "single",
 	"antlr4.generation": {
 		"language": "TypeScript",

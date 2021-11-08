@@ -1,9 +1,8 @@
-import { Range, Position, Location } from 'vscode-languageserver-types';
+import { Location, Position, Range } from 'vscode-languageserver-types';
 
-import { intersectsWith, intersectsWithRange } from '../helpers';
 import { UCDocument } from '../document';
-
-import { Identifier, ISymbol, UCSymbol, UCStructSymbol, UCTypeKind } from '.';
+import { intersectsWith, intersectsWithRange } from '../helpers';
+import { Identifier, ISymbol, ITypeSymbol, UCStructSymbol, UCSymbol } from './';
 import { ISymbolReference } from './ISymbol';
 
 export enum FieldModifiers {
@@ -12,7 +11,8 @@ export enum FieldModifiers {
 	Private 			= 0x0002,
 	Native 				= 0x0004,
 	Const 				= 0x0008,
-	NotPublic 			= Protected | Private
+	WithDimension		= 0x0010,
+	NotPublic 			= Protected | Private,
 }
 
 export abstract class UCFieldSymbol extends UCSymbol {
@@ -29,8 +29,8 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return this.range;
 	}
 
-	getTypeKind(): UCTypeKind {
-		return UCTypeKind.Error;
+	getType(): ITypeSymbol | undefined {
+		return undefined;
 	}
 
 	protected getTypeKeyword(): string | undefined {
@@ -38,7 +38,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	}
 
 	getTooltip(): string {
-		return this.getQualifiedName();
+		return this.getPath();
 	}
 
 	getSymbolAtPos(position: Position) {
@@ -53,7 +53,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	}
 
 	getCompletionContext(_position: Position): ISymbol | undefined {
-		return this;
+		return undefined;
 	}
 
 	isPublic(): boolean {
@@ -76,17 +76,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return (this.modifiers & FieldModifiers.Native) !== 0;
 	}
 
-	// Returns true if this is a symbol that declares a type like a struct or enum.
-	isType(): boolean {
-		return false;
-	}
-
 	acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
-		// // TODO: Does not match the language's behavior yet!
-		// if (this.isPrivate()) {
-		// 	return this.getOuter<UCClassSymbol>() === _document.class;
-		// }
-		// return this.isPublic();
 		return true;
 	}
 
@@ -96,7 +86,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 
 	private indexDeclaration(document: UCDocument) {
 		const ref: ISymbolReference = {
-			location: Location.create(document.filePath, this.id.range),
+			location: Location.create(document.uri, this.id.range),
 			inAssignment: true
 		};
 		document.indexReference(this, ref);

@@ -1,14 +1,34 @@
 class Test extends Core.Object
 	native;
 
-const CONST_SIZEOF 			= sizeof(Object);
-const CONST_CLASS 			= class'Object';
-const CONST_VECT 			= vect(0,0,0);
-const CONST_ROT 			= rot(0,0,0);
-const CONST_RNG 			= rng(0,0);
-const CONST_STRING			= "string";
-const CONST_NAME 			= 'name';
-const CONST_NUMBER			= 4;
+var const int CONST_ARRAY[5];
+
+const CONST_SIZEOF 					= sizeof(Object);
+const CONST_ARRAYCOUNT              = arraycount(CONST_ARRAY);
+const CONST_NAMEOF                  = nameof(CONST_SIZEOF);
+const CONST_CLASS 					= class'Object';
+const CONST_VECT 					= vect(0,0,0);
+const CONST_ROT 					= rot(0,0,0);
+const CONST_RNG 					= rng(0,0);
+const CONST_STRING					= "string";
+const CONST_NAME 					= 'name';
+const CONST_NUMBER					= 4e+2;
+const CONST_LEADING_NUMBER			= +004;
+const CONST_HEXDECIMAL				= -0x04;
+const CONST_FLOAT1					= 0.f;
+const CONST_FLOAT2					= +0.fe-2f;
+const CONST_FLOAT3					= 0f;
+const CONST_BOOL					= true;
+// Test that 0 is not seen as a "falsy" value.
+const CONST_INT1                    = 0;
+const CONST_INT2                    = 1;
+
+// To test enum and constant values usage in defaultproperties.
+const DEFAULT_CONST	= 0;
+enum EDefault {
+	D_Zero,
+	D_One
+};
 
 enum AEnum {
 	A_1,
@@ -77,8 +97,9 @@ var delegate<Test> 			defaultDelegate;
 
 // FIXME: Breaks variable highlighting.
 var map{string, float} 		defaultStringToFloatMap;
-var class<Test> 			defaultClassMeta;
+var class<Test> 			defaultClassMeta[4];
 var array<class<Test> > 	defaultArrayOfClasses;
+var Test					defaultTestRef;
 
 // Test for non-quoted tooltip
 var array<Object> MetaData<Tooltip = tooltip for my array. | test=0>;
@@ -87,12 +108,19 @@ var array<Object> MetaData2<Tooltip = >;
 var array<Object> MetaData3<Tooltip>;
 var array<Object> MetaData4<>;
 
+// var array<bool> IllegalBoolArray;
+// var array<array<Test> > IllegalBoolArray;
+// var bool IllegalBool[4];
+// var array<bool> IllegalBool[4];
+
 // Fancy native stuff.
 var private{public} native int NativeInt[2], NativeIntTwo[2]{INT};
 
 // Test for multiple categories.
 // FIXME: Multicategories are breaking variable highlighting.
 var(Category1, Category2) config(Test) string Description;
+
+var int superVar;
 
 native function string const() const;
 
@@ -112,7 +140,7 @@ static final preoperator int ToInt(string A) {
 	return int(A);
 }
 
-function coerce Object Spawn( class<Object> class ) {
+function coerce Object Spawn( class<Object> class, Object owner ) {
 	return class;
 }
 
@@ -129,8 +157,19 @@ function struct e {} InlinedStructReturnType() {
 }
 
 function TestQualifiedStruct( Test.AStruct struct ) {
+	class'Engine';
+	class'Engine.Engine';
+	package'Engine';
+}
+
+function string returnAssignment(){
 	// Test an assignment within a return statement.
- 	return 1 -= $"2";
+	local string str;
+
+	if ((str $= 2) == "2") {
+
+	}
+	return str $= 5;
 }
 
 function AddObj(Object obj) {
@@ -154,21 +193,56 @@ delegate byte Test() {
 	i = 0;
 	i = int(0.f);
 	i = 256;
-	i = &str;
-	i = ToInt"test\s";
-	i = ToInt str;
+	// i = &str;
+	// i = ToInt"test\s";
+	// i = ToInt str;
 
 	str = $"Test";
-	str = "Test"PrependDollar;
-	str = str PrependDollar;
-	str = PrependDollar "str";
+	// str = "Test"PrependDollar;
+	// str = str PrependDollar;
+	// str = PrependDollar "str";
+
+	// Statement tests
+	if (str == "") str = " "; else ; ;
+
+	assert (str != "");
+
+	do {
+		str = "";
+	} until (str == "")
+
+	switch (str) {
+		case "x":
+		case "":
+			// test for a "default" missmatch
+			str = default.CONST_STRING;
+			obj = default; // semantically invalid
+			obj = const == none ? none : none;
+			// case = default;
+			break;
+
+		default:
+			break;
+	}
+
+	loop:
+	for (i = 0; i < Len(str); ++i) {
+		continue;
+		break;
+	}
+
+	if (false) {
+		// goto loop;
+	} else if (true) {
+		;
+	}
 
 	// FIXME: AddObj is parsed as preoperator!
 	foreach AllObjects(class'Object', obj)
 		AddObj(obj);
 
     // Test accessable properties via an object literal.
-	str = StrProperty'str'.default.Name;
+	// str = StrProperty'str'.default.Name;
 
 	obj = new class'Test';
 
@@ -180,8 +254,40 @@ delegate byte Test() {
 	i = i - -i;
 	i = 2.0 * int(0.1 + float(i)*0.225,0.2,1.0);
 
+	// Type resolving tests!
+	inputInt(defaultIntArray[0]);
+	InputObject(defaultClassMeta[0]);
+	InputObject(defaultArrayOfClasses[0]);
+	InputObject(GetObjects()[0]);
+	InputArray(GetObjects());
+
 	return byte((i+1.f)*128.f);
 	return (float(i)/128.f)-1.f;
+}
+
+function InputInt(int i) {
+
+}
+
+function InputObject(Object obj) {
+
+}
+
+function InputArray(Array<Object> objs) {
+	local int l;
+	local Object obj;
+	local Class objClass;
+
+	objs.AddItem(self);
+	objs.AddItem("self");
+	objs.RemoveItem(self);
+	obj = objs.Find(self);
+
+	l = objs.Length;
+	objClass = obj.Class;
+}
+
+function Array<Object> GetObjects() {
 }
 
 function TestFunction();
@@ -189,23 +295,36 @@ function TestFunction();
 // test missing expressions
 function byte TestInvalidCode(){
 	// Missing expression test!
-	if ( < 0 ) {
+	// if ( < 0 ) {
 
-	}
+	// }
 
-	if ( 0 > ) {
+	// if ( 0 > ) {
 
-	}
+	// }
 }
 
 defaultproperties
 {
-	defaultIntDynamicArray(0)=1
-	// defaultIntDynamicArray.Add(1)
-	// defaultIntDynamicArray.Remove(1)
-	// defaultIntDynamicArray.Empty
+	defaultIntDynamicArray(DEFAULT_CONST)=1
+	defaultIntDynamicArray(D_Zero)=1
+	defaultIntDynamicArray(D_One)=1
+
+	defaultIntDynamicArray.Add(1)
+	defaultIntDynamicArray.Remove(1)
+	defaultIntDynamicArray.RemoveIndex(0)
+	defaultIntDynamicArray.Replace(0, 1)
+	defaultIntDynamicArray.Empty
+
 	defaultInt=1024				|defaultFloat=1.0f			|defaultByte=1
 	defaultBool=true			|defaultBool=false
 	defaultName=CONST_NAME		|defaultName=MyName
 	defaultStr=CONST_STRING		|defaultStr="string"
+
+	superVar=0
+
+	begin object class=Test name=Test0
+		superVar=0
+	end object
+	defaultTestRef=Test0
 }

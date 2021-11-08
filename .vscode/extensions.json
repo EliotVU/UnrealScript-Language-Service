@@ -1,0 +1,7 @@
+{
+    "recommendations": [
+        "redhat.vscode-yaml",
+        "mike-lischke.vscode-antlr4",
+        "eliotvu.uc"
+    ]
+}

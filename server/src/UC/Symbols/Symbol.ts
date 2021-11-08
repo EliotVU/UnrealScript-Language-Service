@@ -1,15 +1,13 @@
-import { Range, SymbolKind, SymbolInformation, CompletionItem, CompletionItemKind, Position } from 'vscode-languageserver-types';
-
 import { Token } from 'antlr4ts';
-import { ParseTree } from 'antlr4ts/tree/ParseTree';
+import {
+    CompletionItemKind, Position, Range, SymbolInformation, SymbolKind
+} from 'vscode-languageserver-types';
 
-import { UCDocument } from "../document";
-import { SymbolWalker } from '../symbolWalker';
+import { UCDocument } from '../document';
 import { intersectsWithRange } from '../helpers';
 import { Name } from '../names';
-import { DocumentASTWalker } from '../documentASTWalker';
-
-import { ISymbol, Identifier, UCStructSymbol } from ".";
+import { SymbolWalker } from '../symbolWalker';
+import { Identifier, ISymbol, UCStructSymbol, UCTypeFlags } from './';
 
 export const DEFAULT_POSITION = Position.create(0, 0);
 export const DEFAULT_RANGE = Range.create(DEFAULT_POSITION, DEFAULT_POSITION);
@@ -32,32 +30,38 @@ export abstract class UCSymbol implements ISymbol {
 		return this.id.range;
 	}
 
-	getId(): Name {
+	getName(): Name {
 		return this.id.name;
 	}
 
+    // Particular use case to index symbol references by outer.
 	getHash(): number {
 		let hash: number = this.id.name.hash;
 		for (var outer = this.outer; outer; outer = outer.outer) {
-			hash = hash ^ (outer.getId().hash >> 4);
+			hash = hash ^ (outer.getName().hash >> 4);
 		}
 		return hash;
 	}
 
-	getQualifiedName(): string {
-		let text = this.getId().toString();
+	getPath(): string {
+        const names: Name[] = [this.getName()];
 		for (var outer = this.outer; outer; outer = outer.outer) {
-			text = outer.getId() + '.' + text;
+            names.unshift(outer.getName());
 		}
-		return text;
+		return names.join('.');
 	}
 
 	getKind(): SymbolKind {
 		return SymbolKind.Field;
 	}
 
+	getTypeFlags() {
+		return UCTypeFlags.Error;
+	}
+
+	/** Returns a tooltip for this symbol, usually mirroring the written code, but minimalized and formatted. */
 	getTooltip(): string {
-		return this.getQualifiedName();
+		return this.getPath();
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
@@ -72,7 +76,8 @@ export abstract class UCSymbol implements ISymbol {
 		return undefined;
 	}
 
-	getCompletionSymbols(_document: UCDocument, _context: string): ISymbol[] {
+	// TODO: Refactor ISymbol to CompletionItem.
+	getCompletionSymbols<C extends ISymbol>(_document: UCDocument, _context: string, _kind?: UCTypeFlags): C[] {
 		return [];
 	}
 
@@ -87,29 +92,18 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	getDocumentation(): string | undefined {
-		return this.description && this.description.map(t => t.text!).join('\n');
+		return this.description?.map(t => t.text!).join('\n');
 	}
 
 	toSymbolInfo(): SymbolInformation {
 		return SymbolInformation.create(
-			this.getId().toString(), this.getKind(),
+			this.getName().toString(), this.getKind(),
 			this.getRange(), undefined,
-			this.outer && this.outer.getId().toString()
+			this.outer?.getName().toString()
 		);
-	}
-
-	toCompletionItem(_document: UCDocument): CompletionItem {
-		const item = CompletionItem.create(this.getId().toString());
-		item.detail = this.getTooltip();
-		item.kind = this.getCompletionItemKind();
-		item.data = this.getQualifiedName();
-		return item;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visit(this);
-	}
-
-	walk(_visitor: DocumentASTWalker, _ctx: ParseTree) {
 	}
 }

@@ -1,25 +1,24 @@
 import * as path from 'path';
-import { workspace, ExtensionContext } from 'vscode';
-
+import { ExtensionContext, workspace } from 'vscode';
 import {
-	LanguageClient,
-	LanguageClientOptions,
-	ServerOptions,
-	TransportKind
-} from 'vscode-languageclient';
+    LanguageClient, LanguageClientOptions, ServerOptions, TransportKind
+} from 'vscode-languageclient/node';
 
 let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
-	let serverModule = context.asAbsolutePath(
+	const serverModule = context.asAbsolutePath(
 		path.join('server', 'out', 'server.js')
 	);
 
 	const memoryOption = '--max-old-space-size=8192';
-	let serverOptions: ServerOptions = {
+	const debugOptions = {
+		execArgv: [memoryOption, '--nolazy', '--inspect=6010']
+	};
+	const serverOptions: ServerOptions = {
 		run: {
 			module: serverModule,
-			transport: TransportKind.ipc ,
+			transport: TransportKind.ipc,
 			options: {
 				execArgv: [memoryOption]
 			}
@@ -27,18 +26,17 @@ export function activate(context: ExtensionContext) {
 		debug: {
 			module: serverModule,
 			transport: TransportKind.ipc,
-			options: {
-				execArgv: [memoryOption, '--nolazy', '--inspect=6010']
-			},
+			options: debugOptions,
 		}
 	};
 
-	let clientOptions: LanguageClientOptions = {
+	const clientOptions: LanguageClientOptions = {
 		documentSelector: [{ scheme: 'file', language: 'unrealscript' }],
 		synchronize: {
-			configurationSection: 'unrealscript',
-			fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
+            configurationSection: 'unrealscript',
+			fileEvents: workspace.createFileSystemWatcher('**/*.{uc,uci}')
 		},
+        diagnosticCollectionName: 'UnrealScript',
 		outputChannelName: 'UnrealScript',
 	};
 

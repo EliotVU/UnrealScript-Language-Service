@@ -1,15 +1,11 @@
-import { SymbolKind, Position } from 'vscode-languageserver-types';
+import { Position, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { Name } from '../names';
 import { SymbolWalker } from '../symbolWalker';
-
-import { ReliableKeyword, UnreliableKeyword, IfKeyword } from './Keywords';
 import {
-	ISymbol, UCSymbol,
-	UCClassSymbol, UCStructSymbol,
-	UCSymbolReference
-} from '.';
+    ISymbol, UCClassSymbol, UCStructSymbol, UCSymbol, UCSymbolReference, UCTypeFlags
+} from './';
 
 export class UCReplicationBlock extends UCStructSymbol {
 	public symbolRefs = new Map<Name, UCSymbolReference>();
@@ -18,15 +14,13 @@ export class UCReplicationBlock extends UCStructSymbol {
 		return SymbolKind.Constructor;
 	}
 
-	// Just return the keyword identifier.
-	getTooltip(): string {
-		return this.getId().toString();
+	getTypeFlags() {
+		return UCTypeFlags.Error;
 	}
 
-	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
-		return super
-			.getCompletionSymbols(document, context)
-			.concat(ReliableKeyword, UnreliableKeyword, IfKeyword);
+	// Just return the keyword identifier.
+	getTooltip(): string {
+		return this.getName().toString();
 	}
 
 	getContainedSymbolAtPos(position: Position) {
@@ -42,7 +36,7 @@ export class UCReplicationBlock extends UCStructSymbol {
 	index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
 		for (let ref of this.symbolRefs.values()) {
-			const symbol = context.findSuperSymbol(ref.getId());
+			const symbol = context.findSuperSymbol(ref.getName());
 			if (!symbol) {
 				continue;
 			}

@@ -1,18 +1,18 @@
-import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types';
+import { CompletionItemKind, SymbolKind } from 'vscode-languageserver-types';
 
 import { SymbolWalker } from '../symbolWalker';
-import { UCFieldSymbol, UCTypeKind } from '.';
+import { UCFieldSymbol, UCTypeFlags } from './';
 
 export class UCEnumMemberSymbol extends UCFieldSymbol {
 	// Unrealscript only supports (automatic) byte values.
-	public value: number;
+	public value!: number;
 
 	getKind(): SymbolKind {
 		return SymbolKind.EnumMember;
 	}
 
-	getTypeKind() {
-		return UCTypeKind.Byte;
+	getTypeFlags() {
+		return UCTypeFlags.Byte;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
@@ -24,7 +24,7 @@ export class UCEnumMemberSymbol extends UCFieldSymbol {
 	}
 
 	getTooltip(): string {
-		return `${this.getTypeKeyword()} ${this.getQualifiedName()} = ${this.value}`;
+		return `${this.getTypeKeyword()} ${this.getPath()} = ${this.value}`;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {

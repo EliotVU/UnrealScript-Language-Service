@@ -1,18 +1,21 @@
-import { SymbolKind, CompletionItemKind, Position } from 'vscode-languageserver-types';
+import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
 
-import { SymbolWalker } from '../symbolWalker';
 import { IExpression } from '../expressions';
-import { UCDocument } from '../document';
-import { UCPropertySymbol, UCStructSymbol } from '.';
+import { SymbolWalker } from '../symbolWalker';
+import { UCPropertySymbol } from './';
 
+// "const" is available as a @FieldModifier
 export enum ParamModifiers {
 	None 			= 0x0000,
 	Out 			= 0x0001,
 	Optional		= 0x0002,
 	Init 			= 0x0004, // NOT SUPPORTED
 	Skip			= 0x0008, // NOT SUPPORTED
-	Coerce			= 0x0010
-	// const is available as a @FieldModifier
+	Coerce			= 0x0010,
+	Return			= 0x0020,
+	Ref				= 0x0040, // NOT SUPPORTED
+
+	ReturnParam 	= Out | Return
 }
 
 export class UCParamSymbol extends UCPropertySymbol {
@@ -36,6 +39,10 @@ export class UCParamSymbol extends UCPropertySymbol {
 		return (this.paramModifiers & ParamModifiers.Out) !== 0;
 	}
 
+	isRef(): boolean {
+		return (this.paramModifiers & ParamModifiers.Ref) !== 0;
+	}
+
 	getKind(): SymbolKind {
 		return SymbolKind.Variable;
 	}
@@ -49,12 +56,22 @@ export class UCParamSymbol extends UCPropertySymbol {
 
 		const modifiers = this.buildModifiers();
 		text.push(...modifiers);
-
 		if (this.type) {
 			text.push(this.type.getTypeText());
 		}
-		text.push(this.getId().toString());
+		text.push(this.getName().toString());
 
+		return text.filter(s => s).join(' ');
+	}
+
+	getTextForReturnValue(): string {
+		const text: Array<string | undefined> = [];
+		if (this.isCoerced()) {
+			text.push('coerce');
+		}
+		if (this.type) {
+			text.push(this.type.getTypeText());
+		}
 		return text.filter(s => s).join(' ');
 	}
 
@@ -63,17 +80,12 @@ export class UCParamSymbol extends UCPropertySymbol {
 	}
 
 	protected getTooltipId(): string {
-		return this.getId().toString();
+		return this.getName().toString();
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		const symbol = this.defaultExpression && this.defaultExpression.getSymbolAtPos(position);
-		return symbol || super.getContainedSymbolAtPos(position);
-	}
-
-	public index(document: UCDocument, context: UCStructSymbol) {
-		super.index(document, context);
-		this.defaultExpression && this.defaultExpression.index(document, context);
+		const symbol = this.defaultExpression?.getSymbolAtPos(position) || super.getContainedSymbolAtPos(position);
+		return symbol;
 	}
 
 	protected buildModifiers(): string[] {
@@ -93,6 +105,10 @@ export class UCParamSymbol extends UCPropertySymbol {
 
 		if (this.isConst()) {
 			text.push('const');
+		}
+
+		if (this.isRef()) {
+			text.push('ref');
 		}
 
 		return text;

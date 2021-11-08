@@ -1,31 +1,22 @@
-import {
-	ISymbol,
-	UCClassSymbol,
-	UCEnumSymbol,
-	UCEnumMemberSymbol,
-	UCStructSymbol,
-	UCConstSymbol,
-	UCPropertySymbol,
-	UCLocalSymbol,
-	UCParamSymbol,
-	UCMethodSymbol,
-	UCStateSymbol,
-	UCObjectTypeSymbol,
-	UCMapTypeSymbol,
-	UCDelegateTypeSymbol,
-	UCArrayTypeSymbol,
-	UCPackage,
-	UCScriptStructSymbol,
-	UCReplicationBlock,
-	UCDefaultPropertiesBlock,
-	UCObjectSymbol,
-} from './Symbols';
-import { UCBlock, IStatement } from './statements';
+import { UCDocument } from './document';
 import { IExpression } from './expressions';
+import {
+    UCAssertStatement, UCBlock, UCCaseClause, UCDefaultClause, UCDoUntilStatement,
+    UCExpressionStatement, UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement,
+    UCLabeledStatement, UCReturnStatement, UCSwitchStatement, UCWhileStatement
+} from './statements';
+import {
+    ISymbol, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol, UCDefaultPropertiesBlock,
+    UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCLocalSymbol, UCMapTypeSymbol,
+    UCMethodSymbol, UCObjectSymbol, UCObjectTypeSymbol, UCPackage, UCParamSymbol, UCPropertySymbol,
+    UCQualifiedTypeSymbol, UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol
+} from './Symbols';
 
 export interface SymbolWalker<T> {
 	visit(symbol: ISymbol): T;
+    visitDocument(document: UCDocument): T;
 	visitPackage(symbol: UCPackage): T;
+	visitQualifiedType(symbol: UCQualifiedTypeSymbol): T;
 	visitObjectType(symbol: UCObjectTypeSymbol): T;
 	visitMapType(symbol: UCMapTypeSymbol): T;
 	visitDelegateType(symbol: UCDelegateTypeSymbol): T;
@@ -45,16 +36,42 @@ export interface SymbolWalker<T> {
 	visitReplicationBlock(symbol: UCReplicationBlock): T;
 	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock): T;
 	visitObjectSymbol(symbol: UCObjectSymbol): T;
-	visitStatement(stm: IStatement): T;
+	visitExpressionStatement(stm: UCExpressionStatement): T;
+	visitLabeledStatement(stm: UCLabeledStatement): T;
+	visitAssertStatement(stm: UCAssertStatement): T;
+	visitIfStatement(stm: UCIfStatement): T;
+	visitDoUntilStatement(stm: UCDoUntilStatement): T;
+	visitWhileStatement(stm: UCWhileStatement): T;
+	visitSwitchStatement(stm: UCSwitchStatement): T;
+	visitCaseClause(stm: UCCaseClause): T;
+	visitDefaultClause(stm: UCDefaultClause): T;
+	visitForStatement(stm: UCForStatement): T;
+	visitForEachStatement(stm: UCForEachStatement): T;
+	visitReturnStatement(stm: UCReturnStatement): T;
+	visitGotoStatement(stm: UCGotoStatement): T;
 	visitExpression(expr: IExpression): T;
 }
 
-export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression | IStatement | undefined> {
+export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 	visit(symbol: ISymbol): ISymbol {
 		return symbol;
 	}
 
+    visitDocument(document: UCDocument): undefined {
+        const symbols = document.getSymbols();
+        for (let symbol of symbols) {
+            symbol.accept(this);
+        }
+        return undefined;
+    }
+
 	visitPackage(symbol: UCPackage): ISymbol {
+		return symbol;
+	}
+
+	visitQualifiedType(symbol: UCQualifiedTypeSymbol): ISymbol {
+		symbol.left?.accept<any>(this);
+		symbol.type.accept<any>(this);
 		return symbol;
 	}
 
@@ -152,8 +169,8 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression |
 	}
 
 	visitMethod(symbol: UCMethodSymbol): ISymbol {
-		if (symbol.returnType) {
-			symbol.returnType.accept<any>(this);
+		if (symbol.returnValue) {
+			symbol.returnValue.accept<any>(this);
 		}
 		return this.visitStructBase(symbol);
 	}
@@ -178,8 +195,8 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression |
 		return this.visitStructBase(symbol);
 	}
 
-	visitBlock(symbol: UCBlock): UCBlock {
-		return symbol;
+	visitBlock(symbol: UCBlock): undefined {
+        return undefined;
 	}
 
 	visitReplicationBlock(symbol: UCReplicationBlock): ISymbol {
@@ -187,18 +204,98 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | IExpression |
 	}
 
 	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock): ISymbol {
-		return this.visitStructBase(symbol);
+		if (symbol.block) {
+			symbol.block.accept<any>(this);
+		}
+		return symbol;
+		// Each child is already registered as a statement, thus will be indexed by the block.index call!
+		// return this.visitStructBase(symbol);
 	}
 
 	visitObjectSymbol(symbol: UCObjectSymbol): ISymbol {
-		return this.visitStructBase(symbol);
+		if (symbol.block) {
+			symbol.block.accept<any>(this);
+		}
+		return symbol;
+		// Each child is already registered as a statement, thus will be indexed by the block.index call!
+		// return this.visitStructBase(symbol);
 	}
 
 	visitExpression(expr: IExpression) {
-		return expr;
+		return undefined;
 	}
 
-	visitStatement(stm: IStatement) {
-		return stm;
+	visitExpressionStatement(stm: UCExpressionStatement) {
+		stm.expression?.accept<any>(this);
+		return undefined;
+	}
+
+	visitLabeledStatement(stm: UCLabeledStatement) {
+		return undefined;
+	}
+
+	visitAssertStatement(stm: UCAssertStatement) {
+		stm.expression?.accept<any>(this);
+		return undefined;
+	}
+
+	visitIfStatement(stm: UCIfStatement) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		stm.else?.accept<any>(this);
+		return undefined;
+	}
+
+	visitDoUntilStatement(stm: UCDoUntilStatement) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		return undefined;
+	}
+
+	visitWhileStatement(stm: UCWhileStatement) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		return undefined;
+	}
+
+	visitSwitchStatement(stm: UCSwitchStatement) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		return undefined;
+	}
+
+	visitCaseClause(stm: UCCaseClause) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		return undefined;
+	}
+
+	visitDefaultClause(stm: UCDefaultClause) {
+		stm.then?.accept<any>(this);
+		return undefined;
+	}
+
+	visitForStatement(stm: UCForStatement) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		stm.init?.accept<any>(this);
+		stm.next?.accept<any>(this);
+		return undefined;
+	}
+
+	visitForEachStatement(stm: UCForEachStatement) {
+		stm.then?.accept<any>(this);
+		stm.expression?.accept<any>(this);
+		return undefined;
+	}
+
+	visitReturnStatement(stm: UCReturnStatement) {
+		stm.expression?.accept<any>(this);
+		return undefined;
+	}
+
+	visitGotoStatement(stm: UCGotoStatement) {
+		stm.expression?.accept<any>(this);
+		return undefined;
 	}
 }

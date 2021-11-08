@@ -1,27 +1,51 @@
-import { SymbolKind, Location, CompletionItem, Range } from 'vscode-languageserver-types';
+import { Location, Range, SymbolKind } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../document';
-import { SymbolWalker } from '../symbolWalker';
 import { Name } from '../names';
+import { SymbolWalker } from '../symbolWalker';
+import { UCTypeFlags } from './';
 
 export interface ISymbol {
+	/** Parent symbol, mirroring Unreal Engine's Object class structure. */
 	outer?: ISymbol;
 
-	getId(): Name;
-	getHash(): number;
-	getQualifiedName(): string;
-	getKind(): SymbolKind;
-	getTooltip(): string;
+	/**
+	 * The next symbol in the hash chain.
+	 * e.g. consider package "Engine" and the class "Engine.Engine" which resides in package "Engine",
+	 * the class would be the @nextInHash of package "Engine".
+	 **/
+	nextInHash?: ISymbol | undefined;
 
-	toCompletionItem(document: UCDocument): CompletionItem;
+	getName(): Name;
+	getHash(): number;
+
+	/**
+	 * Returns a path presented in a qualified identifier format.
+	 * e.g. "Core.Object.Outer".
+	 **/
+	getPath(): string;
+
+	/** Returns the corresponding VS.SymbolKind, for presentation purposes. */
+	getKind(): SymbolKind;
+
+	/**
+	 * Returns an internal representation of a UnrealScript type.
+	 * e.g. this let's expose @UCEnumMemberSymbol as a byte type etc.
+	 **/
+	getTypeFlags(): UCTypeFlags;
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result;
 }
 
 export interface ISymbolContainer<T extends ISymbol> {
-	addSymbol(symbol: T): Name | undefined;
-	addAlias(id: Name, symbol: T): void;
-	getSymbol(id: Name, kind?: SymbolKind): T | undefined;
+	addSymbol(symbol: T): number | undefined;
+	getSymbol(id: Name | number, type?: UCTypeFlags, outer?: ISymbol): T | undefined;
+}
+
+export interface IContextInfo {
+	typeFlags?: UCTypeFlags;
+	inAssignment?: boolean;
+	isOptional?: boolean;
+	hasArguments?: boolean;
 }
 
 export interface ISymbolReference {
@@ -36,7 +60,7 @@ export interface ISymbolReference {
 }
 
 export interface IWithReference extends ISymbol {
-	getReference(): ISymbol | undefined;
+	getRef(): ISymbol | undefined;
 }
 
 export interface Identifier {

@@ -6,32 +6,32 @@ const path = require('path');
 
 /**@type {import('webpack').Configuration}*/
 const config = {
-	target: 'node',
+    target: 'node',
 
-	output: {
-		filename: '[name].js',
-		libraryTarget: 'commonjs2',
-		devtoolModuleFilenameTemplate: '../[resource-path]'
-	},
-	devtool: 'source-map',
-	externals: {
-		vscode: 'commonjs vscode',
-	},
-	resolve: {
-		extensions: ['.ts', '.js']
-	},
-	module: {
-		rules: [
-			{
-				test: /\.ts$/,
-				exclude: /node_modules/,
-				use: [
-					{
-						loader: 'ts-loader'
-					}
-				]
-			}
-		]
-	}
+    output: {
+        filename: '[name].js',
+        libraryTarget: 'commonjs2',
+        devtoolModuleFilenameTemplate: '../[resource-path]'
+    },
+    devtool: 'source-map',
+    externals: {
+        vscode: 'commonjs vscode',
+    },
+    resolve: {
+        extensions: ['.ts', '.js']
+    },
+    module: {
+        rules: [
+            {
+                test: /\.ts$/,
+                exclude: /node_modules/,
+                use: [
+                    {
+                        loader: 'ts-loader'
+                    }
+                ]
+            }
+        ]
+    }
 };
 module.exports = config;

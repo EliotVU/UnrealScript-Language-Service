@@ -68,6 +68,7 @@ identifier
 	| 'privatewrite'
 	| 'localized'
 	| 'out'
+	| 'ref'
 	| 'optional'
 	| 'init'
 	| 'skip'
@@ -110,7 +111,7 @@ identifier
 	// |'nousercreate'
 	// |'notplaceable'
 	// |'safereplace'
-	// |'dependson'
+	| 'dependson'
 	// |'showcategories'
 	// |'hidecategories'
 	// |'guid'
@@ -155,7 +156,7 @@ identifier
 	| 'k2override'
 	// |'collapsecategories'
 	// |'dontcollapsecategories'
-	// |'implements'
+	| 'implements'
 	// |'classgroup'
 	// |'autoexpandcategories'
 	// |'autocollapsecategories'
@@ -231,7 +232,6 @@ literal
 	| vectToken
 	| rotToken
 	| rngToken
-	| nameOfToken
 	| objectLiteral
 	;
 
@@ -259,52 +259,55 @@ classDecl
 extendsClause: ('extends' | 'expands') id=qualifiedIdentifier;
 withinClause: 'within' id=qualifiedIdentifier;
 
-classModifier: identifier modifierArguments?;
+classModifier
+    :
 	// in UC3 a class can have a custom native name.
-	// (kwNATIVE modifierArgument?)
-	// | kwNATIVEREPLICATION
-	// | kwLOCALIZED // UC1
-	// | kwABSTRACT
-	// | kwPEROBJECTCONFIG
-	// | kwTRANSIENT
-	// | kwEXPORT
-	// | kwNOEXPORT
-	// | kwNOUSERCREATE
-	// | kwSAFEREPLACE
-	// | (kwCONFIG modifierArgument?)
+	(KW_NATIVE modifierArgument?)                                                               #nativeModifier
+	// | KW_NATIVEREPLICATION
+	// | KW_LOCALIZED // UC1
+	// | KW_ABSTRACT
+	// | KW_PEROBJECTCONFIG
+	| KW_TRANSIENT                                                                              #transientModifier
+	| KW_EXPORT                                                                                 #exportModifier
+	// | KW_NOEXPORT
+	// | KW_NOUSERCREATE
+	// | KW_SAFEREPLACE
+	// | (KW_CONFIG modifierArgument?)
 	// // UC2+
-	// | kwPLACEABLE
-	// | kwNOTPLACEABLE
-	// | kwCACHEEXEMPT // UT2004
-	// | kwHIDEDROPDOWN
-	// | kwEXPORTSTRUCTS
-	// | kwINSTANCED
-	// | kwPARSECONFIG
-	// | kwEDITINLINENEW
-	// | kwNOTEDITINLINENEW
-	// | (kwDEPENDSON modifierArguments)
-	// | (kwCOLLAPSECATEGORIES modifierArguments)
-	// | (kwDONTCOLLAPSECATEGORIES modifierArguments?)
-	// | (kwSHOWCATEGORIES modifierArguments)
-	// | (kwHIDECATEGORIES modifierArguments)
-	// | (kwGUID (LPAREN INTEGER COMMA INTEGER COMMA INTEGER COMMA INTEGER RPAREN))
+	// | KW_PLACEABLE
+	// | KW_NOTPLACEABLE
+	// | KW_CACHEEXEMPT // UT2004
+	// | KW_HIDEDROPDOWN
+	// | KW_EXPORTSTRUCTS
+	// | KW_INSTANCED
+	// | KW_PARSECONFIG
+	// | KW_EDITINLINENEW
+	// | KW_NOTEDITINLINENEW
+	| (KW_DEPENDSON OPEN_PARENS identifierArguments CLOSE_PARENS)                               #dependsOnModifier
+	// | (KW_COLLAPSECATEGORIES modifierArguments)
+	// | (KW_DONTCOLLAPSECATEGORIES modifierArguments?)
+	// | (KW_SHOWCATEGORIES modifierArguments)
+	// | (KW_HIDECATEGORIES modifierArguments)
+	// | (KW_GUID (LPAREN INTEGER COMMA INTEGER COMMA INTEGER COMMA INTEGER RPAREN))
 	// // UC3+
-	// | kwNATIVEONLY
-	// | kwNONTRANSIENT
-	// | kwPEROBJECTLOCALIZED
-	// | kwDEPRECATED
-	// | (kwCLASSREDIRECT modifierArguments)
-	// | (kwDLLBIND modifierArgument)
-	// | (kwIMPLEMENTS modifierArgument)
-	// | (kwCLASSGROUP modifierArguments)
-	// | (kwAUTOEXPANDCATEGORIES modifierArguments)
-	// | (kwAUTOCOLLAPSECATEGORIES modifierArguments)
-	// | (kwDONTAUTOCOLLAPSECATEGORIES modifierArguments)
-	// | (kwDONTSORTCATEGORIES modifierArguments)
-	// | (kwINHERITS modifierArguments)
+	// | KW_NATIVEONLY
+	// | KW_NONTRANSIENT
+	// | KW_PEROBJECTLOCALIZED
+	// | KW_DEPRECATED
+	// | (KW_CLASSREDIRECT modifierArgument)
+	// | (KW_DLLBIND modifierArgument)
+	| (KW_IMPLEMENTS OPEN_PARENS qualifiedIdentifierArguments CLOSE_PARENS)                     #implementsModifier
+	// | (KW_CLASSGROUP modifierArguments)
+	// | (KW_AUTOEXPANDCATEGORIES modifierArguments)
+	// | (KW_AUTOCOLLAPSECATEGORIES modifierArguments)
+	// | (KW_DONTAUTOCOLLAPSECATEGORIES modifierArguments)
+	// | (KW_DONTSORTCATEGORIES modifierArguments)
+	// | (KW_INHERITS modifierArguments)
 	// // true/false only
-	// | (kwFORCESCRIPTORDER modifierArgument)
+	// | (KW_FORCESCRIPTORDER modifierArgument)
 	// ; //ID (LPARENT ID (COMMA ID)* RPARENT)?
+    | (identifier modifierArguments?)                                                           #unidentifiedModifier
+    ;
 
 modifierValue
 	: identifier
@@ -312,12 +315,20 @@ modifierValue
 	;
 
 modifierArgument
-	: OPEN_PARENS modifierValue CLOSE_PARENS
+	: OPEN_PARENS modifierValue? CLOSE_PARENS
 	;
 
 modifierArguments
-	: OPEN_PARENS (modifierValue COMMA?)+ CLOSE_PARENS
+	: OPEN_PARENS (modifierValue COMMA?)* CLOSE_PARENS
 	;
+
+identifierArguments
+    : (identifier COMMA?)*
+    ;
+
+qualifiedIdentifierArguments
+    : (qualifiedIdentifier COMMA?)*
+    ;
 
 constDecl
 	: 'const' identifier (ASSIGNMENT expr=constValue)? SEMICOLON
@@ -339,6 +350,14 @@ constValue
 	| sizeOfToken
 	;
 
+arrayCountToken
+    : 'arraycount' (OPEN_PARENS expr=primaryExpression CLOSE_PARENS)
+    ;
+
+nameOfToken
+    : 'nameof' (OPEN_PARENS expr=primaryExpression CLOSE_PARENS)
+    ;
+
 vectToken
 	: 'vect' (OPEN_PARENS numberLiteral COMMA numberLiteral COMMA numberLiteral CLOSE_PARENS)
 	;
@@ -349,14 +368,6 @@ rotToken
 
 rngToken
 	: 'rng' (OPEN_PARENS numberLiteral COMMA numberLiteral CLOSE_PARENS)
-	;
-
-arrayCountToken
-	: 'arraycount' (OPEN_PARENS identifier CLOSE_PARENS)
-	;
-
-nameOfToken
-	: 'nameof' (OPEN_PARENS identifier CLOSE_PARENS)
 	;
 
 sizeOfToken
@@ -451,6 +462,7 @@ categoryList
 variableModifier
 	: ('localized'
 	| 'native'
+    | 'intrinsic'
 	| 'const'
 	| 'editconst'
 	| 'globalconfig'
@@ -567,7 +579,7 @@ replicationModifier
 	;
 
 replicationStatement
-	: replicationModifier? 'if' (OPEN_PARENS expression CLOSE_PARENS)
+	: replicationModifier? 'if' (OPEN_PARENS expr=expression CLOSE_PARENS)
 		identifier (COMMA identifier)* SEMICOLON
 	;
 
@@ -575,9 +587,13 @@ replicationStatement
  * public simulated function coerce class<Actor> test(optional int p1, int p2) const;
  */
 functionDecl
-	: functionSpecifier+ (returnTypeModifier? returnType=typeDecl)?
+	: functionSpecifier+ returnParam=functionReturnParam?
 	  functionName (OPEN_PARENS params=parameters? CLOSE_PARENS) 'const'?
-	  functionBody
+	  functionBody?
+	;
+
+functionReturnParam
+	: returnTypeModifier? typeDecl
 	;
 
 functionBody
@@ -626,6 +642,7 @@ functionSpecifier
 	| 'k2pure'
 	| 'k2override')
 	| ('native' (OPEN_PARENS nativeToken=INTEGER CLOSE_PARENS)?)
+	| ('intrinsic' (OPEN_PARENS nativeToken=INTEGER CLOSE_PARENS)?)
 	| ('operator' (OPEN_PARENS operatorPrecedence=INTEGER CLOSE_PARENS))
 	| ('public' exportBlockText?)
 	| ('protected' exportBlockText?)
@@ -635,7 +652,7 @@ functionSpecifier
 functionName: identifier | operatorName;
 
 parameters: paramDecl (COMMA paramDecl)*;
-paramDecl: paramModifier* typeDecl variable (ASSIGNMENT expression)?;
+paramDecl: paramModifier* typeDecl variable (ASSIGNMENT expr=expression)?;
 
 returnTypeModifier
 	: 'coerce' // UC3+
@@ -643,6 +660,7 @@ returnTypeModifier
 
 paramModifier
 	: 'out'
+	| 'ref'	// XCom or late UC3+ (Seen in other licenseed games).
 	| 'optional'
 	| 'init'
 	| 'skip'
@@ -712,13 +730,13 @@ statement
 expressionStatement: expressionWithAssignment SEMICOLON;
 
 ifStatement
-	: 'if' (OPEN_PARENS expression CLOSE_PARENS)
+	: 'if' (OPEN_PARENS expr=expression? CLOSE_PARENS)
 		codeBlockOptional
 	  elseStatement?
 	;
 
 elseStatement: 'else' codeBlockOptional;
-foreachStatement: 'foreach' primaryExpression codeBlockOptional;
+foreachStatement: 'foreach' expr=primaryExpression codeBlockOptional;
 
 forStatement
 	: 'for' (OPEN_PARENS (initExpr=expressionWithAssignment SEMICOLON) (condExpr=expressionWithAssignment SEMICOLON) nextExpr=expressionWithAssignment CLOSE_PARENS)
@@ -726,18 +744,18 @@ forStatement
 	;
 
 whileStatement
-	: 'while' (OPEN_PARENS expression CLOSE_PARENS)
+	: 'while' (OPEN_PARENS expr=expression? CLOSE_PARENS)
 		codeBlockOptional
 	;
 
 doStatement
 	: 'do'
 		codeBlockOptional
-	  'until' (OPEN_PARENS expression CLOSE_PARENS)
+	  'until' (OPEN_PARENS expr=expression? CLOSE_PARENS)
 	;
 
 switchStatement
-	: 'switch' (OPEN_PARENS expression CLOSE_PARENS)
+	: 'switch' (OPEN_PARENS expr=expression? CLOSE_PARENS)
 		// Note: Switch braces are NOT optional
 		OPEN_BRACE
 			caseClause*
@@ -746,7 +764,7 @@ switchStatement
 	;
 
 caseClause
-	: 'case' expression? COLON
+	: 'case' expr=expression? COLON
 		statement*
 	;
 
@@ -755,13 +773,13 @@ defaultClause
 		statement*
 	;
 
-returnStatement: 'return' expression? SEMICOLON;
+returnStatement: 'return' expr=expression? SEMICOLON;
 breakStatement: 'break' SEMICOLON;
 continueStatement: 'continue' SEMICOLON;
 stopStatement: 'stop' SEMICOLON;
 labeledStatement: identifier COLON;
-gotoStatement: 'goto' expression SEMICOLON;
-assertStatement: 'assert' (OPEN_PARENS expression CLOSE_PARENS) SEMICOLON;
+gotoStatement: 'goto' expr=expression? SEMICOLON;
+assertStatement: 'assert' (OPEN_PARENS expr=expression? CLOSE_PARENS) SEMICOLON;
 
 // All valid operator names (for declarations)
 operatorName
@@ -818,26 +836,18 @@ expression
 
 assignmentExpression
 	: left=primaryExpression id=ASSIGNMENT right=primaryExpression
-	| left=primaryExpression id=(ASSIGNMENT_INCR
-	| ASSIGNMENT_DECR
-	| ASSIGNMENT_AT
-	| ASSIGNMENT_DOLLAR
-	| ASSIGNMENT_AND
-	| ASSIGNMENT_OR
-	| ASSIGNMENT_STAR
-	| ASSIGNMENT_CARET
-	| ASSIGNMENT_DIV) right=primaryExpression
 	;
 
 primaryExpression
-	: primaryExpression (OPEN_BRACKET expression CLOSE_BRACKET) 							#elementAccessExpression
-	| primaryExpression '.' classPropertyAccessSpecifier '.' identifier						#propertyAccessExpression
-	| primaryExpression '.' identifier														#propertyAccessExpression
+	: primaryExpression (OPEN_BRACKET arg=expression? CLOSE_BRACKET) 						#elementAccessExpression
+	| primaryExpression '.' classPropertyAccessSpecifier '.' identifier						#propertyClassAccessExpression
+	| primaryExpression '.' identifier?												        #propertyAccessExpression
 	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 								#callExpression
 
-	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? primaryExpression				#newExpression
-	| 'class' 		(LT identifier GT) (OPEN_PARENS expression CLOSE_PARENS)				#metaClassExpression
-	| 'arraycount' 	(OPEN_PARENS primaryExpression CLOSE_PARENS)							#arrayCountExpression
+	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? expr=primaryExpression			#newExpression
+	| 'class' 		(LT identifier GT) (OPEN_PARENS expr=expression CLOSE_PARENS)			#metaClassExpression
+	| 'arraycount' 	(OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#arrayCountExpression
+	| 'nameof' 	    (OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#nameOfExpression
 	| 'super' 		(OPEN_PARENS identifier CLOSE_PARENS)?									#superExpression
 
 	| id=INCR right=primaryExpression														#preOperatorExpression
@@ -852,6 +862,16 @@ primaryExpression
 	| id=AT right=primaryExpression															#preOperatorExpression
 	| left=primaryExpression id=INCR 														#postOperatorExpression
 	| left=primaryExpression id=DECR 														#postOperatorExpression
+
+	| left=primaryExpression id=(ASSIGNMENT_INCR
+		| ASSIGNMENT_DECR
+		| ASSIGNMENT_AT
+		| ASSIGNMENT_DOLLAR
+		| ASSIGNMENT_AND
+		| ASSIGNMENT_OR
+		| ASSIGNMENT_STAR
+		| ASSIGNMENT_CARET
+		| ASSIGNMENT_DIV) right=primaryExpression											#binaryOperatorExpression
 
 	| left=primaryExpression id=EXP right=primaryExpression 								#binaryOperatorExpression
 	| left=primaryExpression id=(STAR|DIV) right=primaryExpression 							#binaryOperatorExpression
@@ -884,7 +904,7 @@ primaryExpression
 	// | id=identifier right=primaryExpression													#preNamedOperatorExpression
 	// | left=primaryExpression id=identifier													#postNamedOperatorExpression
 
-	| (OPEN_PARENS expression CLOSE_PARENS) 												#parenthesizedExpression
+	| (OPEN_PARENS expr=primaryExpression CLOSE_PARENS) 									#parenthesizedExpression
 	;
 
 classPropertyAccessSpecifier
@@ -897,56 +917,71 @@ classPropertyAccessSpecifier
 argument: COMMA | expression COMMA?;
 arguments: argument+;
 
+// (~CLOSE_BRACE { this.notifyErrorListeners('Redundant token!'); })
 defaultPropertiesBlock
 	:
 		'defaultproperties'
 		// UnrealScriptBug: Must be on the line after keyword!
-		OPEN_BRACE
-			defaultStatement*
-		CLOSE_BRACE
+		(OPEN_BRACE defaultStatement* CLOSE_BRACE)
 	;
 
 structDefaultPropertiesBlock
 	:
 		'structdefaultproperties'
 		// UnrealScriptBug: Must be on the line after keyword!
-		OPEN_BRACE
-			defaultStatement*
-		CLOSE_BRACE
+		(OPEN_BRACE defaultStatement* CLOSE_BRACE)
 	;
 
 // TODO: Perhaps do what we do in the directive rule, just skip until we hit a new line or a "|".
 defaultStatement
 	: objectDecl
 	| defaultAssignmentExpression
-
-	// TODO: Add a warning, from a technical point of view,
-	// -- the UC compiler just skips any character till it hits a newline character.
-	| SEMICOLON
+	| defaultMemberCallExpression
 
 	// "command chaining", e.g. "IntA=1|IntB=2" is valid code,
 	// -- but if the | were a space, the second variable will be ignored (by the compiler).
 	| BITWISE_OR
+
+	// TODO: Add a warning, from a technical point of view,
+	// -- the UC compiler just skips any character till it hits a newline character.
+	| SEMICOLON
 	;
 
 defaultExpression
-	: identifier DOT defaultExpression 							#defaultPropertyAccessExpression
-	| identifier (OPEN_PARENS INTEGER CLOSE_PARENS)				#defaultElementAccessExpression
-	| identifier (OPEN_PARENS arguments? CLOSE_PARENS )			#defaultCallExpression
-	| identifier (OPEN_BRACKET INTEGER CLOSE_BRACKET)			#defaultElementAccessExpression
-	| identifier												#defaultMemberExpression
+	: identifier (OPEN_BRACKET arg=defaultArgument CLOSE_BRACKET)				#defaultElementAccessExpression
+	| identifier (OPEN_PARENS arg=defaultArgument CLOSE_PARENS)					#defaultElementAccessExpression
+	| identifier																#defaultMemberExpression
+	;
+
+// TODO: does UC coerce float here?
+defaultArgument
+	: intLiteral
+	| floatLiteral
+	// TODO: Is this possible?
+	// | qualifiedIdentifierLiteral
+	| identifierLiteral
 	;
 
 defaultAssignmentExpression
 	: defaultExpression ASSIGNMENT ((OPEN_BRACE defaultLiteral CLOSE_BRACE) | defaultLiteral)
 	;
 
+// TODO: (verify) Could the first identifier be a defaultExpression e.g. Array(0).ArrayMember.Add(1)?
+defaultMemberCallExpression
+	: identifier DOT propId=identifier (OPEN_PARENS arguments? CLOSE_PARENS)?
+	;
+
 objectDecl
 	:
 		// UnrealScriptBug: name= and class= are required to be on the same line as the keyword!
-		'begin' 'object'
+		('begin' 'object') objectAttribute+
 			defaultStatement*
-		'end' 'object'
+		('end' 'object')
+	;
+
+objectAttribute
+	: id=KW_NAME ASSIGNMENT value=identifier
+	| id=KW_CLASS ASSIGNMENT value=identifier
 	;
 
 // (variableList)

@@ -1,16 +1,14 @@
 import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
 
-import { intersectsWith } from '../helpers';
 import { UCDocument } from '../document';
-import { UCBlock } from '../statements';
+import { intersectsWith } from '../helpers';
 import { Name } from '../names';
+import { UCBlock } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
-
 import {
-	ISymbol, ISymbolContainer,
-	UCFieldSymbol,
-	UCSymbol, ITypeSymbol
-} from ".";
+    ISymbol, ISymbolContainer, ITypeSymbol, UCFieldSymbol, UCMethodSymbol, UCStateSymbol, UCSymbol,
+    UCTypeFlags
+} from './';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
 	public extendsType?: ITypeSymbol;
@@ -26,44 +24,47 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return CompletionItemKind.Module;
 	}
 
-	getCompletionSymbols(document: UCDocument, _context: string) {
+	getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, type?: UCTypeFlags) {
 		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
+			if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
+				continue;
+			}
 			if (child.acceptCompletion(document, this)) {
 				symbols.push(child);
 			}
 		}
 
-		let parent = this.super || this.outer as UCStructSymbol;
-		for (; parent; parent = parent.super || parent.outer as UCStructSymbol) {
+		let parent = this.super ?? this.outer as UCStructSymbol;
+		for (; parent; parent = parent.super ?? parent.outer as UCStructSymbol) {
 			for (let child = parent.children; child; child = child.next) {
+				if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
+					continue;
+				}
 				if (child.acceptCompletion(document, this)) {
 					symbols.push(child);
 				}
 			}
 		}
-		return symbols;
+		return symbols as C[];
 	}
 
 	getCompletionContext(position: Position) {
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
 			if (intersectsWith(symbol.getRange(), position)) {
-				return symbol.getCompletionContext(position);
+				const context = symbol.getCompletionContext(position);
+				if (context) {
+					return context;
+				}
 			}
 		}
 		return this;
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		let symbol: ISymbol | undefined;
-		if (this.extendsType && (symbol = this.extendsType.getSymbolAtPos(position))) {
-			return symbol;
-		}
-
-		if (this.block && (symbol = this.block.getSymbolAtPos(position))) {
-			return symbol;
-		}
-		return this.getChildSymbolAtPos(position);
+		return this.extendsType?.getSymbolAtPos(position)
+			?? this.block?.getSymbolAtPos(position)
+			?? this.getChildSymbolAtPos(position);
 	}
 
 	getChildSymbolAtPos(position: Position) {
@@ -76,7 +77,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	addSymbol(symbol: UCFieldSymbol): Name | undefined {
+	addSymbol(symbol: UCFieldSymbol): number | undefined {
 		symbol.outer = this;
 		symbol.next = this.children;
 		symbol.containingStruct = this;
@@ -85,24 +86,35 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	addAlias(key: Name, symbol: ISymbol) {
-		throw 'not implemented';
-	}
+    removeSymbol(symbol: UCFieldSymbol) {
+        if (this.children === symbol) {
+            this.children = symbol.next;
+            symbol.next = undefined;
+            return;
+        }
 
-	getSymbol(id: Name, kind?: SymbolKind): UCSymbol | undefined {
+        for (let child = this.children; child; child = child.next) {
+			if (child.next === symbol) {
+                child.next = symbol.next;
+                break;
+			}
+		}
+    }
+
+	getSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCTypeFlags): T | undefined {
 		for (let child = this.children; child; child = child.next) {
-			if (child.getId() === id) {
-				if (kind !== undefined && (child.getTypeKind() & kind) === 0) {
+			if (child.getName() === id) {
+				if (kind !== undefined && (child.getTypeFlags() & kind) === 0) {
 					continue;
 				}
-				return child;
+				return child as T;
 			}
 		}
 		return undefined;
 	}
 
-	findSuperSymbol(id: Name, kind?: SymbolKind): UCSymbol | undefined {
-		return this.getSymbol(id, kind) || this.super && this.super.findSuperSymbol(id, kind);
+	findSuperSymbol(id: Name, kind?: UCTypeFlags): UCSymbol | undefined {
+		return this.getSymbol(id, kind) ?? this.super?.findSuperSymbol(id, kind);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
@@ -111,7 +123,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			this.extendsType.index(document, context);
 			// Ensure that we don't overwrite super assignment from our descendant class.
 			if (!this.super) {
-				this.super = this.extendsType.getReference() as UCStructSymbol;
+				this.super = this.extendsType.getRef() as UCStructSymbol;
 			}
 		}
 
@@ -119,7 +131,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			try {
 				child.index(document, this);
 			} catch (err) {
-				console.error(`Encountered an error while indexing '${child.getQualifiedName()}': ${err}`);
+				console.error(`Encountered an error while indexing '${child.getPath()}': ${err}`);
 			}
 		}
 	}
@@ -132,11 +144,35 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 /**
  * Looks up the @struct's hierachy for a matching @id
  */
-export function findSuperStruct(struct: UCStructSymbol, id: Name): UCStructSymbol | undefined {
-	for (let other = struct.super; other; other = other.super) {
-		if (other.getId() === id) {
+export function findSuperStruct(context: UCStructSymbol, id: Name): UCStructSymbol | undefined {
+	for (let other = context.super; other; other = other.super) {
+		if (other.getName() === id) {
 			return other;
 		}
 	}
 	return undefined;
+}
+
+/**
+ * Searches a @param context for a symbol with a matching @param id along with a @param predicate,
+ * - if there was no predicate match, the last id matched symbol will be returned instead.
+ */
+export function findSymbol(context: UCStructSymbol, id: Name, predicate: (symbol: UCFieldSymbol) => boolean): UCSymbol | undefined {
+	let scope = context instanceof UCMethodSymbol ? context.outer : context;
+	if (scope instanceof UCStateSymbol) {
+		scope = scope.outer;
+	}
+
+	let bestChild: UCSymbol | undefined = undefined;
+	for (; scope instanceof UCStructSymbol; scope = scope.super) {
+		for (var child = scope.children; child; child = child.next) {
+			if (child.getName() === id) {
+				if (predicate(child)) {
+					return child;
+				}
+				bestChild = child;
+			}
+		}
+	}
+	return bestChild;
 }

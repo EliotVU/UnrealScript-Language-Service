@@ -1,12 +1,10 @@
-import { Range, DiagnosticSeverity, Diagnostic } from 'vscode-languageserver-types';
-import { UCSymbol, UCSymbolReference } from "../Symbols";
-import { IExpression } from '../expressions';
+import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver-types';
 
 export interface IDiagnosticNode {
 	getRange(): Range;
 }
 
-export class SyntaxErrorNode implements IDiagnosticNode {
+export class ErrorDiagnostic implements IDiagnosticNode {
 	constructor(private range: Range, private error: string) {
 	}
 
@@ -19,66 +17,15 @@ export class SyntaxErrorNode implements IDiagnosticNode {
 	}
 }
 
-export class ExpressionErrorNode implements IDiagnosticNode {
-	constructor(private symbol: IExpression, private error: string) {
-	}
-
-	getRange(): Range {
-		return this.symbol.getRange();
-	}
-
-	toString(): string {
-		return this.error;
-	}
+export interface IDiagnosticMessage {
+	text: string;
+	code?: string;
+	severity?: DiagnosticSeverity | number
 }
 
-export class SemanticErrorNode implements IDiagnosticNode {
-	// FIXME: just accept a range
-	constructor(private symbol: UCSymbol | UCSymbolReference, private error: string) {
-	}
-
-	getRange(): Range {
-		return this.symbol.id.range;
-	}
-
-	toString(): string {
-		return this.error;
-	}
-}
-
-export class UnrecognizedTypeNode implements IDiagnosticNode {
-	constructor(private symbol: UCSymbol) {
-	}
-
-	getRange(): Range {
-		return this.symbol.id.range;
-	}
-
-	toString(): string {
-		return `Type '${this.symbol.getId()}' not found!`;
-	}
-}
-
-export class UnrecognizedFieldNode implements IDiagnosticNode {
-	constructor(private symbol: UCSymbol, private context?: UCSymbol) {
-	}
-
-	getRange(): Range {
-		return this.symbol.id.range;
-	}
-
-	toString(): string {
-		return this.context
-			? `'${this.symbol.getId()}' Does not exist on type '${this.context.getQualifiedName()}'!`
-			: `Couldn't find '${this.symbol.getId()}'!`;
-	}
-}
-
-// TODO: Deprecate redundant node classes above this comment!
-
-interface IDiagnosticTemplate {
+export interface IDiagnosticTemplate {
 	range: Range;
-	message: { text: string, code?: string, severity?: DiagnosticSeverity | number };
+	message: IDiagnosticMessage;
 	args?: string[];
 
 	custom?: { [key: string]: any, unnecessary?: {} };

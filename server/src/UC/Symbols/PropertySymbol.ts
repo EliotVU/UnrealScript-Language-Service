@@ -1,41 +1,37 @@
-import { SymbolKind, CompletionItemKind, Position, Range } from 'vscode-languageserver-types';
-
-import * as UCParser from '../../antlr/UCParser';
+import { CompletionItemKind, Position, Range, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { SymbolWalker } from '../symbolWalker';
-import { DocumentASTWalker } from '../documentASTWalker';
-import { rangeFromBound } from '../helpers';
-import { NAME_ENUMCOUNT } from '../names';
 import { config, UCGeneration } from '../indexer';
-
+import { NAME_ENUMCOUNT } from '../names';
+import { SymbolWalker } from '../symbolWalker';
 import {
-	ITypeSymbol, UCTypeKind,
-	UCFieldSymbol, UCStructSymbol,
-	UCEnumSymbol, UCEnumMemberSymbol,
-	UCConstSymbol, NativeArray, ISymbol, UCSymbol
-} from '.';
+    ISymbol, ITypeSymbol, UCConstSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCFieldSymbol,
+    UCStructSymbol, UCSymbol, UCTypeFlags
+} from './';
+import { FieldModifiers } from './FieldSymbol';
+import { resolveType } from './TypeSymbol';
 
 export class UCPropertySymbol extends UCFieldSymbol {
+	// The type if specified, i.e. "var Object Outer;" Object here is represented by @type, including the resolved symbol.
 	public type?: ITypeSymbol;
 
-	// Array dimension if specified, string should consist of an integer.
-	private arrayDim?: string;
-	public arrayDimRange?: Range;
+	// The array dimension if specified, undefined if @arrayDimRef is truthy.
+	public arrayDim?: number;
 
 	// Array dimension is statically based on a declared symbol, such as a const or enum member.
 	public arrayDimRef?: ITypeSymbol;
+	public arrayDimRange?: Range;
 
 	/**
 	 * Returns true if this property is declared as a static array type (false if it's is dynamic!).
 	 * Note that this property will be seen as a static array even if the @arrayDim value is invalid.
 	 */
 	isFixedArray(): boolean {
-		return !!this.arrayDimRef || Boolean(this.arrayDim);
+		return (this.modifiers & FieldModifiers.WithDimension) === FieldModifiers.WithDimension;
 	}
 
 	isDynamicArray(): boolean {
-		return (this.type && this.type.getReference()) === NativeArray;
+		return (this.type?.getTypeFlags() === UCTypeFlags.Array);
 	}
 
 	/**
@@ -43,32 +39,37 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	 * Returns undefined if unresolved.
 	 */
 	getArrayDimSize(): number | undefined {
-		const symbol = this.arrayDimRef && this.arrayDimRef.getReference();
-		if (symbol) {
-			if (symbol instanceof UCConstSymbol) {
-				return symbol.getComputedValue();
-			}
+		if (this.arrayDimRef) {
+			const symbol = this.arrayDimRef.getRef();
+			if (symbol) {
+				if (symbol instanceof UCConstSymbol) {
+					return symbol.getComputedValue();
+				}
 
-			if (config.generation === UCGeneration.UC3) {
-				if (symbol instanceof UCEnumSymbol) {
-					return (<UCEnumMemberSymbol>symbol.getSymbol(NAME_ENUMCOUNT)).value;
-				}
-				if (symbol instanceof UCEnumMemberSymbol) {
-					return symbol.value;
+				if (config.generation === UCGeneration.UC3) {
+					if (symbol instanceof UCEnumSymbol) {
+						return (<UCEnumMemberSymbol>symbol.getSymbol(NAME_ENUMCOUNT)).value;
+					}
+					if (symbol instanceof UCEnumMemberSymbol) {
+						return symbol.value;
+					}
 				}
 			}
-		} else if (this.arrayDim) {
-			return Number(this.arrayDim);
+			return undefined;
 		}
-		return undefined;
+		return this.arrayDim;
 	}
 
 	getKind(): SymbolKind {
 		return SymbolKind.Property;
 	}
 
-	getTypeKind() {
-		return this.type ? this.type.getTypeKind() : UCTypeKind.Error;
+	getTypeFlags() {
+		return UCTypeFlags.Property;
+	}
+
+	getType() {
+		return resolveType(this.type);
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
@@ -80,7 +81,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	protected getTooltipId() {
-		return this.getQualifiedName();
+		return this.getPath();
 	}
 
 	getTooltip() {
@@ -95,8 +96,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		text.push(this.getTooltipId());
 
 		if (this.isFixedArray()) {
-			// We want to avoid printing out 'undefined', so always fall back to 0 instead.
-			const arrayDim = this.getArrayDimSize() || 0;
+			const arrayDim = this.getArrayDimSize() ?? '';
 			text.push(text.pop() + `[${arrayDim}]`);
 		}
 
@@ -104,20 +104,19 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		const symbol = this.type && this.type.getSymbolAtPos(position);
-		return symbol || this.arrayDimRef && this.arrayDimRef.getSymbolAtPos(position);
+		return this.type?.getSymbolAtPos(position) || this.arrayDimRef?.getSymbolAtPos(position);
 	}
 
-	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
+	getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: string, kind?: UCTypeFlags): C[] {
 		if (context === '.') {
-			const resolvedType = this.type && this.type.getReference();
+			const resolvedType = this.type?.getRef();
 			if (resolvedType instanceof UCSymbol) {
-				return resolvedType.getCompletionSymbols(document, context);
+				return resolvedType.getCompletionSymbols<C>(document, context, kind);
 			}
 		}
 		// TODO: Filter by type only.
 		else if (document.class) {
-			return document.class.getCompletionSymbols(document, context);
+			return document.class.getCompletionSymbols<C>(document, context, kind);
 		}
 		return [];
 	}
@@ -125,31 +124,11 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	public index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
 
-		this.type && this.type.index(document, context);
-		this.arrayDimRef && this.arrayDimRef.index(document, context);
+		this.type?.index(document, context);
+		this.arrayDimRef?.index(document, context);
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitProperty(this);
-	}
-
-	walk(visitor: DocumentASTWalker, ctx: UCParser.VariableContext) {
-		const arrayDimNode = ctx._arrayDim;
-		if (!arrayDimNode) {
-			return;
-		}
-
-		const qualifiedNode = arrayDimNode.qualifiedIdentifier();
-		if (qualifiedNode) {
-			this.arrayDimRef = qualifiedNode.accept(visitor);
-			this.arrayDimRange = this.arrayDimRef && this.arrayDimRef.getRange();
-			return;
-		}
-
-		const intNode = arrayDimNode.INTEGER();
-		if (intNode) {
-			this.arrayDim = intNode.text;
-			this.arrayDimRange = rangeFromBound(intNode.symbol);
-		}
 	}
 }

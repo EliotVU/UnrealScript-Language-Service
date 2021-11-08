@@ -1,6 +1,9 @@
-import { UCStructSymbol, UCClassSymbol, UCStateSymbol, UCMethodSymbol, UCReplicationBlock, UCDefaultPropertiesBlock, UCObjectSymbol } from './Symbols';
-import { DefaultSymbolWalker } from './symbolWalker';
 import { UCDocument } from './document';
+import {
+    UCClassSymbol, UCDefaultPropertiesBlock, UCMethodSymbol, UCObjectSymbol, UCParamSymbol,
+    UCReplicationBlock, UCStateSymbol, UCStructSymbol
+} from './Symbols';
+import { DefaultSymbolWalker } from './symbolWalker';
 
 /**
  * Will initiate the indexing of all struct symbols that contain a block.
@@ -34,6 +37,13 @@ export class DocumentIndexer extends DefaultSymbolWalker {
 	visitMethod(symbol: UCMethodSymbol) {
 		if (symbol.block) {
 			symbol.block.index(this.document, symbol);
+		}
+
+		for (let child = symbol.children; child; child = child.next) {
+			// Parameter?
+			if (child instanceof UCParamSymbol && child.defaultExpression) {
+				child.defaultExpression.index(this.document, symbol);
+			}
 		}
 		return symbol;
 	}
