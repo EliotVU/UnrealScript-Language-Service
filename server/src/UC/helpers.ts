@@ -20,69 +20,69 @@ import {
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 
 export function rangeFromBound(token: Token): Range {
-	const length = (token as TokenExt).length;
-	const line = token.line - 1;
-	const start: Position = {
-		line,
-		character: token.charPositionInLine
-	};
-	const end: Position = {
-		line,
-		character: token.charPositionInLine + length
-	};
-	return { start, end };
+    const length = token.stopIndex - token.startIndex + 1;
+    const line = token.line - 1;
+    const start: Position = {
+        line,
+        character: token.charPositionInLine
+    };
+    const end: Position = {
+        line,
+        character: token.charPositionInLine + length
+    };
+    return { start, end };
 }
 
 export function rangeFromBounds(startToken: Token, stopToken: Token = startToken): Range {
-	const length = (stopToken as TokenExt).length;
-	const start: Position = {
-		line: startToken.line - 1,
-		character: startToken.charPositionInLine
-	};
-	const end: Position = {
-		line: stopToken.line - 1,
-		character: stopToken.charPositionInLine + length
-	};
-	return { start, end };
+    const length = stopToken.stopIndex - stopToken.startIndex + 1;
+    const start: Position = {
+        line: startToken.line - 1,
+        character: startToken.charPositionInLine
+    };
+    const end: Position = {
+        line: stopToken.line - 1,
+        character: stopToken.charPositionInLine + length
+    };
+    return { start, end };
 }
 
 export function rangeFromCtx(ctx: ParserRuleContext): Range {
-	const length = (ctx.stop as TokenExt).length;
-	const start = {
-		line: ctx.start.line - 1,
-		character: ctx.start.charPositionInLine
-	};
-	const end: Position = {
-		line: ctx.stop!.line - 1,
-		character: ctx.stop!.charPositionInLine + length
-	};
-	return { start, end };
+    const length = ctx.stop!.stopIndex - ctx.stop!.startIndex + 1;
+    const start = {
+        line: ctx.start.line - 1,
+        character: ctx.start.charPositionInLine
+    };
+    const end: Position = {
+        line: ctx.stop!.line - 1,
+        character: ctx.stop!.charPositionInLine + length
+    };
+    return { start, end };
 }
 
 export function intersectsWith(range: Range, position: Position): boolean {
-	if (position.line < range.start.line || position.line > range.end.line) {
-		return false;
-	}
+    if (position.line < range.start.line || position.line > range.end.line) {
+        return false;
+    }
 
-	if (range.start.line === range.end.line) {
-		return position.character >= range.start.character && position.character < range.end.character;
-	}
+    if (range.start.line === range.end.line) {
+        return position.character >= range.start.character && position.character <= range.end.character;
+    }
 
-	if (position.line === range.start.line) {
-		return position.character >= range.start.character;
-	}
+    if (position.line === range.start.line) {
+        return position.character >= range.start.character;
+    }
 
-	if (position.line === range.end.line) {
-		return position.character <= range.end.character;
-	}
-	return true;
+    if (position.line === range.end.line) {
+        return position.character <= range.end.character;
+    }
+    return true;
 }
 
 export function intersectsWithRange(position: Position, range: Range): boolean {
-	return position.line >= range.start.line
-		&& position.line <= range.end.line
-		&& position.character >= range.start.character
-		&& position.character < range.end.character;
+    return position.line >= range.start.line
+        && position.line <= range.end.line
+        && position.character >= range.start.character
+        && position.character <= range.end.character;
 }
 
 function getDocumentSymbol(document: UCDocument, position: Position): ISymbol | undefined {
