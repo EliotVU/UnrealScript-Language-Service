@@ -190,6 +190,8 @@ KW_SELF: 'self';
 KW_SUPER: 'super';
 KW_POINTER: 'pointer';
 KW_EXPANDS: 'expands';
+KW_IMPLEMENTS: 'implements';
+KW_DEPENDSON: 'dependson';
 KW_K2CALL: 'k2call';
 KW_K2PURE: 'k2pure';
 KW_K2OVERRIDE: 'k2override';

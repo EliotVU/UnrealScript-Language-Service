@@ -27,6 +27,34 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return `struct ${this.getPath()}`;
 	}
 
+    getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, type?: UCTypeFlags) {
+		const symbols: ISymbol[] = [];
+		for (let child = this.children; child; child = child.next) {
+			if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
+				continue;
+			}
+			if (child.acceptCompletion(document, this)) {
+				symbols.push(child);
+			}
+		}
+
+		for (let parent = this.super; parent; parent = parent.super) {
+            if ((parent.getTypeFlags() & UCTypeFlags.Struct) === 0) {
+                break;
+            }
+
+			for (let child = parent.children; child; child = child.next) {
+				if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
+					continue;
+				}
+				if (child.acceptCompletion(document, this)) {
+					symbols.push(child);
+				}
+			}
+		}
+		return symbols as C[];
+	}
+
 	acceptCompletion(_document: UCDocument, context: UCSymbol): boolean {
 		return (context instanceof UCPropertySymbol || context instanceof UCMethodSymbol);
 	}

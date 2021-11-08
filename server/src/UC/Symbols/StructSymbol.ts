@@ -24,10 +24,10 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return CompletionItemKind.Module;
 	}
 
-	getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, kind?: UCTypeFlags) {
+	getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, type?: UCTypeFlags) {
 		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
-			if (typeof kind !== 'undefined' && child.getTypeFlags() !== kind) {
+			if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
 				continue;
 			}
 			if (child.acceptCompletion(document, this)) {
@@ -38,7 +38,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		let parent = this.super ?? this.outer as UCStructSymbol;
 		for (; parent; parent = parent.super ?? parent.outer as UCStructSymbol) {
 			for (let child = parent.children; child; child = child.next) {
-				if (typeof kind !== 'undefined' && child.getTypeFlags() !== kind) {
+				if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
 					continue;
 				}
 				if (child.acceptCompletion(document, this)) {

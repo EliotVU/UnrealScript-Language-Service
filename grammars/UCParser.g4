@@ -111,7 +111,7 @@ identifier
 	// |'nousercreate'
 	// |'notplaceable'
 	// |'safereplace'
-	// |'dependson'
+	| 'dependson'
 	// |'showcategories'
 	// |'hidecategories'
 	// |'guid'
@@ -156,7 +156,7 @@ identifier
 	| 'k2override'
 	// |'collapsecategories'
 	// |'dontcollapsecategories'
-	// |'implements'
+	| 'implements'
 	// |'classgroup'
 	// |'autoexpandcategories'
 	// |'autocollapsecategories'
@@ -260,52 +260,55 @@ classDecl
 extendsClause: ('extends' | 'expands') id=qualifiedIdentifier;
 withinClause: 'within' id=qualifiedIdentifier;
 
-classModifier: identifier modifierArguments?;
+classModifier
+    :
 	// in UC3 a class can have a custom native name.
-	// (kwNATIVE modifierArgument?)
-	// | kwNATIVEREPLICATION
-	// | kwLOCALIZED // UC1
-	// | kwABSTRACT
-	// | kwPEROBJECTCONFIG
-	// | kwTRANSIENT
-	// | kwEXPORT
-	// | kwNOEXPORT
-	// | kwNOUSERCREATE
-	// | kwSAFEREPLACE
-	// | (kwCONFIG modifierArgument?)
+	(KW_NATIVE modifierArgument?)                                                               #nativeModifier
+	// | KW_NATIVEREPLICATION
+	// | KW_LOCALIZED // UC1
+	// | KW_ABSTRACT
+	// | KW_PEROBJECTCONFIG
+	| KW_TRANSIENT                                                                              #transientModifier
+	| KW_EXPORT                                                                                 #exportModifier
+	// | KW_NOEXPORT
+	// | KW_NOUSERCREATE
+	// | KW_SAFEREPLACE
+	// | (KW_CONFIG modifierArgument?)
 	// // UC2+
-	// | kwPLACEABLE
-	// | kwNOTPLACEABLE
-	// | kwCACHEEXEMPT // UT2004
-	// | kwHIDEDROPDOWN
-	// | kwEXPORTSTRUCTS
-	// | kwINSTANCED
-	// | kwPARSECONFIG
-	// | kwEDITINLINENEW
-	// | kwNOTEDITINLINENEW
-	// | (kwDEPENDSON modifierArguments)
-	// | (kwCOLLAPSECATEGORIES modifierArguments)
-	// | (kwDONTCOLLAPSECATEGORIES modifierArguments?)
-	// | (kwSHOWCATEGORIES modifierArguments)
-	// | (kwHIDECATEGORIES modifierArguments)
-	// | (kwGUID (LPAREN INTEGER COMMA INTEGER COMMA INTEGER COMMA INTEGER RPAREN))
+	// | KW_PLACEABLE
+	// | KW_NOTPLACEABLE
+	// | KW_CACHEEXEMPT // UT2004
+	// | KW_HIDEDROPDOWN
+	// | KW_EXPORTSTRUCTS
+	// | KW_INSTANCED
+	// | KW_PARSECONFIG
+	// | KW_EDITINLINENEW
+	// | KW_NOTEDITINLINENEW
+	| (KW_DEPENDSON OPEN_PARENS identifierArguments CLOSE_PARENS)                               #dependsOnModifier
+	// | (KW_COLLAPSECATEGORIES modifierArguments)
+	// | (KW_DONTCOLLAPSECATEGORIES modifierArguments?)
+	// | (KW_SHOWCATEGORIES modifierArguments)
+	// | (KW_HIDECATEGORIES modifierArguments)
+	// | (KW_GUID (LPAREN INTEGER COMMA INTEGER COMMA INTEGER COMMA INTEGER RPAREN))
 	// // UC3+
-	// | kwNATIVEONLY
-	// | kwNONTRANSIENT
-	// | kwPEROBJECTLOCALIZED
-	// | kwDEPRECATED
-	// | (kwCLASSREDIRECT modifierArguments)
-	// | (kwDLLBIND modifierArgument)
-	// | (kwIMPLEMENTS modifierArgument)
-	// | (kwCLASSGROUP modifierArguments)
-	// | (kwAUTOEXPANDCATEGORIES modifierArguments)
-	// | (kwAUTOCOLLAPSECATEGORIES modifierArguments)
-	// | (kwDONTAUTOCOLLAPSECATEGORIES modifierArguments)
-	// | (kwDONTSORTCATEGORIES modifierArguments)
-	// | (kwINHERITS modifierArguments)
+	// | KW_NATIVEONLY
+	// | KW_NONTRANSIENT
+	// | KW_PEROBJECTLOCALIZED
+	// | KW_DEPRECATED
+	// | (KW_CLASSREDIRECT modifierArgument)
+	// | (KW_DLLBIND modifierArgument)
+	| (KW_IMPLEMENTS OPEN_PARENS qualifiedIdentifierArguments CLOSE_PARENS)                     #implementsModifier
+	// | (KW_CLASSGROUP modifierArguments)
+	// | (KW_AUTOEXPANDCATEGORIES modifierArguments)
+	// | (KW_AUTOCOLLAPSECATEGORIES modifierArguments)
+	// | (KW_DONTAUTOCOLLAPSECATEGORIES modifierArguments)
+	// | (KW_DONTSORTCATEGORIES modifierArguments)
+	// | (KW_INHERITS modifierArguments)
 	// // true/false only
-	// | (kwFORCESCRIPTORDER modifierArgument)
+	// | (KW_FORCESCRIPTORDER modifierArgument)
 	// ; //ID (LPARENT ID (COMMA ID)* RPARENT)?
+    | (identifier modifierArguments?)                                                           #unidentifiedModifier
+    ;
 
 modifierValue
 	: identifier
@@ -319,6 +322,14 @@ modifierArgument
 modifierArguments
 	: OPEN_PARENS (modifierValue COMMA?)* CLOSE_PARENS
 	;
+
+identifierArguments
+    : (identifier COMMA?)*
+    ;
+
+qualifiedIdentifierArguments
+    : (qualifiedIdentifier COMMA?)*
+    ;
 
 constDecl
 	: 'const' identifier (ASSIGNMENT expr=constValue)? SEMICOLON
@@ -831,7 +842,7 @@ assignmentExpression
 primaryExpression
 	: primaryExpression (OPEN_BRACKET arg=expression? CLOSE_BRACKET) 						#elementAccessExpression
 	| primaryExpression '.' classPropertyAccessSpecifier '.' identifier						#propertyClassAccessExpression
-	| primaryExpression '.' identifier														#propertyAccessExpression
+	| primaryExpression '.' identifier?												        #propertyAccessExpression
 	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 								#callExpression
 
 	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? expr=primaryExpression			#newExpression

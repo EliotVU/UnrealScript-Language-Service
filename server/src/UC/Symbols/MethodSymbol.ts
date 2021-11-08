@@ -200,6 +200,10 @@ export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference
 		return true;
 	}
 
+    getTypeFlags() {
+		return UCTypeFlags.Function | UCTypeFlags.Delegate;
+	}
+
 	protected getTypeKeyword(): string {
 		return '(intrinsic)';
 	}
