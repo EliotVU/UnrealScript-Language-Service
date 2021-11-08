@@ -232,7 +232,6 @@ literal
 	| vectToken
 	| rotToken
 	| rngToken
-	| nameOfToken
 	| objectLiteral
 	;
 
@@ -351,6 +350,14 @@ constValue
 	| sizeOfToken
 	;
 
+arrayCountToken
+    : 'arraycount' (OPEN_PARENS expr=primaryExpression CLOSE_PARENS)
+    ;
+
+nameOfToken
+    : 'nameof' (OPEN_PARENS expr=primaryExpression CLOSE_PARENS)
+    ;
+
 vectToken
 	: 'vect' (OPEN_PARENS numberLiteral COMMA numberLiteral COMMA numberLiteral CLOSE_PARENS)
 	;
@@ -361,14 +368,6 @@ rotToken
 
 rngToken
 	: 'rng' (OPEN_PARENS numberLiteral COMMA numberLiteral CLOSE_PARENS)
-	;
-
-arrayCountToken
-	: 'arraycount' (OPEN_PARENS identifier CLOSE_PARENS)
-	;
-
-nameOfToken
-	: 'nameof' (OPEN_PARENS identifier CLOSE_PARENS)
 	;
 
 sizeOfToken
@@ -848,6 +847,7 @@ primaryExpression
 	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? expr=primaryExpression			#newExpression
 	| 'class' 		(LT identifier GT) (OPEN_PARENS expr=expression CLOSE_PARENS)			#metaClassExpression
 	| 'arraycount' 	(OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#arrayCountExpression
+	| 'nameof' 	    (OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#nameOfExpression
 	| 'super' 		(OPEN_PARENS identifier CLOSE_PARENS)?									#superExpression
 
 	| id=INCR right=primaryExpression														#preOperatorExpression

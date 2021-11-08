@@ -2,13 +2,12 @@ import { DiagnosticSeverity, Range } from 'vscode-languageserver';
 
 import { UCDocument } from '../document';
 import {
-    IExpression, UCArrayCountExpression, UCArrayCountLiteral, UCAssignmentExpression,
-    UCAssignmentOperatorExpression, UCBaseOperatorExpression, UCBinaryOperatorExpression,
-    UCCallExpression, UCConditionalExpression, UCDefaultAssignmentExpression,
-    UCDefaultMemberCallExpression, UCDefaultStructLiteral, UCElementAccessExpression,
-    UCEmptyArgument, UCIdentifierLiteralExpression, UCMemberExpression, UCMetaClassExpression,
-    UCNameOfLiteral, UCObjectLiteral, UCParenthesizedExpression, UCPropertyAccessExpression,
-    UCSizeOfLiteral, UCSuperExpression
+    IExpression, UCArrayCountExpression, UCAssignmentExpression, UCAssignmentOperatorExpression,
+    UCBaseOperatorExpression, UCBinaryOperatorExpression, UCCallExpression, UCConditionalExpression,
+    UCDefaultAssignmentExpression, UCDefaultMemberCallExpression, UCDefaultStructLiteral,
+    UCElementAccessExpression, UCEmptyArgument, UCIdentifierLiteralExpression, UCMemberExpression,
+    UCMetaClassExpression, UCNameOfExpression, UCObjectLiteral, UCParenthesizedExpression,
+    UCPropertyAccessExpression, UCSuperExpression
 } from '../expressions';
 import { config, UCGeneration } from '../indexer';
 import { NAME_DELEGATE, NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
@@ -885,14 +884,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 }
             }
         } else if (expr instanceof UCArrayCountExpression) {
+            // TODO: Validate that type is a static array
             expr.argument?.accept<any>(this);
-        } else if (expr instanceof UCArrayCountLiteral) {
-            // TODO: Validate that referred property is a valid static array!
-            expr.argumentRef?.accept<any>(this);
-        } else if (expr instanceof UCNameOfLiteral) {
-            expr.argumentRef?.accept<any>(this);
-        } else if (expr instanceof UCSizeOfLiteral) {
-            expr.argumentRef?.accept<any>(this);
+        } else if (expr instanceof UCNameOfExpression) {
+            // TODO: Validate type
+            expr.argument?.accept<any>(this);
         }
         return undefined;
     }

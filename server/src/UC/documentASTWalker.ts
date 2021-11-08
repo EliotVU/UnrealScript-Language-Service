@@ -14,16 +14,15 @@ import { UCPreprocessorParserVisitor } from './antlr/generated/UCPreprocessorPar
 import { ErrorDiagnostic } from './diagnostics/diagnostic';
 import { UCDocument } from './document';
 import {
-    IExpression, UCArrayCountExpression, UCArrayCountLiteral, UCAssignmentOperatorExpression,
-    UCBinaryOperatorExpression, UCBoolLiteral, UCByteLiteral, UCCallExpression,
-    UCConditionalExpression, UCDefaultAssignmentExpression, UCDefaultElementAccessExpression,
-    UCDefaultMemberCallExpression, UCDefaultStructLiteral, UCElementAccessExpression,
-    UCEmptyArgument, UCFloatLiteral, UCIdentifierLiteralExpression, UCIntLiteral,
-    UCMemberExpression, UCMetaClassExpression, UCNameLiteral, UCNameOfLiteral, UCNewExpression,
-    UCNoneLiteral, UCObjectLiteral, UCParenthesizedExpression, UCPostOperatorExpression,
-    UCPredefinedAccessExpression, UCPreOperatorExpression, UCPropertyAccessExpression,
-    UCPropertyClassAccessExpression, UCRngLiteral, UCRotLiteral, UCSizeOfLiteral, UCStringLiteral,
-    UCSuperExpression, UCVectLiteral
+    IExpression, UCArrayCountExpression, UCAssignmentOperatorExpression, UCBinaryOperatorExpression,
+    UCBoolLiteral, UCByteLiteral, UCCallExpression, UCConditionalExpression,
+    UCDefaultAssignmentExpression, UCDefaultElementAccessExpression, UCDefaultMemberCallExpression,
+    UCDefaultStructLiteral, UCElementAccessExpression, UCEmptyArgument, UCFloatLiteral,
+    UCIdentifierLiteralExpression, UCIntLiteral, UCMemberExpression, UCMetaClassExpression,
+    UCNameLiteral, UCNameOfExpression, UCNewExpression, UCNoneLiteral, UCObjectLiteral,
+    UCParenthesizedExpression, UCPostOperatorExpression, UCPredefinedAccessExpression,
+    UCPreOperatorExpression, UCPropertyAccessExpression, UCPropertyClassAccessExpression,
+    UCRngLiteral, UCRotLiteral, UCSizeOfLiteral, UCStringLiteral, UCSuperExpression, UCVectLiteral
 } from './expressions';
 import { rangeFromBound, rangeFromBounds, rangeFromCtx } from './helpers';
 import { setEnumMember } from './indexer';
@@ -1439,29 +1438,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 		return expression;
 	}
 
-	visitArrayCountExpression(ctx: UCGrammar.ArrayCountExpressionContext) {
-		const expression = new UCArrayCountExpression(rangeFromBounds(ctx.start, ctx.stop));
-
-		if (ctx._expr) {
-			expression.argument = ctx._expr.accept<any>(this);
-		}
-		return expression;
-	}
-
-	visitArrayCountToken(ctx: UCGrammar.ArrayCountTokenContext) {
-		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCArrayCountLiteral(range);
-
-		const idNode = ctx.identifier();
-		if (idNode) {
-			const identifier: Identifier = idFromCtx(idNode);
-			expression.argumentRef = new UCObjectTypeSymbol(identifier, undefined, UCTypeFlags.Property);
-		}
-
-		return expression;
-	}
-
-	visitSizeOfToken(ctx: UCGrammar.SizeOfTokenContext) {
+    visitSizeOfToken(ctx: UCGrammar.SizeOfTokenContext) {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const expression = new UCSizeOfLiteral(range);
 
@@ -1471,6 +1448,42 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 			expression.argumentRef = new UCObjectTypeSymbol(identifier, undefined, UCTypeFlags.Class);
 		}
 
+		return expression;
+	}
+
+	visitArrayCountExpression(ctx: UCGrammar.ArrayCountExpressionContext) {
+		const expression = new UCArrayCountExpression(rangeFromBounds(ctx.start, ctx.stop));
+
+		if (ctx._expr) {
+			expression.argument = ctx._expr.accept<IExpression>(this);
+		}
+		return expression;
+	}
+
+	visitArrayCountToken(ctx: UCGrammar.ArrayCountTokenContext) {
+		const expression = new UCArrayCountExpression(rangeFromBounds(ctx.start, ctx.stop));
+
+		if (ctx._expr) {
+			expression.argument = ctx._expr.accept<IExpression>(this);
+		}
+		return expression;
+	}
+
+    visitNameOfToken(ctx: UCGrammar.NameOfTokenContext) {
+		const expression = new UCNameOfExpression(rangeFromBounds(ctx.start, ctx.stop));
+
+		if (ctx._expr) {
+			expression.argument = ctx._expr.accept<IExpression>(this);
+		}
+		return expression;
+	}
+
+    visitNameOfExpression(ctx: UCGrammar.NameOfExpressionContext) {
+		const expression = new UCNameOfExpression(rangeFromBounds(ctx.start, ctx.stop));
+
+		if (ctx._expr) {
+			expression.argument = ctx._expr.accept<IExpression>(this);
+		}
 		return expression;
 	}
 
@@ -1596,16 +1609,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	visitRngToken(ctx: UCGrammar.RngTokenContext) {
 		const range = rangeFromBounds(ctx.start, ctx.stop);
 		const expression = new UCRngLiteral(range);
-		return expression;
-	}
-
-	visitNameOfToken(ctx: UCGrammar.NameOfTokenContext) {
-		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCNameOfLiteral(range);
-		const idNode = ctx.identifier();
-		if (idNode) {
-			expression.argumentRef = new UCObjectTypeSymbol(idFromCtx(idNode), undefined, UCTypeFlags.Object);
-		}
 		return expression;
 	}
 

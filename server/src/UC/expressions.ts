@@ -87,6 +87,32 @@ export class UCParenthesizedExpression extends UCExpression {
 export class UCArrayCountExpression extends UCExpression {
     public argument?: IExpression;
 
+    getValue() {
+        const symbol = this.argument?.getMemberSymbol();
+        return symbol instanceof UCPropertySymbol && symbol.getArrayDimSize() || undefined;
+    }
+
+    getMemberSymbol() {
+        return this.argument?.getMemberSymbol();
+    }
+
+    getType() {
+        return this.argument?.getType();
+    }
+
+    getContainedSymbolAtPos(position: Position) {
+        const symbol = this.argument?.getSymbolAtPos(position);
+        return symbol;
+    }
+
+    index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
+        this.argument?.index(document, context, info);
+    }
+}
+
+export class UCNameOfExpression extends UCExpression {
+    public argument?: IExpression;
+
     getMemberSymbol() {
         return this.argument?.getMemberSymbol();
     }
@@ -881,46 +907,6 @@ export class UCRngLiteral extends UCStructLiteral {
 
     getContainedSymbolAtPos(_position: Position) {
         return RngMethodLike as unknown as UCSymbolReference;
-    }
-}
-
-// See also @UCArrayCountExpression, this literal is restricted to const value tokens.
-export class UCArrayCountLiteral extends UCLiteral {
-    public argumentRef?: ITypeSymbol;
-
-    getValue() {
-        const symbol = this.argumentRef?.getRef();
-        return symbol instanceof UCPropertySymbol && symbol.getArrayDimSize() || undefined;
-    }
-
-    getType() {
-        return this.argumentRef;
-    }
-
-    getContainedSymbolAtPos(position: Position) {
-        return this.argumentRef?.getSymbolAtPos(position) && this.argumentRef;
-    }
-
-    index(document: UCDocument, context?: UCStructSymbol) {
-        super.index(document, context);
-        this.argumentRef?.index(document, context!);
-    }
-}
-
-export class UCNameOfLiteral extends UCLiteral {
-    public argumentRef?: ITypeSymbol;
-
-    getType() {
-        return this.argumentRef;
-    }
-
-    getContainedSymbolAtPos(position: Position) {
-        return this.argumentRef?.getSymbolAtPos(position) && this.argumentRef;
-    }
-
-    index(document: UCDocument, context?: UCStructSymbol) {
-        super.index(document, context);
-        this.argumentRef?.index(document, context!);
     }
 }
 
