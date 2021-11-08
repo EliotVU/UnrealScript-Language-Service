@@ -1,28 +1,48 @@
-import { DefaultErrorStrategy, Parser, ParserRuleContext, RecognitionException } from 'antlr4ts';
+import { DefaultErrorStrategy, Parser, RecognitionException } from 'antlr4ts';
 
 import { UCParser } from '../antlr/generated/UCParser';
 
-export class UCMissingSemicolonException extends Error {
-	constructor(private context: ParserRuleContext) {
-		super();
-	}
-}
-
 export class UCErrorStrategy extends DefaultErrorStrategy {
-	reportError(recognizer: Parser, e: RecognitionException) {
-		if (e.expectedTokens && e.expectedTokens.contains(UCParser.SEMICOLON)) {
-			const token = this.constructToken(
-				recognizer.inputStream.tokenSource,
-				UCParser.SEMICOLON, ';',
-				recognizer.currentToken
-			);
+    reportError(recognizer: Parser, e: RecognitionException) {
+        if (typeof e.expectedTokens === 'undefined') {
+            super.reportError(recognizer, e);
+            return;
+        }
 
-			const errorNode = recognizer.createErrorNode(recognizer.context, token);
-			recognizer.context.addErrorNode(errorNode);
-		}
+        if (e.expectedTokens.contains(UCParser.SEMICOLON)) {
+            const token = this.constructToken(
+                recognizer.inputStream.tokenSource,
+                UCParser.SEMICOLON, ';',
+                recognizer.currentToken
+            );
 
-		super.reportError(recognizer, e);
-	}
+            const errorNode = recognizer.createErrorNode(recognizer.context, token);
+            recognizer.context.addErrorNode(errorNode);
+        // } else if (e.expectedTokens.contains(UCParser.OPEN_PARENS)) {
+        //     const openToken = this.constructToken(
+        //         recognizer.inputStream.tokenSource,
+        //         UCParser.OPEN_PARENS, '(',
+        //         recognizer.currentToken
+        //     );
+        //     recognizer.context.addErrorNode(recognizer.createErrorNode(recognizer.context, openToken));
+
+        //     const closeToken = this.constructToken(
+        //         recognizer.inputStream.tokenSource,
+        //         UCParser.CLOSE_PARENS, ')',
+        //         recognizer.currentToken
+        //     );
+        //     recognizer.context.addErrorNode(recognizer.createErrorNode(recognizer.context, closeToken));
+        // } else if (e.expectedTokens.contains(UCParser.CLOSE_PARENS)) {
+        //     const closeToken = this.constructToken(
+        //         recognizer.inputStream.tokenSource,
+        //         UCParser.CLOSE_PARENS, ')',
+        //         recognizer.currentToken
+        //     );
+        //     recognizer.context.addErrorNode(recognizer.createErrorNode(recognizer.context, closeToken));
+        }
+
+        super.reportError(recognizer, e);
+    }
 }
 
 export const ERROR_STRATEGY = new UCErrorStrategy();

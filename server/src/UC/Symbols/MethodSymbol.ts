@@ -93,23 +93,17 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		if (this.returnValue) {
-			const returnSymbol = this.returnValue.getSymbolAtPos(position);
-			if (returnSymbol) {
-				return returnSymbol;
-			}
-		}
-		return super.getContainedSymbolAtPos(position);
+		return this.returnValue?.getSymbolAtPos(position) ?? super.getContainedSymbolAtPos(position);
 	}
 
-	getCompletionSymbols(document: UCDocument, context: string): ISymbol[] {
+	getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: string, kind?: UCTypeFlags) {
 		if (context === '.') {
 			const resolvedType = this.returnValue?.getType()?.getRef();
 			if (resolvedType instanceof UCSymbol) {
-				return resolvedType.getCompletionSymbols(document, context);
+				return resolvedType.getCompletionSymbols<C>(document, context, kind);
 			}
 		}
-		return super.getCompletionSymbols(document, context);
+		return super.getCompletionSymbols<C>(document, context, kind);
 	}
 
 	findSuperSymbol(id: Name, kind?: SymbolKind) {
@@ -204,6 +198,10 @@ export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference
 
 	isNative() {
 		return true;
+	}
+
+    getTypeFlags() {
+		return UCTypeFlags.Function | UCTypeFlags.Delegate;
 	}
 
 	protected getTypeKeyword(): string {

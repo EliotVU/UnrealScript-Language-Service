@@ -6,7 +6,8 @@ import { Name } from '../names';
 import { UCBlock } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ISymbol, ISymbolContainer, ITypeSymbol, UCFieldSymbol, UCMethodSymbol, UCStateSymbol, UCSymbol
+    ISymbol, ISymbolContainer, ITypeSymbol, UCFieldSymbol, UCMethodSymbol, UCStateSymbol, UCSymbol,
+    UCTypeFlags
 } from './';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
@@ -23,9 +24,12 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return CompletionItemKind.Module;
 	}
 
-	getCompletionSymbols(document: UCDocument, _context: string) {
+	getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, type?: UCTypeFlags) {
 		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
+			if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
+				continue;
+			}
 			if (child.acceptCompletion(document, this)) {
 				symbols.push(child);
 			}
@@ -34,18 +38,24 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		let parent = this.super ?? this.outer as UCStructSymbol;
 		for (; parent; parent = parent.super ?? parent.outer as UCStructSymbol) {
 			for (let child = parent.children; child; child = child.next) {
+				if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
+					continue;
+				}
 				if (child.acceptCompletion(document, this)) {
 					symbols.push(child);
 				}
 			}
 		}
-		return symbols;
+		return symbols as C[];
 	}
 
 	getCompletionContext(position: Position) {
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
 			if (intersectsWith(symbol.getRange(), position)) {
-				return symbol.getCompletionContext(position);
+				const context = symbol.getCompletionContext(position);
+				if (context) {
+					return context;
+				}
 			}
 		}
 		return this;
@@ -76,7 +86,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	getSymbol(id: Name, kind?: SymbolKind): UCSymbol | undefined {
+	getSymbol(id: Name, kind?: UCTypeFlags): UCSymbol | undefined {
 		for (let child = this.children; child; child = child.next) {
 			if (child.getName() === id) {
 				if (kind !== undefined && (child.getTypeFlags() & kind) === 0) {
@@ -88,7 +98,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	findSuperSymbol(id: Name, kind?: SymbolKind): UCSymbol | undefined {
+	findSuperSymbol(id: Name, kind?: UCTypeFlags): UCSymbol | undefined {
 		return this.getSymbol(id, kind) ?? this.super?.findSuperSymbol(id, kind);
 	}
 

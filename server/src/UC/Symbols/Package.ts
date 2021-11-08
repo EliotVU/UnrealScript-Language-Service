@@ -15,9 +15,19 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
         return this.symbols.size;
     }
 
-	getAll() {
-		return this.symbols.values();
+	getAll<C extends T>() {
+		return this.symbols.values() as IterableIterator<C>;
 	}
+
+    *getTypes<C extends T>(type: UCTypeFlags): Generator<C, C[]> {
+        for (let symbol of this.symbols.values()) {
+            if ((symbol.getTypeFlags() & type) === 0) {
+                continue;
+            }
+            yield symbol as C;
+        }
+        return [];
+    }
 
 	addSymbol(symbol: T): number {
 		return this.addKey(getSymbolHash(symbol), symbol);

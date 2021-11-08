@@ -33,5 +33,17 @@
 		"text": "Expression expected.",
 		"code": "5",
 		"severity": 1
-	}
+	},
+
+    "CLASS_0_IS_NOT_AN_INTERFACE": {
+		"text": "Class '{0}' is not an interface",
+		"code": "6",
+		"severity": 1
+	},
+
+    "IMPLEMENTS_IS_INCOMPATIBLE": {
+        "text": "'Implements' is not compatible with this UnrealScript generation (1, 2).",
+		"code": "7",
+		"severity": 2
+    }
 }

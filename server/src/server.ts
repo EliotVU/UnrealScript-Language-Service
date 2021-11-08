@@ -1,26 +1,32 @@
 import * as glob from 'glob';
 import * as path from 'path';
-import { BehaviorSubject, interval, Subject, Subscription } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, from, interval, Subject, Subscription } from 'rxjs';
 import { debounce, delay, filter, switchMapTo, tap } from 'rxjs/operators';
 import * as url from 'url';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import {
-    CodeActionKind, createConnection, ErrorCodes, FileOperationRegistrationOptions,
-    InitializeParams, Location, Position, ProposedFeatures, Range, ResponseError, TextDocuments,
-    TextDocumentSyncKind, TextEdit, WorkspaceChange, WorkspaceEdit, WorkspaceFolder
+    CodeActionKind, CompletionTriggerKind, createConnection, ErrorCodes,
+    FileOperationRegistrationOptions, InitializeParams, Location, Position, ProposedFeatures, Range,
+    ResponseError, TextDocuments, TextDocumentSyncKind, TextEdit, WorkspaceChange, WorkspaceEdit,
+    WorkspaceFolder
 } from 'vscode-languageserver/node';
 import { URI } from 'vscode-uri';
 
+import {
+    DefaultIgnoredTokensSet, getCompletableSymbolItems, getFullCompletionItem, getSignatureHelp,
+    setIgnoredTokensSet
+} from './completion';
 import { EAnalyzeOption, IntrinsicSymbolItemMap, UCLanguageServerSettings } from './settings';
+import { UCLexer } from './UC/antlr/generated/UCLexer';
 import { DocumentParseData, UCDocument } from './UC/document';
 import {
-    getCodeActions, getCompletableSymbolItems, getFullCompletionItem, getSymbolDefinition,
-    getSymbolHighlights, getSymbolReferences, getSymbols, getSymbolTooltip, VALID_ID_REGEXP
+    getCodeActions, getSymbolDefinition, getSymbolHighlights, getSymbolReferences, getSymbols,
+    getSymbolTooltip, VALID_ID_REGEXP
 } from './UC/helpers';
 import {
     applyMacroSymbols, clearMacroSymbols, config, createDocumentByPath, createPackage, documentsMap,
     getDocumentById, getDocumentByURI, getIndexedReferences, getPackageByDir, lastIndexedDocuments$,
-    queuIndexDocument, removeDocumentByPath
+    queuIndexDocument, removeDocumentByPath, UCGeneration
 } from './UC/indexer';
 import { toName } from './UC/names';
 import {
@@ -121,9 +127,9 @@ connection.onInitialize((params: InitializeParams) => {
                 triggerCharacters: ['.', '"', '\'', '`', '<'],
                 resolveProvider: true
             },
-            // signatureHelpProvider: {
-            //     triggerCharacters: ['(', ',', '<']
-            // },
+            signatureHelpProvider: {
+                triggerCharacters: ['(', ',', '<']
+            },
             definitionProvider: true,
             documentSymbolProvider: true,
             documentHighlightProvider: true,
@@ -346,6 +352,7 @@ function initializeConfiguration() {
 function applyConfiguration(settings: UCLanguageServerSettings) {
     applyMacroSymbols(settings.macroSymbols);
     installIntrinsicSymbols(settings.intrinsicSymbols);
+    setupIgnoredTokens(settings.generation);
 }
 
 function clearIntrinsicSymbols() {
@@ -375,6 +382,38 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
     }
 }
 
+function setupIgnoredTokens(generation: UCGeneration) {
+    const ignoredTokensSet = new Set(DefaultIgnoredTokensSet);
+    if (generation === UCGeneration.UC1) {
+        ignoredTokensSet.add(UCLexer.KW_EXTENDS);
+        ignoredTokensSet.add(UCLexer.KW_NATIVE);
+
+        // TODO: Context aware ignored tokens.
+        // ignoredTokensSet.add(UCLexer.KW_TRANSIENT);
+        ignoredTokensSet.add(UCLexer.KW_LONG);
+    } else {
+        ignoredTokensSet.add(UCLexer.KW_EXPANDS);
+        ignoredTokensSet.add(UCLexer.KW_INTRINSIC);
+    }
+
+    if (generation === UCGeneration.UC3) {
+        ignoredTokensSet.add(UCLexer.KW_CPPSTRUCT);
+    } else {
+        // Some custom UE2 builds do have implements
+        ignoredTokensSet.add(UCLexer.KW_IMPLEMENTS);
+
+        ignoredTokensSet.add(UCLexer.KW_STRUCTDEFAULTPROPERTIES);
+        ignoredTokensSet.add(UCLexer.KW_STRUCTCPPTEXT);
+
+        ignoredTokensSet.add(UCLexer.KW_ATOMIC);
+        ignoredTokensSet.add(UCLexer.KW_ATOMICWHENCOOKED);
+        ignoredTokensSet.add(UCLexer.KW_STRICTCONFIG);
+        ignoredTokensSet.add(UCLexer.KW_IMMUTABLE);
+        ignoredTokensSet.add(UCLexer.KW_IMMUTABLEWHENCOOKED);
+    }
+    setIgnoredTokensSet(ignoredTokensSet);
+}
+
 connection.onDocumentSymbol((e) => getSymbols(e.textDocument.uri));
 connection.onHover((e) => getSymbolTooltip(e.textDocument.uri, e.position));
 
@@ -393,11 +432,16 @@ connection.onDefinition(async (e) => {
 
 connection.onReferences((e) => getSymbolReferences(e.textDocument.uri, e.position));
 connection.onDocumentHighlight((e) => getSymbolHighlights(e.textDocument.uri, e.position));
-
 connection.onCompletion((e) => {
+    if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
+        return firstValueFrom(lastIndexedDocuments$).then(documents => {
+            return getCompletableSymbolItems(e.textDocument.uri, activeDocumentParseData, e.position);
+        });
+    }
     return getCompletableSymbolItems(e.textDocument.uri, activeDocumentParseData, e.position);
 });
 connection.onCompletionResolve(getFullCompletionItem);
+connection.onSignatureHelp((e) => getSignatureHelp(e.textDocument.uri, activeDocumentParseData, e.position));
 
 connection.onPrepareRename(async (e) => {
     const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);

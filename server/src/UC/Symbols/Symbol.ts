@@ -77,7 +77,7 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	// TODO: Refactor ISymbol to CompletionItem.
-	getCompletionSymbols(_document: UCDocument, _context: string): ISymbol[] {
+	getCompletionSymbols<C extends ISymbol>(_document: UCDocument, _context: string, _kind?: UCTypeFlags): C[] {
 		return [];
 	}
 
