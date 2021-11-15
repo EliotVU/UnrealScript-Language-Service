@@ -14,7 +14,6 @@
         "url": "https://github.com/EliotVU/UnrealScript-Language-Service"
     },
     "license": "MIT",
-    "enableProposedApi": true,
     "capabilities": {
         "virtualWorkspaces": {
             "supported": false
@@ -58,7 +57,7 @@
         "compile": "tsc -b",
         "compile:grammar": "npx antlr4ts -visitor -no-listener grammars/UCLexer.g4 -o server/src/UC/antlr/generated && npx antlr4ts -visitor -no-listener grammars/UCParser.g4 -o server/src/UC/antlr/generated",
         "compile:preprocessor": "npx antlr4ts -visitor -no-listener grammars/UCPreprocessorParser.g4 -o server/src/UC/antlr/generated",
-        "watch": "start gulp & tsc -b -w",
+        "watch": "(set NODE_ENV=development) & start gulp & tsc -b -w",
         "clean": "rimraf client/out && rimraf server/out",
         "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
         "test": "cd server && npm test"
