@@ -422,7 +422,7 @@ repository:
           - match: \b((?i)hidecategories|showcategories|autocollapsecategories|dontautocollapsecategories|autoexpandcategories|dontsortcategories|collapsecategories|dontcollapsecategories)\b
             name: storage.modifier.uc
 
-          - begin: \b((?i)dllbind|inherits|dependson|implements|classgroup)\b
+          - begin: \b((?i)dllbind|inherits|dependson|implements|classgroup|classredirect)\b
             beginCaptures:
               '1':
                 name: storage.modifier.uc
