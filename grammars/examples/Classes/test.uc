@@ -1,5 +1,33 @@
+// Try to squeeze in all UnrealScript features here, to both stress test the parser and syntax highlighter.
 class Test extends Core.Object
-	native;
+    abstract
+    export exportstructs
+    noexport noexportheader
+    nativereplication nativeonly
+    deprecated
+    transient nontransient
+    nousercreate notplaceable
+    placeable safereplace
+    hidedropdown
+    editinlinenew noteditinlinenew
+    cacheexempt
+    perobjectconfig perobjectlocalized
+    forcescriptorder(false)
+    forcescriptorder(true)
+    instanced
+    hidecategories(name1, name2) showcategories(name1, name2)
+    autocollapsecategories(name1, name2) dontautocollapsecategories(name1, name2)
+    autoexpandcategories(name1, name2) dontsortcategories(name1, name2)
+    collapsecategories(name1, name2) dontcollapsecategories(name1, name2)
+    dllbind(dllName)
+    inherits(cppClassName1, cppClassName2)
+    dependson(Alpha, Beta)
+    implements(InterfaceTest, examples.InterfaceTest)
+    classgroup(name1, name2)
+    classredirect(previousClass2, previousClass2)
+    config(name)
+	native(name) intrinsic
+    ;
 
 var const int CONST_ARRAY[5];
 
@@ -54,9 +82,9 @@ struct native transient AStruct {
 		var ASubStruct SubInt;
 	}> InlinedSubArray;
 
-	// var DeepStruct DeepStructRef; // Should not be able to find DeepStruct from here.
+    // Should not be able to find DeepStruct from here.
+	var DeepStruct DeepStructRef;
 
-	// FIXME: Cannot find ASubStruct, this worked in the most recent released version!
 	var array<ASubStruct> SubArray;
 
 	var Color AColor;
@@ -95,7 +123,6 @@ var array<int> 				defaultIntDynamicArray;
 // As it currently stands, the delegate is matched with class "Test" instead of function "Test".
 var delegate<Test> 			defaultDelegate;
 
-// FIXME: Breaks variable highlighting.
 var map{string, float} 		defaultStringToFloatMap;
 var class<Test> 			defaultClassMeta[4];
 var array<class<Test> > 	defaultArrayOfClasses;
