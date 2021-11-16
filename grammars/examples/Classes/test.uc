@@ -284,7 +284,7 @@ function byte Test() {
 
 	objClass = class<Test>(DynamicLoadObject("Path", class'Class'));
 	i = i - -i;
-	i = 2.0 * int(0.1 + float(i)*0.225,0.2,1.0);
+	i = 2.0 * int(0.1 + float(i)*0.225, 0.2, 1.0f);
 
 	// Type resolving tests!
 	inputInt(defaultIntArray[0]);
