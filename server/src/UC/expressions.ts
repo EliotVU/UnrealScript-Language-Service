@@ -626,11 +626,25 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
 }
 
 // Resolves the member for predefined specifiers such as (self, default, static, and global)
-export class UCPredefinedAccessExpression extends UCMemberExpression {
+export class UCPredefinedAccessExpression extends UCExpression {
+    constructor(readonly id: Identifier, public typeRef = new UCObjectTypeSymbol(id)) {
+        super(id.range);
+    }
+
+    getMemberSymbol() {
+        return this.typeRef?.getRef();
+    }
+
+    getType() {
+        return this.typeRef;
+    }
+
+    getContainedSymbolAtPos(_position: Position) {
+        return this.typeRef.getRef() && this.typeRef;
+    }
+
     index(document: UCDocument, _context?: UCStructSymbol) {
-        const typeRef = new UCObjectTypeSymbol(this.id);
-        typeRef.setReference(document.class!, document, true);
-        this.typeRef = typeRef;
+        document.class && this.typeRef.setReference(document.class, document, true);
     }
 }
 
