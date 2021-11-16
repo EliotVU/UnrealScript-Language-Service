@@ -17,6 +17,7 @@ import {
     DefaultIgnoredTokensSet, getCompletableSymbolItems, getFullCompletionItem, getSignatureHelp,
     setIgnoredTokensSet
 } from './completion';
+import { getSemanticTokens, TokenModifiers, TokenTypes } from './semantics';
 import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
 import { UCLexer } from './UC/antlr/generated/UCLexer';
 import { DocumentParseData, UCDocument } from './UC/document';
@@ -50,6 +51,7 @@ const textDocuments = new TextDocuments(TextDocument);
 
 let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
+let hasSemanticTokensCapability: boolean = false;
 
 let activeDocumentParseData: DocumentParseData | undefined;
 
@@ -97,6 +99,7 @@ connection.onInitialize((params: InitializeParams) => {
 
     hasConfigurationCapability = !!(capabilities.workspace && !!capabilities.workspace.configuration);
     hasWorkspaceFolderCapability = !!(capabilities.workspace && !!capabilities.workspace.workspaceFolders);
+    hasSemanticTokensCapability = !!(capabilities.textDocument?.semanticTokens);
 
     const fileOperation: FileOperationRegistrationOptions = {
         filters: [{
@@ -149,6 +152,14 @@ connection.onInitialize((params: InitializeParams) => {
                 commands: [
                     'create.class'
                 ]
+            },
+            semanticTokensProvider: {
+                full: true,
+                range: false,
+                legend: {
+                    tokenTypes: TokenTypes,
+                    tokenModifiers: TokenModifiers
+                }
             }
         }
     };
@@ -341,6 +352,12 @@ connection.onInitialized(() => {
     // We need to re--index the document, incase that the end-user edited a document without saving its changes.
     textDocuments.onDidClose(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
     textDocuments.listen(connection);
+
+    if (hasSemanticTokensCapability) {
+        connection.languages.semanticTokens.on(e => getSemanticTokens(e.textDocument.uri));
+        connection.languages.semanticTokens.onRange(e => getSemanticTokens(e.textDocument.uri));
+        connection.languages.semanticTokens.onDelta(e => getSemanticTokens(e.textDocument.uri));
+    }
 });
 
 connection.onDidChangeConfiguration((params: { settings: { unrealscript: UCLanguageServerSettings } }) => {

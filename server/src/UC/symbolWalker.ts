@@ -70,14 +70,14 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 	}
 
 	visitQualifiedType(symbol: UCQualifiedTypeSymbol): ISymbol {
-		symbol.left?.accept<any>(this);
-		symbol.type.accept<any>(this);
+		symbol.left?.accept(this);
+		symbol.type.accept(this);
 		return symbol;
 	}
 
 	visitObjectType(symbol: UCObjectTypeSymbol): ISymbol {
 		if (symbol.baseType) {
-			symbol.baseType.accept<any>(this);
+			symbol.baseType.accept(this);
 		}
 		return symbol;
 	}
@@ -88,47 +88,47 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 
 	visitDelegateType(symbol: UCDelegateTypeSymbol): ISymbol {
 		if (symbol.baseType) {
-			symbol.baseType.accept<any>(this);
+			symbol.baseType.accept(this);
 		}
 		return symbol;
 	}
 
 	visitArrayType(symbol: UCArrayTypeSymbol): ISymbol {
 		if (symbol.baseType) {
-			symbol.baseType.accept<any>(this);
+			symbol.baseType.accept(this);
 		}
 		return symbol;
 	}
 
 	visitStructBase(symbol: UCStructSymbol): ISymbol {
 		if (symbol.extendsType) {
-			symbol.extendsType.accept<any>(this);
+			symbol.extendsType.accept(this);
 		}
 
 		for (var child = symbol.children; child; child = child.next) {
-			child.accept<any>(this);
+			child.accept(this);
 		}
 
 		if (symbol.block) {
-			symbol.block.accept<any>(this);
+			symbol.block.accept(this);
 		}
 		return symbol;
 	}
 
 	visitClass(symbol: UCClassSymbol): ISymbol {
 		if (symbol.withinType) {
-			symbol.withinType.accept<any>(this);
+			symbol.withinType.accept(this);
 		}
 
 		if (symbol.dependsOnTypes) {
 			for (var classTypeRef of symbol.dependsOnTypes) {
-				classTypeRef.accept<any>(this);
+				classTypeRef.accept(this);
 			}
 		}
 
 		if (symbol.implementsTypes) {
 			for (var interfaceTypeRef of symbol.implementsTypes) {
-				interfaceTypeRef.accept<any>(this);
+				interfaceTypeRef.accept(this);
 			}
 		}
 		return this.visitStructBase(symbol);
@@ -136,7 +136,7 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 
 	visitConst(symbol: UCConstSymbol): ISymbol {
 		if (symbol.expression) {
-			symbol.expression.accept<any>(this);
+			symbol.expression.accept(this);
 		}
 		return symbol;
 	}
@@ -159,25 +159,25 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 
 	visitProperty(symbol: UCPropertySymbol): ISymbol {
 		if (symbol.type) {
-			symbol.type.accept<any>(this);
+			symbol.type.accept(this);
 		}
 
 		if (symbol.arrayDimRef) {
-			symbol.arrayDimRef.accept<any>(this);
+			symbol.arrayDimRef.accept(this);
 		}
 		return symbol;
 	}
 
 	visitMethod(symbol: UCMethodSymbol): ISymbol {
 		if (symbol.returnValue) {
-			symbol.returnValue.accept<any>(this);
+			symbol.returnValue.accept(this);
 		}
 		return this.visitStructBase(symbol);
 	}
 
 	visitParameter(symbol: UCParamSymbol): ISymbol {
 		if (symbol.defaultExpression) {
-			symbol.defaultExpression.accept<any>(this);
+			symbol.defaultExpression.accept(this);
 		}
 		return this.visitProperty(symbol);
 	}
@@ -189,7 +189,7 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 	visitState(symbol: UCStateSymbol): ISymbol {
 		if (symbol.ignoreRefs) {
 			for (var ref of symbol.ignoreRefs){
-				ref.accept<any>(this);
+				ref.accept(this);
 			}
 		}
 		return this.visitStructBase(symbol);
@@ -205,7 +205,7 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 
 	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock): ISymbol {
 		if (symbol.block) {
-			symbol.block.accept<any>(this);
+			symbol.block.accept(this);
 		}
 		return symbol;
 		// Each child is already registered as a statement, thus will be indexed by the block.index call!
@@ -214,7 +214,7 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 
 	visitObjectSymbol(symbol: UCObjectSymbol): ISymbol {
 		if (symbol.block) {
-			symbol.block.accept<any>(this);
+			symbol.block.accept(this);
 		}
 		return symbol;
 		// Each child is already registered as a statement, thus will be indexed by the block.index call!
@@ -226,7 +226,7 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 	}
 
 	visitExpressionStatement(stm: UCExpressionStatement) {
-		stm.expression?.accept<any>(this);
+		stm.expression?.accept(this);
 		return undefined;
 	}
 
@@ -235,67 +235,67 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 	}
 
 	visitAssertStatement(stm: UCAssertStatement) {
-		stm.expression?.accept<any>(this);
+		stm.expression?.accept(this);
 		return undefined;
 	}
 
 	visitIfStatement(stm: UCIfStatement) {
-		stm.then?.accept<any>(this);
-		stm.expression?.accept<any>(this);
-		stm.else?.accept<any>(this);
+		stm.then?.accept(this);
+		stm.expression?.accept(this);
+		stm.else?.accept(this);
 		return undefined;
 	}
 
 	visitDoUntilStatement(stm: UCDoUntilStatement) {
-		stm.then?.accept<any>(this);
-		stm.expression?.accept<any>(this);
+		stm.then?.accept(this);
+		stm.expression?.accept(this);
 		return undefined;
 	}
 
 	visitWhileStatement(stm: UCWhileStatement) {
-		stm.then?.accept<any>(this);
-		stm.expression?.accept<any>(this);
+		stm.then?.accept(this);
+		stm.expression?.accept(this);
 		return undefined;
 	}
 
 	visitSwitchStatement(stm: UCSwitchStatement) {
-		stm.then?.accept<any>(this);
-		stm.expression?.accept<any>(this);
+		stm.then?.accept(this);
+		stm.expression?.accept(this);
 		return undefined;
 	}
 
 	visitCaseClause(stm: UCCaseClause) {
-		stm.then?.accept<any>(this);
-		stm.expression?.accept<any>(this);
+		stm.then?.accept(this);
+		stm.expression?.accept(this);
 		return undefined;
 	}
 
 	visitDefaultClause(stm: UCDefaultClause) {
-		stm.then?.accept<any>(this);
+		stm.then?.accept(this);
 		return undefined;
 	}
 
 	visitForStatement(stm: UCForStatement) {
-		stm.then?.accept<any>(this);
-		stm.expression?.accept<any>(this);
-		stm.init?.accept<any>(this);
-		stm.next?.accept<any>(this);
+		stm.then?.accept(this);
+		stm.expression?.accept(this);
+		stm.init?.accept(this);
+		stm.next?.accept(this);
 		return undefined;
 	}
 
 	visitForEachStatement(stm: UCForEachStatement) {
-		stm.then?.accept<any>(this);
-		stm.expression?.accept<any>(this);
+		stm.then?.accept(this);
+		stm.expression?.accept(this);
 		return undefined;
 	}
 
 	visitReturnStatement(stm: UCReturnStatement) {
-		stm.expression?.accept<any>(this);
+		stm.expression?.accept(this);
 		return undefined;
 	}
 
 	visitGotoStatement(stm: UCGotoStatement) {
-		stm.expression?.accept<any>(this);
+		stm.expression?.accept(this);
 		return undefined;
 	}
 }
