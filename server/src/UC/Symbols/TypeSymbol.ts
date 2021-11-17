@@ -25,6 +25,7 @@ export enum UCTypeFlags {
 	Float 			    = 1 << 1,
 	Int 			    = 1 << 2, // Also true for a pointer
 	Byte 			    = 1 << 3, // Also true for an enum member.
+    EnumMember		    = Byte,
 	String			    = 1 << 4,
 	Name			    = 1 << 5,
 	Bool			    = 1 << 6,
@@ -225,6 +226,12 @@ export class UCStringTypeSymbol extends UCPredefinedTypeSymbol {
 export class UCNameTypeSymbol extends UCPredefinedTypeSymbol {
 	getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Name;
+	}
+
+    getTooltip(): string {
+		return this.id.name === NAME_NAME
+            ? 'type ' + this.id.name
+            : `'${this.id.name}'`;
 	}
 
 	static getStaticName(): Name {

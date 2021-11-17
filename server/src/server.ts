@@ -347,17 +347,19 @@ connection.onInitialized(() => {
         // TODO: Support non-workspace environments?
     }
 
+    if (hasSemanticTokensCapability) {
+        connection.languages.semanticTokens.on(e => {
+            return getSemanticTokens(e.textDocument.uri);
+        });
+        // TODO: Support range
+        // connection.languages.semanticTokens.onRange(e => getSemanticTokens(e.textDocument.uri));
+    }
+
     textDocuments.onDidOpen(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: false }));
     textDocuments.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
     // We need to re--index the document, incase that the end-user edited a document without saving its changes.
     textDocuments.onDidClose(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
     textDocuments.listen(connection);
-
-    if (hasSemanticTokensCapability) {
-        connection.languages.semanticTokens.on(e => getSemanticTokens(e.textDocument.uri));
-        connection.languages.semanticTokens.onRange(e => getSemanticTokens(e.textDocument.uri));
-        connection.languages.semanticTokens.onDelta(e => getSemanticTokens(e.textDocument.uri));
-    }
 });
 
 connection.onDidChangeConfiguration((params: { settings: { unrealscript: UCLanguageServerSettings } }) => {

@@ -619,7 +619,7 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
 
         if (member) {
             const type = new UCObjectTypeSymbol(this.id);
-            type.setReference(member, document);
+            type.setReference(member, document, ((info.typeFlags & UCTypeFlags.Name) !== 0) ? true : false);
             this.typeRef = type;
         }
     }
@@ -729,12 +729,31 @@ export class UCStringLiteral extends UCLiteral {
 }
 
 export class UCNameLiteral extends UCLiteral {
+    constructor(readonly id: Identifier) {
+        super(id.range);
+    }
+
+    public typeRef = new UCObjectTypeSymbol(this.id);
+
+    getMemberSymbol() {
+        return this.typeRef?.getRef();
+    }
+
     getType() {
         return StaticNameType;
     }
 
+    getContainedSymbolAtPos(_position: Position) {
+        return this.typeRef.getRef() && this.typeRef;
+    }
+
+    index(document: UCDocument, _context?: UCStructSymbol) {
+        const nameType = new UCNameTypeSymbol(this.id);
+        this.typeRef.setReference(nameType, document, true);
+    }
+
     toString() {
-        return "''";
+        return `'${this.id}'`;
     }
 }
 
@@ -941,8 +960,8 @@ export class UCSizeOfLiteral extends UCLiteral {
 }
 
 export class UCMetaClassExpression extends UCExpression {
-    public expression?: IExpression;
     public classRef?: UCObjectTypeSymbol;
+    public expression?: IExpression;
 
     getMemberSymbol() {
         return this.classRef?.getRef();
@@ -958,7 +977,7 @@ export class UCMetaClassExpression extends UCExpression {
     }
 
     index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
-        this.expression?.index(document, context, info);
         this.classRef?.index(document, context!);
+        this.expression?.index(document, context, info);
     }
 }

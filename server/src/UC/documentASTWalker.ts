@@ -1500,8 +1500,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	}
 
 	visitNameLiteral(ctx: UCGrammar.NameLiteralContext) {
-		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCNameLiteral(range);
+        const token = ctx.NAME().payload;
+        const text = token.text!;
+        const name = toName(text.substring(1, text.length - 1))
+        const id: Identifier = {
+            name: name,
+            range: rangeFromBound(token)
+        };
+		const expression = new UCNameLiteral(id);
 		return expression;
 	}
 

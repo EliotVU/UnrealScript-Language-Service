@@ -630,8 +630,8 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         if (expr instanceof UCParenthesizedExpression) {
             expr.expression?.accept(this);
         } else if (expr instanceof UCMetaClassExpression) {
-            expr.expression?.accept(this);
             expr.classRef?.accept(this);
+            expr.expression?.accept(this);
             // TODO: verify class type by inheritance
         } else if (expr instanceof UCCallExpression) {
             this.state.hasArguments = true;

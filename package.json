@@ -70,6 +70,11 @@
     "extensionKind": [
         "workspace"
     ],
+    "configurationDefaults": {
+        "[unrealscript]": {
+            "editor.semanticHighlighting.enabled": true
+        }
+    },
     "contributes": {
         "configuration": {
             "type": "object",
