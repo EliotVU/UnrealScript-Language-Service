@@ -1,6 +1,6 @@
 class SemanticTokens extends Core.Object;
 
-const constField = nameof(class'Object'.default.EAxis.AXIS_X);
+const constField = nameof(class'Core.Object'.default.EAxis.AXIS_X);
 
 enum ETest {
     MyEnumMember
@@ -32,6 +32,7 @@ function Test(int param1)
 
     name = '';
     name = 'MyName';
+    name = name("MyName");
     name = nameof(name);
 
     local1 = param1;
@@ -47,7 +48,7 @@ function Test(int param1)
     }
 
     pkg = package'Core';
-    class'Core.Object';
+    obj = class'Core.Object';
 
     objects.AddItem(self);
 }

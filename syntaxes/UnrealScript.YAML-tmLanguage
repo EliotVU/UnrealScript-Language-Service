@@ -80,36 +80,66 @@ repository:
       - include: '#expression' #technically incorrect, but this is nice to have.
     end: (?<=$)
 
-  string:
+  object-literal:
+    begin: (\w+)\s*(')
+    beginCaptures:
+      '1':
+        name: entity.name.type.class.uc
+      '2':
+        name: punctuation.definition.string.begin.uc
     patterns:
-      - name: string.quoted.single.uc
-        match: (\')(?:\\.|[^\'])*(\')
-        captures:
-          '1':
-            name: punctuation.definition.string.begin.uc
-          '3':
-            name: punctuation.definition.string.end.uc
+      - name: variable.other.constant.uc
+        match: \w+
 
-      - name: string.quoted.double.uc
-        match: (\")(?:\\.|[^\"])*(\")
-        captures:
-          '1':
-            name: punctuation.definition.string.begin.uc
-          '3':
-            name: punctuation.definition.string.end.uc
+      - name: punctuation.accessor.uc
+        match: \.
+    # newlines are permitted at least in UE2
+    end: (')|(?:[^ ",/:|&!\r\t])$
+    endCaptures:
+      '1':
+        name: punctuation.definition.string.begin.uc
+      '2':
+        name: invalid.illegal.uc
+    # contentName: string.quoted.single.uc
 
+  name-literal:
+    name: string.quoted.single.uc
+    begin: (')
+    beginCaptures:
+      '0':
+        name: punctuation.definition.string.begin.uc
+    patterns:
       - include: '#string-character-escape'
+    end: (')|((?:[^ ",\n\r\t])$)
+    endCaptures:
+      '1':
+        name: punctuation.definition.string.end.uc
+      '2':
+        name: invalid.illegal.uc
+
+  string-literal:
+    name: string.quoted.double.uc
+    begin: '"'
+    beginCaptures:
+      '0':
+        name: punctuation.definition.string.begin.uc
+    patterns:
+      - include: '#string-character-escape'
+    end: (")|((?:[^\n])$)
+    endCaptures:
+      '1':
+        name: punctuation.definition.string.end.uc
+      '2':
+        name: invalid.illegal.newline.uc
 
   string-character-escape:
     name: constant.character.escape.uc
     match: \\.
 
-  literal:
+  string:
     patterns:
-      - include: '#string'
-      - include: '#numeric-literal'
-      - include: '#boolean-literal'
-      - include: '#object-literal'
+      - include: '#name-literal'
+      - include: '#string-literal'
 
   boolean-literal:
     patterns:
@@ -126,23 +156,14 @@ repository:
       - name: constant.numeric.decimal.uc
         match: '[0-9]+(f|F)?'
 
-  object-literal:
-    match: (\w+)\s*((\')(?:[^\']*)(\'))
-    captures:
-      '1':
-        name: entity.name.type.class.uc
-      '2':
-        name: string.quoted.single.uc
-      '3':
-        name: punctuation.definition.string.begin.uc
-      '5':
-        name: punctuation.definition.string.end.uc
-
   # Anything that is a static value such as a literal but including some "special tokens"
   constant:
     patterns:
       - include: '#comment'
-      - include: '#literal'
+
+      - include: '#string'
+      - include: '#numeric-literal'
+      - include: '#boolean-literal'
 
       - name: constant.language.null.uc
         match: \b((?i)none)\b
@@ -199,6 +220,8 @@ repository:
               '0':
                 name: punctuation.parenthesis.close.uc
         end: (?=;|\b)
+
+      - include: '#object-literal'
 
   declarations:
     patterns:
@@ -1165,6 +1188,9 @@ repository:
 
       - name: punctuation.accessor.uc
         match: \.
+
+      - name: punctuation.separator.comma.uc
+        match: \,
 
       - include: '#parenthesis-expression'
 
