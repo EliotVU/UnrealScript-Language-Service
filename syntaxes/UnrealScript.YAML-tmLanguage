@@ -885,7 +885,7 @@ repository:
       '1':
         name: keyword.other.replication.uc
     patterns:
-      - name: meta.block
+      - name: meta.block.uc
         begin: \{
         beginCaptures:
           '0':
@@ -1184,6 +1184,7 @@ repository:
 
   propertiesBlock:
     patterns:
+      - include: '#comment'
       - begin: \b(begin ((?i)object))\b
         beginCaptures:
           '0':
@@ -1194,6 +1195,25 @@ repository:
         endCaptures:
           '0':
             name: keyword.other.uc
+      - include: '#propertiesStatement'
+
+  propertiesStatement:
+    patterns:
+      - name: meta.block.uc
+        begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.uc
+        patterns:
+          - include: '#expression'
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.uc
+      - include: '#expression'
+
+  propertiesExpression:
+    patterns:
       - include: '#expression'
 
   defaultproperties:
@@ -1202,7 +1222,7 @@ repository:
       '1':
         name: keyword.other.defaultproperties.uc
     patterns:
-      - name: meta.block
+      - name: meta.block.uc
         begin: \{
         beginCaptures:
           '0':
@@ -1221,7 +1241,7 @@ repository:
       '1':
         name: keyword.other.structdefaultproperties.uc
     patterns:
-      - name: meta.block
+      - name: meta.block.uc
         begin: \{
         beginCaptures:
           '0':

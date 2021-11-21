@@ -121,6 +121,7 @@ var pointer defaultPointer; // struct in UC3+
 
 var int 					defaultIntArray[CONST_NUMBER]; const CONST_ARRAYCOUNT = arraycount(defaultIntArray);
 var array<int> 				defaultIntDynamicArray;
+var array<AStruct>          defaultStructArray;
 
 // TODO: Test how the UC compiler handles delegate names that are ambigues with a class.
 // As it currently stands, the delegate is matched with class "Test" instead of function "Test".
@@ -338,6 +339,16 @@ function byte TestInvalidCode(){
 
 defaultproperties
 {
+    defaultIntDynamicArray(0)={(
+
+    )}
+
+
+    defaultStructArray(0)={(
+        AColor=(R=255),
+        AVector=(X=0)
+    )}
+
 	defaultIntDynamicArray(DEFAULT_CONST)=1
 	defaultIntDynamicArray(D_Zero)=1
 	defaultIntDynamicArray(D_One)=1
