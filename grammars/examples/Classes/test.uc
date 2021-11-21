@@ -339,13 +339,19 @@ function byte TestInvalidCode(){
 
 defaultproperties
 {
-    defaultIntDynamicArray(0)={(
+    // Verify that non-spaced comments don't break the highlighter.
+    /**/
 
+    // comment-test
+    defaultIntDynamicArray(0)={(
+        // comment-test
     )}
 
+    // comment-test
 
-    defaultStructArray(0)={(
-        AColor=(R=255),
+    defaultStructArray(0)= {(
+        AColor=(R=255 /* comment-test */),
+        // comment-test
         AVector=(X=0)
     )}
 
