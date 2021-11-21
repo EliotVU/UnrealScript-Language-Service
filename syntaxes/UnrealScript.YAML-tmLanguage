@@ -176,8 +176,7 @@ repository:
             name: punctuation.parenthesis.open.uc
         patterns:
           - include: '#comment'
-          - match: (\w+)
-            name: variable.other.object.uc
+          - include: '#expression'
         end: (?=(\)))
         endCaptures:
           '0':
