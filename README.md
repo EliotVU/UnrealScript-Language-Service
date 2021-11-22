@@ -7,7 +7,7 @@
 <img src="https://raw.githubusercontent.com/EliotVU/UnrealScript-Language-Service/master/demo.gif">
 
 # Features
-This work-in-progress extension for Visual Studio Code, its goal is to bring a rich editing experience to UnrealScript, the Unreal Engine's domain specific language.
+This is a work-in-progress extension for Visual Studio Code, its goal is to bring a rich editing experience to UnrealScript, the Unreal Engine's domain specific language.
 The extension will assist you with the following features:
 
     Auto-Completion
