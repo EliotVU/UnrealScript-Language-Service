@@ -1,5 +1,6 @@
 import * as glob from 'glob';
 import * as path from 'path';
+import { performance } from 'perf_hooks';
 import { BehaviorSubject, firstValueFrom, from, interval, Subject, Subscription } from 'rxjs';
 import { debounce, delay, filter, switchMapTo, tap } from 'rxjs/operators';
 import * as url from 'url';
@@ -223,31 +224,39 @@ connection.onInitialized(() => {
             switchMapTo(documents$),
             filter(documents => documents.length > 0)
         )
-        .subscribe(((documents) => {
-            // TODO: does not respect multiple globals.uci files
-            const globalUci = getDocumentById(globalsUCIFileName);
-            if (globalUci) {
-                queuIndexDocument(globalUci);
-            }
+        .subscribe((async (documents) => {
+            const indexStartTime = performance.now();
+            const work = await connection.window.createWorkDoneProgress();
+            work.begin('Indexing workspace', 0.0);
+            try {
+                // TODO: does not respect multiple globals.uci files
+                const globalUci = getDocumentById(globalsUCIFileName);
+                if (globalUci) {
+                    queuIndexDocument(globalUci);
+                }
 
-            if (config.indexAllDocuments) {
-                const indexStartTime = Date.now();
-                connection.window.showInformationMessage('Indexing UnrealScript documents!');
+                if (config.indexAllDocuments) {
+                    for (let i = 0; i < documents.length; i++) {
+                        if (documents[i].hasBeenIndexed) {
+                            continue;
+                        }
 
-                documents.forEach(document => {
-                    if (document.hasBeenIndexed) {
-                        return;
+                        work.report(i / documents.length, `${documents[i].fileName} + dependencies`);
+                        queuIndexDocument(documents[i]);
                     }
+                } else {
+                    textDocuments
+                        .all()
+                        .forEach(doc => pendingTextDocuments$.next({
+                            textDocument: doc,
+                            isDirty: false
+                        }));
+                }
+            } finally {
+                work.done();
 
-                    queuIndexDocument(document);
-                });
-
-                const time = Date.now() - indexStartTime;
-                connection.window.showInformationMessage('UnrealScript documents have been indexed in ' + new Date(time).getSeconds() + ' seconds!');
-            } else {
-                textDocuments
-                    .all()
-                    .forEach(doc => pendingTextDocuments$.next({ textDocument: doc, isDirty: false }));
+                const time = performance.now() - indexStartTime;
+                connection.console.log('UnrealScript documents have been indexed in ' + (time / 1000) + ' seconds!');
             }
         }));
 
