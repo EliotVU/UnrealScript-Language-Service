@@ -17,11 +17,12 @@ import {
     UCWhileStatement
 } from '../statements';
 import {
-    getTypeFlagsName, IContextInfo, ITypeSymbol, LengthProperty, NativeClass, NativeEnum,
-    StaticBoolType, typeMatchesFlags, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol,
-    UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumSymbol, UCFieldSymbol, UCMethodSymbol,
-    UCObjectSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
-    UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeFlags
+    areMethodsCompatibleWith, getTypeFlagsName, IContextInfo, isMethodSymbol, isPropertySymbol,
+    isStateSymbol, ITypeSymbol, LengthProperty, NativeClass, NativeEnum, StaticBoolType,
+    typeMatchesFlags, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol, UCDelegateTypeSymbol,
+    UCEnumSymbol, UCFieldSymbol, UCMethodSymbol, UCObjectSymbol, UCObjectTypeSymbol, UCParamSymbol,
+    UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock, UCScriptStructSymbol,
+    UCStateSymbol, UCStructSymbol, UCTypeFlags
 } from '../Symbols';
 import { DefaultSymbolWalker } from '../symbolWalker';
 import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
@@ -38,7 +39,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
         if (document.class) {
             this.pushScope(document.class);
-            document.class.accept<any>(this);
+            document.class.accept(this);
         }
     }
 
@@ -69,11 +70,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
     }
 
     visitQualifiedType(symbol: UCQualifiedTypeSymbol) {
-        symbol.left?.accept<any>(this);
+        symbol.left?.accept(this);
         if (symbol.left && !symbol.left.getRef()) {
             return symbol;
         }
-        symbol.type.accept<any>(this);
+        symbol.type.accept(this);
         return symbol;
     }
 
@@ -102,7 +103,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
         if (config.checkTypes && symbol.baseType) {
             const referredSymbol = symbol.baseType.getRef();
-            if (referredSymbol && !(referredSymbol instanceof UCDelegateSymbol)) {
+            if (referredSymbol && (referredSymbol.getTypeFlags() & UCTypeFlags.FunctionDelegate) !== UCTypeFlags.FunctionDelegate) {
                 this.diagnostics.add({
                     range: symbol.baseType.id.range,
                     message: diagnosticMessages.TYPE_0_CANNOT_EXTEND_TYPE_OF_1,
@@ -222,7 +223,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
         if (config.checkTypes) {
             const baseType = symbol.isDynamicArray()
-                ? (symbol.type! as UCArrayTypeSymbol).baseType
+                ? symbol.type.baseType
                 : symbol.isFixedArray()
                     ? symbol.type
                     : undefined;
@@ -329,7 +330,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
         if (config.checkTypes && symbol.extendsType) {
             const referredSymbol = symbol.extendsType.getRef();
-            if (referredSymbol && referredSymbol.getTypeFlags() !== UCTypeFlags.State) {
+            if (referredSymbol && !isStateSymbol(referredSymbol)) {
                 this.diagnostics.add({
                     range: symbol.extendsType.id.range,
                     message: diagnosticMessages.TYPE_0_CANNOT_EXTEND_TYPE_OF_1,
@@ -347,7 +348,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                     message: diagnosticMessages.COULDNT_FIND_0,
                     args: [ref.getName().toString()]
                 });
-            } else if (referredSymbol instanceof UCMethodSymbol) {
+            } else if (isMethodSymbol(referredSymbol)) {
                 if (referredSymbol.isFinal()) {
                     this.diagnostics.add({
                         range: ref.id.range,
@@ -466,7 +467,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         // Disabled because we don't want to analyze object children, because each child is already registered as a statement!
         // super.visitStructBase(symbol);
         if (symbol.block) {
-            symbol.block.accept<any>(this);
+            symbol.block.accept(this);
         }
         this.popScope();
         return symbol;
@@ -475,7 +476,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
     visitBlock(symbol: UCBlock) {
         for (let statement of symbol.statements) if (statement) {
             try {
-                statement.accept<any>(this);
+                statement.accept(this);
             } catch (err) {
                 console.error('Hit a roadblock while analyzing a statement', this.context ? this.context.getPath() : '???', err);
             }
@@ -584,7 +585,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         if (!config.checkTypes)
             return undefined;
 
-        if (this.context instanceof UCMethodSymbol) {
+        if (this.context && isMethodSymbol(this.context)) {
             const expectedType = this.context.getType();
             if (stm.expression) {
                 const type = stm.expression.getType();
@@ -627,20 +628,20 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
     visitExpression(expr: IExpression) {
         if (expr instanceof UCParenthesizedExpression) {
-            expr.expression?.accept<any>(this);
+            expr.expression?.accept(this);
         } else if (expr instanceof UCMetaClassExpression) {
-            expr.expression?.accept<any>(this);
-            expr.classRef?.accept<any>(this);
+            expr.expression?.accept(this);
+            expr.classRef?.accept(this);
             // TODO: verify class type by inheritance
         } else if (expr instanceof UCCallExpression) {
             this.state.hasArguments = true;
-            expr.expression.accept<any>(this);
+            expr.expression.accept(this);
             this.state.hasArguments = false;
-            expr.arguments?.forEach(arg => arg.accept<any>(this));
+            expr.arguments?.forEach(arg => arg.accept(this));
 
             const type = expr.expression.getType();
             const symbol = type?.getRef();
-            if (symbol instanceof UCMethodSymbol) {
+            if (symbol && isMethodSymbol(symbol)) {
                 // FIXME: inferred type, this is unfortunately complicated :(
                 this.checkArguments(symbol, expr);
             } else {
@@ -649,7 +650,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             }
         } else if (expr instanceof UCElementAccessExpression) {
             if (expr.expression) {
-                expr.expression.accept<any>(this);
+                expr.expression.accept(this);
                 if (config.checkTypes) {
                     const type = expr.getType();
                     if (!type) {
@@ -665,7 +666,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             }
 
             if (expr.argument) {
-                expr.argument.accept<any>(this);
+                expr.argument.accept(this);
                 if (config.checkTypes) {
                     const type = expr.argument.getType();
                     if (!type || (type.getTypeFlags() & UCTypeFlags.NumberCoerce) === 0) {
@@ -689,19 +690,19 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             }
         } else if (expr instanceof UCPropertyAccessExpression) {
             this.suspendState();
-            expr.left.accept<any>(this);
+            expr.left.accept(this);
             this.resumeState();
 
             const memberContext = expr.left.getType()?.getRef() as UCStructSymbol;
             this.pushScope(memberContext);
-            expr.member?.accept<any>(this);
+            expr.member?.accept(this);
             this.popScope();
         } else if (expr instanceof UCConditionalExpression) {
-            expr.condition.accept<any>(this);
-            expr.true?.accept<any>(this);
-            expr.false?.accept<any>(this);
+            expr.condition.accept(this);
+            expr.true?.accept(this);
+            expr.false?.accept(this);
         } else if (expr instanceof UCBaseOperatorExpression) {
-            expr.expression.accept<any>(this);
+            expr.expression.accept(this);
             const operatorSymbol = expr.operator.getRef();
             if (!operatorSymbol) {
                 this.diagnostics.add({
@@ -715,7 +716,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             }
         } else if (expr instanceof UCBinaryOperatorExpression) {
             if (expr.left) {
-                expr.left.accept<any>(this);
+                expr.left.accept(this);
 
                 const type = expr.left.getType();
                 this.state.typeFlags = type?.getTypeFlags();
@@ -724,7 +725,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 return undefined;
             }
             if (expr.right) {
-                expr.right.accept<any>(this);
+                expr.right.accept(this);
             } else {
                 this.pushError(expr.getRange(), "Missing right expression!");
                 return undefined;
@@ -732,45 +733,71 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
             if (expr instanceof UCAssignmentExpression || expr instanceof UCAssignmentOperatorExpression) {
                 // TODO: Validate type compatibility, but this requires us to match an overloaded operator first!
-                const letType = expr.left!.getType();
-                const letSymbol = letType?.getRef();
-                if (letSymbol) {
-                    if (letSymbol instanceof UCPropertySymbol) {
+                const letResolvedType = expr.left!.getType();
+                const letResolvedSymbol = letResolvedType?.getRef();
+                if (letResolvedSymbol) {
+                    const letFlags = letResolvedType!.getTypeFlags();
+                    if (isPropertySymbol(letResolvedSymbol)) {
                         // Properties with a defined array dimension cannot be assigned!
-                        if (letSymbol.isFixedArray()) {
+                        if (letResolvedSymbol.isFixedArray()) {
                             this.diagnostics.add({
-                                range: letType!.getRange(),
+                                range: letResolvedType!.getRange(),
                                 message: {
-                                    text: `Cannot assign to '${letSymbol.getName()}' because it is a fixed array.`,
+                                    text: `Cannot assign to '${letResolvedSymbol.getName()}' because it is a fixed array.`,
                                     severity: DiagnosticSeverity.Error
                                 }
                             });
                         }
 
-                        if (letSymbol.isConst()) {
+                        if (letResolvedSymbol.isConst()) {
                             this.diagnostics.add({
-                                range: letType!.getRange(),
+                                range: letResolvedType!.getRange(),
                                 message: {
-                                    text: `Cannot assign to '${letSymbol.getName()}' because it is a constant.`,
+                                    text: `Cannot assign to '${letResolvedSymbol.getName()}' because it is a constant.`,
                                     severity: DiagnosticSeverity.Error
                                 }
                             });
                         }
-                    } else if (letSymbol instanceof UCMethodSymbol && !(letSymbol instanceof UCDelegateSymbol)) {
+                    } // Expected to be true for either a delegate property or delegate function.
+                    else if (letFlags & UCTypeFlags.Delegate) {
+                        if (config.checkTypes) {
+                            const rightType = expr.right && expr.right.getType();
+                            if (rightType) {
+                                const rightFlags = rightType.getTypeFlags();
+                                if ((rightFlags & UCTypeFlags.AssignToDelegate) === 0) {
+                                    this.diagnostics.add({
+                                        range: expr.right.getRange(),
+                                        message: {
+                                            text: `Type '${getTypeFlagsName(rightType)}' is not assignable to a delegate.`,
+                                            severity: DiagnosticSeverity.Error
+                                        }
+                                    });
+                                } else {
+                                    const rightSymbol = rightType.getRef();
+                                    if (rightSymbol && isMethodSymbol(rightSymbol)
+                                        && !areMethodsCompatibleWith((letResolvedSymbol as UCMethodSymbol), rightSymbol)) {
+                                        this.diagnostics.add({
+                                            range: expr.right.getRange(),
+                                            message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
+                                            args: [rightSymbol.getPath(), letResolvedSymbol.getPath()]
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } else if (letFlags & UCTypeFlags.Function & ~UCTypeFlags.Object) {
                         this.diagnostics.add({
-                            range: letType!.getRange(),
+                            range: expr.left.getRange(),
                             message: {
-                                text: `Cannot assign to '${letSymbol.getName()}' because it is a function. Did you mean to assign a delegate?`,
+                                text: `Cannot assign to '${letResolvedSymbol.getName()}' because it is a function. Did you mean to assign a delegate?`,
                                 severity: DiagnosticSeverity.Error
                             }
                         });
-                        // TODO: Distinguish a delegate from a regular method!
-                        // TODO: throw error unless it's a delegate.
                     }
                 }
             } else if (expr instanceof UCDefaultAssignmentExpression) {
                 if (config.checkTypes) {
-                    const letType = expr.left!.getType();
+                    const letType = expr.left.getType();
                     if (letType && letType.getTypeFlags() === UCTypeFlags.Error) {
                         this.pushError(
                             expr.left!.getRange(),
@@ -779,14 +806,24 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                     }
 
                     if (expr.right) {
-                        const leftType = expr.left!.getType();
                         const rightType = expr.right.getType();
-                        if (rightType && leftType) {
-                            if (!typeMatchesFlags(rightType, leftType)) {
+                        if (rightType && letType) {
+                            if (!typeMatchesFlags(rightType, letType)) {
                                 this.pushError(
-                                    expr.left!.getRange(),
-                                    `Variable of type '${getTypeFlagsName(leftType)}' cannot be assigned to type '${getTypeFlagsName(rightType)}'`
+                                    expr.right.getRange(),
+                                    `Type '${getTypeFlagsName(rightType)}' is not assignable to type '${getTypeFlagsName(letType)}'.`
                                 );
+                            } else {
+                                const leftSymbol = letType.getRef();
+                                const rightSymbol = rightType.getRef();
+                                if (leftSymbol && rightSymbol && isMethodSymbol(rightSymbol)
+                                    && !areMethodsCompatibleWith((leftSymbol as UCMethodSymbol), rightSymbol)) {
+                                    this.diagnostics.add({
+                                        range: expr.right.getRange(),
+                                        message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
+                                        args: [rightSymbol.getPath(), leftSymbol.getPath()]
+                                    });
+                                }
                             }
                         } else {
                             // TODO: Invalid type?
@@ -798,13 +835,13 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 }
             }
         } else if (expr instanceof UCDefaultMemberCallExpression) {
-            expr.propertyMember.accept<any>(this);
-            expr.methodMember.accept<any>(this);
-            expr.arguments?.forEach(arg => arg.accept<any>(this));
+            expr.propertyMember.accept(this);
+            expr.methodMember.accept(this);
+            expr.arguments?.forEach(arg => arg.accept(this));
 
             const type = expr.methodMember.getType();
             const symbol = type?.getRef();
-            if (symbol instanceof UCMethodSymbol) {
+            if (symbol && isMethodSymbol(symbol)) {
                 this.checkArguments(symbol, expr, expr.getType());
             } else {
                 this.pushError(expr.methodMember.getRange(), `Operation can only be applied to an array!`);
@@ -813,10 +850,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             if (!this.context || !this.state.typeFlags) {
                 return undefined;
             } else if ((this.state.typeFlags & UCTypeFlags.IdentifierTypes) === 0) {
-                return undefined;
-            }
-            // We don't support objects, although this may be true in the check above due the fact that a class is also an Object.
-            else if (this.state.typeFlags === UCTypeFlags.Object) {
                 return undefined;
             }
 
@@ -865,14 +898,14 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 });
             }
         } else if (expr instanceof UCDefaultStructLiteral) {
-            expr.arguments?.forEach(arg => arg?.accept<any>(this));
+            expr.arguments?.forEach(arg => arg?.accept(this));
         } else if (expr instanceof UCObjectLiteral) {
             // TODO: verify class type by inheritance
             const castSymbol = expr.castRef.getRef();
-            expr.castRef.accept<any>(this);
+            expr.castRef.accept(this);
 
             if (expr.objectRef) {
-                expr.objectRef.accept<any>(this);
+                expr.objectRef.accept(this);
 
                 const objectSymbol = expr.objectRef.getRef();
                 if (config.checkTypes && objectSymbol) {
@@ -885,10 +918,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             }
         } else if (expr instanceof UCArrayCountExpression) {
             // TODO: Validate that type is a static array
-            expr.argument?.accept<any>(this);
+            expr.argument?.accept(this);
         } else if (expr instanceof UCNameOfExpression) {
             // TODO: Validate type
-            expr.argument?.accept<any>(this);
+            expr.argument?.accept(this);
         }
         return undefined;
     }
@@ -955,8 +988,21 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 // We'll play nice by not pushing any errors if the method's param has no found or defined type,
                 // -- the 'type not found' error will suffice.
                 if (paramType) {
-                    if (argType && !typeMatchesFlags(argType, paramType, param.isCoerced())) {
-                        const expectedFlags = paramType.getTypeFlags();
+                    const expectedFlags = paramType.getTypeFlags();
+                    if (expectedFlags & UCTypeFlags.Delegate) {
+                        const argSymbol = arg.getType()?.getRef();
+                        if (argSymbol && isMethodSymbol(argSymbol)
+                            && paramType.getRef()
+                            && !areMethodsCompatibleWith((paramType.getRef() as UCMethodSymbol), argSymbol)) {
+                            this.diagnostics.add({
+                                range: arg.getRange(),
+                                message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
+                                args: [argSymbol.getPath(), paramType.getPath()]
+                            });
+                        }
+                    }
+
+                    if (!typeMatchesFlags(argType, paramType, param.isCoerced())) {
                         this.pushError(arg.getRange(),
                             `Argument of type '${getTypeFlagsName(argType)}' is not assignable to parameter of type '${UCTypeFlags[expectedFlags]}'.`
                         );

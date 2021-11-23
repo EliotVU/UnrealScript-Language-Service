@@ -87,6 +87,9 @@ struct native transient AStruct {
 
 	var array<ASubStruct> SubArray;
 
+    // FIXME: Delegate not found if referenced in a struct context.
+    var delegate<DelegateFunction> StructContainedDelegate;
+
 	var Color AColor;
 	var Guid AGuid;
 	var Vector AVector;
@@ -121,7 +124,7 @@ var array<int> 				defaultIntDynamicArray;
 
 // TODO: Test how the UC compiler handles delegate names that are ambigues with a class.
 // As it currently stands, the delegate is matched with class "Test" instead of function "Test".
-var delegate<Test> 			defaultDelegate;
+var delegate<DelegateFunction> 	defaultDelegate;
 
 var map{string, float} 		defaultStringToFloatMap;
 var class<Test> 			defaultClassMeta[4];
@@ -148,6 +151,8 @@ var private{public} native int NativeInt[2], NativeIntTwo[2]{INT};
 var(Category1, Category2) config(Test) string Description;
 
 var int superVar;
+
+delegate DelegateFunction();
 
 native function string const() const;
 
@@ -203,7 +208,7 @@ function AddObj(Object obj) {
 	return;
 }
 
-delegate byte Test() {
+function byte Test() {
 
 	local int i;
 

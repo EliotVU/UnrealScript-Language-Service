@@ -10,56 +10,74 @@ import {
 import { SymbolWalker } from '../symbolWalker';
 import {
     DEFAULT_RANGE, Identifier, ISymbol, IWithReference, NativeArray, NativeClass, ObjectsTable,
-    UCClassSymbol, UCFieldSymbol, UCStructSymbol, UCSymbol, UCSymbolReference
+    UCClassSymbol, UCConstSymbol, UCFieldSymbol, UCMethodSymbol, UCStructSymbol, UCSymbol,
+    UCSymbolReference
 } from './';
 import { tryFindClassSymbol, tryFindSymbolInPackage, UCPackage } from './Package';
+import { UCPropertySymbol } from './PropertySymbol';
+import { UCStateSymbol } from './StateSymbol';
 
 export enum UCTypeFlags {
 	// A type that couldn't be found.
-	Error			= 0,
+	Error			    = 0,
 
 	// PRIMITIVE TYPES
-	Float 			= 1 << 1,
-	Int 			= 1 << 2, // Also true for a pointer
-	Byte 			= 1 << 3, // Also true for an enum member.
-	String			= 1 << 4,
-	Name			= 1 << 5,
-	Bool			= 1 << 6,
-	Array			= 1 << 7,
-	Delegate		= 1 << 8,
+	Float 			    = 1 << 1,
+	Int 			    = 1 << 2, // Also true for a pointer
+	Byte 			    = 1 << 3, // Also true for an enum member.
+	String			    = 1 << 4,
+	Name			    = 1 << 5,
+	Bool			    = 1 << 6,
+	Array			    = 1 << 7,
+    // Also used to flag functions of the delegate type
+	Delegate		    = 1 << 8,
 
 	// OBJECT TYPES
-	Object			= 1 << 9,
-	Archetype 		= 1 << 10 | Object,
-	Package			= 1 << 11 | Object, // For use cases like e.g. "class Actor extends Core.Object" where "Core" would be of type "Package".
-	Class			= 1 << 12 | Object, // A class like class<CLASSNAME>.
-	IsInterface		= 1 << 13,
-	Enum			= 1 << 14 | Object,
-	Struct			= 1 << 15 | Object,
-	Property		= 1 << 16 | Object,
-	Function		= 1 << 17 | Object,
-	State			= 1 << 18 | Object,
-	Const			= 1 << 19 | Object,
+    // TODO: Deprecate | Object, as this complicates things too much
+	Object			    = 1 << 9,
+	Archetype 		    = 1 << 10 | Object,
+	Package			    = 1 << 11 | Object, // For use cases like e.g. "class Actor extends Core.Object" where "Core" would be of type "Package".
+	Class			    = 1 << 12 | Object, // A class like class<CLASSNAME>.
+	IsInterface		    = 1 << 13,
+	Enum			    = 1 << 14 | Object,
+	Struct			    = 1 << 15 | Object,
+	Property		    = 1 << 16 | Object,
+	Function		    = 1 << 17 | Object,
+    FunctionDelegate    = Delegate | Function & ~Object,
+	State			    = 1 << 18 | Object,
+	Const			    = 1 << 19 | Object,
 
 	// Special case for property type validations.
-	Type			= 1 << 20,
+	Type			    = 1 << 20,
 	// Reffers the special "None" identifier, if we do actual reffer an undefined symbol, we should be an @Error.
-	None			= 1 << 21,
+	None			    = 1 << 21,
 
-	NumberCoerce	= Float | Int | Byte,
-	EnumCoerce		= Enum | Int | Byte,
-	NoneCoerce		= Delegate | Object | Name,
+    NamedFlags          = (None | Class | Delegate
+                        | Array | Bool | Name
+                        | String | Byte | Int
+                        | Float | Archetype
+                        | Error) & ~Object,
+
+	NumberCoerce	    = Float | Int | Byte,
+	EnumCoerce		    = Enum | Int | Byte,
+
+    // "None" can be passed to...
+	NoneCoerce		    = Delegate | Object | Name,
 
 	// TODO: Verify if "coerce" is required when passing a "Name" to a "String" type.
-	NameCoerce		= Name | String,
+	NameCoerce		    = Name | String,
 
 	// Can be coerced to type "String", if marked with "coerce".
-	CoerceToString	= Name | String | Object | NumberCoerce | Bool | None,
+	CoerceToString	    = Name | String | Object | NumberCoerce | Bool | None,
 
-	Replicatable	= Function | Property,
+    AssignToDelegate    = Delegate | (Function & ~Object) | None,
+
+	Replicatable	    = Function | Property,
 
 	// Types that can be assigned to by an identifier literal.
-	IdentifierTypes = EnumCoerce | Class | Delegate
+	IdentifierTypes     = (EnumCoerce | Class | Archetype | Delegate) & ~Object,
+
+    Objects             = Object,
 }
 
 export interface ITypeSymbol extends UCSymbol, IWithReference {
@@ -74,7 +92,8 @@ export function isTypeSymbol(symbol: ITypeSymbol): symbol is ITypeSymbol {
 }
 
 export function getTypeFlagsName(type?: ITypeSymbol): string {
-	return UCTypeFlags[type?.getTypeFlags() || UCTypeFlags.Error];
+    const flags = type?.getTypeFlags() || UCTypeFlags.Error;
+	return UCTypeFlags[flags & UCTypeFlags.NamedFlags];
 }
 
 /**
@@ -451,41 +470,69 @@ export function typeMatchesFlags(type: ITypeSymbol | undefined, expectedType: IT
 		return false;
 	}
 
-	if (type) {
-		const expectedFlags = expectedType.getTypeFlags();
-		const flags = type.getTypeFlags();
-		if (coerce && expectedFlags & UCTypeFlags.String) {
-			return (flags & UCTypeFlags.CoerceToString) !== 0;
-		}
+	if (typeof type === 'undefined') {
+	    return false;
+    }
 
-		if ((flags & UCTypeFlags.NumberCoerce) !== 0) {
-			return (expectedFlags & UCTypeFlags.NumberCoerce) !== 0 || (expectedFlags & UCTypeFlags.Enum) === UCTypeFlags.Enum;
-		} else if ((flags & UCTypeFlags.Enum) === UCTypeFlags.Enum) {
-			return (expectedFlags & UCTypeFlags.EnumCoerce) !== 0;
-		} else if (flags === UCTypeFlags.None) {
-			return (expectedFlags & UCTypeFlags.NoneCoerce) !== 0;
-		} else if (flags === UCTypeFlags.String) {
-			return (expectedFlags & UCTypeFlags.String) !== 0;
-		} else if (flags === UCTypeFlags.Name) {
-			return (expectedFlags & UCTypeFlags.Name | (UCTypeFlags.String*Number(coerce))) !== 0;
-		} else if ((flags & UCTypeFlags.Struct) === UCTypeFlags.Struct) {
-			return (expectedFlags & UCTypeFlags.Struct) === UCTypeFlags.Struct
-				&& expectedType.getName() === type.getName();
-		} else if ((flags & UCTypeFlags.Object) !== 0) {
-			if ((expectedFlags & UCTypeFlags.Struct) === UCTypeFlags.Struct) {
-				return false;
-			}
-			return (expectedFlags & UCTypeFlags.Object) !== 0;
-		}
-		return flags === expectedFlags;
-	}
-	return false;
+    const expectedFlags = expectedType.getTypeFlags();
+    const flags = type.getTypeFlags();
+    if (coerce && expectedFlags & UCTypeFlags.String) {
+        return (flags & UCTypeFlags.CoerceToString) !== 0;
+    }
+
+    if ((flags & UCTypeFlags.NumberCoerce) !== 0) {
+        return (expectedFlags & UCTypeFlags.NumberCoerce) !== 0 || (expectedFlags & UCTypeFlags.Enum) === UCTypeFlags.Enum;
+    } else if ((flags & UCTypeFlags.Enum) === UCTypeFlags.Enum) {
+        return (expectedFlags & UCTypeFlags.EnumCoerce) !== 0;
+    } else if (flags === UCTypeFlags.None) {
+        return (expectedFlags & UCTypeFlags.NoneCoerce) !== 0;
+    } else if (flags === UCTypeFlags.String) {
+        return (expectedFlags & UCTypeFlags.String) !== 0;
+    } else if (flags === UCTypeFlags.Name) {
+        return (expectedFlags & UCTypeFlags.Name | (UCTypeFlags.String*Number(coerce))) !== 0;
+    } else if ((flags & UCTypeFlags.Struct) === UCTypeFlags.Struct) {
+        return (expectedFlags & UCTypeFlags.Struct) === UCTypeFlags.Struct
+            && expectedType.getName() === type.getName();
+    } else if (flags & UCTypeFlags.Delegate) {
+        return (expectedFlags & UCTypeFlags.Delegate) !== 0;
+    }
+    if ((flags & UCTypeFlags.Objects) !== 0) {
+        if ((expectedFlags & UCTypeFlags.Struct) === UCTypeFlags.Struct) {
+            return false;
+        }
+        if (expectedFlags & UCTypeFlags.Delegate) {
+            return (flags & UCTypeFlags.AssignToDelegate) !== 0;
+        }
+        return (expectedFlags & UCTypeFlags.Objects) !== 0;
+    }
+    return flags === expectedFlags;
 }
 
 /** Resolves a type to its base type if set. e.g. "Class<Actor>" would be resolved to "Actor". */
 export function resolveType(type?: ITypeSymbol): ITypeSymbol | undefined {
-	if (type && (type.getTypeFlags() & UCTypeFlags.Object) !== 0 && (type as UCObjectTypeSymbol).baseType) {
-		return (type as UCObjectTypeSymbol).baseType;
+    const resolveToBase = UCTypeFlags.Object | UCTypeFlags.Delegate;
+	if (type && (type.getTypeFlags() & resolveToBase) !== 0 && hasDefinedBaseType(type)) {
+		return type.baseType;
 	}
 	return type;
+}
+
+export function hasDefinedBaseType(type: ITypeSymbol & { baseType?: ITypeSymbol | undefined }): type is UCObjectTypeSymbol & { baseType: ITypeSymbol } {
+    return typeof type.baseType !== 'undefined';
+}
+
+export function isConstSymbol(symbol: ISymbol): symbol is UCConstSymbol {
+    return (symbol.getTypeFlags() & UCTypeFlags.Const & ~UCTypeFlags.Object) !== 0;
+}
+
+export function isPropertySymbol(symbol: ISymbol): symbol is UCPropertySymbol {
+    return (symbol.getTypeFlags() & UCTypeFlags.Property & ~UCTypeFlags.Object) !== 0;
+}
+
+export function isMethodSymbol(symbol: ISymbol): symbol is UCMethodSymbol {
+    return (symbol.getTypeFlags() & UCTypeFlags.Function & ~UCTypeFlags.Object) !== 0;
+}
+
+export function isStateSymbol(symbol: ISymbol): symbol is UCStateSymbol {
+    return (symbol.getTypeFlags() & UCTypeFlags.State & ~UCTypeFlags.Object) !== 0;
 }

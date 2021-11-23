@@ -6,7 +6,7 @@ import { Name } from '../names';
 import { UCBlock } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ISymbol, ISymbolContainer, ITypeSymbol, UCFieldSymbol, UCMethodSymbol, UCStateSymbol, UCSymbol,
+    isMethodSymbol, isStateSymbol, ISymbol, ISymbolContainer, ITypeSymbol, UCFieldSymbol, UCSymbol,
     UCTypeFlags
 } from './';
 
@@ -35,7 +35,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			}
 		}
 
-		let parent = this.super ?? this.outer as UCStructSymbol;
+		let parent: UCStructSymbol | undefined = this.super ?? this.outer as UCStructSymbol;
 		for (; parent; parent = parent.super ?? parent.outer as UCStructSymbol) {
 			for (let child = parent.children; child; child = child.next) {
 				if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
@@ -158,13 +158,15 @@ export function findSuperStruct(context: UCStructSymbol, id: Name): UCStructSymb
  * - if there was no predicate match, the last id matched symbol will be returned instead.
  */
 export function findSymbol(context: UCStructSymbol, id: Name, predicate: (symbol: UCFieldSymbol) => boolean): UCSymbol | undefined {
-	let scope = context instanceof UCMethodSymbol ? context.outer : context;
-	if (scope instanceof UCStateSymbol) {
-		scope = scope.outer;
+	let scope: UCStructSymbol | undefined = isMethodSymbol(context)
+        ? context.outer as UCStructSymbol
+        : context;
+	if (scope && isStateSymbol(scope)) {
+		scope = scope.outer as UCStructSymbol;
 	}
 
 	let bestChild: UCSymbol | undefined = undefined;
-	for (; scope instanceof UCStructSymbol; scope = scope.super) {
+	for (; scope; scope = scope.super) {
 		for (var child = scope.children; child; child = child.next) {
 			if (child.getName() === id) {
 				if (predicate(child)) {
