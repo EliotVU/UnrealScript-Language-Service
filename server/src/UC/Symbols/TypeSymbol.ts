@@ -80,6 +80,8 @@ export enum UCTypeFlags {
     Objects             = Object,
 }
 
+export const EnumCoerceFlags		    = UCTypeFlags.Enum | UCTypeFlags.Int | UCTypeFlags.Byte;
+
 export interface ITypeSymbol extends UCSymbol, IWithReference {
 	getTypeText(): string;
 	getTypeFlags(): UCTypeFlags;
@@ -521,12 +523,28 @@ export function hasDefinedBaseType(type: ITypeSymbol & { baseType?: ITypeSymbol 
     return typeof type.baseType !== 'undefined';
 }
 
+export function hasChildren(symbol: ISymbol): symbol is UCStructSymbol {
+    return symbol instanceof UCStructSymbol;
+}
+
+export function isFieldSymbol(symbol: ISymbol): symbol is UCFieldSymbol {
+    return symbol.hasOwnProperty('modifiers');
+}
+
 export function isConstSymbol(symbol: ISymbol): symbol is UCConstSymbol {
     return (symbol.getTypeFlags() & UCTypeFlags.Const & ~UCTypeFlags.Object) !== 0;
 }
 
 export function isPropertySymbol(symbol: ISymbol): symbol is UCPropertySymbol {
     return (symbol.getTypeFlags() & UCTypeFlags.Property & ~UCTypeFlags.Object) !== 0;
+}
+
+export function isParamSymbol(symbol: ISymbol): symbol is UCParamSymbol {
+    return symbol.hasOwnProperty('paramModifiers');
+}
+
+export function isScriptStructSymbol(symbol: ISymbol): symbol is UCScriptStructSymbol {
+    return (symbol.getTypeFlags() & UCTypeFlags.Struct & ~UCTypeFlags.Object) !== 0;
 }
 
 export function isMethodSymbol(symbol: ISymbol): symbol is UCMethodSymbol {
