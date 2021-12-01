@@ -1,7 +1,8 @@
 import { UCDocument } from './document';
 import {
-    UCClassSymbol, UCDefaultPropertiesBlock, UCMethodSymbol, UCObjectSymbol, UCParamSymbol,
-    UCReplicationBlock, UCStateSymbol, UCStructSymbol
+    EnumCoerceFlags, hasChildren, IContextInfo, isParamSymbol, UCClassSymbol,
+    UCDefaultPropertiesBlock, UCMethodSymbol, UCObjectSymbol, UCReplicationBlock, UCStateSymbol,
+    UCStructSymbol, UCTypeFlags
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
@@ -16,8 +17,8 @@ export class DocumentIndexer extends DefaultSymbolWalker {
 
 	visitStructBase(symbol: UCStructSymbol) {
 		for (let child = symbol.children; child; child = child.next) {
-			if (child instanceof UCStructSymbol) {
-				child.accept<any>(this);
+			if (hasChildren(child)) {
+				child.accept(this);
 			}
 		}
 		return symbol;
@@ -41,8 +42,14 @@ export class DocumentIndexer extends DefaultSymbolWalker {
 
 		for (let child = symbol.children; child; child = child.next) {
 			// Parameter?
-			if (child instanceof UCParamSymbol && child.defaultExpression) {
-				child.defaultExpression.index(this.document, symbol);
+			if (child && isParamSymbol(child) && child.defaultExpression) {
+                let context: IContextInfo | undefined;
+                if (child.getTypeFlags() & EnumCoerceFlags) {
+                    context = {
+                        typeFlags: UCTypeFlags.Enum
+                    };
+                }
+				child.defaultExpression.index(this.document, symbol, context);
 			}
 		}
 		return symbol;

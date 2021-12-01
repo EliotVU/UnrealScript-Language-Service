@@ -5,7 +5,7 @@ import { SymbolWalker } from '../symbolWalker';
 import { UCStructSymbol, UCTypeFlags } from './';
 
 /**
- * Represents an instanced Archetype found within in a defaultproperties e.g. "begin object class=classID name=objectName".
+ * Represents an instanced Archetype found within a defaultproperties block e.g. "begin object class=classID name=objectName".
  */
 export class UCObjectSymbol extends UCStructSymbol {
 	getKind(): SymbolKind {
@@ -15,6 +15,10 @@ export class UCObjectSymbol extends UCStructSymbol {
 	getTypeFlags() {
 		return UCTypeFlags.Archetype;
 	}
+
+    getType() {
+        return this.extendsType;
+    }
 
 	index(document: UCDocument, _context: UCStructSymbol) {
 		// TODO: Find @super, for declarations where no class=NAME was specified

@@ -1,4 +1,4 @@
-class Gamma;
+class Gamma extends Object;
 
 var Link Link;
 var Alpha AlphaRef;

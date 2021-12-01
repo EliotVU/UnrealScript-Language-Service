@@ -532,7 +532,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 					modifiers |= FieldModifiers.Native;
 					break;
 				case UCGrammar.UCParser.KW_CONST:
-					modifiers |= FieldModifiers.Const;
+					modifiers |= FieldModifiers.ReadOnly;
 					break;
 				case UCGrammar.UCParser.KW_PROTECTED:
 					modifiers |= FieldModifiers.Protected;
@@ -673,7 +673,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 		for (const modNode of modifierNodes) {
 			switch (modNode.start.type) {
 				case UCGrammar.UCParser.KW_CONST:
-					modifiers |= FieldModifiers.Const;
+					modifiers |= FieldModifiers.ReadOnly;
 					break;
 				case UCGrammar.UCParser.KW_OUT:
 					paramModifiers |= ParamModifiers.Out;
@@ -754,7 +754,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             for (const modNode of modifierNodes) {
                 switch (modNode.start.type) {
                     case UCGrammar.UCParser.KW_CONST:
-                        modifiers |= FieldModifiers.Const;
+                        modifiers |= FieldModifiers.ReadOnly;
                         break;
                     case UCGrammar.UCParser.KW_NATIVE:
                         modifiers |= FieldModifiers.Native;

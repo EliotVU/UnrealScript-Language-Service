@@ -4,11 +4,13 @@ import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    Identifier, ISymbol, ITypeSymbol, UCObjectTypeSymbol, UCQualifiedTypeSymbol, UCStructSymbol,
-    UCTypeFlags
+    FieldModifiers, Identifier, ISymbol, ITypeSymbol, UCObjectTypeSymbol, UCQualifiedTypeSymbol,
+    UCStructSymbol, UCTypeFlags
 } from './';
 
 export class UCClassSymbol extends UCStructSymbol {
+	modifiers = FieldModifiers.ReadOnly;
+
 	public withinType?: ITypeSymbol;
 
 	public dependsOnTypes?: UCObjectTypeSymbol[];

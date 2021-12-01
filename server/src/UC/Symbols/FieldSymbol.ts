@@ -10,7 +10,7 @@ export enum FieldModifiers {
 	Protected 			= 0x0001,
 	Private 			= 0x0002,
 	Native 				= 0x0004,
-	Const 				= 0x0008,
+	ReadOnly 			= 0x0008,
 	WithDimension		= 0x0010,
 	NotPublic 			= Protected | Private,
 }
@@ -68,12 +68,20 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return (this.modifiers & FieldModifiers.Protected) !== 0;
 	}
 
-	isConst(): boolean {
-		return (this.modifiers & FieldModifiers.Const) !== 0;
+	isReadOnly(): boolean {
+		return (this.modifiers & FieldModifiers.ReadOnly) !== 0;
 	}
 
 	isNative(): boolean {
 		return (this.modifiers & FieldModifiers.Native) !== 0;
+	}
+
+    /**
+	 * Returns true if this property is declared as a static array type (false if it's is dynamic!).
+	 * Note that this property will be seen as a static array even if the @arrayDim value is invalid.
+	 */
+	isFixedArray(): boolean {
+		return (this.modifiers & FieldModifiers.WithDimension) === FieldModifiers.WithDimension;
 	}
 
 	acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
@@ -106,7 +114,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 			text.push('private');
 		}
 
-		if (this.isConst()) {
+		if (this.isReadOnly()) {
 			text.push('const');
 		}
 

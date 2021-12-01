@@ -5,11 +5,10 @@ import { config, UCGeneration } from '../indexer';
 import { NAME_ENUMCOUNT } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ISymbol, ITypeSymbol, UCConstSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCFieldSymbol,
-    UCStructSymbol, UCSymbol, UCTypeFlags
+    ISymbol, ITypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCFieldSymbol, UCStructSymbol, UCSymbol,
+    UCTypeFlags
 } from './';
-import { FieldModifiers } from './FieldSymbol';
-import { resolveType } from './TypeSymbol';
+import { isConstSymbol, resolveType, UCArrayTypeSymbol } from './TypeSymbol';
 
 export class UCPropertySymbol extends UCFieldSymbol {
 	// The type if specified, i.e. "var Object Outer;" Object here is represented by @type, including the resolved symbol.
@@ -22,15 +21,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	public arrayDimRef?: ITypeSymbol;
 	public arrayDimRange?: Range;
 
-	/**
-	 * Returns true if this property is declared as a static array type (false if it's is dynamic!).
-	 * Note that this property will be seen as a static array even if the @arrayDim value is invalid.
-	 */
-	isFixedArray(): boolean {
-		return (this.modifiers & FieldModifiers.WithDimension) === FieldModifiers.WithDimension;
-	}
-
-	isDynamicArray(): boolean {
+	isDynamicArray(): this is { type: UCArrayTypeSymbol } {
 		return (this.type?.getTypeFlags() === UCTypeFlags.Array);
 	}
 
@@ -42,7 +33,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		if (this.arrayDimRef) {
 			const symbol = this.arrayDimRef.getRef();
 			if (symbol) {
-				if (symbol instanceof UCConstSymbol) {
+				if (isConstSymbol(symbol)) {
 					return symbol.getComputedValue();
 				}
 

@@ -4,8 +4,8 @@ import { UCDocument } from '../document';
 import { Name, NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    DEFAULT_RANGE, ISymbol, IWithReference, ParamModifiers, UCParamSymbol, UCStructSymbol, UCSymbol,
-    UCTypeFlags
+    DEFAULT_RANGE, FieldModifiers, isMethodSymbol, ISymbol, IWithReference, ParamModifiers,
+    UCParamSymbol, UCStructSymbol, UCSymbol, UCTypeFlags
 } from './';
 
 export enum MethodSpecifiers {
@@ -24,6 +24,8 @@ export enum MethodSpecifiers {
 }
 
 export class UCMethodSymbol extends UCStructSymbol {
+	modifiers = FieldModifiers.ReadOnly;
+
 	public specifiers: MethodSpecifiers = MethodSpecifiers.None;
 
 	public returnValue?: UCParamSymbol;
@@ -44,6 +46,10 @@ export class UCMethodSymbol extends UCStructSymbol {
 	isFinal(): boolean {
 		return (this.specifiers & MethodSpecifiers.Final) !== 0 || this.isStatic();
 	}
+
+    isDelegate(): this is UCDelegateSymbol {
+        return (this.specifiers & MethodSpecifiers.Delegate) !== 0;
+    }
 
 	/**
 	 * Returns true if this method is marked as a (binary) operator.
@@ -126,7 +132,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 
 		if (context.super) {
 			const overriddenMethod = context.super.findSuperSymbol(this.getName());
-			if (overriddenMethod instanceof UCMethodSymbol) {
+			if (overriddenMethod && isMethodSymbol(overriddenMethod)) {
 				document.indexReference(overriddenMethod, {
 					location: Location.create(document.uri, this.id.range)
 				});
@@ -228,12 +234,18 @@ export class UCEventSymbol extends UCMethodSymbol {
 }
 
 export class UCDelegateSymbol extends UCMethodSymbol {
+	modifiers = FieldModifiers.None;
+
 	getKind(): SymbolKind {
 		return SymbolKind.Function;
 	}
 
 	getCompletionItemKind(): CompletionItemKind {
 		return CompletionItemKind.Function;
+	}
+
+    getTypeFlags() {
+		return UCTypeFlags.Function | UCTypeFlags.Delegate;
 	}
 
 	protected getTypeKeyword(): string {
@@ -274,4 +286,26 @@ export class UCPostOperatorSymbol extends UCBaseOperatorSymbol {
 	protected getTypeKeyword(): string {
 		return 'postoperator';
 	}
+}
+
+export function areMethodsCompatibleWith(a: UCMethodSymbol, b: UCMethodSymbol): boolean {
+    if (typeof a.params === 'undefined') {
+        return typeof b.params === 'undefined';
+    }
+    if (typeof b.params === 'undefined') {
+        return false;
+    }
+    if (a.params.length !== b.params.length) {
+        return false;
+    }
+    for (let i = 0; i < a.params.length; ++i) {
+        if (a.params[i].getTypeFlags() !== b.params[i].getTypeFlags()) {
+            return false;
+        }
+    }
+    if (typeof a.returnValue === 'undefined') {
+        return typeof b.returnValue === 'undefined';
+    }
+    return typeof b.returnValue !== 'undefined'
+            && a.returnValue.getTypeFlags() === b.returnValue.getTypeFlags();
 }
