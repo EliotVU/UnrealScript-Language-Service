@@ -15,7 +15,9 @@ delegate bool OnDelegate3(name param1, bool param2);
 
 function AcceptDelegate(delegate<OnDelegate> delegate);
 
-function delegate<OnDelegate> GetDelegate();
+function delegate<OnDelegate> GetDelegate() {
+    return DelegateProperty;
+}
 
 function OnAcceptCompatible(name param1, bool param2)
 {
@@ -37,6 +39,7 @@ function bool Test(name param1, bool param2)
     AcceptDelegate(DelegateProperty);
     AcceptDelegate(Delegate2Property);
     AcceptDelegate(OnAcceptCompatible);
+    AcceptDelegate(OnDelegate != none ? GetDelegate() : OnDelegate);
     // @EXPECT ERROR
     AcceptDelegate(Delegate3Property);
     AcceptDelegate(OnAcceptIncompatible);
@@ -50,7 +53,7 @@ function bool Test(name param1, bool param2)
 
     DelegateProperty = none;
     DelegateProperty = OnDelegate;
-    DelegateProperty = GetDelegate();
+    DelegateProperty = OnDelegate != none ? GetDelegate() : OnDelegate;
     DelegateProperty = OnAcceptCompatible;
     // @EXPECT ERROR
     DelegateProperty = OnAcceptIncompatible;
@@ -76,18 +79,18 @@ function bool Test(name param1, bool param2)
 
     // @EXPECT ERROR
     OnAcceptCompatible = DelegateProperty;
-    object = self;
 }
 
 defaultproperties
 {
     DelegateProperty=OnAcceptCompatible
+    DelegateProperty=none
     OnDelegate=OnAcceptCompatible
 
     // @EXPECT ERROR
     DelegateProperty=Test
     DelegateProperty=true
-    DelegateProperty=''
+    // DelegateProperty=''
     DelegateProperty=""
     DelegateProperty=0
     DelegateProperty=self

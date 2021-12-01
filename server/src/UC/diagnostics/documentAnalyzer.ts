@@ -2,25 +2,26 @@ import { DiagnosticSeverity, Range } from 'vscode-languageserver';
 
 import { UCDocument } from '../document';
 import {
-    IExpression, UCArrayCountExpression, UCAssignmentExpression, UCAssignmentOperatorExpression,
-    UCBaseOperatorExpression, UCBinaryOperatorExpression, UCCallExpression, UCConditionalExpression,
+    IExpression, UCArrayCountExpression, UCAssignmentOperatorExpression, UCBaseOperatorExpression,
+    UCBinaryOperatorExpression, UCCallExpression, UCConditionalExpression,
     UCDefaultAssignmentExpression, UCDefaultMemberCallExpression, UCDefaultStructLiteral,
     UCElementAccessExpression, UCEmptyArgument, UCIdentifierLiteralExpression, UCMemberExpression,
     UCMetaClassExpression, UCNameOfExpression, UCObjectLiteral, UCParenthesizedExpression,
     UCPropertyAccessExpression, UCSuperExpression
 } from '../expressions';
 import { config, UCGeneration } from '../indexer';
-import { NAME_DELEGATE, NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
+import { NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
 import {
     UCAssertStatement, UCBlock, UCCaseClause, UCDoUntilStatement, UCExpressionStatement,
     UCForEachStatement, UCForStatement, UCIfStatement, UCReturnStatement, UCSwitchStatement,
     UCWhileStatement
 } from '../statements';
 import {
-    areMethodsCompatibleWith, getTypeFlagsName, IContextInfo, isMethodSymbol, isPropertySymbol,
-    isStateSymbol, ITypeSymbol, LengthProperty, NativeClass, NativeEnum, StaticBoolType,
+    areMethodsCompatibleWith, AssignableByIdentifierFlags, AssignToDelegateFlags, getTypeFlagsName,
+    IContextInfo, isFieldSymbol, isMethodSymbol, isStateSymbol, ITypeSymbol, LengthProperty,
+    NativeClass, NativeEnum, NumberCoerceFlags, ReplicatableTypeFlags, StaticBoolType,
     typeMatchesFlags, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol, UCDelegateTypeSymbol,
-    UCEnumSymbol, UCFieldSymbol, UCMethodSymbol, UCObjectSymbol, UCObjectTypeSymbol, UCParamSymbol,
+    UCEnumSymbol, UCMethodSymbol, UCObjectSymbol, UCObjectTypeSymbol, UCParamSymbol,
     UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock, UCScriptStructSymbol,
     UCStateSymbol, UCStructSymbol, UCTypeFlags
 } from '../Symbols';
@@ -103,11 +104,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
         if (config.checkTypes && symbol.baseType) {
             const referredSymbol = symbol.baseType.getRef();
-            if (referredSymbol && (referredSymbol.getTypeFlags() & UCTypeFlags.FunctionDelegate) !== UCTypeFlags.FunctionDelegate) {
+            if (referredSymbol && !(isMethodSymbol(referredSymbol) && referredSymbol.isDelegate())) {
                 this.diagnostics.add({
                     range: symbol.baseType.id.range,
-                    message: diagnosticMessages.TYPE_0_CANNOT_EXTEND_TYPE_OF_1,
-                    args: [NAME_DELEGATE.toString(), referredSymbol.getPath()]
+                    message: createExpectedTypeMessage(UCTypeFlags.Delegate, symbol.baseType),
                 });
             }
         }
@@ -428,7 +428,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 continue;
             }
 
-            if ((symbol.getTypeFlags() & UCTypeFlags.Replicatable) !== 0) {
+            if ((symbol.getTypeFlags() & ReplicatableTypeFlags) !== 0) {
                 // i.e. not defined in the same class as where the replication statement resides in.
                 if (symbol.outer !== this.document.class) {
                     this.diagnostics.add({
@@ -669,7 +669,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 expr.argument.accept(this);
                 if (config.checkTypes) {
                     const type = expr.argument.getType();
-                    if (!type || (type.getTypeFlags() & UCTypeFlags.NumberCoerce) === 0) {
+                    if (!type || (type.getTypeFlags() & NumberCoerceFlags) === 0) {
                         this.diagnostics.add({
                             range: expr.argument.getRange(),
                             message: {
@@ -721,117 +721,109 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 const type = expr.left.getType();
                 this.state.typeFlags = type?.getTypeFlags();
             } else {
-                this.pushError(expr.getRange(), "Missing left expression!");
+                this.pushError(expr.getRange(), "Missing left-hand side expression!");
                 return undefined;
             }
             if (expr.right) {
                 expr.right.accept(this);
             } else {
-                this.pushError(expr.getRange(), "Missing right expression!");
+                this.pushError(expr.getRange(), "Missing right-hand side expression!");
                 return undefined;
             }
 
-            if (expr instanceof UCAssignmentExpression || expr instanceof UCAssignmentOperatorExpression) {
-                // TODO: Validate type compatibility, but this requires us to match an overloaded operator first!
-                const letResolvedType = expr.left!.getType();
-                const letResolvedSymbol = letResolvedType?.getRef();
-                if (letResolvedSymbol) {
-                    const letFlags = letResolvedType!.getTypeFlags();
-                    if (isPropertySymbol(letResolvedSymbol)) {
-                        // Properties with a defined array dimension cannot be assigned!
-                        if (letResolvedSymbol.isFixedArray()) {
-                            this.diagnostics.add({
-                                range: letResolvedType!.getRange(),
-                                message: {
-                                    text: `Cannot assign to '${letResolvedSymbol.getName()}' because it is a fixed array.`,
-                                    severity: DiagnosticSeverity.Error
-                                }
-                            });
-                        }
+            if (!(expr instanceof UCAssignmentOperatorExpression || expr instanceof UCDefaultAssignmentExpression)) {
+                return undefined;
+            }
 
-                        if (letResolvedSymbol.isConst()) {
-                            this.diagnostics.add({
-                                range: letResolvedType!.getRange(),
-                                message: {
-                                    text: `Cannot assign to '${letResolvedSymbol.getName()}' because it is a constant.`,
-                                    severity: DiagnosticSeverity.Error
-                                }
-                            });
+            const symbol = expr.left.getMemberSymbol();
+            if (symbol && isFieldSymbol(symbol)) {
+                const symbolFlags = symbol.getTypeFlags();
+                const letType = expr.left.getType();
+                if ((symbolFlags & (UCTypeFlags.Delegate | (UCTypeFlags.Function & ~UCTypeFlags.Object))) === UCTypeFlags.Function) {
+                    this.diagnostics.add({
+                        range: expr.left.getRange(),
+                        message: {
+                            text: `Cannot assign to '${symbol.getName()}' because it is a function. Did you mean to assign a delegate?`,
+                            severity: DiagnosticSeverity.Error
                         }
-                    } // Expected to be true for either a delegate property or delegate function.
-                    else if (letFlags & UCTypeFlags.Delegate) {
-                        if (config.checkTypes) {
-                            const rightType = expr.right && expr.right.getType();
-                            if (rightType) {
-                                const rightFlags = rightType.getTypeFlags();
-                                if ((rightFlags & UCTypeFlags.AssignToDelegate) === 0) {
-                                    this.diagnostics.add({
-                                        range: expr.right.getRange(),
-                                        message: {
-                                            text: `Type '${getTypeFlagsName(rightType)}' is not assignable to a delegate.`,
-                                            severity: DiagnosticSeverity.Error
-                                        }
-                                    });
-                                } else {
-                                    const rightSymbol = rightType.getRef();
-                                    if (rightSymbol && isMethodSymbol(rightSymbol)
-                                        && !areMethodsCompatibleWith((letResolvedSymbol as UCMethodSymbol), rightSymbol)) {
-                                        this.diagnostics.add({
-                                            range: expr.right.getRange(),
-                                            message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
-                                            args: [rightSymbol.getPath(), letResolvedSymbol.getPath()]
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    } else if (letFlags & UCTypeFlags.Function & ~UCTypeFlags.Object) {
+                    });
+                } else if (symbol.isReadOnly()) {
+                    if (expr instanceof UCDefaultAssignmentExpression) {
+
+                    } else {
                         this.diagnostics.add({
                             range: expr.left.getRange(),
                             message: {
-                                text: `Cannot assign to '${letResolvedSymbol.getName()}' because it is a function. Did you mean to assign a delegate?`,
+                                text: `Cannot assign to '${symbol.getName()}' because it is a constant.`,
                                 severity: DiagnosticSeverity.Error
                             }
                         });
                     }
-                }
-            } else if (expr instanceof UCDefaultAssignmentExpression) {
-                if (config.checkTypes) {
-                    const letType = expr.left.getType();
-                    if (letType && letType.getTypeFlags() === UCTypeFlags.Error) {
-                        this.pushError(
-                            expr.left!.getRange(),
-                            `Type of '${letType.getName()}' cannot be assigned a default value!`
-                        );
-                    }
-
-                    if (expr.right) {
+                } else if (symbol.isFixedArray()) {
+                    // FIXME: Distinguish dimProperty with and without a [].
+                    // Properties with a defined array dimension cannot be assigned!
+                    // this.diagnostics.add({
+                    //     range: expr.left.getRange(),
+                    //     message: {
+                    //         text: `Cannot assign to '${symbol.getName()}' because it is a fixed array.`,
+                    //         severity: DiagnosticSeverity.Error
+                    //     }
+                    // });
+                } else if (letType && (letType.getTypeFlags() & UCTypeFlags.Delegate) && expr instanceof UCAssignmentOperatorExpression) {
+                    // TODO: Cleanup duplicate code when binary-operator types are resolved properly.
+                    if (config.checkTypes) {
                         const rightType = expr.right.getType();
-                        if (rightType && letType) {
-                            if (!typeMatchesFlags(rightType, letType)) {
-                                this.pushError(
-                                    expr.right.getRange(),
-                                    `Type '${getTypeFlagsName(rightType)}' is not assignable to type '${getTypeFlagsName(letType)}'.`
-                                );
+                        if (rightType) {
+                            const rightFlags = rightType.getTypeFlags();
+                            if ((rightFlags & AssignToDelegateFlags) === 0) {
+                                this.diagnostics.add({
+                                    range: expr.right.getRange(),
+                                    message: createTypeCannotBeAssignedToMessage(UCTypeFlags.Delegate, rightType),
+                                });
                             } else {
-                                const leftSymbol = letType.getRef();
                                 const rightSymbol = rightType.getRef();
-                                if (leftSymbol && rightSymbol && isMethodSymbol(rightSymbol)
-                                    && !areMethodsCompatibleWith((leftSymbol as UCMethodSymbol), rightSymbol)) {
+                                if (rightSymbol && isMethodSymbol(rightSymbol)
+                                    && !areMethodsCompatibleWith((symbol as UCMethodSymbol), rightSymbol)) {
                                     this.diagnostics.add({
                                         range: expr.right.getRange(),
                                         message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
-                                        args: [rightSymbol.getPath(), leftSymbol.getPath()]
+                                        args: [rightSymbol.getPath(), symbol.getPath()]
                                     });
                                 }
                             }
-                        } else {
-                            // TODO: Invalid type?
                         }
-
-                    } else {
-                        this.pushError(expr.getRange(), "Missing value!");
                     }
+                }
+            } else if (expr.left.getType()) {
+                this.pushError(
+                    expr.left.getRange(),
+                    `The left-hand side of an assignment expression must be a variable.`
+                );
+            }
+
+            if (config.checkTypes && expr instanceof UCDefaultAssignmentExpression) {
+                const letType = expr.left.getType();
+                const rightType = expr.right.getType();
+                if (letType && rightType) {
+                    if (!typeMatchesFlags(rightType, letType)) {
+                        this.diagnostics.add({
+                            range: expr.right.getRange(),
+                            message: createTypeCannotBeAssignedToMessage(letType.getTypeFlags(), rightType),
+                        });
+                    } else {
+                        const leftSymbol = letType.getRef();
+                        const rightSymbol = rightType.getRef();
+                        if (leftSymbol && rightSymbol && isMethodSymbol(rightSymbol)
+                            && !areMethodsCompatibleWith((leftSymbol as UCMethodSymbol), rightSymbol)) {
+                            this.diagnostics.add({
+                                range: expr.right.getRange(),
+                                message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
+                                args: [rightSymbol.getPath(), leftSymbol.getPath()]
+                            });
+                        }
+                    }
+                } else {
+                    // TODO: Invalid type?
                 }
             }
         } else if (expr instanceof UCDefaultMemberCallExpression) {
@@ -849,7 +841,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         } else if (expr instanceof UCIdentifierLiteralExpression) {
             if (!this.context || !this.state.typeFlags) {
                 return undefined;
-            } else if ((this.state.typeFlags & UCTypeFlags.IdentifierTypes) === 0) {
+            } else if ((this.state.typeFlags & AssignableByIdentifierFlags) === 0) {
                 return undefined;
             }
 
@@ -962,23 +954,23 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             }
 
             if (param.isOut()) {
-                const argSymbol = arg.getType()?.getRef();
+                const argSymbol = arg.getMemberSymbol();
                 // if (!argSymbol) {
                 // 	this.pushError(
                 // 		arg.getRange(),
                 // 		`Non-resolved argument cannot be passed to an 'out' parameter.`)
                 // 	);
                 // } else
-                if (argSymbol instanceof UCFieldSymbol) {
+                if (argSymbol && isFieldSymbol(argSymbol)) {
                     if (argSymbol === LengthProperty) {
                         this.pushError(arg.getRange(),
                             `Cannot pass array property 'Length' to an 'out' parameter.`
                         );
-                    }
-                    else if (argSymbol.isConst()) {
-                        this.pushError(arg.getRange(),
-                            `Argument '${argSymbol.getName()}' cannot be passed to an 'out' parameter, because it is a constant.`
-                        );
+                    } else if (argSymbol.isReadOnly()) {
+                        // FIXME: Apparently possible?
+                        // this.pushError(arg.getRange(),
+                        //     `Argument '${argSymbol.getName()}' cannot be passed to an 'out' parameter, because it is a constant.`
+                        // );
                     }
                 }
             }

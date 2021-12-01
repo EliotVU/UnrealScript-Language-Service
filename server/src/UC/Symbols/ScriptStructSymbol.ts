@@ -5,8 +5,11 @@ import { SymbolWalker } from '../symbolWalker';
 import {
     ISymbol, UCMethodSymbol, UCPropertySymbol, UCStructSymbol, UCSymbol, UCTypeFlags
 } from './';
+import { FieldModifiers } from './FieldSymbol';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
+    modifiers = FieldModifiers.ReadOnly;
+
 	isProtected(): boolean {
 		return true;
 	}

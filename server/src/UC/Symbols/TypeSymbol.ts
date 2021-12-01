@@ -9,8 +9,8 @@ import {
 } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    DEFAULT_RANGE, Identifier, ISymbol, IWithReference, NativeArray, NativeClass, ObjectsTable,
-    UCClassSymbol, UCConstSymbol, UCFieldSymbol, UCMethodSymbol, UCStructSymbol, UCSymbol,
+    DEFAULT_RANGE, Identifier, ISymbol, IWithReference, NativeArray, ObjectsTable, UCConstSymbol,
+    UCFieldSymbol, UCMethodSymbol, UCParamSymbol, UCScriptStructSymbol, UCStructSymbol, UCSymbol,
     UCSymbolReference
 } from './';
 import { tryFindClassSymbol, tryFindSymbolInPackage, UCPackage } from './Package';
@@ -18,7 +18,7 @@ import { UCPropertySymbol } from './PropertySymbol';
 import { UCStateSymbol } from './StateSymbol';
 
 export enum UCTypeFlags {
-	// A type that couldn't be found.
+	// A type that couldn't be found or resolved.
 	Error			    = 0,
 
 	// PRIMITIVE TYPES
@@ -43,7 +43,6 @@ export enum UCTypeFlags {
 	Struct			    = 1 << 15 | Object,
 	Property		    = 1 << 16 | Object,
 	Function		    = 1 << 17 | Object,
-    FunctionDelegate    = Delegate | Function & ~Object,
 	State			    = 1 << 18 | Object,
 	Const			    = 1 << 19 | Object,
 
@@ -52,35 +51,30 @@ export enum UCTypeFlags {
 	// Reffers the special "None" identifier, if we do actual reffer an undefined symbol, we should be an @Error.
 	None			    = 1 << 21,
 
-    NamedFlags          = (None | Class | Delegate
+    NamedFlags          = (None | Class | Delegate | Function
                         | Array | Bool | Name
                         | String | Byte | Int
                         | Float | Archetype
-                        | Error) & ~Object,
-
-	NumberCoerce	    = Float | Int | Byte,
-	EnumCoerce		    = Enum | Int | Byte,
-
-    // "None" can be passed to...
-	NoneCoerce		    = Delegate | Object | Name,
-
-	// TODO: Verify if "coerce" is required when passing a "Name" to a "String" type.
-	NameCoerce		    = Name | String,
-
-	// Can be coerced to type "String", if marked with "coerce".
-	CoerceToString	    = Name | String | Object | NumberCoerce | Bool | None,
-
-    AssignToDelegate    = Delegate | (Function & ~Object) | None,
-
-	Replicatable	    = Function | Property,
-
-	// Types that can be assigned to by an identifier literal.
-	IdentifierTypes     = (EnumCoerce | Class | Archetype | Delegate) & ~Object,
-
-    Objects             = Object,
+                        | Error) & ~(Object)
 }
 
+export const NumberCoerceFlags	    = UCTypeFlags.Float | UCTypeFlags.Int | UCTypeFlags.Byte;
 export const EnumCoerceFlags		    = UCTypeFlags.Enum | UCTypeFlags.Int | UCTypeFlags.Byte;
+
+// "None" can be passed to...
+export const NoneCoerceFlags		    = UCTypeFlags.Delegate | UCTypeFlags.Object | UCTypeFlags.Name;
+
+// TODO: Verify if "coerce" is required when passing a "Name" to a "String" type.
+export const NameCoerceFlags		    = UCTypeFlags.Name | UCTypeFlags.String;
+
+// Can be coerced to type "String", if marked with "coerce".
+export const CoerceToStringFlags	    = UCTypeFlags.Name | UCTypeFlags.String | UCTypeFlags.Object | NumberCoerceFlags | UCTypeFlags.Bool | UCTypeFlags.None;
+
+// Types that can be assigned to by an identifier literal.
+export const AssignableByIdentifierFlags = (EnumCoerceFlags | UCTypeFlags.Class | UCTypeFlags.Archetype | UCTypeFlags.Delegate) & ~Object;
+export const ObjectTypeFlags = UCTypeFlags.Object;
+export const ReplicatableTypeFlags = (UCTypeFlags.Function | UCTypeFlags.Property) & ~UCTypeFlags.Object;
+export const AssignToDelegateFlags = UCTypeFlags.Delegate | (UCTypeFlags.Function & ~UCTypeFlags.Object) | UCTypeFlags.None;
 
 export interface ITypeSymbol extends UCSymbol, IWithReference {
 	getTypeText(): string;
@@ -106,6 +100,10 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 	constructor(public type: UCObjectTypeSymbol, public left?: UCQualifiedTypeSymbol) {
 		super(type.id);
 	}
+
+    static is(symbol: ISymbol): symbol is UCQualifiedTypeSymbol {
+        return symbol.hasOwnProperty('type');
+    }
 
 	getTypeText(): string {
 		return this.type.getTypeText();
@@ -283,6 +281,10 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		super(id);
 	}
 
+    static is(symbol: ISymbol): symbol is UCObjectTypeSymbol {
+        return symbol.hasOwnProperty('baseType');
+    }
+
 	getRange(): Range {
 		return this.range;
 	}
@@ -310,10 +312,13 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 	}
 
 	getTypeFlags(): UCTypeFlags {
-		if (this.reference !== NativeClass && this.reference instanceof UCClassSymbol) {
-			return UCTypeFlags.Object;
-		}
-		return this.reference instanceof UCFieldSymbol && this.reference.getTypeFlags() || UCTypeFlags.Error;
+		// if (this.reference !== NativeClass && this.reference instanceof UCClassSymbol) {
+		// 	return UCTypeFlags.Object;
+		// }
+		return this.reference
+            && isFieldSymbol(this.reference)
+            && this.reference.getTypeFlags()
+            || UCTypeFlags.Error;
 	}
 
 	getValidTypeKind(): UCTypeFlags {
@@ -383,6 +388,10 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
 	reference = NativeArray;
 
+    static is(symbol: ISymbol): symbol is UCArrayTypeSymbol {
+        return (symbol.getTypeFlags() & UCTypeFlags.Array) !== 0;
+    }
+
 	getTooltip(): string {
 		return 'type Array';
 	}
@@ -398,6 +407,10 @@ export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
 
 export class UCDelegateTypeSymbol extends UCObjectTypeSymbol {
 	reference = StaticDelegateType;
+
+    static is(symbol: ISymbol): symbol is UCArrayTypeSymbol {
+        return (symbol.getTypeFlags() & UCTypeFlags.Delegate | (UCTypeFlags.Function & ~UCTypeFlags.Object)) === UCTypeFlags.Delegate;
+    }
 
 	getTooltip(): string {
 		return 'type Delegate';
@@ -479,15 +492,15 @@ export function typeMatchesFlags(type: ITypeSymbol | undefined, expectedType: IT
     const expectedFlags = expectedType.getTypeFlags();
     const flags = type.getTypeFlags();
     if (coerce && expectedFlags & UCTypeFlags.String) {
-        return (flags & UCTypeFlags.CoerceToString) !== 0;
+        return (flags & CoerceToStringFlags) !== 0;
     }
 
-    if ((flags & UCTypeFlags.NumberCoerce) !== 0) {
-        return (expectedFlags & UCTypeFlags.NumberCoerce) !== 0 || (expectedFlags & UCTypeFlags.Enum) === UCTypeFlags.Enum;
+    if ((flags & NumberCoerceFlags) !== 0) {
+        return (expectedFlags & NumberCoerceFlags) !== 0 || (expectedFlags & UCTypeFlags.Enum) === UCTypeFlags.Enum;
     } else if ((flags & UCTypeFlags.Enum) === UCTypeFlags.Enum) {
-        return (expectedFlags & UCTypeFlags.EnumCoerce) !== 0;
+        return (expectedFlags & EnumCoerceFlags) !== 0;
     } else if (flags === UCTypeFlags.None) {
-        return (expectedFlags & UCTypeFlags.NoneCoerce) !== 0;
+        return (expectedFlags & NoneCoerceFlags) !== 0;
     } else if (flags === UCTypeFlags.String) {
         return (expectedFlags & UCTypeFlags.String) !== 0;
     } else if (flags === UCTypeFlags.Name) {
@@ -498,14 +511,14 @@ export function typeMatchesFlags(type: ITypeSymbol | undefined, expectedType: IT
     } else if (flags & UCTypeFlags.Delegate) {
         return (expectedFlags & UCTypeFlags.Delegate) !== 0;
     }
-    if ((flags & UCTypeFlags.Objects) !== 0) {
+    if ((flags & ObjectTypeFlags) !== 0) {
         if ((expectedFlags & UCTypeFlags.Struct) === UCTypeFlags.Struct) {
             return false;
         }
         if (expectedFlags & UCTypeFlags.Delegate) {
-            return (flags & UCTypeFlags.AssignToDelegate) !== 0;
+            return (flags & AssignToDelegateFlags) !== 0;
         }
-        return (expectedFlags & UCTypeFlags.Objects) !== 0;
+        return (expectedFlags & ObjectTypeFlags) !== 0;
     }
     return flags === expectedFlags;
 }

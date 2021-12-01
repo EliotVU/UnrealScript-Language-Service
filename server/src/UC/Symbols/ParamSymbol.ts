@@ -103,7 +103,7 @@ export class UCParamSymbol extends UCPropertySymbol {
 			text.push('coerce');
 		}
 
-		if (this.isConst()) {
+		if (this.isReadOnly()) {
 			text.push('const');
 		}
 

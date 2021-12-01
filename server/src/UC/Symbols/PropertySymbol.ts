@@ -8,7 +8,6 @@ import {
     ISymbol, ITypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCFieldSymbol, UCStructSymbol, UCSymbol,
     UCTypeFlags
 } from './';
-import { FieldModifiers } from './FieldSymbol';
 import { isConstSymbol, resolveType, UCArrayTypeSymbol } from './TypeSymbol';
 
 export class UCPropertySymbol extends UCFieldSymbol {
@@ -21,14 +20,6 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	// Array dimension is statically based on a declared symbol, such as a const or enum member.
 	public arrayDimRef?: ITypeSymbol;
 	public arrayDimRange?: Range;
-
-	/**
-	 * Returns true if this property is declared as a static array type (false if it's is dynamic!).
-	 * Note that this property will be seen as a static array even if the @arrayDim value is invalid.
-	 */
-	isFixedArray(): boolean {
-		return (this.modifiers & FieldModifiers.WithDimension) === FieldModifiers.WithDimension;
-	}
 
 	isDynamicArray(): this is { type: UCArrayTypeSymbol } {
 		return (this.type?.getTypeFlags() === UCTypeFlags.Array);

@@ -4,8 +4,8 @@ import { UCDocument } from '../document';
 import { Name, NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    DEFAULT_RANGE, isMethodSymbol, ISymbol, IWithReference, ParamModifiers, UCParamSymbol,
-    UCStructSymbol, UCSymbol, UCTypeFlags
+    DEFAULT_RANGE, FieldModifiers, isMethodSymbol, ISymbol, IWithReference, ParamModifiers,
+    UCParamSymbol, UCStructSymbol, UCSymbol, UCTypeFlags
 } from './';
 
 export enum MethodSpecifiers {
@@ -24,6 +24,8 @@ export enum MethodSpecifiers {
 }
 
 export class UCMethodSymbol extends UCStructSymbol {
+	modifiers = FieldModifiers.ReadOnly;
+
 	public specifiers: MethodSpecifiers = MethodSpecifiers.None;
 
 	public returnValue?: UCParamSymbol;
@@ -44,6 +46,10 @@ export class UCMethodSymbol extends UCStructSymbol {
 	isFinal(): boolean {
 		return (this.specifiers & MethodSpecifiers.Final) !== 0 || this.isStatic();
 	}
+
+    isDelegate(): this is UCDelegateSymbol {
+        return (this.specifiers & MethodSpecifiers.Delegate) !== 0;
+    }
 
 	/**
 	 * Returns true if this method is marked as a (binary) operator.
@@ -228,6 +234,8 @@ export class UCEventSymbol extends UCMethodSymbol {
 }
 
 export class UCDelegateSymbol extends UCMethodSymbol {
+	modifiers = FieldModifiers.None;
+
 	getKind(): SymbolKind {
 		return SymbolKind.Function;
 	}

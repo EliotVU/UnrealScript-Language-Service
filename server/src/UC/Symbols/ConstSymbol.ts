@@ -4,8 +4,11 @@ import { UCDocument } from '../document';
 import { IExpression } from '../expressions';
 import { SymbolWalker } from '../symbolWalker';
 import { UCFieldSymbol, UCStructSymbol, UCTypeFlags } from './';
+import { FieldModifiers } from './FieldSymbol';
 
 export class UCConstSymbol extends UCFieldSymbol {
+    modifiers = FieldModifiers.ReadOnly;
+
 	public expression?: IExpression;
 
 	getComputedValue(): number | undefined {
@@ -19,6 +22,10 @@ export class UCConstSymbol extends UCFieldSymbol {
 	getKind(): SymbolKind {
 		return SymbolKind.Constant;
 	}
+
+    getType() {
+        return this.expression?.getType();
+    }
 
 	getTypeFlags() {
 		return UCTypeFlags.Const;
