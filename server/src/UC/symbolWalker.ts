@@ -240,8 +240,8 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 	}
 
 	visitIfStatement(stm: UCIfStatement) {
-		stm.then?.accept(this);
 		stm.expression?.accept(this);
+		stm.then?.accept(this);
 		stm.else?.accept(this);
 		return undefined;
 	}
@@ -253,20 +253,20 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 	}
 
 	visitWhileStatement(stm: UCWhileStatement) {
-		stm.then?.accept(this);
 		stm.expression?.accept(this);
+		stm.then?.accept(this);
 		return undefined;
 	}
 
 	visitSwitchStatement(stm: UCSwitchStatement) {
-		stm.then?.accept(this);
 		stm.expression?.accept(this);
+		stm.then?.accept(this);
 		return undefined;
 	}
 
 	visitCaseClause(stm: UCCaseClause) {
-		stm.then?.accept(this);
 		stm.expression?.accept(this);
+		stm.then?.accept(this);
 		return undefined;
 	}
 
@@ -276,16 +276,16 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 	}
 
 	visitForStatement(stm: UCForStatement) {
-		stm.then?.accept(this);
-		stm.expression?.accept(this);
 		stm.init?.accept(this);
+		stm.expression?.accept(this);
 		stm.next?.accept(this);
+		stm.then?.accept(this);
 		return undefined;
 	}
 
 	visitForEachStatement(stm: UCForEachStatement) {
-		stm.then?.accept(this);
 		stm.expression?.accept(this);
+		stm.then?.accept(this);
 		return undefined;
 	}
 
