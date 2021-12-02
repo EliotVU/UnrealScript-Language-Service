@@ -3,28 +3,26 @@ class SyntaxIssues
     extends Object
     placeable;
 
-// FIXME: cpp snippets break highlighting
-struct {FType*} CppStruct
-{
-    structcpptext
-    {
-        {}
-    }
+// struct {FType*} CppStruct
+// {
+//     structcpptext
+//     {
+//         {}
+//     }
 
-	var native const pointer Dummy{FType};
-};
+// 	var native const pointer Dummy{FType};
+// };
 
-// FIXME: Only one keyword is highlighted.
-struct native long myStruct
-{};
+// struct native long myStruct
+// {};
 
 struct anotherStruct
     // FIXME: Clauses on a new line are not being highlighted.
     extends myStruct
 {};
 
-// FIXME: the keyword class here breaks the highlighting loop.
-var Map{FType, class FType*} MapProperty;
+// var public{cppModifier} int TestProp;
+// var Map{FType, class FType*} MapProperty;
 
 function test()
 {
