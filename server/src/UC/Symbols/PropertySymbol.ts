@@ -75,6 +75,16 @@ export class UCPropertySymbol extends UCFieldSymbol {
 		return this.getPath();
 	}
 
+    protected buildModifiers(): string[] {
+		let text = super.buildModifiers();
+
+		if (this.isReadOnly()) {
+			text.push('const');
+		}
+
+		return text;
+	}
+
 	getTooltip() {
 		const text: Array<string | undefined> = [];
 

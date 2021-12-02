@@ -237,7 +237,7 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
                     case UCParser.RULE_identifierArguments: {
                         const typeItems = Array
                             .from(ObjectsTable.getAll<UCClassSymbol>())
-                            .filter(symbol => (symbol.getTypeFlags() & (UCTypeFlags.Class | UCTypeFlags.IsInterface)) === UCTypeFlags.Class);
+                            .filter(symbol => (symbol.getTypeFlags() & (UCTypeFlags.Class | UCTypeFlags.Interface)) === UCTypeFlags.Class);
 
                         symbols.push(...typeItems);
                         break;
@@ -273,7 +273,7 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
             case UCParser.RULE_qualifiedIdentifier: {
                 switch (stateType) {
                     case UCParser.RULE_qualifiedIdentifierArguments: {
-                        globalTypes |= UCTypeFlags.IsInterface | (packageOnlyFlags);
+                        globalTypes |= UCTypeFlags.Interface | (packageOnlyFlags);
                         break;
                     }
 

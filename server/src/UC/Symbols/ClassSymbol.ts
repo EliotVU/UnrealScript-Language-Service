@@ -21,7 +21,7 @@ export class UCClassSymbol extends UCStructSymbol {
     public typeFlags = UCTypeFlags.Class;
 
     isInterface(): boolean {
-        return (this.typeFlags & UCTypeFlags.IsInterface) === UCTypeFlags.IsInterface;
+        return (this.typeFlags & UCTypeFlags.Interface) === UCTypeFlags.Interface;
     }
 
 	getKind(): SymbolKind {

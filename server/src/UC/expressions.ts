@@ -11,8 +11,8 @@ import {
     RngMethodLike, RotMethodLike, StaticBoolType, StaticByteType, StaticFloatType, StaticIntType,
     StaticNameType, StaticNoneType, StaticRangeType, StaticRotatorType, StaticStringType,
     StaticVectorType, tryFindClassSymbol, typeMatchesFlags, UCArrayTypeSymbol, UCBaseOperatorSymbol,
-    UCObjectSymbol, UCObjectTypeSymbol, UCPackage, UCQualifiedTypeSymbol, UCStructSymbol, UCSymbol,
-    UCSymbolReference, UCTypeFlags, VectMethodLike
+    UCNameTypeSymbol, UCObjectSymbol, UCObjectTypeSymbol, UCPackage, UCQualifiedTypeSymbol,
+    UCStructSymbol, UCSymbol, UCSymbolReference, UCTypeFlags, VectMethodLike
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
@@ -187,7 +187,9 @@ export class UCCallExpression extends UCExpression {
 
     index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
         // Note: Intentionally passing a clean info object.
-        this.expression.index(document, context, { hasArguments: true });
+        this.expression.index(document, context, {
+            hasArguments: this.expression instanceof UCMemberExpression
+        });
 
         const type = this.expression.getType();
         const symbol = type?.getRef();
@@ -619,18 +621,32 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
 
         if (member) {
             const type = new UCObjectTypeSymbol(this.id);
-            type.setReference(member, document);
+            type.setReference(member, document, ((info.typeFlags & UCTypeFlags.Name) !== 0) ? true : false);
             this.typeRef = type;
         }
     }
 }
 
 // Resolves the member for predefined specifiers such as (self, default, static, and global)
-export class UCPredefinedAccessExpression extends UCMemberExpression {
+export class UCPredefinedAccessExpression extends UCExpression {
+    constructor(readonly id: Identifier, public typeRef = new UCObjectTypeSymbol(id)) {
+        super(id.range);
+    }
+
+    getMemberSymbol() {
+        return this.typeRef?.getRef();
+    }
+
+    getType() {
+        return this.typeRef;
+    }
+
+    getContainedSymbolAtPos(_position: Position) {
+        return this.typeRef.getRef() && this.typeRef;
+    }
+
     index(document: UCDocument, _context?: UCStructSymbol) {
-        const typeRef = new UCObjectTypeSymbol(this.id);
-        typeRef.setReference(document.class!, document, true);
-        this.typeRef = typeRef;
+        document.class && this.typeRef.setReference(document.class, document, true);
     }
 }
 
@@ -715,12 +731,31 @@ export class UCStringLiteral extends UCLiteral {
 }
 
 export class UCNameLiteral extends UCLiteral {
+    constructor(readonly id: Identifier) {
+        super(id.range);
+    }
+
+    public typeRef = new UCObjectTypeSymbol(this.id);
+
+    getMemberSymbol() {
+        return this.typeRef?.getRef();
+    }
+
     getType() {
         return StaticNameType;
     }
 
+    getContainedSymbolAtPos(_position: Position) {
+        return this.typeRef.getRef() && this.typeRef;
+    }
+
+    index(document: UCDocument, _context?: UCStructSymbol) {
+        const nameType = new UCNameTypeSymbol(this.id);
+        this.typeRef.setReference(nameType, document, true);
+    }
+
     toString() {
-        return "''";
+        return `'${this.id}'`;
     }
 }
 
@@ -927,8 +962,8 @@ export class UCSizeOfLiteral extends UCLiteral {
 }
 
 export class UCMetaClassExpression extends UCExpression {
-    public expression?: IExpression;
     public classRef?: UCObjectTypeSymbol;
+    public expression?: IExpression;
 
     getMemberSymbol() {
         return this.classRef?.getRef();
@@ -944,7 +979,7 @@ export class UCMetaClassExpression extends UCExpression {
     }
 
     index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
-        this.expression?.index(document, context, info);
         this.classRef?.index(document, context!);
+        this.expression?.index(document, context, info);
     }
 }

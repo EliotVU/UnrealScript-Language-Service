@@ -121,6 +121,7 @@ var pointer defaultPointer; // struct in UC3+
 
 var int 					defaultIntArray[CONST_NUMBER]; const CONST_ARRAYCOUNT = arraycount(defaultIntArray);
 var array<int> 				defaultIntDynamicArray;
+var array<AStruct>          defaultStructArray;
 
 // TODO: Test how the UC compiler handles delegate names that are ambigues with a class.
 // As it currently stands, the delegate is matched with class "Test" instead of function "Test".
@@ -284,7 +285,7 @@ function byte Test() {
 
 	objClass = class<Test>(DynamicLoadObject("Path", class'Class'));
 	i = i - -i;
-	i = 2.0 * int(0.1 + float(i)*0.225,0.2,1.0);
+	i = 2.0 * int(0.1 + float(i)*0.225, 0.2, 1.0f);
 
 	// Type resolving tests!
 	inputInt(defaultIntArray[0]);
@@ -338,6 +339,22 @@ function byte TestInvalidCode(){
 
 defaultproperties
 {
+    // Verify that non-spaced comments don't break the highlighter.
+    /**/
+
+    // comment-test
+    defaultIntDynamicArray(0)={(
+        // comment-test
+    )}
+
+    // comment-test
+
+    defaultStructArray(0)= {(
+        AColor=(R=255 /* comment-test */),
+        // comment-test
+        AVector=(X=0)
+    )}
+
 	defaultIntDynamicArray(DEFAULT_CONST)=1
 	defaultIntDynamicArray(D_Zero)=1
 	defaultIntDynamicArray(D_One)=1
@@ -350,6 +367,7 @@ defaultproperties
 
 	defaultInt=1024				|defaultFloat=1.0f			|defaultByte=1
 	defaultBool=true			|defaultBool=false
+    // FIXME: CONST fields are not recognized
 	defaultName=CONST_NAME		|defaultName=MyName
 	defaultStr=CONST_STRING		|defaultStr="string"
 

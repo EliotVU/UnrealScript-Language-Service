@@ -25,6 +25,7 @@ export enum UCTypeFlags {
 	Float 			    = 1 << 1,
 	Int 			    = 1 << 2, // Also true for a pointer
 	Byte 			    = 1 << 3, // Also true for an enum member.
+    EnumMember		    = Byte,
 	String			    = 1 << 4,
 	Name			    = 1 << 5,
 	Bool			    = 1 << 6,
@@ -38,7 +39,7 @@ export enum UCTypeFlags {
 	Archetype 		    = 1 << 10 | Object,
 	Package			    = 1 << 11 | Object, // For use cases like e.g. "class Actor extends Core.Object" where "Core" would be of type "Package".
 	Class			    = 1 << 12 | Object, // A class like class<CLASSNAME>.
-	IsInterface		    = 1 << 13,
+	Interface		    = 1 << 13,
 	Enum			    = 1 << 14 | Object,
 	Struct			    = 1 << 15 | Object,
 	Property		    = 1 << 16 | Object,
@@ -58,7 +59,7 @@ export enum UCTypeFlags {
                         | Error) & ~(Object)
 }
 
-export const NumberCoerceFlags	    = UCTypeFlags.Float | UCTypeFlags.Int | UCTypeFlags.Byte;
+export const NumberCoerceFlags	        = UCTypeFlags.Float | UCTypeFlags.Int | UCTypeFlags.Byte | UCTypeFlags.Bool;
 export const EnumCoerceFlags		    = UCTypeFlags.Enum | UCTypeFlags.Int | UCTypeFlags.Byte;
 
 // "None" can be passed to...
@@ -71,10 +72,10 @@ export const NameCoerceFlags		    = UCTypeFlags.Name | UCTypeFlags.String;
 export const CoerceToStringFlags	    = UCTypeFlags.Name | UCTypeFlags.String | UCTypeFlags.Object | NumberCoerceFlags | UCTypeFlags.Bool | UCTypeFlags.None;
 
 // Types that can be assigned to by an identifier literal.
-export const AssignableByIdentifierFlags = (EnumCoerceFlags | UCTypeFlags.Class | UCTypeFlags.Archetype | UCTypeFlags.Delegate) & ~Object;
-export const ObjectTypeFlags = UCTypeFlags.Object;
-export const ReplicatableTypeFlags = (UCTypeFlags.Function | UCTypeFlags.Property) & ~UCTypeFlags.Object;
-export const AssignToDelegateFlags = UCTypeFlags.Delegate | (UCTypeFlags.Function & ~UCTypeFlags.Object) | UCTypeFlags.None;
+export const AssignableByIdentifierFlags    = (EnumCoerceFlags | UCTypeFlags.Class | UCTypeFlags.Archetype | UCTypeFlags.Delegate) & ~Object;
+export const ObjectTypeFlags                = UCTypeFlags.Object;
+export const ReplicatableTypeFlags          = (UCTypeFlags.Function | UCTypeFlags.Property) & ~UCTypeFlags.Object;
+export const AssignToDelegateFlags          = UCTypeFlags.Delegate | (UCTypeFlags.Function & ~UCTypeFlags.Object) | UCTypeFlags.None;
 
 export interface ITypeSymbol extends UCSymbol, IWithReference {
 	getTypeText(): string;
@@ -225,6 +226,12 @@ export class UCStringTypeSymbol extends UCPredefinedTypeSymbol {
 export class UCNameTypeSymbol extends UCPredefinedTypeSymbol {
 	getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Name;
+	}
+
+    getTooltip(): string {
+		return this.id.name === NAME_NAME
+            ? 'type ' + this.id.name
+            : `'${this.id.name}'`;
 	}
 
 	static getStaticName(): Name {

@@ -352,7 +352,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 		this.document.class = symbol; // Important!, must be assigned before further parsing.
 
         if (ctx.KW_INTERFACE()) {
-            symbol.typeFlags |= UCTypeFlags.IsInterface;
+            symbol.typeFlags |= UCTypeFlags.Interface;
         }
 		addHashedSymbol(symbol);
 
@@ -444,7 +444,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 			this.declare(enumCountMember);
 			enumCountMember.outer = symbol;
 			enumCountMember.value = count;
-			} finally {
+        } finally {
 			this.pop();
 		}
 		return symbol;
@@ -596,8 +596,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 			? idFromCtx(nameNode)
 			: { name: NAME_NONE, range };
 		const symbol = new type(identifier, range);
-		symbol.specifiers = specifiers;
-		symbol.modifiers = modifiers;
+		symbol.specifiers |= specifiers;
+		symbol.modifiers |= modifiers;
 		if (precedence) {
 			(symbol as UCBinaryOperatorSymbol).precedence = precedence;
 		}
@@ -615,19 +615,18 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 				const typeSymbol = this.visitTypeDecl(ctx._returnParam.typeDecl());
 				const returnValue = new UCParamSymbol(ReturnValueIdentifier, rangeFromBounds(ctx.start, ctx.stop));
 				returnValue.type = typeSymbol;
-				returnValue.paramModifiers = paramModifiers;
+				returnValue.paramModifiers |= paramModifiers;
 
 				this.declare(returnValue);
 				symbol.returnValue = returnValue;
 			}
 
 			if (ctx._params) {
-				symbol.params = [];
-				const paramNodes = ctx._params.paramDecl();
-				for (const paramNode of paramNodes) {
-					const propSymbol = paramNode.accept(this);
-					symbol.params.push(propSymbol);
-				}
+                const paramNodes = ctx._params.paramDecl();
+				symbol.params = Array(paramNodes.length);
+                for (let i = 0; i < paramNodes.length; ++ i) {
+                    symbol.params[i] = paramNodes[i].accept(this);
+                }
 
 				// if ((specifiers & MethodSpecifiers.Operator) !== 0) {
 				// 	const leftType = symbol.params[0].getType();
@@ -702,8 +701,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 			symbol.defaultExpression = ctx._expr.accept(this);
 			paramModifiers |= ParamModifiers.Optional;
 		}
-		symbol.modifiers = modifiers;
-		symbol.paramModifiers = paramModifiers;
+		symbol.modifiers |= modifiers;
+		symbol.paramModifiers |= paramModifiers;
 
 		this.initVariable(symbol, varNode);
 		this.declare(symbol, ctx);
@@ -1500,8 +1499,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	}
 
 	visitNameLiteral(ctx: UCGrammar.NameLiteralContext) {
-		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const expression = new UCNameLiteral(range);
+        const token = ctx.NAME().payload;
+        const text = token.text!;
+        const name = toName(text.substring(1, text.length - 1))
+        const id: Identifier = {
+            name: name,
+            range: rangeFromBound(token)
+        };
+		const expression = new UCNameLiteral(id);
 		return expression;
 	}
 

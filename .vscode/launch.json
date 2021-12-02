@@ -28,7 +28,7 @@
 			"runtimeExecutable": "${execPath}",
 			"args": ["--extensionDevelopmentPath=${workspaceRoot}"],
 			"sourceMaps": true,
-			"outFiles": ["${workspaceRoot}/client/out/**/*.js"]
+			"outFiles": ["${workspaceRoot}/client/out/**/*.js", "${workspaceRoot}/server/out/**/*.js"]
 		},
 		{
 			"type": "node",

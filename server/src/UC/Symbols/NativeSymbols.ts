@@ -1,7 +1,7 @@
 import { NAME_ARRAY, NAME_RETURNVALUE, toName } from '../names';
 import {
-    DEFAULT_RANGE, UCMethodLikeSymbol, UCMethodSymbol, UCParamSymbol, UCPropertySymbol,
-    UCStructSymbol
+    DEFAULT_RANGE, FieldModifiers, UCMethodLikeSymbol, UCMethodSymbol, UCParamSymbol,
+    UCPropertySymbol, UCStructSymbol
 } from './';
 import {
     StaticDelegateType, StaticFloatType, StaticIntType, StaticNameType, StaticRangeType,
@@ -15,9 +15,11 @@ export const NativeArray = new UCStructSymbol({ name: NAME_ARRAY, range: DEFAULT
 
 export const LengthProperty = new UCPropertySymbol({ name: toName('Length'), range: DEFAULT_RANGE });
 LengthProperty.type = StaticIntType;
+LengthProperty.modifiers |= FieldModifiers.Native | FieldModifiers.Intrinsic;
 NativeArray.addSymbol(LengthProperty);
 
 const InsertFunction = new UCMethodSymbol({ name: toName('Insert'), range: DEFAULT_RANGE });
+InsertFunction.modifiers |= FieldModifiers.Native | FieldModifiers.Intrinsic;
 const IndexParam = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE });
 IndexParam.type = StaticIntType;
 const CountParam = new UCParamSymbol({ name: toName('Count'), range: DEFAULT_RANGE });
@@ -28,6 +30,7 @@ InsertFunction.params = [IndexParam, CountParam];
 NativeArray.addSymbol(InsertFunction);
 
 const RemoveFunction = new UCMethodSymbol({ name: toName('Remove'), range: DEFAULT_RANGE });
+RemoveFunction.modifiers |= FieldModifiers.Native | FieldModifiers.Intrinsic;
 const IndexParam2 = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE });
 IndexParam2.type = StaticIntType;
 const CountParam2 = new UCParamSymbol({ name: toName('Count'), range: DEFAULT_RANGE });
@@ -38,6 +41,7 @@ RemoveFunction.params = [IndexParam2, CountParam2];
 NativeArray.addSymbol(RemoveFunction);
 
 const AddFunction = new UCMethodSymbol({ name: toName('Add'), range: DEFAULT_RANGE });
+AddFunction.modifiers |= FieldModifiers.Native | FieldModifiers.Intrinsic;
 const CountParam3 = new UCParamSymbol({ name: toName('Count'), range: DEFAULT_RANGE });
 CountParam3.type = StaticIntType;
 AddFunction.addSymbol(CountParam3);
@@ -45,12 +49,14 @@ AddFunction.params = [CountParam3];
 NativeArray.addSymbol(AddFunction);
 
 const AddItemFunction = new UCMethodSymbol({ name: toName('AddItem'), range: DEFAULT_RANGE });
+AddItemFunction.modifiers |= FieldModifiers.Native | FieldModifiers.Intrinsic;
 const ItemParam = new UCParamSymbol({ name: toName('Item'), range: DEFAULT_RANGE });
 AddItemFunction.addSymbol(ItemParam);
 AddItemFunction.params = [ItemParam];
 NativeArray.addSymbol(AddItemFunction);
 
 const InsertItemFunction = new UCMethodSymbol({ name: toName('InsertItem'), range: DEFAULT_RANGE });
+InsertItemFunction.modifiers |= FieldModifiers.Native | FieldModifiers.Intrinsic;
 const IndexParam3 = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE });
 IndexParam3.type = StaticIntType;
 const ItemParam2 = new UCParamSymbol({ name: toName('Item'), range: DEFAULT_RANGE });
@@ -60,12 +66,14 @@ InsertItemFunction.params = [IndexParam3, ItemParam2];
 NativeArray.addSymbol(InsertItemFunction);
 
 const RemoveItemFunction = new UCMethodSymbol({ name: toName('RemoveItem'), range: DEFAULT_RANGE });
+RemoveItemFunction.modifiers |= FieldModifiers.Native | FieldModifiers.Intrinsic;
 const ItemParam3 = new UCParamSymbol({ name: toName('Item'), range: DEFAULT_RANGE });
 RemoveItemFunction.addSymbol(ItemParam3);
 RemoveItemFunction.params = [ItemParam3];
 NativeArray.addSymbol(RemoveItemFunction);
 
 const FindFunction = new UCMethodSymbol({ name: toName('Find'), range: DEFAULT_RANGE });
+FindFunction.modifiers |= FieldModifiers.Native | FieldModifiers.Intrinsic;
 const ItemParam4 = new UCParamSymbol({ name: toName('Value|PropertyName'), range: DEFAULT_RANGE });
 FindFunction.addSymbol(ItemParam4);
 const ItemParam5 = new UCParamSymbol({ name: toName('Value'), range: DEFAULT_RANGE });
@@ -75,6 +83,7 @@ FindFunction.params = [ItemParam4, ItemParam5];
 NativeArray.addSymbol(FindFunction);
 
 const SortFunction = new UCMethodSymbol({ name: toName('Sort'), range: DEFAULT_RANGE });
+SortFunction.modifiers |= FieldModifiers.Native | FieldModifiers.Intrinsic;
 const PredicateParam = new UCParamSymbol({ name: toName('Predicate'), range: DEFAULT_RANGE });
 PredicateParam.type = StaticDelegateType;
 SortFunction.addSymbol(PredicateParam);
