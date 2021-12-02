@@ -37,6 +37,12 @@ function test()
 
     // FIXME: f here is not being highlighted unless a 0 is preceded.
     f = 0.f;
+
+    // FIXME: Switch is being mistaken for the switch statement.
+    self.Switch	= Switch;
+
+	if ( true == false )	// comment
+		false = true;
 }
 
 // FIXME: Let expression is not being highlighted.
