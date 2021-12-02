@@ -12,6 +12,8 @@ export enum FieldModifiers {
 	Native 				= 0x0004,
 	ReadOnly 			= 0x0008,
 	WithDimension		= 0x0010,
+    // Not to be confused with the alternative keyword of "Native"
+    Intrinsic           = 0x0020,
 	NotPublic 			= Protected | Private,
 }
 

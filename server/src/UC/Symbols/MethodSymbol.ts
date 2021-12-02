@@ -44,7 +44,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	isFinal(): boolean {
-		return (this.specifiers & MethodSpecifiers.Final) !== 0 || this.isStatic();
+		return (this.specifiers & MethodSpecifiers.Final) !== 0 || (this.specifiers & MethodSpecifiers.Static) !== 0;
 	}
 
     isDelegate(): this is UCDelegateSymbol {
@@ -189,25 +189,20 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 }
 
+/**
+ * Pseudo method like Vect, Rot, and Rng
+ * For those particular 'methods' we want to pass back the @returnValue as our symbol's type.
+ */
 export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference {
+	modifiers = FieldModifiers.ReadOnly | FieldModifiers.Native | FieldModifiers.Intrinsic;
+    specifiers = MethodSpecifiers.Static | MethodSpecifiers.Final;
+
 	constructor(name: Name, protected kind?: string) {
 		super({ name, range: DEFAULT_RANGE });
 	}
 
-	isStatic() {
-		return true;
-	}
-
-	isFinal() {
-		return true;
-	}
-
-	isNative() {
-		return true;
-	}
-
     getTypeFlags() {
-		return UCTypeFlags.Function | UCTypeFlags.Delegate;
+		return this.returnValue?.getTypeFlags() || UCTypeFlags.Error;
 	}
 
 	protected getTypeKeyword(): string {

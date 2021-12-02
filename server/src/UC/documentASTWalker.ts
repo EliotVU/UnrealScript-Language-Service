@@ -444,7 +444,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 			this.declare(enumCountMember);
 			enumCountMember.outer = symbol;
 			enumCountMember.value = count;
-			} finally {
+        } finally {
 			this.pop();
 		}
 		return symbol;
@@ -596,8 +596,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 			? idFromCtx(nameNode)
 			: { name: NAME_NONE, range };
 		const symbol = new type(identifier, range);
-		symbol.specifiers = specifiers;
-		symbol.modifiers = modifiers;
+		symbol.specifiers |= specifiers;
+		symbol.modifiers |= modifiers;
 		if (precedence) {
 			(symbol as UCBinaryOperatorSymbol).precedence = precedence;
 		}
@@ -615,7 +615,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 				const typeSymbol = this.visitTypeDecl(ctx._returnParam.typeDecl());
 				const returnValue = new UCParamSymbol(ReturnValueIdentifier, rangeFromBounds(ctx.start, ctx.stop));
 				returnValue.type = typeSymbol;
-				returnValue.paramModifiers = paramModifiers;
+				returnValue.paramModifiers |= paramModifiers;
 
 				this.declare(returnValue);
 				symbol.returnValue = returnValue;
@@ -702,8 +702,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 			symbol.defaultExpression = ctx._expr.accept(this);
 			paramModifiers |= ParamModifiers.Optional;
 		}
-		symbol.modifiers = modifiers;
-		symbol.paramModifiers = paramModifiers;
+		symbol.modifiers |= modifiers;
+		symbol.paramModifiers |= paramModifiers;
 
 		this.initVariable(symbol, varNode);
 		this.declare(symbol, ctx);

@@ -13,8 +13,8 @@ import {
 import { getDocumentByURI } from './UC/indexer';
 import { UCBlock } from './UC/statements';
 import {
-    FieldModifiers, isFieldSymbol, isParamSymbol, ISymbol, UCFieldSymbol, UCObjectTypeSymbol,
-    UCStructSymbol, UCSymbol, UCTypeFlags
+    FieldModifiers, isFieldSymbol, isMethodSymbol, isParamSymbol, ISymbol, MethodSpecifiers,
+    UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbol, UCTypeFlags
 } from './UC/Symbols';
 import { DefaultSymbolWalker } from './UC/symbolWalker';
 
@@ -155,8 +155,18 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
                         if (ref.modifiers & FieldModifiers.ReadOnly) {
                             modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.readonly];
                         }
-                        if (ref.modifiers & FieldModifiers.Native) {
+                        if (ref.modifiers & FieldModifiers.Intrinsic) {
                             modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.defaultLibrary];
+                        }
+
+                        if (isMethodSymbol(ref)) {
+                            if (ref.specifiers & MethodSpecifiers.Static) {
+                                modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.static];
+                            }
+
+                            if (ref.modifiers & FieldModifiers.Intrinsic) {
+                                type = TokenTypesMap[SemanticTokenTypes.keyword];
+                            }
                         }
                     }
                     this.pushSymbol(symbol, type, modifiers);
