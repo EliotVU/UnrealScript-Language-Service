@@ -14,7 +14,7 @@ describe('Test Symbol Methods', () => {
     classSymbol.outer = packageSymbol;
 
     const scriptStructSymbol = new UCScriptStructSymbol({ name: NAME_STRUCT, range: DEFAULT_RANGE });
-    classSymbol.addSymbol(scriptStructSymbol)
+    classSymbol.addSymbol(scriptStructSymbol);
 
     it('GetPath() === "Package.Class.Struct"', () => {
         expect(packageSymbol.getPath())

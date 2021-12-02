@@ -66,7 +66,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		}
 
 		if (this.dependsOnTypes) {
-			for (let depType of this.dependsOnTypes) {
+			for (const depType of this.dependsOnTypes) {
 				const symbol = depType.getSymbolAtPos(position);
 				if (symbol) {
 					return symbol;
@@ -75,7 +75,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		}
 
 		if (this.implementsTypes) {
-			for (let depType of this.implementsTypes) {
+			for (const depType of this.implementsTypes) {
 				const symbol = depType.getSymbolAtPos(position);
 				if (symbol) {
 					return symbol;
@@ -96,13 +96,13 @@ export class UCClassSymbol extends UCStructSymbol {
 		}
 
 		if (this.dependsOnTypes) {
-			for (let classTypeRef of this.dependsOnTypes) {
+			for (const classTypeRef of this.dependsOnTypes) {
 				classTypeRef.index(document, context);
 			}
 		}
 
 		if (this.implementsTypes) {
-			for (let interfaceTypeRef of this.implementsTypes) {
+			for (const interfaceTypeRef of this.implementsTypes) {
 				interfaceTypeRef.index(document, context);
 			}
 		}

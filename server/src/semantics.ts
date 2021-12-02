@@ -115,7 +115,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
 
         if (symbol.children) {
             const symbols: ISymbol[] = [];
-            for (var child: UCFieldSymbol | undefined = symbol.children; child; child = child.next) {
+            for (let child: UCFieldSymbol | undefined = symbol.children; child; child = child.next) {
                 symbols.push(child);
             }
 
@@ -131,7 +131,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
     }
 
     visitBlock(symbol: UCBlock) {
-        for (let statement of symbol.statements) if (statement) {
+        for (const statement of symbol.statements) if (statement) {
             statement.accept(this);
         }
         return undefined;

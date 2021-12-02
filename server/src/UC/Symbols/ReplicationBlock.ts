@@ -24,7 +24,7 @@ export class UCReplicationBlock extends UCStructSymbol {
 	}
 
 	getContainedSymbolAtPos(position: Position) {
-		for (let ref of this.symbolRefs.values()) {
+		for (const ref of this.symbolRefs.values()) {
 			const symbol = ref.getSymbolAtPos(position);
 			if (symbol) {
 				return symbol;
@@ -35,7 +35,7 @@ export class UCReplicationBlock extends UCStructSymbol {
 
 	index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
-		for (let ref of this.symbolRefs.values()) {
+		for (const ref of this.symbolRefs.values()) {
 			const symbol = context.findSuperSymbol(ref.getName());
 			if (!symbol) {
 				continue;

@@ -76,7 +76,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
 	}
 
     protected buildModifiers(): string[] {
-		let text = super.buildModifiers();
+		const text = super.buildModifiers();
 
 		if (this.isReadOnly()) {
 			text.push('const');

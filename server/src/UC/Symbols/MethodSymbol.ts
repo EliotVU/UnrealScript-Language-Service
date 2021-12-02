@@ -169,7 +169,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	protected buildModifiers(): string[] {
-		let text = super.buildModifiers();
+		const text = super.buildModifiers();
 
 		if (this.isStatic()) {
 			text.push('static');

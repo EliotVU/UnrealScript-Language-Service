@@ -59,7 +59,7 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 
     visitDocument(document: UCDocument): undefined {
         const symbols = document.getSymbols();
-        for (let symbol of symbols) {
+        for (const symbol of symbols) {
             symbol.accept(this);
         }
         return undefined;
@@ -105,7 +105,7 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 			symbol.extendsType.accept(this);
 		}
 
-		for (var child = symbol.children; child; child = child.next) {
+		for (let child = symbol.children; child; child = child.next) {
 			child.accept(this);
 		}
 
@@ -121,13 +121,13 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 		}
 
 		if (symbol.dependsOnTypes) {
-			for (var classTypeRef of symbol.dependsOnTypes) {
+			for (const classTypeRef of symbol.dependsOnTypes) {
 				classTypeRef.accept(this);
 			}
 		}
 
 		if (symbol.implementsTypes) {
-			for (var interfaceTypeRef of symbol.implementsTypes) {
+			for (const interfaceTypeRef of symbol.implementsTypes) {
 				interfaceTypeRef.accept(this);
 			}
 		}
@@ -188,7 +188,7 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 
 	visitState(symbol: UCStateSymbol): ISymbol {
 		if (symbol.ignoreRefs) {
-			for (var ref of symbol.ignoreRefs){
+			for (const ref of symbol.ignoreRefs){
 				ref.accept(this);
 			}
 		}

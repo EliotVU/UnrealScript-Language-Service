@@ -80,7 +80,7 @@ export function intersectsWithRange(position: Position, range: Range): boolean {
 
 export function getDocumentSymbol(document: UCDocument, position: Position): ISymbol | undefined {
     const symbols = document.getSymbols();
-    for (let symbol of symbols) {
+    for (const symbol of symbols) {
         const child = symbol.getSymbolAtPos(position);
         if (child) {
             return child;
@@ -94,7 +94,7 @@ export function getDocumentSymbol(document: UCDocument, position: Position): ISy
  **/
 export function getDocumentContext(document: UCDocument, position: Position): ISymbol | undefined {
     const symbols = document.getSymbols();
-    for (let symbol of symbols) {
+    for (const symbol of symbols) {
         if (symbol instanceof UCFieldSymbol) {
             const child = symbol.getCompletionContext(position);
             if (child) {
@@ -158,7 +158,7 @@ export async function getSymbols(uri: string): Promise<SymbolInformation[] | und
         }
     };
 
-    for (let symbol of contextSymbols) {
+    for (const symbol of contextSymbols) {
         if (symbol instanceof UCStructSymbol) {
             buildSymbolsList(symbol);
         }
@@ -206,7 +206,7 @@ export function getIntersectingContext(context: ParserRuleContext, position: Pos
     if (!intersectsWith(rangeFromCtx(context), position)) {
         return undefined;
     }
-    if (context.children) for (let child of context.children) {
+    if (context.children) for (const child of context.children) {
         if (child instanceof ParserRuleContext) {
             const ctx = getIntersectingContext(child, position);
             if (ctx) {

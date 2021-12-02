@@ -66,7 +66,7 @@ export function applyMacroSymbols(symbols?: { [key: string]: string }) {
     if (symbols) {
         // Apply our custom-macros as global symbols (accessable in any uc file).
         const entries = Object.entries<string>(symbols);
-        for (let [key, value] of entries) {
+        for (const [key, value] of entries) {
             UCPreprocessorParser.globalSymbols.set(key.toLowerCase(), { text: value });
         }
     }

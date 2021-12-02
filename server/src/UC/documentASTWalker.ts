@@ -371,7 +371,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         // Need to push before visiting modifiers.
 		this.push(symbol);
 		const modifierNodes = ctx.classModifier();
-		for (let modifierNode of modifierNodes) {
+		for (const modifierNode of modifierNodes) {
             modifierNode.accept(this);
 		}
 		return symbol;
@@ -428,7 +428,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
 		this.push(symbol);
 		try {
-			let count: number = 0;
+			let count = 0;
 			const memberNodes = ctx.enumMember();
 			for (const memberNode of memberNodes) {
 				const memberSymbol: UCEnumMemberSymbol = memberNode.accept(this);
@@ -498,7 +498,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
 		const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
 		block.statements = Array(statementNodes.length);
-		for (var i = 0; i < statementNodes.length; ++i) {
+		for (let i = 0; i < statementNodes.length; ++i) {
 			const statement = statementNodes[i].accept(this);
 			block.statements[i] = statement;
 
@@ -882,7 +882,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 		let classIdentifier: Identifier | undefined;
 
 		const attrs = ctx.objectAttribute();
-		if (attrs) for (let objAttr of attrs) {
+		if (attrs) for (const objAttr of attrs) {
 			switch (objAttr._id.type) {
 				case UCLexer.KW_NAME:
 					nameIdentifier = { name: toName(objAttr._value.text), range: rangeFromBound(objAttr._value.start) };
@@ -1110,7 +1110,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
 		const block = new UCBlock(range);
 		block.statements = Array(clauseNodes.length);
-		for (var i = 0; i < clauseNodes.length; ++i) {
+		for (let i = 0; i < clauseNodes.length; ++i) {
 			const caseStatement: IStatement = clauseNodes[i].accept<any>(this);
 			block.statements[i] = caseStatement;
 		}
@@ -1501,7 +1501,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	visitNameLiteral(ctx: UCGrammar.NameLiteralContext) {
         const token = ctx.NAME().payload;
         const text = token.text!;
-        const name = toName(text.substring(1, text.length - 1))
+        const name = toName(text.substring(1, text.length - 1));
         const id: Identifier = {
             name: name,
             range: rangeFromBound(token)
@@ -1554,7 +1554,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 		let startChar = objectIdNode.symbol.charPositionInLine + 1;
 
 		const identifiers: Identifier[] = [];
-		for (let id of ids) {
+		for (const id of ids) {
 			const identifier: Identifier = {
 				name: toName(id),
 				range: {

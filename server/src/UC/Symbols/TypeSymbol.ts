@@ -487,7 +487,7 @@ export const CastTypeSymbolMap: Readonly<WeakMap<Name, ITypeSymbol>> = new WeakM
 
 // TODO: Handle class hierarchy
 // TODO: Handle coercing
-export function typeMatchesFlags(type: ITypeSymbol | undefined, expectedType: ITypeSymbol, coerce: boolean = false): boolean {
+export function typeMatchesFlags(type: ITypeSymbol | undefined, expectedType: ITypeSymbol, coerce = false): boolean {
 	if (expectedType.getTypeFlags() === UCTypeFlags.Error) {
 		return false;
 	}

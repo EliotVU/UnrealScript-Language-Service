@@ -415,7 +415,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         this.pushScope(this.document.class || symbol);
         super.visitReplicationBlock(symbol);
 
-        for (let symbolRef of symbol.symbolRefs.values()) {
+        for (const symbolRef of symbol.symbolRefs.values()) {
             const symbol = symbolRef.getRef();
             if (!symbol) {
                 this.diagnostics.add({
@@ -474,7 +474,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
     }
 
     visitBlock(symbol: UCBlock) {
-        for (let statement of symbol.statements) if (statement) {
+        for (const statement of symbol.statements) if (statement) {
             try {
                 statement.accept(this);
             } catch (err) {

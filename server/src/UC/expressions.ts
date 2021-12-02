@@ -173,7 +173,7 @@ export class UCCallExpression extends UCExpression {
             return symbol;
         }
 
-        if (this.arguments) for (let arg of this.arguments) {
+        if (this.arguments) for (const arg of this.arguments) {
             const symbol = arg.getSymbolAtPos(position);
             if (symbol) {
                 return symbol;
@@ -485,7 +485,7 @@ export class UCDefaultMemberCallExpression extends UCExpression {
             return symbol;
         }
 
-        if (this.arguments) for (let arg of this.arguments) {
+        if (this.arguments) for (const arg of this.arguments) {
             const symbol = arg.getSymbolAtPos(position);
             if (symbol) {
                 return symbol;
@@ -899,7 +899,7 @@ export class UCDefaultStructLiteral extends UCExpression {
     public arguments?: Array<IExpression | undefined>;
 
     getContainedSymbolAtPos(position: Position) {
-        if (this.arguments) for (let arg of this.arguments) {
+        if (this.arguments) for (const arg of this.arguments) {
             const symbol = arg?.getSymbolAtPos(position);
             if (symbol) {
                 return symbol;
@@ -908,7 +908,7 @@ export class UCDefaultStructLiteral extends UCExpression {
     }
 
     index(document: UCDocument, context?: UCStructSymbol) {
-        if (this.arguments) for (let arg of this.arguments) {
+        if (this.arguments) for (const arg of this.arguments) {
             arg?.index(document, context);
         }
     }

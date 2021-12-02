@@ -1,7 +1,7 @@
 import * as glob from 'glob';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
-import { BehaviorSubject, firstValueFrom, from, interval, Subject, Subscription } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, interval, Subject, Subscription } from 'rxjs';
 import { debounce, delay, filter, switchMapTo, tap } from 'rxjs/operators';
 import * as url from 'url';
 import { TextDocument } from 'vscode-languageserver-textdocument';
@@ -49,9 +49,9 @@ const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty:
 
 const textDocuments = new TextDocuments(TextDocument);
 
-let hasConfigurationCapability: boolean = false;
-let hasWorkspaceFolderCapability: boolean = false;
-let hasSemanticTokensCapability: boolean = false;
+let hasConfigurationCapability = false;
+let hasWorkspaceFolderCapability = false;
+let hasSemanticTokensCapability = false;
 
 let activeDocumentParseData: DocumentParseData | undefined;
 
@@ -77,7 +77,7 @@ function createDocuments(files: string[]): UCDocument[] {
 }
 
 function removeDocuments(files: string[]) {
-    for (let filePath of files) {
+    for (const filePath of files) {
         removeDocumentByPath(filePath);
     }
 }
@@ -174,7 +174,7 @@ connection.onInitialized(() => {
         .subscribe(documents => {
             if (config.analyzeDocuments === EAnalyzeOption.OnlyActive) {
                 // Only analyze active documents.
-                documents = documents.filter(document => textDocuments.get(document.uri))
+                documents = documents.filter(document => textDocuments.get(document.uri));
             }
 
             for (const document of documents) {
@@ -390,8 +390,8 @@ function clearIntrinsicSymbols() {
 
 function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
     const intSymbols = Object.entries(intrinsicSymbols);
-    for (let [key, value] of intSymbols) {
-        let [pkgNameStr, symbolName] = key.split('.');
+    for (const [key, value] of intSymbols) {
+        const [pkgNameStr, symbolName] = key.split('.');
         if (value.type === 'class') {
             const classSymbolName = toName(symbolName);
             if (ObjectsTable.getSymbol(classSymbolName, UCTypeFlags.Class)) {
@@ -548,7 +548,7 @@ connection.onCodeAction(e => {
 
 connection.onExecuteCommand(e => {
     switch (e.command) {
-        case 'create.class':
+        case 'create.class': {
             const uri = e.arguments![0] as string;
             const className = e.arguments![1] as string;
             const change = new WorkspaceChange();
@@ -561,6 +561,7 @@ connection.onExecuteCommand(e => {
             connection.workspace.applyEdit(change.edit);
             // TODO: Need to refresh the document that invoked this command.
             break;
+        }
     }
 });
 

@@ -20,7 +20,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 	}
 
     *getTypes<C extends T>(type: UCTypeFlags): Generator<C, C[]> {
-        for (let symbol of this.symbols.values()) {
+        for (const symbol of this.symbols.values()) {
             if ((symbol.getTypeFlags() & type) === 0) {
                 continue;
             }
@@ -98,9 +98,9 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 				}
 				this.removeSymbol(child as unknown as T);
 			}
-		}
+		};
 
-		for (let [key, symbol] of this.symbols) {
+		for (const [key, symbol] of this.symbols) {
 			if (symbol instanceof UCStructSymbol) {
 				removeObjects(symbol.children);
 				this.removeKey(key, symbol);

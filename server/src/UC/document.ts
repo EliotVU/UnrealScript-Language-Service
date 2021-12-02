@@ -66,7 +66,7 @@ export class UCDocument {
         const lexer = new UCLexer(inputStream);
         lexer.removeErrorListeners();
         const walker = new DocumentASTWalker(this, this.scope);
-        lexer.addErrorListener(walker as ANTLRErrorListener<Number>);
+        lexer.addErrorListener(walker as ANTLRErrorListener<number>);
         const tokens = new CommonTokenStreamExt(lexer);
 
         if (config.generation === UCGeneration.UC3) {
@@ -77,7 +77,7 @@ export class UCDocument {
                 try {
                     const macroTree = preprocessDocument(this, macroParser, walker);
                     if (macroTree) {
-                        tokens.initMacroTree(macroTree, walker as ANTLRErrorListener<Number>);
+                        tokens.initMacroTree(macroTree, walker as ANTLRErrorListener<number>);
                     }
                 } catch (err) {
                     console.error(err);
@@ -147,7 +147,7 @@ export class UCDocument {
             // TODO: Merge this with scope.clear();
             if (this.class) {
                 function removeChildren(scope: UCStructSymbol) {
-                    for (var child = scope.children; child; child = child.next) {
+                    for (let child = scope.children; child; child = child.next) {
                         if (child instanceof UCStructSymbol) {
                             removeChildren(child);
                         }
@@ -167,7 +167,7 @@ export class UCDocument {
         this.hasBeenIndexed = false;
 
         // Clear all the indexed references that we have made.
-        for (let [key, value] of this.indexReferencesMade) {
+        for (const [key, value] of this.indexReferencesMade) {
             const refs = IndexedReferencesMap.get(key);
             if (refs) {
                 value.forEach(ref => refs.delete(ref));

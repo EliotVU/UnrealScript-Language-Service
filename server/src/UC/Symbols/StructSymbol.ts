@@ -167,7 +167,7 @@ export function findSymbol(context: UCStructSymbol, id: Name, predicate: (symbol
 
 	let bestChild: UCSymbol | undefined = undefined;
 	for (; scope; scope = scope.super) {
-		for (var child = scope.children; child; child = child.next) {
+		for (let child = scope.children; child; child = child.next) {
 			if (child.getName() === id) {
 				if (predicate(child)) {
 					return child;

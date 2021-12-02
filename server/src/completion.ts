@@ -164,7 +164,7 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
     // console.log('completionItem::contextSymbol', contextSymbol?.getPath());
 
     let globalTypes: UCTypeFlags = UCTypeFlags.Error;
-    for (let [type, candiateRule] of candidates.rules) {
+    for (const [type, candiateRule] of candidates.rules) {
         // console.log('completionItem::type', data.parser.ruleNames[type]);
 
         const stateType = candiateRule.ruleList.length
@@ -367,7 +367,7 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
         items.push(...typeItems);
     }
 
-    for (let [type, tokens] of candidates.tokens) {
+    for (const [type, tokens] of candidates.tokens) {
         const name = data.parser.vocabulary.getLiteralName(type);
         if (typeof name === 'undefined') {
             continue;
