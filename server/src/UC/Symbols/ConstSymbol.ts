@@ -11,8 +11,6 @@ export class UCConstSymbol extends UCFieldSymbol {
 
 	public expression?: IExpression;
 
-	modifiers = FieldModifiers.Const;
-
 	getComputedValue(): number | undefined {
 		return this.expression?.getValue();
 	}

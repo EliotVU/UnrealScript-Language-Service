@@ -11,8 +11,8 @@ import {
     RngMethodLike, RotMethodLike, StaticBoolType, StaticByteType, StaticFloatType, StaticIntType,
     StaticNameType, StaticNoneType, StaticRangeType, StaticRotatorType, StaticStringType,
     StaticVectorType, tryFindClassSymbol, typeMatchesFlags, UCArrayTypeSymbol, UCBaseOperatorSymbol,
-    UCObjectSymbol, UCObjectTypeSymbol, UCPackage, UCQualifiedTypeSymbol, UCStructSymbol, UCSymbol,
-    UCSymbolReference, UCTypeFlags, VectMethodLike
+    UCNameTypeSymbol, UCObjectSymbol, UCObjectTypeSymbol, UCPackage, UCQualifiedTypeSymbol,
+    UCStructSymbol, UCSymbol, UCSymbolReference, UCTypeFlags, VectMethodLike
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 

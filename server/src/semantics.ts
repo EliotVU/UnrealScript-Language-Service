@@ -13,8 +13,8 @@ import {
 import { getDocumentByURI } from './UC/indexer';
 import { UCBlock } from './UC/statements';
 import {
-    FieldModifiers, ISymbol, UCFieldSymbol, UCObjectTypeSymbol, UCParamSymbol, UCStructSymbol,
-    UCSymbol, UCTypeFlags
+    FieldModifiers, isFieldSymbol, isParamSymbol, ISymbol, UCFieldSymbol, UCObjectTypeSymbol,
+    UCStructSymbol, UCSymbol, UCTypeFlags
 } from './UC/Symbols';
 import { DefaultSymbolWalker } from './UC/symbolWalker';
 
@@ -143,7 +143,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
             const typeFlags = symbol.getTypeFlags();
             if ((typeFlags & UCTypeFlags.Object) !== 0) {
                 let type: number | undefined;
-                if (ref instanceof UCParamSymbol) {
+                if (isParamSymbol(ref)) {
                     type = TokenTypesMap[SemanticTokenTypes.parameter];
                 } else {
                     type = TypeToTokenTypeIndexMap[typeFlags];
@@ -151,8 +151,8 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
 
                 if (typeof type !== 'undefined') {
                     let modifiers = 0;
-                    if (ref instanceof UCFieldSymbol) {
-                        if (ref.modifiers & FieldModifiers.Const) {
+                    if (isFieldSymbol(ref)) {
+                        if (ref.modifiers & FieldModifiers.ReadOnly) {
                             modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.readonly];
                         }
                         if (ref.modifiers & FieldModifiers.Native) {

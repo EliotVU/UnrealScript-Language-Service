@@ -138,7 +138,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             if (config.generation === UCGeneration.UC3) {
                 if (config.checkTypes) for (const type of symbol.implementsTypes) {
                     const ref = type.getRef();
-                    if (ref && (ref.getTypeFlags() & UCTypeFlags.IsInterface) === 0) {
+                    if (ref && (ref.getTypeFlags() & UCTypeFlags.Interface) === 0) {
                         this.diagnostics.add({
                             range: type.id.range,
                             message: diagnosticMessages.CLASS_0_IS_NOT_AN_INTERFACE,

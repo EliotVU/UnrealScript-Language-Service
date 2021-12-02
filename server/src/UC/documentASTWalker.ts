@@ -352,7 +352,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 		this.document.class = symbol; // Important!, must be assigned before further parsing.
 
         if (ctx.KW_INTERFACE()) {
-            symbol.typeFlags |= UCTypeFlags.IsInterface;
+            symbol.typeFlags |= UCTypeFlags.Interface;
         }
 		addHashedSymbol(symbol);
 

@@ -39,7 +39,7 @@ export enum UCTypeFlags {
 	Archetype 		    = 1 << 10 | Object,
 	Package			    = 1 << 11 | Object, // For use cases like e.g. "class Actor extends Core.Object" where "Core" would be of type "Package".
 	Class			    = 1 << 12 | Object, // A class like class<CLASSNAME>.
-	IsInterface		    = 1 << 13,
+	Interface		    = 1 << 13,
 	Enum			    = 1 << 14 | Object,
 	Struct			    = 1 << 15 | Object,
 	Property		    = 1 << 16 | Object,
