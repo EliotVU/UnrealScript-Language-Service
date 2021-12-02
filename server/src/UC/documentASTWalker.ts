@@ -622,12 +622,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 			}
 
 			if (ctx._params) {
-				symbol.params = [];
-				const paramNodes = ctx._params.paramDecl();
-				for (const paramNode of paramNodes) {
-					const propSymbol = paramNode.accept(this);
-					symbol.params.push(propSymbol);
-				}
+                const paramNodes = ctx._params.paramDecl();
+				symbol.params = Array(paramNodes.length);
+                for (let i = 0; i < paramNodes.length; ++ i) {
+                    symbol.params[i] = paramNodes[i].accept(this);
+                }
 
 				// if ((specifiers & MethodSpecifiers.Operator) !== 0) {
 				// 	const leftType = symbol.params[0].getType();

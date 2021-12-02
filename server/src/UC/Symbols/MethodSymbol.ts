@@ -194,7 +194,7 @@ export class UCMethodSymbol extends UCStructSymbol {
  * For those particular 'methods' we want to pass back the @returnValue as our symbol's type.
  */
 export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference {
-	modifiers = FieldModifiers.ReadOnly | FieldModifiers.Native | FieldModifiers.Intrinsic;
+	modifiers = FieldModifiers.ReadOnly | FieldModifiers.Intrinsic;
     specifiers = MethodSpecifiers.Static | MethodSpecifiers.Final;
 
 	constructor(name: Name, protected kind?: string) {

@@ -164,9 +164,10 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
                                 modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.static];
                             }
 
-                            if (ref.modifiers & FieldModifiers.Intrinsic) {
-                                type = TokenTypesMap[SemanticTokenTypes.keyword];
-                            }
+                            // Disabled for now... 'not really a fan of how vscode colors this identifier as a control statement.
+                            // if (ref.modifiers & FieldModifiers.Intrinsic) {
+                            //     type = TokenTypesMap[SemanticTokenTypes.keyword];
+                            // }
                         }
                     }
                     this.pushSymbol(symbol, type, modifiers);
