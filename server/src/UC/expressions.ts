@@ -187,7 +187,9 @@ export class UCCallExpression extends UCExpression {
 
     index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
         // Note: Intentionally passing a clean info object.
-        this.expression.index(document, context, { hasArguments: true });
+        this.expression.index(document, context, {
+            hasArguments: this.expression instanceof UCMemberExpression
+        });
 
         const type = this.expression.getType();
         const symbol = type?.getRef();
