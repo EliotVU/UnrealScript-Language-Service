@@ -116,10 +116,6 @@ export abstract class UCFieldSymbol extends UCSymbol {
 			text.push('private');
 		}
 
-		if (this.isReadOnly()) {
-			text.push('const');
-		}
-
 		return text;
 	}
 }
