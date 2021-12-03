@@ -103,7 +103,7 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 	}
 
     static is(symbol: ISymbol): symbol is UCQualifiedTypeSymbol {
-        return symbol.hasOwnProperty('type');
+        return Object.prototype.hasOwnProperty.call(symbol, 'type');
     }
 
 	getTypeText(): string {
@@ -289,7 +289,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 	}
 
     static is(symbol: ISymbol): symbol is UCObjectTypeSymbol {
-        return symbol.hasOwnProperty('baseType');
+        return Object.prototype.hasOwnProperty.call(symbol, 'baseType');
     }
 
 	getRange(): Range {
@@ -493,7 +493,7 @@ export function typeMatchesFlags(type: ITypeSymbol | undefined, expectedType: IT
 	}
 
 	if (typeof type === 'undefined') {
-	    return false;
+        return false;
     }
 
     const expectedFlags = expectedType.getTypeFlags();
@@ -548,7 +548,7 @@ export function hasChildren(symbol: ISymbol): symbol is UCStructSymbol {
 }
 
 export function isFieldSymbol(symbol: ISymbol): symbol is UCFieldSymbol {
-    return symbol.hasOwnProperty('modifiers');
+    return Object.prototype.hasOwnProperty.call(symbol, 'modifiers');
 }
 
 export function isConstSymbol(symbol: ISymbol): symbol is UCConstSymbol {
@@ -560,7 +560,7 @@ export function isPropertySymbol(symbol: ISymbol): symbol is UCPropertySymbol {
 }
 
 export function isParamSymbol(symbol: ISymbol): symbol is UCParamSymbol {
-    return symbol.hasOwnProperty('paramModifiers');
+    return Object.prototype.hasOwnProperty.call(symbol, 'paramModifiers');
 }
 
 export function isScriptStructSymbol(symbol: ISymbol): symbol is UCScriptStructSymbol {

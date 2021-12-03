@@ -30,6 +30,7 @@ export const TokenTypes = [
     SemanticTokenTypes.property,
     SemanticTokenTypes.keyword,
     SemanticTokenTypes.string,
+    SemanticTokenTypes.operator,
 ];
 
 export const TokenModifiers = [
@@ -53,6 +54,7 @@ const TokenTypesMap = {
     [SemanticTokenTypes.property]: 8,
     [SemanticTokenTypes.keyword]: 9,
     [SemanticTokenTypes.string]: 10,
+    [SemanticTokenTypes.operator]: 11,
 };
 
 const TokenModifiersMap = {
@@ -168,6 +170,9 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
                             // if (ref.modifiers & FieldModifiers.Intrinsic) {
                             //     type = TokenTypesMap[SemanticTokenTypes.keyword];
                             // }
+                            if (ref.specifiers & MethodSpecifiers.OperatorKind) {
+                                type = TokenTypesMap[SemanticTokenTypes.operator];
+                            }
                         }
                     }
                     this.pushSymbol(symbol, type, modifiers);
