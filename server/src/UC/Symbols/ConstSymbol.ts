@@ -38,7 +38,7 @@ export class UCConstSymbol extends UCFieldSymbol {
 	getTooltip(): string {
 		const text = 'const ' + this.getPath();
 		if (this.expression) {
-			return text + ' = ' + (this.getComputedValue() || this.expression.toString());
+			return text + ' = ' + (this.getComputedValue() ?? this.expression.toString());
 		}
 		return text;
 	}
