@@ -57,7 +57,9 @@ export abstract class UCExpression implements IExpression {
     }
 
     abstract getContainedSymbolAtPos(position: Position): ISymbol | undefined;
-    index(_document: UCDocument, _context?: UCStructSymbol, _info?: IContextInfo): void { }
+    index(_document: UCDocument, _context?: UCStructSymbol, _info?: IContextInfo): void {
+        //
+    }
 
     accept<Result>(visitor: SymbolWalker<Result>): Result {
         return visitor.visitExpression(this);
@@ -553,6 +555,16 @@ export class UCMemberExpression extends UCExpression {
 
     index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo) {
         const id = this.id.name;
+
+        if (info && info.typeFlags && info.typeFlags & UCTypeFlags.Name) {
+            const label = context!.labels?.[id.hash];
+            if (label) {
+                const nameType = new UCNameTypeSymbol(this.id);
+                this.typeRef = nameType;
+                return;
+            }
+        }
+
         if (info?.hasArguments) {
             // Casting to a int, byte, bool? etc...
             const primitiveType = CastTypeSymbolMap.get(id);

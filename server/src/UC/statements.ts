@@ -1,10 +1,13 @@
+/* eslint-disable prefer-rest-params */
+/* eslint-disable prefer-spread */
 import { Position, Range } from 'vscode-languageserver';
 
 import { UCDocument } from './document';
 import { IExpression } from './expressions';
 import { intersectsWith } from './helpers';
-import { Name } from './names';
-import { IContextInfo, ISymbol, UCObjectSymbol, UCStructSymbol } from './Symbols';
+import {
+    IContextInfo, Identifier, ISymbol, UCObjectSymbol, UCStructSymbol, UCTypeFlags
+} from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
 export interface IStatement {
@@ -200,7 +203,7 @@ export class UCForEachStatement extends UCThenStatement {
 }
 
 export class UCLabeledStatement implements IStatement {
-	label?: Name;
+	label?: Identifier;
 
 	constructor(protected range: Range) {
 
@@ -219,6 +222,7 @@ export class UCLabeledStatement implements IStatement {
 	}
 
 	index(_document: UCDocument, _context: UCStructSymbol, _info?: IContextInfo) {
+        //
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
@@ -230,7 +234,7 @@ export class UCReturnStatement extends UCExpressionStatement {
 	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
 		const type = context.getType();
 		if (type) {
-			info = { typeFlags: type?.getTypeFlags() };
+			info = { typeFlags: type.getTypeFlags() };
 		}
 		super.index(document, context, info);
 	}
@@ -241,6 +245,10 @@ export class UCReturnStatement extends UCExpressionStatement {
 }
 
 export class UCGotoStatement extends UCExpressionStatement {
+    index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
+        super.index(document, context, { typeFlags: UCTypeFlags.Name });
+	}
+
 	accept<Result>(visitor: SymbolWalker<Result>): Result {
 		return visitor.visitGotoStatement(this);
 	}

@@ -13,17 +13,17 @@ import { config, UCGeneration } from '../indexer';
 import { NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
 import {
     UCAssertStatement, UCBlock, UCCaseClause, UCDoUntilStatement, UCExpressionStatement,
-    UCForEachStatement, UCForStatement, UCIfStatement, UCReturnStatement, UCSwitchStatement,
-    UCWhileStatement
+    UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement, UCReturnStatement,
+    UCSwitchStatement, UCWhileStatement
 } from '../statements';
 import {
     areMethodsCompatibleWith, AssignableByIdentifierFlags, AssignToDelegateFlags, getTypeFlagsName,
     IContextInfo, isFieldSymbol, isMethodSymbol, isStateSymbol, ITypeSymbol, LengthProperty,
     NativeClass, NativeEnum, NumberCoerceFlags, ReplicatableTypeFlags, StaticBoolType,
-    typeMatchesFlags, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol, UCDelegateTypeSymbol,
-    UCEnumSymbol, UCMethodSymbol, UCObjectSymbol, UCObjectTypeSymbol, UCParamSymbol,
-    UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock, UCScriptStructSymbol,
-    UCStateSymbol, UCStructSymbol, UCTypeFlags
+    StaticNameType, typeMatchesFlags, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol,
+    UCDelegateTypeSymbol, UCEnumSymbol, UCMethodSymbol, UCObjectSymbol, UCObjectTypeSymbol,
+    UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock,
+    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeFlags
 } from '../Symbols';
 import { DefaultSymbolWalker } from '../symbolWalker';
 import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
@@ -252,7 +252,8 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         super.visitMethod(symbol);
 
         if (symbol.params) {
-            for (var requiredParamsCount = 0; requiredParamsCount < symbol.params.length; ++requiredParamsCount) {
+            let requiredParamsCount = 0;
+            for (; requiredParamsCount < symbol.params.length; ++requiredParamsCount) {
                 if (symbol.params[requiredParamsCount].isOptional()) {
                     // All trailing params after the first optional param, are required to be declared as 'optional' too.
                     for (let i = requiredParamsCount + 1; i < symbol.params.length; ++i) {
@@ -497,7 +498,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         super.visitIfStatement(stm);
 
         this.verifyStatementExpression(stm);
-        if (stm.expression && config.checkTypes) {
+        if (!config.checkTypes)
+            return undefined;
+
+        if (stm.expression) {
             const type = stm.expression.getType();
             if (!typeMatchesFlags(type, StaticBoolType)) {
                 this.diagnostics.add({
@@ -513,7 +517,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         super.visitWhileStatement(stm);
 
         this.verifyStatementExpression(stm);
-        if (stm.expression && config.checkTypes) {
+        if (!config.checkTypes)
+            return undefined;
+
+        if (stm.expression) {
             const type = stm.expression.getType();
             if (!typeMatchesFlags(type, StaticBoolType)) {
                 this.diagnostics.add({
@@ -536,7 +543,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         super.visitDoUntilStatement(stm);
 
         this.verifyStatementExpression(stm);
-        if (stm.expression && config.checkTypes) {
+        if (!config.checkTypes)
+            return undefined;
+
+        if (stm.expression) {
             const type = stm.expression.getType();
             if (!typeMatchesFlags(type, StaticBoolType)) {
                 this.diagnostics.add({
@@ -552,7 +562,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
     visitForStatement(stm: UCForStatement) {
         super.visitForStatement(stm);
 
-        if (stm.expression && config.checkTypes) {
+        if (!config.checkTypes)
+            return undefined;
+
+        if (stm.expression) {
             const type = stm.expression.getType();
             if (!typeMatchesFlags(type, StaticBoolType)) {
                 this.diagnostics.add({
@@ -576,6 +589,24 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         super.visitCaseClause(stm);
 
         this.verifyStatementExpression(stm);
+        return undefined;
+    }
+
+    visitGotoStatement(stm: UCGotoStatement) {
+        this.verifyStatementExpression(stm);
+
+        if (!config.checkTypes)
+            return undefined;
+
+        if (stm.expression) {
+            const type = stm.expression.getType();
+            if (type && !typeMatchesFlags(type, StaticNameType)) {
+                this.diagnostics.add({
+                    range: stm.expression.getRange(),
+                    message: createExpectedTypeMessage(UCTypeFlags.Name, type)
+                });
+            }
+        }
         return undefined;
     }
 
@@ -749,7 +780,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                     });
                 } else if (symbol.isReadOnly()) {
                     if (expr instanceof UCDefaultAssignmentExpression) {
-
+                        // TODO:
                     } else {
                         this.diagnostics.add({
                             range: expr.left.getRange(),

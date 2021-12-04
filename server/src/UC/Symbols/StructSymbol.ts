@@ -6,8 +6,8 @@ import { Name } from '../names';
 import { UCBlock } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    isMethodSymbol, isStateSymbol, ISymbol, ISymbolContainer, ITypeSymbol, UCFieldSymbol, UCSymbol,
-    UCTypeFlags
+    Identifier, isMethodSymbol, isStateSymbol, ISymbol, ISymbolContainer, ITypeSymbol,
+    UCFieldSymbol, UCSymbol, UCTypeFlags
 } from './';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
@@ -15,6 +15,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	public super?: UCStructSymbol;
 	public children?: UCFieldSymbol;
 	public block?: UCBlock;
+    public labels?: { [key: number]: Identifier };
 
 	getKind(): SymbolKind {
 		return SymbolKind.Namespace;
@@ -76,6 +77,13 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		}
 		return undefined;
 	}
+
+    addLabel(label: Identifier): void {
+        if (typeof this.labels === 'undefined') {
+            this.labels = Object.create(null);
+        }
+        this.labels![label.name.hash] = label;
+    }
 
 	addSymbol(symbol: UCFieldSymbol): number | undefined {
 		symbol.outer = this;

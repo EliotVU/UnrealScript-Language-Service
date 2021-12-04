@@ -1,4 +1,4 @@
-class SemanticTokens extends Core.Object;
+class SemanticTokens;
 
 const constField = nameof(class'Core.Object'.default.EAxis.AXIS_X);
 
@@ -12,7 +12,7 @@ struct sTest {
 
 var ETest enumProperty;
 var sTest structProperty;
-var Object classProperty;
+var Class classProperty;
 var InterfaceTest interfaceProperty;
 var delegate<Test> delegateProperty;
 var array<Test> arrayProperty;
@@ -24,10 +24,10 @@ var int dimProperty[DIM_SIZE];
 
 function Test(int param1)
 {
-    local Object obj;
+    local Class obj;
     local Package pkg;
     local int local1;
-    local Array<Object> objects;
+    local Array<Class> objects;
     local name name;
 
     name = '';
@@ -35,23 +35,33 @@ function Test(int param1)
     name = name("MyName");
     name = nameof(name);
 
+    myName:
+
     local1 = param1;
-    obj = Object(self);
-    obj = Object(default.Outer);
+    obj = Class(self);
+    obj = Class(default.Outer);
     switch (0) {
         case MyEnumMember:
             break;
         case ETest.MyEnumMember:
             break;
-        case EAxis.AXIS_X:
+        default:
             break;
     }
 
+    myName2:
+
+    goto name;
+    goto myName;
+    goto myName2;
+
+
     pkg = package'Core';
-    obj = class'Core.Object';
+    obj = class'Core.Class';
 
     objects.AddItem(self);
 }
+
 
 defaultproperties {
     nameProperty=MyName

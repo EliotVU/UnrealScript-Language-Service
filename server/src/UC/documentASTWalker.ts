@@ -985,12 +985,15 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	visitLabeledStatement(ctx: UCGrammar.LabeledStatementContext): UCLabeledStatement {
 		const statement = new UCLabeledStatement(rangeFromBounds(ctx.start, ctx.stop));
 		const idNode = ctx.identifier();
-		statement.label = toName(idNode.text);
+		statement.label = idFromCtx(idNode);
+        const struct = this.scope<UCStructSymbol>();
+        struct.addLabel(statement.label);
 		return statement;
 	}
 
 	visitReturnStatement(ctx: UCGrammar.ReturnStatementContext): IStatement {
 		const statement = new UCReturnStatement(rangeFromBounds(ctx.start, ctx.stop));
+
 		if (ctx._expr) {
 			statement.expression = ctx._expr.accept(this);
 		}
@@ -1000,7 +1003,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	visitGotoStatement(ctx: UCGrammar.GotoStatementContext): IStatement {
 		const statement = new UCGotoStatement(rangeFromBounds(ctx.start, ctx.stop));
 
-		statement.expression = ctx._expr.accept(this);
+        if (ctx._expr) {
+			statement.expression = ctx._expr.accept(this);
+		}
 		return statement;
 	}
 

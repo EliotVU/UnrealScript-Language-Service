@@ -1,5 +1,5 @@
 import {
-    SemanticTokenModifiers, SemanticTokens, SemanticTokensBuilder, SemanticTokenTypes
+    Range, SemanticTokenModifiers, SemanticTokens, SemanticTokensBuilder, SemanticTokenTypes
 } from 'vscode-languageserver/node';
 
 import { UCDocument } from './UC/document';
@@ -11,10 +11,10 @@ import {
     UCPropertyAccessExpression, UCSuperExpression
 } from './UC/expressions';
 import { getDocumentByURI } from './UC/indexer';
-import { UCBlock } from './UC/statements';
+import { UCBlock, UCGotoStatement, UCLabeledStatement } from './UC/statements';
 import {
-    FieldModifiers, isFieldSymbol, isMethodSymbol, isParamSymbol, ISymbol, MethodSpecifiers,
-    UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbol, UCTypeFlags
+    FieldModifiers, Identifier, isFieldSymbol, isMethodSymbol, isParamSymbol, ISymbol,
+    MethodSpecifiers, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCTypeFlags
 } from './UC/Symbols';
 import { DefaultSymbolWalker } from './UC/symbolWalker';
 
@@ -96,12 +96,22 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
         return this.semanticTokensBuilder.build();
     }
 
-    private pushSymbol(symbol: UCSymbol, type: number, modifiers: number): void {
-        const idRange = symbol.getRange();
+    private pushIdentifier(id: Identifier, type: number, modifiers: number): void {
+        const range = id.range;
         this.semanticTokensBuilder.push(
-            idRange.start.line,
-            idRange.start.character,
-            idRange.end.character - idRange.start.character,
+            range.start.line,
+            range.start.character,
+            range.end.character - range.start.character,
+            type,
+            modifiers
+        );
+    }
+
+    private pushRange(range: Range, type: number, modifiers: number): void {
+        this.semanticTokensBuilder.push(
+            range.start.line,
+            range.start.character,
+            range.end.character - range.start.character,
             type,
             modifiers
         );
@@ -175,22 +185,48 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
                             }
                         }
                     }
-                    this.pushSymbol(symbol, type, modifiers);
+                    this.pushIdentifier(symbol.id, type, modifiers);
                 }
             } else if ((typeFlags & UCTypeFlags.EnumMember) !== 0) {
                 // EnumMember
-                this.pushSymbol(symbol,
+                this.pushIdentifier(symbol.id,
                     TypeToTokenTypeIndexMap[UCTypeFlags.EnumMember],
                     1 << TokenModifiersMap[SemanticTokenModifiers.readonly]
                 );
             } else if ((typeFlags & UCTypeFlags.Name) !== 0) {
-                this.pushSymbol(symbol,
+                this.pushIdentifier(symbol.id,
                     TypeToTokenTypeIndexMap[UCTypeFlags.String],
                     1 << TokenModifiersMap[SemanticTokenModifiers.static]
                 );
             }
         }
         return super.visitObjectType(symbol);
+    }
+
+    visitGotoStatement(stm: UCGotoStatement) {
+        // super.visitGotoStatement(stm);
+        if (stm.expression) {
+            const type = stm.expression.getType();
+            if (type && type.getTypeFlags() & UCTypeFlags.Name) {
+                this.pushRange(type.id.range,
+                    TypeToTokenTypeIndexMap[UCTypeFlags.String],
+                    1 << TokenModifiersMap[SemanticTokenModifiers.readonly]
+                );
+            }
+            stm.expression.accept(this);
+        }
+        return undefined;
+    }
+
+    visitLabeledStatement(stm: UCLabeledStatement) {
+        super.visitLabeledStatement(stm);
+        if (stm.label) {
+            this.pushRange(stm.label.range,
+                TypeToTokenTypeIndexMap[UCTypeFlags.String],
+                1 << TokenModifiersMap[SemanticTokenModifiers.readonly]
+            );
+        }
+        return undefined;
     }
 
     // FIXME: DRY
@@ -236,7 +272,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
         } else if (expr instanceof UCSuperExpression) {
             expr.structTypeRef?.accept(this);
         } else if (expr instanceof UCDefaultStructLiteral) {
-            expr.arguments?.forEach(arg => arg?.accept<any>(this));
+            expr.arguments?.forEach(arg => arg?.accept(this));
         } else if (expr instanceof UCObjectLiteral) {
             expr.objectRef?.accept(this);
         } else if (expr instanceof UCArrayCountExpression) {

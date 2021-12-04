@@ -85,7 +85,9 @@ export abstract class UCSymbol implements ISymbol {
 		return true;
 	}
 
-	index(_document: UCDocument, _context: UCStructSymbol) {}
+	index(_document: UCDocument, _context: UCStructSymbol) {
+        //
+    }
 
 	getUri(): string {
 		return this.outer instanceof UCSymbol && this.outer.getUri() || '';
