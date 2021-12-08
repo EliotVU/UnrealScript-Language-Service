@@ -5,6 +5,8 @@ import { SymbolWalker } from '../symbolWalker';
 import { ISymbol, UCStructSymbol, UCTypeFlags } from './';
 
 export class UCEnumSymbol extends UCStructSymbol {
+    public maxValue: number;
+
 	isProtected(): boolean {
 		return true;
 	}

@@ -176,10 +176,11 @@ export class DefaultSymbolWalker implements SymbolWalker<ISymbol | undefined> {
 	}
 
 	visitParameter(symbol: UCParamSymbol): ISymbol {
+        this.visitProperty(symbol);
 		if (symbol.defaultExpression) {
 			symbol.defaultExpression.accept(this);
 		}
-		return this.visitProperty(symbol);
+		return symbol;
 	}
 
 	visitLocal(symbol: UCLocalSymbol): ISymbol {

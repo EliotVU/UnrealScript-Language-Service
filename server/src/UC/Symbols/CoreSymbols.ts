@@ -179,5 +179,5 @@ NativePackage.outer = CORE_PACKAGE;
             addHashedSymbol(NativeScriptStruct);
             addHashedSymbol(NativeState);
                 addHashedSymbol(NativeClass);
-    addHashedSymbol(NativeInterface);
+    // addHashedSymbol(NativeInterface);
     addHashedSymbol(NativePackage);

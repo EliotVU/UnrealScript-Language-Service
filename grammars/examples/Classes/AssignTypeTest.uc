@@ -6,11 +6,12 @@ struct myVector {
     var int x;
 };
 
-var myVector vectorProperty;
+var myVector vectorVar;
 
 var int property;
-var int dimProperty[2];
-var const int constProperty;
+var int dimVar[2];
+var const int constVar;
+var name nameVar;
 
 function int AssignTest() {
     local AssignTypeTest obj;
@@ -21,24 +22,27 @@ function int AssignTest() {
     property = 0;
     property = AssignTest();
     obj = self;
-    dimProperty[0] = 0;
+    dimVar[0] = 0;
     objs[0] = self;
-    v = vectorProperty;
+    v = vectorVar;
+    nameVar = 'NameLiteral';
 
-    // TODO: INVALID
-    property = '';
+    // Not typechecked yet
+    // INVALID
+    property = 'NameLiteral';
     obj = 0;
-    dimProperty = 0;
+    dimVar = 0;
+    nameVar = "NameAsString";
 
     // INVALID
-    READONLY_FIELD = '';
-    constProperty = 0;
+    READONLY_FIELD = 'NameLiteral';
+    constVar = 0;
     AssignTest = AssignTest;
     AssignTest() = 0;
     self = self;
     0 = 0;
-    '' = '';
-    "" = "";
+    'NameLiteral' = 'NameLiteral';
+    "StringLiteral" = "StringLiteral";
     sqdqsd = 0;
     AssignTypeTest = none;
     class'AssignTypeTest' = self.class;
@@ -46,9 +50,19 @@ function int AssignTest() {
 
 defaultproperties
 {
-    vectorProperty=(x=0)
+    nameVar="NameAsString"
+    nameVar=NameAsString
+
+    vectorVar=(x=0)
+
+    // FIXME: parsing error
+    vectorVar={(
+		x=0,
+		y=0,
+	)}
 
     // INVALID
+    nameVar='NameAsString'
     READONLY_FIELD=0
     myVector=0
     AssignTest=0

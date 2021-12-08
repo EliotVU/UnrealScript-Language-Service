@@ -51,5 +51,11 @@
         "text": "The signature of '{0}' is not compatible with delegate '{1}'.",
 		"code": "8",
 		"severity": 1
+    },
+
+    "ARGUMENT_IS_INCOMPATIBLE": {
+        "text": "Argument of type '{0}' is not assignable to parameter of type '{1}'.",
+		"code": "9",
+		"severity": 1
     }
 }

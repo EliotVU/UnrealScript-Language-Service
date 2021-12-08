@@ -437,6 +437,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 				memberSymbol.value = count++;
 			}
 
+            symbol.maxValue = count;
+
 			// Insert the compiler-generated enum member "EnumCount".
 			// TODO: Insert another generated member, e.g. NM_MAX for ENetMode
 			const enumId: Identifier = { name: NAME_ENUMCOUNT, range: symbol.getRange() };
@@ -873,8 +875,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 			}
 		} finally {
 			this.pop();
-			return symbol;
 		}
+        return symbol;
 	}
 
 	visitObjectDecl(ctx: UCGrammar.ObjectDeclContext) {

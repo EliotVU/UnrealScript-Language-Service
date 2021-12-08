@@ -55,7 +55,7 @@ export class UCSymbolReference extends UCSymbol implements IWithReference {
 		return ref;
 	}
 
-	getRef(): ISymbol | undefined {
-		return this.reference;
+	getRef<T extends ISymbol>(): T | undefined {
+		return this.reference as T;
 	}
 }

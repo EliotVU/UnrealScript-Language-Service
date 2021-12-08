@@ -5,7 +5,7 @@ import { UCFieldSymbol, UCTypeFlags } from './';
 
 export class UCEnumMemberSymbol extends UCFieldSymbol {
 	// Unrealscript only supports (automatic) byte values.
-	public value!: number;
+	public value: number;
 
 	getKind(): SymbolKind {
 		return SymbolKind.EnumMember;

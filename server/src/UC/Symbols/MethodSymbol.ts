@@ -202,15 +202,15 @@ export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference
 	}
 
     getTypeFlags() {
-		return this.returnValue?.getTypeFlags() || UCTypeFlags.Error;
+		return this.returnValue?.getTypeFlags() ?? UCTypeFlags.Error;
 	}
 
 	protected getTypeKeyword(): string {
 		return '(intrinsic)';
 	}
 
-	getRef(): ISymbol | undefined {
-		return this.returnValue?.getType()?.getRef();
+	getRef<T extends ISymbol>(): T | undefined {
+		return this.returnValue?.getType()?.getRef<T>();
 	}
 }
 
@@ -284,6 +284,11 @@ export class UCPostOperatorSymbol extends UCBaseOperatorSymbol {
 }
 
 export function areMethodsCompatibleWith(a: UCMethodSymbol, b: UCMethodSymbol): boolean {
+    // FIXME: Maybe check by hash instead of a memory-reference
+    if (a === b) {
+        return true;
+    }
+
     if (typeof a.params === 'undefined') {
         return typeof b.params === 'undefined';
     }
@@ -294,13 +299,14 @@ export function areMethodsCompatibleWith(a: UCMethodSymbol, b: UCMethodSymbol): 
         return false;
     }
     for (let i = 0; i < a.params.length; ++i) {
-        if (a.params[i].getTypeFlags() !== b.params[i].getTypeFlags()) {
-            return false;
+        if (a.params[i].getType()?.getTypeFlags() === b.params[i].getType()?.getTypeFlags()) {
+            continue;
         }
+        return false;
     }
     if (typeof a.returnValue === 'undefined') {
         return typeof b.returnValue === 'undefined';
     }
     return typeof b.returnValue !== 'undefined'
-            && a.returnValue.getTypeFlags() === b.returnValue.getTypeFlags();
+            && a.returnValue.getType()?.getTypeFlags() === b.returnValue.getType()?.getTypeFlags();
 }

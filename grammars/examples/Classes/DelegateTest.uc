@@ -5,6 +5,7 @@ var delegate<OnDelegate2> Delegate2Property;
 var delegate<OnDelegate3> Delegate3Property;
 var delegate<DelegateTest.OnDelegate> QualifiedDelegateProperty;
 var const delegate<DelegateTest.OnDelegate> ConstDelegateProperty;
+var DelegateProperty DelegatePropertyRef;
 
 // @EXPECT ERROR
 var delegate<AcceptDelegate> InvalidProperty;
@@ -40,6 +41,7 @@ function bool Test(name param1, bool param2)
     AcceptDelegate(Delegate2Property);
     AcceptDelegate(OnAcceptCompatible);
     AcceptDelegate(OnDelegate != none ? GetDelegate() : OnDelegate);
+
     // @EXPECT ERROR
     AcceptDelegate(Delegate3Property);
     AcceptDelegate(OnAcceptIncompatible);
@@ -55,14 +57,18 @@ function bool Test(name param1, bool param2)
     DelegateProperty = OnDelegate;
     DelegateProperty = OnDelegate != none ? GetDelegate() : OnDelegate;
     DelegateProperty = OnAcceptCompatible;
+
     // @EXPECT ERROR
     DelegateProperty = OnAcceptIncompatible;
+
     // @EXPECT ERROR
     ConstDelegateProperty = OnAcceptCompatible;
+
     // @EXPECT ERROR
     AcceptDelegate(GetDelegate);
 
     OnDelegate = OnAcceptCompatible;
+
     // @EXPECT ERROR
     OnDelegate = OnAcceptIncompatible;
 
@@ -74,8 +80,10 @@ function bool Test(name param1, bool param2)
     DelegateProperty = 0;
     DelegateProperty = self;
     DelegateProperty = class'DelegateTest';
+
     // Not sure what the compiler thinks of this...
     DelegateProperty = DelegateProperty'examples.DelegateTest.DelegateProperty';
+    DelegatePropertyRef = DelegateProperty'examples.DelegateTest.DelegatePropertyRef';
 
     // @EXPECT ERROR
     OnAcceptCompatible = DelegateProperty;
@@ -89,6 +97,7 @@ defaultproperties
 
     // @EXPECT ERROR
     DelegateProperty=Test
+    OnDelegate=OnAcceptIncompatible
     DelegateProperty=true
     // DelegateProperty=''
     DelegateProperty=""

@@ -17,13 +17,13 @@ import {
     UCSwitchStatement, UCWhileStatement
 } from '../statements';
 import {
-    areMethodsCompatibleWith, AssignableByIdentifierFlags, AssignToDelegateFlags, getTypeFlagsName,
-    IContextInfo, isFieldSymbol, isMethodSymbol, isStateSymbol, ITypeSymbol, LengthProperty,
-    NativeClass, NativeEnum, NumberCoerceFlags, ReplicatableTypeFlags, StaticBoolType,
-    StaticNameType, typeMatchesFlags, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol,
-    UCDelegateTypeSymbol, UCEnumSymbol, UCMethodSymbol, UCObjectSymbol, UCObjectTypeSymbol,
-    UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock,
-    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeFlags
+    areMethodsCompatibleWith, AssignableByIdentifierFlags, AssignToDelegateFlags, IContextInfo,
+    isFieldSymbol, isMethodSymbol, isStateSymbol, ITypeSymbol, LengthProperty, NameCoerceFlags,
+    NativeClass, NativeEnum, NumberCoerceFlags, quoteTypeFlags, ReplicatableTypeFlags, resolveType,
+    StaticBoolType, StaticNameType, typeMatchesFlags, UCArrayTypeSymbol, UCClassSymbol,
+    UCConstSymbol, UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumSymbol, UCMethodSymbol,
+    UCObjectSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
+    UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeFlags
 } from '../Symbols';
 import { DefaultSymbolWalker } from '../symbolWalker';
 import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
@@ -107,7 +107,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             if (referredSymbol && !(isMethodSymbol(referredSymbol) && referredSymbol.isDelegate())) {
                 this.diagnostics.add({
                     range: symbol.baseType.id.range,
-                    message: createExpectedTypeMessage(UCTypeFlags.Delegate, symbol.baseType),
+                    message: createExpectedTypeMessage(UCTypeFlags.Delegate, symbol.baseType.getTypeFlags()),
                 });
             }
         }
@@ -503,10 +503,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
         if (stm.expression) {
             const type = stm.expression.getType();
-            if (!typeMatchesFlags(type, StaticBoolType)) {
+            if (type && !typeMatchesFlags(type, StaticBoolType)) {
                 this.diagnostics.add({
                     range: stm.getRange(),
-                    message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
+                    message: createExpectedTypeMessage(UCTypeFlags.Bool, type.getTypeFlags())
                 });
             }
         }
@@ -522,10 +522,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
         if (stm.expression) {
             const type = stm.expression.getType();
-            if (!typeMatchesFlags(type, StaticBoolType)) {
+            if (type && !typeMatchesFlags(type, StaticBoolType)) {
                 this.diagnostics.add({
                     range: stm.getRange(),
-                    message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
+                    message: createExpectedTypeMessage(UCTypeFlags.Bool, type.getTypeFlags())
                 });
             }
         }
@@ -548,10 +548,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
         if (stm.expression) {
             const type = stm.expression.getType();
-            if (!typeMatchesFlags(type, StaticBoolType)) {
+            if (type && !typeMatchesFlags(type, StaticBoolType)) {
                 this.diagnostics.add({
                     range: stm.getRange(),
-                    message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
+                    message: createExpectedTypeMessage(UCTypeFlags.Bool, type.getTypeFlags())
                 });
             }
         }
@@ -567,10 +567,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
         if (stm.expression) {
             const type = stm.expression.getType();
-            if (!typeMatchesFlags(type, StaticBoolType)) {
+            if (type && !typeMatchesFlags(type, StaticBoolType)) {
                 this.diagnostics.add({
                     range: stm.getRange(),
-                    message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
+                    message: createExpectedTypeMessage(UCTypeFlags.Bool, type.getTypeFlags())
                 });
             }
         }
@@ -603,7 +603,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             if (type && !typeMatchesFlags(type, StaticNameType)) {
                 this.diagnostics.add({
                     range: stm.expression.getRange(),
-                    message: createExpectedTypeMessage(UCTypeFlags.Name, type)
+                    message: createExpectedTypeMessage(UCTypeFlags.Name, type.getTypeFlags())
                 });
             }
         }
@@ -624,10 +624,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                     // TODO: No return expression expected!
                 } else {
                     const flags = expectedType.getTypeFlags();
-                    if (!typeMatchesFlags(type, expectedType)) {
+                    if (type && !typeMatchesFlags(type, expectedType)) {
                         this.diagnostics.add({
                             range: stm.getRange(),
-                            message: createTypeCannotBeAssignedToMessage(flags, type)
+                            message: createTypeCannotBeAssignedToMessage(flags, type.getTypeFlags())
                         });
                     }
                 }
@@ -647,10 +647,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         this.verifyStatementExpression(stm);
         if (stm.expression && config.checkTypes) {
             const type = stm.expression.getType();
-            if (!typeMatchesFlags(type, StaticBoolType)) {
+            if (type && !typeMatchesFlags(type, StaticBoolType)) {
                 this.diagnostics.add({
                     range: stm.getRange(),
-                    message: createExpectedTypeMessage(UCTypeFlags.Bool, type)
+                    message: createExpectedTypeMessage(UCTypeFlags.Bool, type.getTypeFlags())
                 });
             }
         }
@@ -766,31 +766,41 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 return undefined;
             }
 
-            const symbol = expr.left.getMemberSymbol();
-            if (symbol && isFieldSymbol(symbol)) {
-                const symbolFlags = symbol.getTypeFlags();
-                const letType = expr.left.getType();
-                if ((symbolFlags & (UCTypeFlags.Delegate | (UCTypeFlags.Function & ~UCTypeFlags.Object))) === UCTypeFlags.Function) {
+            const letType = expr.left.getType();
+            if (typeof letType === 'undefined') {
+                // We don't want to analyze a symbol with an unresolved type.
+                return undefined;
+            }
+            const valueType = expr.right.getType();
+            if (typeof valueType === 'undefined') {
+                return undefined;
+            }
+
+            const valueFlags = valueType.getTypeFlags();
+            const letSymbol = expr.left.getMemberSymbol();
+            if (letSymbol && isFieldSymbol(letSymbol)) {
+                const letSymbolFlags = letSymbol.getTypeFlags();
+                if ((letSymbolFlags & (UCTypeFlags.Delegate | (UCTypeFlags.Function & ~UCTypeFlags.Object))) === UCTypeFlags.Function) {
                     this.diagnostics.add({
                         range: expr.left.getRange(),
                         message: {
-                            text: `Cannot assign to '${symbol.getName()}' because it is a function. Did you mean to assign a delegate?`,
+                            text: `Cannot assign to '${letSymbol.getName()}' because it is a function. Did you mean to assign a delegate?`,
                             severity: DiagnosticSeverity.Error
                         }
                     });
-                } else if (symbol.isReadOnly()) {
+                } else if (letSymbol.isReadOnly()) {
                     if (expr instanceof UCDefaultAssignmentExpression) {
                         // TODO:
                     } else {
                         this.diagnostics.add({
                             range: expr.left.getRange(),
                             message: {
-                                text: `Cannot assign to '${symbol.getName()}' because it is a constant.`,
+                                text: `Cannot assign to '${letSymbol.getName()}' because it is a constant.`,
                                 severity: DiagnosticSeverity.Error
                             }
                         });
                     }
-                } else if (symbol.isFixedArray()) {
+                } else if (letSymbol.isFixedArray()) {
                     // FIXME: Distinguish dimProperty with and without a [].
                     // Properties with a defined array dimension cannot be assigned!
                     // this.diagnostics.add({
@@ -800,32 +810,32 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                     //         severity: DiagnosticSeverity.Error
                     //     }
                     // });
-                } else if (letType && (letType.getTypeFlags() & UCTypeFlags.Delegate) && expr instanceof UCAssignmentOperatorExpression) {
-                    // TODO: Cleanup duplicate code when binary-operator types are resolved properly.
-                    if (config.checkTypes) {
-                        const rightType = expr.right.getType();
-                        if (rightType) {
-                            const rightFlags = rightType.getTypeFlags();
-                            if ((rightFlags & AssignToDelegateFlags) === 0) {
+                }
+
+                if (config.checkTypes) {
+                    // Note: For now we only type-check delegates.
+                    if ((letType.getTypeFlags() & UCTypeFlags.Delegate) && expr instanceof UCAssignmentOperatorExpression) {
+                        // TODO: Cleanup duplicate code when binary-operator types are resolved properly.
+                        if ((valueFlags & AssignToDelegateFlags) === 0) {
+                            this.diagnostics.add({
+                                range: expr.right.getRange(),
+                                message: createTypeCannotBeAssignedToMessage(UCTypeFlags.Delegate, valueFlags),
+                            });
+                        } else {
+                            const letTypeRef = resolveType(letType).getRef<UCMethodSymbol>();
+                            const valueTypeRef = resolveType(valueType).getRef<UCMethodSymbol>();
+                            if (letTypeRef && isMethodSymbol(letTypeRef) && valueTypeRef && isMethodSymbol(valueTypeRef)
+                                && !areMethodsCompatibleWith(letTypeRef, valueTypeRef)) {
                                 this.diagnostics.add({
                                     range: expr.right.getRange(),
-                                    message: createTypeCannotBeAssignedToMessage(UCTypeFlags.Delegate, rightType),
+                                    message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
+                                    args: [valueTypeRef.getPath(), letSymbol.getPath()]
                                 });
-                            } else {
-                                const rightSymbol = rightType.getRef();
-                                if (rightSymbol && isMethodSymbol(rightSymbol)
-                                    && !areMethodsCompatibleWith((symbol as UCMethodSymbol), rightSymbol)) {
-                                    this.diagnostics.add({
-                                        range: expr.right.getRange(),
-                                        message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
-                                        args: [rightSymbol.getPath(), symbol.getPath()]
-                                    });
-                                }
                             }
                         }
                     }
                 }
-            } else if (expr.left.getType()) {
+            } else {
                 this.pushError(
                     expr.left.getRange(),
                     `The left-hand side of an assignment expression must be a variable.`
@@ -833,28 +843,31 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             }
 
             if (config.checkTypes && expr instanceof UCDefaultAssignmentExpression) {
-                const letType = expr.left.getType();
-                const rightType = expr.right.getType();
-                if (letType && rightType) {
-                    if (!typeMatchesFlags(rightType, letType)) {
+                // Exceptional case for Name assignments, a string can be assigned to a name in a defaultproperties block only.
+                if ((letType.getTypeFlags() & UCTypeFlags.Name)) {
+                    if ((valueFlags & NameCoerceFlags) === 0) {
                         this.diagnostics.add({
                             range: expr.right.getRange(),
-                            message: createTypeCannotBeAssignedToMessage(letType.getTypeFlags(), rightType),
+                            message: createTypeCannotBeAssignedToMessage(letType.getTypeFlags(), valueFlags),
                         });
-                    } else {
-                        const leftSymbol = letType.getRef();
-                        const rightSymbol = rightType.getRef();
-                        if (leftSymbol && rightSymbol && isMethodSymbol(rightSymbol)
-                            && !areMethodsCompatibleWith((leftSymbol as UCMethodSymbol), rightSymbol)) {
-                            this.diagnostics.add({
-                                range: expr.right.getRange(),
-                                message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
-                                args: [rightSymbol.getPath(), leftSymbol.getPath()]
-                            });
-                        }
                     }
-                } else {
-                    // TODO: Invalid type?
+                } else if (!typeMatchesFlags(valueType, letType)) {
+                    this.diagnostics.add({
+                        range: expr.right.getRange(),
+                        message: createTypeCannotBeAssignedToMessage(letType.getTypeFlags(), valueFlags),
+                    });
+                } else if (letType.getTypeFlags() & UCTypeFlags.Delegate) {
+                    const letTypeRef = resolveType(letType).getRef<UCDelegateSymbol>();
+                    const rightTypeRef = resolveType(valueType).getRef<UCDelegateSymbol>();
+                    if (letTypeRef && isMethodSymbol(letTypeRef)
+                        && rightTypeRef && isMethodSymbol(rightTypeRef)
+                        && !areMethodsCompatibleWith(letTypeRef, rightTypeRef)) {
+                        this.diagnostics.add({
+                            range: expr.right.getRange(),
+                            message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
+                            args: [rightTypeRef.getPath(), letTypeRef.getPath()]
+                        });
+                    }
                 }
             }
         } else if (expr instanceof UCDefaultMemberCallExpression) {
@@ -1013,10 +1026,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 if (paramType) {
                     const expectedFlags = paramType.getTypeFlags();
                     if (expectedFlags & UCTypeFlags.Delegate) {
-                        const argSymbol = arg.getType()?.getRef();
+                        const argSymbol = resolveType(argType).getRef<UCDelegateSymbol>();
+                        const paramSymbol = resolveType(paramType).getRef<UCDelegateSymbol>();
                         if (argSymbol && isMethodSymbol(argSymbol)
-                            && paramType.getRef()
-                            && !areMethodsCompatibleWith((paramType.getRef() as UCMethodSymbol), argSymbol)) {
+                            && paramSymbol && isMethodSymbol(paramSymbol)
+                            && !areMethodsCompatibleWith(paramSymbol, argSymbol)) {
                             this.diagnostics.add({
                                 range: arg.getRange(),
                                 message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
@@ -1026,9 +1040,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                     }
 
                     if (!typeMatchesFlags(argType, paramType, param.isCoerced())) {
-                        this.pushError(arg.getRange(),
-                            `Argument of type '${getTypeFlagsName(argType)}' is not assignable to parameter of type '${UCTypeFlags[expectedFlags]}'.`
-                        );
+                        this.diagnostics.add({
+                            range: arg.getRange(),
+                            message: diagnosticMessages.ARGUMENT_IS_INCOMPATIBLE,
+                            args: [quoteTypeFlags(argType.getTypeFlags()), quoteTypeFlags(expectedFlags)]
+                        });
                     }
                 }
             }
@@ -1046,16 +1062,16 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
     }
 }
 
-function createExpectedTypeMessage(expected: UCTypeFlags, type?: ITypeSymbol): IDiagnosticMessage {
+function createExpectedTypeMessage(expected: UCTypeFlags, flags: UCTypeFlags): IDiagnosticMessage {
     return {
-        text: `Expected type '${UCTypeFlags[expected]}', but got type '${type ? UCTypeFlags[type.getTypeFlags()] : UCTypeFlags.Error}'.`,
+        text: `Expected type '${quoteTypeFlags(expected)}', but got type '${quoteTypeFlags(flags)}'.`,
         severity: DiagnosticSeverity.Error
     };
 }
 
-function createTypeCannotBeAssignedToMessage(expected: UCTypeFlags, type?: ITypeSymbol): IDiagnosticMessage {
+function createTypeCannotBeAssignedToMessage(expected: UCTypeFlags, flags: UCTypeFlags): IDiagnosticMessage {
     return {
-        text: `Type '${getTypeFlagsName(type)}' is not assignable to type '${UCTypeFlags[expected]}'.`,
+        text: `Type '${quoteTypeFlags(flags)}' is not assignable to type '${quoteTypeFlags(expected)}'.`,
         severity: DiagnosticSeverity.Error
     };
 }

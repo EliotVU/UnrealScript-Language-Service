@@ -13,8 +13,8 @@ import {
 import { getDocumentByURI } from './UC/indexer';
 import { UCBlock, UCGotoStatement, UCLabeledStatement } from './UC/statements';
 import {
-    FieldModifiers, Identifier, isFieldSymbol, isMethodSymbol, isParamSymbol, ISymbol,
-    MethodSpecifiers, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCTypeFlags
+    EnumValueTypeFlag, FieldModifiers, Identifier, isFieldSymbol, isMethodSymbol, isParamSymbol,
+    ISymbol, MethodSpecifiers, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCTypeFlags
 } from './UC/Symbols';
 import { DefaultSymbolWalker } from './UC/symbolWalker';
 
@@ -72,7 +72,7 @@ const TypeToTokenTypeIndexMap = {
     [UCTypeFlags.Package]: TokenTypesMap[SemanticTokenTypes.namespace],
     [UCTypeFlags.Struct]: TokenTypesMap[SemanticTokenTypes.struct],
     [UCTypeFlags.Enum]: TokenTypesMap[SemanticTokenTypes.enum],
-    [UCTypeFlags.EnumMember]: TokenTypesMap[SemanticTokenTypes.enumMember],
+    [EnumValueTypeFlag]: TokenTypesMap[SemanticTokenTypes.enumMember],
     [UCTypeFlags.Function]: TokenTypesMap[SemanticTokenTypes.function],
     [UCTypeFlags.Property]: TokenTypesMap[SemanticTokenTypes.property],
     [UCTypeFlags.Const]: TokenTypesMap[SemanticTokenTypes.property],
@@ -187,10 +187,10 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
                     }
                     this.pushIdentifier(symbol.id, type, modifiers);
                 }
-            } else if ((typeFlags & UCTypeFlags.EnumMember) !== 0) {
+            } else if ((typeFlags & EnumValueTypeFlag) !== 0) {
                 // EnumMember
                 this.pushIdentifier(symbol.id,
-                    TypeToTokenTypeIndexMap[UCTypeFlags.EnumMember],
+                    TypeToTokenTypeIndexMap[EnumValueTypeFlag],
                     1 << TokenModifiersMap[SemanticTokenModifiers.readonly]
                 );
             } else if ((typeFlags & UCTypeFlags.Name) !== 0) {

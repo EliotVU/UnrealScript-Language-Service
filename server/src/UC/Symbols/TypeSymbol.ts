@@ -10,8 +10,8 @@ import {
 import { SymbolWalker } from '../symbolWalker';
 import {
     DEFAULT_RANGE, Identifier, ISymbol, IWithReference, NativeArray, ObjectsTable, UCConstSymbol,
-    UCFieldSymbol, UCMethodSymbol, UCParamSymbol, UCScriptStructSymbol, UCStructSymbol, UCSymbol,
-    UCSymbolReference
+    UCEnumSymbol, UCFieldSymbol, UCMethodSymbol, UCParamSymbol, UCScriptStructSymbol,
+    UCStructSymbol, UCSymbol, UCSymbolReference
 } from './';
 import { tryFindClassSymbol, tryFindSymbolInPackage, UCPackage } from './Package';
 import { UCPropertySymbol } from './PropertySymbol';
@@ -25,7 +25,6 @@ export enum UCTypeFlags {
 	Float 			    = 1 << 1,
 	Int 			    = 1 << 2, // Also true for a pointer
 	Byte 			    = 1 << 3, // Also true for an enum member.
-    EnumMember		    = Byte,
 	String			    = 1 << 4,
 	Name			    = 1 << 5,
 	Bool			    = 1 << 6,
@@ -49,27 +48,25 @@ export enum UCTypeFlags {
 
 	// Special case for property type validations.
 	Type			    = 1 << 20,
-	// Reffers the special "None" identifier, if we do actual reffer an undefined symbol, we should be an @Error.
+	// Refers the special "None" identifier, if we do actual reffer an undefined symbol, we should be an @Error.
 	None			    = 1 << 21,
-
-    NamedFlags          = (None | Class | Delegate | Function
-                        | Array | Bool | Name
-                        | String | Byte | Int
-                        | Float | Archetype
-                        | Error) & ~(Object)
+    Max                 = 1 << 22,
 }
 
-export const NumberCoerceFlags	        = UCTypeFlags.Float | UCTypeFlags.Int | UCTypeFlags.Byte | UCTypeFlags.Bool;
-export const EnumCoerceFlags		    = UCTypeFlags.Enum | UCTypeFlags.Int | UCTypeFlags.Byte;
+// For readability, UnrealScript does not a unique type for enum values, instead they are always interpreted as a byte.
+export const EnumValueTypeFlag              = UCTypeFlags.Byte;
+
+export const NumberCoerceFlags	            = UCTypeFlags.Float | UCTypeFlags.Int | UCTypeFlags.Byte | UCTypeFlags.Bool;
+export const EnumCoerceFlags		        = UCTypeFlags.Enum | UCTypeFlags.Int | UCTypeFlags.Byte;
 
 // "None" can be passed to...
-export const NoneCoerceFlags		    = UCTypeFlags.Delegate | UCTypeFlags.Object | UCTypeFlags.Name;
+export const NoneCoerceFlags		        = UCTypeFlags.Delegate | UCTypeFlags.Object | UCTypeFlags.Name;
 
 // TODO: Verify if "coerce" is required when passing a "Name" to a "String" type.
-export const NameCoerceFlags		    = UCTypeFlags.Name | UCTypeFlags.String;
+export const NameCoerceFlags		        = UCTypeFlags.Name | UCTypeFlags.String;
 
 // Can be coerced to type "String", if marked with "coerce".
-export const CoerceToStringFlags	    = UCTypeFlags.Name | UCTypeFlags.String | UCTypeFlags.Object | NumberCoerceFlags | UCTypeFlags.Bool | UCTypeFlags.None;
+export const CoerceToStringFlags	        = UCTypeFlags.Name | UCTypeFlags.String | UCTypeFlags.Object | NumberCoerceFlags | UCTypeFlags.Bool | UCTypeFlags.None;
 
 // Types that can be assigned to by an identifier literal.
 export const AssignableByIdentifierFlags    = (EnumCoerceFlags | UCTypeFlags.Class | UCTypeFlags.Archetype | UCTypeFlags.Delegate) & ~Object;
@@ -88,9 +85,8 @@ export function isTypeSymbol(symbol: ITypeSymbol): symbol is ITypeSymbol {
 	return 'getTypeFlags' in symbol;
 }
 
-export function getTypeFlagsName(type?: ITypeSymbol): string {
-    const flags = type?.getTypeFlags() || UCTypeFlags.Error;
-	return UCTypeFlags[flags & UCTypeFlags.NamedFlags];
+export function quoteTypeFlags(flags: UCTypeFlags): string {
+	return UCTypeFlags[flags].toString();
 }
 
 /**
@@ -114,8 +110,8 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		return this.type.getTypeFlags();
 	}
 
-	getRef(): ISymbol | undefined {
-		return this.type.getRef();
+	getRef<T extends ISymbol>(): T | undefined {
+		return this.type.getRef<T>();
 	}
 
 	getTooltip(): string {
@@ -156,7 +152,7 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 }
 
 export class UCPredefinedTypeSymbol extends UCSymbol implements ITypeSymbol {
-	getRef(): ISymbol | undefined {
+	getRef<T extends ISymbol>(): T | undefined {
 		return undefined;
 	}
 
@@ -319,17 +315,13 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 	}
 
 	getTypeFlags(): UCTypeFlags {
-		// if (this.reference !== NativeClass && this.reference instanceof UCClassSymbol) {
-		// 	return UCTypeFlags.Object;
-		// }
-		return this.reference
-            && isFieldSymbol(this.reference)
-            && this.reference.getTypeFlags()
-            || UCTypeFlags.Error;
+		return this.reference && isFieldSymbol(this.reference)
+            ? this.reference.getTypeFlags()
+            : UCTypeFlags.Error;
 	}
 
 	getValidTypeKind(): UCTypeFlags {
-		return this.validTypeKind || UCTypeFlags.Error;
+		return this.validTypeKind ?? UCTypeFlags.Error;
 	}
 
 	setValidTypeKind(kind: UCTypeFlags) {
@@ -487,17 +479,18 @@ export const CastTypeSymbolMap: Readonly<WeakMap<Name, ITypeSymbol>> = new WeakM
 
 // TODO: Handle class hierarchy
 // TODO: Handle coercing
-export function typeMatchesFlags(type: ITypeSymbol | undefined, expectedType: ITypeSymbol, coerce = false): boolean {
-	if (expectedType.getTypeFlags() === UCTypeFlags.Error) {
-		return false;
+export function typeMatchesFlags(type: ITypeSymbol, expectedType: ITypeSymbol, coerce = false): boolean {
+    // Ignore types with no reference (Error)
+    const expectedFlags = expectedType.getTypeFlags();
+	if (expectedFlags === UCTypeFlags.Error) {
+		return true;
 	}
 
-	if (typeof type === 'undefined') {
-        return false;
+    const flags = type.getTypeFlags();
+	if (flags === UCTypeFlags.Error) {
+        return true;
     }
 
-    const expectedFlags = expectedType.getTypeFlags();
-    const flags = type.getTypeFlags();
     if (coerce && expectedFlags & UCTypeFlags.String) {
         return (flags & CoerceToStringFlags) !== 0;
     }
@@ -531,12 +524,8 @@ export function typeMatchesFlags(type: ITypeSymbol | undefined, expectedType: IT
 }
 
 /** Resolves a type to its base type if set. e.g. "Class<Actor>" would be resolved to "Actor". */
-export function resolveType(type?: ITypeSymbol): ITypeSymbol | undefined {
-    const resolveToBase = UCTypeFlags.Object | UCTypeFlags.Delegate;
-	if (type && (type.getTypeFlags() & resolveToBase) !== 0 && hasDefinedBaseType(type)) {
-		return type.baseType;
-	}
-	return type;
+export function resolveType(type: ITypeSymbol): ITypeSymbol {
+	return hasDefinedBaseType(type) ? type.baseType : type;
 }
 
 export function hasDefinedBaseType(type: ITypeSymbol & { baseType?: ITypeSymbol | undefined }): type is UCObjectTypeSymbol & { baseType: ITypeSymbol } {
@@ -553,6 +542,10 @@ export function isFieldSymbol(symbol: ISymbol): symbol is UCFieldSymbol {
 
 export function isConstSymbol(symbol: ISymbol): symbol is UCConstSymbol {
     return (symbol.getTypeFlags() & UCTypeFlags.Const & ~UCTypeFlags.Object) !== 0;
+}
+
+export function isEnumSymbol(symbol: ISymbol): symbol is UCEnumSymbol {
+    return (symbol.getTypeFlags() & UCTypeFlags.Enum & ~UCTypeFlags.Object) !== 0;
 }
 
 export function isPropertySymbol(symbol: ISymbol): symbol is UCPropertySymbol {

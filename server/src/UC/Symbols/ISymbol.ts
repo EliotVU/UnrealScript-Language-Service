@@ -60,7 +60,7 @@ export interface ISymbolReference {
 }
 
 export interface IWithReference extends ISymbol {
-	getRef(): ISymbol | undefined;
+	getRef<T extends ISymbol>(): T | undefined;
 }
 
 export interface Identifier {
