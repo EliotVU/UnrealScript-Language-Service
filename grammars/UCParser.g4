@@ -935,9 +935,9 @@ structDefaultPropertiesBlock
 
 // TODO: Perhaps do what we do in the directive rule, just skip until we hit a new line or a "|".
 defaultStatement
-	: objectDecl
-	| defaultAssignmentExpression
+	: defaultAssignmentExpression
 	| defaultMemberCallExpression
+    | objectDecl
 
 	// "command chaining", e.g. "IntA=1|IntB=2" is valid code,
 	// -- but if the | were a space, the second variable will be ignored (by the compiler).
@@ -987,7 +987,13 @@ objectAttribute
 
 // (variableList)
 structLiteral
-	: OPEN_PARENS defaultArguments? CLOSE_PARENS
+	: OPEN_PARENS structArguments? CLOSE_PARENS
+	;
+
+// id=literal,* or literal,*
+structArguments
+	: (defaultAssignmentExpression (COMMA defaultAssignmentExpression)* COMMA?)
+	| (defaultLiteral (COMMA defaultLiteral)* COMMA?)
 	;
 
 qualifiedIdentifierLiteral
@@ -996,12 +1002,6 @@ qualifiedIdentifierLiteral
 
 identifierLiteral
 	: identifier
-	;
-
-// id=literal,* or literal,*
-defaultArguments
-	: (defaultLiteral (COMMA defaultLiteral)*)
-	| (defaultAssignmentExpression (COMMA defaultAssignmentExpression)*)
 	;
 
 defaultLiteral

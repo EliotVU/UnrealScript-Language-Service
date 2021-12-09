@@ -54,8 +54,6 @@ defaultproperties
     nameVar=NameAsString
 
     vectorVar=(x=0)
-
-    // FIXME: parsing error
     vectorVar={(
 		x=0,
 		y=0,
