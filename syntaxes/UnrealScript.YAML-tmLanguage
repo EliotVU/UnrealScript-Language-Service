@@ -604,7 +604,7 @@ repository:
         endCaptures:
           '0':
             name: punctuation.curlybrace.close.uc
-    end: (\;)
+    end: (\;|(?=\>))
 
   var-declaration:
     name: meta.definition.variable.uc
