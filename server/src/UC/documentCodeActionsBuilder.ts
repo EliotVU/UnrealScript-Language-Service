@@ -3,10 +3,10 @@ import { CodeAction, CodeActionKind, Command } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
 import { UCDocument } from './document';
-import { ISymbol, UCObjectTypeSymbol, UCTypeFlags } from './Symbols';
+import { UCObjectTypeSymbol, UCTypeFlags } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
-export class DocumentCodeActionsBuilder extends DefaultSymbolWalker {
+export class DocumentCodeActionsBuilder extends DefaultSymbolWalker<undefined> {
     public readonly codeActions: CodeAction[] = [];
 
 	constructor(private document: UCDocument) {
@@ -17,7 +17,7 @@ export class DocumentCodeActionsBuilder extends DefaultSymbolWalker {
         this.codeActions.push(codeAction);
     }
 
-    visitObjectType(symbol: UCObjectTypeSymbol): ISymbol {
+    visitObjectType(symbol: UCObjectTypeSymbol) {
         const referredSymbol = symbol.getRef();
 		if (!referredSymbol) {
             if ((symbol.getValidTypeKind() & UCTypeFlags.Class) !== 0) {
@@ -45,6 +45,6 @@ export class DocumentCodeActionsBuilder extends DefaultSymbolWalker {
                 // TODO:
             }
         }
-        return super.visitObjectType(symbol);
+        super.visitObjectType(symbol);
     }
 }

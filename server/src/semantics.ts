@@ -11,10 +11,11 @@ import {
     UCPropertyAccessExpression, UCSuperExpression
 } from './UC/expressions';
 import { getDocumentByURI } from './UC/indexer';
-import { UCBlock, UCGotoStatement, UCLabeledStatement } from './UC/statements';
+import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from './UC/statements';
 import {
     EnumValueTypeFlag, FieldModifiers, Identifier, isFieldSymbol, isMethodSymbol, isParamSymbol,
-    ISymbol, MethodSpecifiers, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCTypeFlags
+    ISymbol, MethodSpecifiers, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbol,
+    UCTypeFlags
 } from './UC/Symbols';
 import { DefaultSymbolWalker } from './UC/symbolWalker';
 
@@ -85,7 +86,7 @@ function modifiersFromArray(modifiers: number[]): number {
     return computedModifiers;
 }
 
-export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
+export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
     private semanticTokensBuilder = new SemanticTokensBuilder();
 
     constructor(private document: UCDocument) {
@@ -117,6 +118,56 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
         );
     }
 
+    private pushSymbol(symbol: UCSymbol, id: Identifier): void {
+        const typeFlags = symbol.getTypeFlags();
+        if ((typeFlags & UCTypeFlags.Object) !== 0) {
+            let type: number | undefined;
+            if (isParamSymbol(symbol)) {
+                type = TokenTypesMap[SemanticTokenTypes.parameter];
+            } else {
+                type = TypeToTokenTypeIndexMap[typeFlags];
+            }
+
+            if (typeof type !== 'undefined') {
+                let modifiers = 0;
+                if (isFieldSymbol(symbol)) {
+                    if (symbol.modifiers & FieldModifiers.ReadOnly) {
+                        modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.readonly];
+                    }
+                    if (symbol.modifiers & FieldModifiers.Intrinsic) {
+                        modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.defaultLibrary];
+                    }
+
+                    if (isMethodSymbol(symbol)) {
+                        if (symbol.specifiers & MethodSpecifiers.Static) {
+                            modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.static];
+                        }
+
+                        // Disabled for now... 'not really a fan of how vscode colors this identifier as a control statement.
+                        // if (ref.modifiers & FieldModifiers.Intrinsic) {
+                        //     type = TokenTypesMap[SemanticTokenTypes.keyword];
+                        // }
+                        if (symbol.specifiers & MethodSpecifiers.OperatorKind) {
+                            type = TokenTypesMap[SemanticTokenTypes.operator];
+                        }
+                    }
+                }
+                this.pushIdentifier(id, type, modifiers);
+            }
+        } else if ((typeFlags & EnumValueTypeFlag) !== 0) {
+            // EnumMember
+            this.pushIdentifier(id,
+                TypeToTokenTypeIndexMap[EnumValueTypeFlag],
+                1 << TokenModifiersMap[SemanticTokenModifiers.readonly]
+            );
+        } else if ((typeFlags & UCTypeFlags.Name) !== 0) {
+            this.pushIdentifier(id,
+                TypeToTokenTypeIndexMap[UCTypeFlags.String],
+                1 << TokenModifiersMap[SemanticTokenModifiers.static]
+            );
+        }
+    }
+
     // HACK: We need to visit the children in reverse,
     // -- otherwise we end up with non-sorted tokens, which VSCode will ignore.
     // FIXME: This doesn't address the order in @visitClass()
@@ -139,68 +190,20 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
         if (symbol.block) {
             symbol.block.accept(this);
         }
-        return symbol;
     }
 
     visitBlock(symbol: UCBlock) {
         for (const statement of symbol.statements) if (statement) {
             statement.accept(this);
         }
-        return undefined;
     }
 
-    visitObjectType(symbol: UCObjectTypeSymbol): ISymbol {
-        let ref: ISymbol | undefined;
-        if ((ref = symbol.getRef())) {
-            const typeFlags = symbol.getTypeFlags();
-            if ((typeFlags & UCTypeFlags.Object) !== 0) {
-                let type: number | undefined;
-                if (isParamSymbol(ref)) {
-                    type = TokenTypesMap[SemanticTokenTypes.parameter];
-                } else {
-                    type = TypeToTokenTypeIndexMap[typeFlags];
-                }
-
-                if (typeof type !== 'undefined') {
-                    let modifiers = 0;
-                    if (isFieldSymbol(ref)) {
-                        if (ref.modifiers & FieldModifiers.ReadOnly) {
-                            modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.readonly];
-                        }
-                        if (ref.modifiers & FieldModifiers.Intrinsic) {
-                            modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.defaultLibrary];
-                        }
-
-                        if (isMethodSymbol(ref)) {
-                            if (ref.specifiers & MethodSpecifiers.Static) {
-                                modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.static];
-                            }
-
-                            // Disabled for now... 'not really a fan of how vscode colors this identifier as a control statement.
-                            // if (ref.modifiers & FieldModifiers.Intrinsic) {
-                            //     type = TokenTypesMap[SemanticTokenTypes.keyword];
-                            // }
-                            if (ref.specifiers & MethodSpecifiers.OperatorKind) {
-                                type = TokenTypesMap[SemanticTokenTypes.operator];
-                            }
-                        }
-                    }
-                    this.pushIdentifier(symbol.id, type, modifiers);
-                }
-            } else if ((typeFlags & EnumValueTypeFlag) !== 0) {
-                // EnumMember
-                this.pushIdentifier(symbol.id,
-                    TypeToTokenTypeIndexMap[EnumValueTypeFlag],
-                    1 << TokenModifiersMap[SemanticTokenModifiers.readonly]
-                );
-            } else if ((typeFlags & UCTypeFlags.Name) !== 0) {
-                this.pushIdentifier(symbol.id,
-                    TypeToTokenTypeIndexMap[UCTypeFlags.String],
-                    1 << TokenModifiersMap[SemanticTokenModifiers.static]
-                );
-            }
+    visitObjectType(symbol: UCObjectTypeSymbol) {
+        const symbolRef = symbol.getRef<UCSymbol>();
+        if (typeof symbolRef !== 'undefined') {
+            this.pushSymbol(symbolRef, symbol.id);
         }
-        return super.visitObjectType(symbol);
+        super.visitObjectType(symbol);
     }
 
     visitGotoStatement(stm: UCGotoStatement) {
@@ -215,7 +218,6 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
             }
             stm.expression.accept(this);
         }
-        return undefined;
     }
 
     visitLabeledStatement(stm: UCLabeledStatement) {
@@ -226,7 +228,6 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker {
                 1 << TokenModifiersMap[SemanticTokenModifiers.readonly]
             );
         }
-        return undefined;
     }
 
     // FIXME: DRY

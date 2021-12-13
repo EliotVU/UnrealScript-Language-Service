@@ -37,7 +37,7 @@ export class UCEnumSymbol extends UCStructSymbol {
 		return symbols as C[];
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitEnum(this);
 	}
 }

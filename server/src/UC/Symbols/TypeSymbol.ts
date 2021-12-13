@@ -9,9 +9,9 @@ import {
 } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    DEFAULT_RANGE, Identifier, ISymbol, IWithReference, NativeArray, ObjectsTable, UCConstSymbol,
-    UCEnumSymbol, UCFieldSymbol, UCMethodSymbol, UCParamSymbol, UCScriptStructSymbol,
-    UCStructSymbol, UCSymbol, UCSymbolReference
+    DEFAULT_RANGE, Identifier, ISymbol, IWithReference, NativeArray, ObjectsTable,
+    UCArchetypeSymbol, UCConstSymbol, UCEnumSymbol, UCFieldSymbol, UCMethodSymbol, UCParamSymbol,
+    UCScriptStructSymbol, UCStructSymbol, UCSymbol, UCSymbolReference
 } from './';
 import { tryFindClassSymbol, tryFindSymbolInPackage, UCPackage } from './Package';
 import { UCPropertySymbol } from './PropertySymbol';
@@ -146,7 +146,7 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		this.type.index(document, context);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitQualifiedType(this);
 	}
 }
@@ -379,7 +379,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		symbol && this.setReference(symbol, document);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitObjectType(this);
 	}
 }
@@ -399,7 +399,7 @@ export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
 		return UCTypeFlags.Array;
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitArrayType(this);
 	}
 }
@@ -419,7 +419,7 @@ export class UCDelegateTypeSymbol extends UCObjectTypeSymbol {
 		return UCTypeFlags.Delegate;
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitDelegateType(this);
 	}
 }
@@ -435,7 +435,7 @@ export class UCMapTypeSymbol extends UCObjectTypeSymbol {
 		return UCTypeFlags.Error;
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitMapType(this);
 	}
 }
@@ -566,4 +566,8 @@ export function isMethodSymbol(symbol: ISymbol): symbol is UCMethodSymbol {
 
 export function isStateSymbol(symbol: ISymbol): symbol is UCStateSymbol {
     return (symbol.getTypeFlags() & UCTypeFlags.State & ~UCTypeFlags.Object) !== 0;
+}
+
+export function isArchetypeSymbol(symbol: ISymbol): symbol is UCArchetypeSymbol {
+    return (symbol.getTypeFlags() & UCTypeFlags.Archetype & ~UCTypeFlags.Object) !== 0;
 }

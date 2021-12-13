@@ -121,8 +121,8 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	findSuperSymbol(id: Name, kind?: UCTypeFlags): UCSymbol | undefined {
-		return this.getSymbol(id, kind) ?? this.super?.findSuperSymbol(id, kind);
+	findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCTypeFlags): UCSymbol | undefined {
+		return this.getSymbol<T>(id, kind) ?? this.super?.findSuperSymbol(id, kind);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
@@ -144,7 +144,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		}
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitStruct(this);
 	}
 }

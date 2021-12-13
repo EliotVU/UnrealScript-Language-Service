@@ -13,23 +13,23 @@ import { config, UCGeneration } from '../indexer';
 import { NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
 import {
     UCAssertStatement, UCBlock, UCCaseClause, UCDoUntilStatement, UCExpressionStatement,
-    UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement, UCReturnStatement,
-    UCSwitchStatement, UCWhileStatement
+    UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement, UCRepIfStatement,
+    UCReturnStatement, UCSwitchStatement, UCWhileStatement
 } from '../statements';
 import {
     areMethodsCompatibleWith, AssignableByIdentifierFlags, AssignToDelegateFlags, IContextInfo,
     isFieldSymbol, isMethodSymbol, isStateSymbol, ITypeSymbol, LengthProperty, NameCoerceFlags,
     NativeClass, NativeEnum, NumberCoerceFlags, quoteTypeFlags, ReplicatableTypeFlags, resolveType,
-    StaticBoolType, StaticNameType, typeMatchesFlags, UCArrayTypeSymbol, UCClassSymbol,
-    UCConstSymbol, UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumSymbol, UCMethodSymbol,
-    UCObjectSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
-    UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeFlags
+    StaticBoolType, StaticNameType, typeMatchesFlags, UCArchetypeSymbol, UCArrayTypeSymbol,
+    UCClassSymbol, UCConstSymbol, UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumSymbol,
+    UCMethodSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
+    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeFlags
 } from '../Symbols';
 import { DefaultSymbolWalker } from '../symbolWalker';
 import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
 import * as diagnosticMessages from './diagnosticMessages.json';
 
-export class DocumentAnalyzer extends DefaultSymbolWalker {
+export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
     private scopes: UCStructSymbol[] = [];
     private context?: UCStructSymbol;
     private state: IContextInfo = {};
@@ -73,10 +73,9 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
     visitQualifiedType(symbol: UCQualifiedTypeSymbol) {
         symbol.left?.accept(this);
         if (symbol.left && !symbol.left.getRef()) {
-            return symbol;
+            return;
         }
         symbol.type.accept(this);
-        return symbol;
     }
 
     visitObjectType(symbol: UCObjectTypeSymbol) {
@@ -90,13 +89,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 args: [symbol.getName().toString()]
             });
         }
-        return symbol;
     }
 
     visitArrayType(symbol: UCArrayTypeSymbol) {
         super.visitArrayType(symbol);
         // TODO: Check for valid array types
-        return symbol;
     }
 
     visitDelegateType(symbol: UCDelegateTypeSymbol) {
@@ -111,7 +108,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 });
             }
         }
-        return symbol;
     }
 
     visitClass(symbol: UCClassSymbol) {
@@ -153,7 +149,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 });
             }
         }
-        return symbol;
     }
 
     visitConst(symbol: UCConstSymbol) {
@@ -171,12 +166,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             });
         }
         this.popScope();
-        return symbol;
     }
 
     visitEnum(symbol: UCEnumSymbol) {
         // Do nothing, we don't have any useful analytics for enum declarations yet!
-        return symbol;
     }
 
     visitScriptStruct(symbol: UCScriptStructSymbol) {
@@ -194,7 +187,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             }
         }
         this.popScope();
-        return symbol;
     }
 
     visitProperty(symbol: UCPropertySymbol) {
@@ -206,7 +198,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 this.diagnostics.add({
                     range: symbol.arrayDimRange,
                     message: {
-                        text: `Bad array size, try refer to a type that can be evaulated to an integer!`,
+                        text: `Bad array size, try refer to a type that can be evaluated to an integer!`,
                         severity: DiagnosticSeverity.Error
                     }
                 });
@@ -243,8 +235,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
             // TODO: Should define a custom type class for arrays, so that we can analyze it right there.
         }
-
-        return symbol;
     }
 
     visitMethod(symbol: UCMethodSymbol) {
@@ -322,7 +312,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             // TODO: check difference
         }
         this.popScope();
-        return symbol;
     }
 
     visitState(symbol: UCStateSymbol) {
@@ -370,7 +359,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             }
         }
         this.popScope();
-        return symbol;
     }
 
     visitParameter(symbol: UCParamSymbol) {
@@ -409,20 +397,29 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 });
             }
         }
-        return symbol;
     }
 
-    visitReplicationBlock(symbol: UCReplicationBlock) {
-        this.pushScope(this.document.class || symbol);
-        super.visitReplicationBlock(symbol);
+    visitRepIfStatement(stm: UCRepIfStatement) {
+        super.visitRepIfStatement(stm);
+        const refs = stm.symbolRefs;
+        if (typeof refs === 'undefined') {
+            this.diagnostics.add({
+                range: stm.getRange(),
+                message: {
+                    text: `Missing members!`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+            return undefined;
+        }
 
-        for (const symbolRef of symbol.symbolRefs.values()) {
-            const symbol = symbolRef.getRef();
-            if (!symbol) {
+        for (const ref of refs) {
+            const symbol = ref.getRef();
+            if (typeof symbol === 'undefined') {
                 this.diagnostics.add({
-                    range: symbolRef.id.range,
+                    range: ref.id.range,
                     message: {
-                        text: `Variable '${symbolRef.getName()}' not found!`,
+                        text: `Variable '${ref.getName()}' not found!`,
                         severity: DiagnosticSeverity.Error
                     }
                 });
@@ -433,7 +430,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 // i.e. not defined in the same class as where the replication statement resides in.
                 if (symbol.outer !== this.document.class) {
                     this.diagnostics.add({
-                        range: symbolRef.id.range,
+                        range: ref.id.range,
                         message: {
                             text: `Variable or Function '${symbol.getPath()}' needs to be declared in class '${this.document.class!.getPath()}'!`,
                             severity: DiagnosticSeverity.Error
@@ -442,7 +439,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 }
             } else {
                 this.diagnostics.add({
-                    range: symbolRef.id.range,
+                    range: ref.id.range,
                     message: {
                         text: `Type of '${symbol.getName()}' is neither a variable nor function!`,
                         severity: DiagnosticSeverity.Error
@@ -450,11 +447,9 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 });
             }
         }
-        this.popScope();
-        return symbol;
     }
 
-    visitObjectSymbol(symbol: UCObjectSymbol) {
+    visitArchetypeSymbol(symbol: UCArchetypeSymbol) {
         this.pushScope(symbol.super || symbol);
         if (symbol.getName() === NAME_NONE) {
             this.diagnostics.add({
@@ -471,7 +466,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             symbol.block.accept(this);
         }
         this.popScope();
-        return symbol;
     }
 
     visitBlock(symbol: UCBlock) {
@@ -499,7 +493,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
         this.verifyStatementExpression(stm);
         if (!config.checkTypes)
-            return undefined;
+            return;
 
         if (stm.expression) {
             const type = stm.expression.getType();
@@ -510,7 +504,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 });
             }
         }
-        return undefined;
     }
 
     visitWhileStatement(stm: UCWhileStatement) {
@@ -518,7 +511,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
         this.verifyStatementExpression(stm);
         if (!config.checkTypes)
-            return undefined;
+            return;
 
         if (stm.expression) {
             const type = stm.expression.getType();
@@ -529,14 +522,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 });
             }
         }
-        return undefined;
     }
 
     visitSwitchStatement(stm: UCSwitchStatement) {
         super.visitSwitchStatement(stm);
-
         this.verifyStatementExpression(stm);
-        return undefined;
     }
 
     visitDoUntilStatement(stm: UCDoUntilStatement) {
@@ -544,7 +534,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
 
         this.verifyStatementExpression(stm);
         if (!config.checkTypes)
-            return undefined;
+            return;
 
         if (stm.expression) {
             const type = stm.expression.getType();
@@ -555,7 +545,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 });
             }
         }
-        return undefined;
     }
 
     // TODO: Test if any of the three expression can be omitted?
@@ -563,7 +552,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         super.visitForStatement(stm);
 
         if (!config.checkTypes)
-            return undefined;
+            return;
 
         if (stm.expression) {
             const type = stm.expression.getType();
@@ -574,29 +563,24 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 });
             }
         }
-        return undefined;
     }
 
     // TODO: Verify we have an iterator function or array(UC3+).
     visitForEachStatement(stm: UCForEachStatement) {
         super.visitForEachStatement(stm);
-
         this.verifyStatementExpression(stm);
-        return undefined;
     }
 
     visitCaseClause(stm: UCCaseClause) {
         super.visitCaseClause(stm);
-
         this.verifyStatementExpression(stm);
-        return undefined;
     }
 
     visitGotoStatement(stm: UCGotoStatement) {
         this.verifyStatementExpression(stm);
 
         if (!config.checkTypes)
-            return undefined;
+            return;
 
         if (stm.expression) {
             const type = stm.expression.getType();
@@ -607,14 +591,13 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 });
             }
         }
-        return undefined;
     }
 
     visitReturnStatement(stm: UCReturnStatement) {
         super.visitReturnStatement(stm);
 
         if (!config.checkTypes)
-            return undefined;
+            return;
 
         if (this.context && isMethodSymbol(this.context)) {
             const expectedType = this.context.getType();
@@ -638,7 +621,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
         } else {
             // TODO: Return not allowed here?
         }
-        return undefined;
     }
 
     visitAssertStatement(stm: UCAssertStatement) {
@@ -654,7 +636,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 });
             }
         }
-        return undefined;
     }
 
     visitExpression(expr: IExpression) {
@@ -753,27 +734,27 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
                 this.state.typeFlags = type?.getTypeFlags();
             } else {
                 this.pushError(expr.getRange(), "Missing left-hand side expression!");
-                return undefined;
+                return;
             }
             if (expr.right) {
                 expr.right.accept(this);
             } else {
                 this.pushError(expr.getRange(), "Missing right-hand side expression!");
-                return undefined;
+                return;
             }
 
             if (!(expr instanceof UCAssignmentOperatorExpression || expr instanceof UCDefaultAssignmentExpression)) {
-                return undefined;
+                return;
             }
 
             const letType = expr.left.getType();
             if (typeof letType === 'undefined') {
                 // We don't want to analyze a symbol with an unresolved type.
-                return undefined;
+                return;
             }
             const valueType = expr.right.getType();
             if (typeof valueType === 'undefined') {
-                return undefined;
+                return;
             }
 
             const valueFlags = valueType.getTypeFlags();
@@ -884,9 +865,9 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             }
         } else if (expr instanceof UCIdentifierLiteralExpression) {
             if (!this.context || !this.state.typeFlags) {
-                return undefined;
+                return;
             } else if ((this.state.typeFlags & AssignableByIdentifierFlags) === 0) {
-                return undefined;
+                return;
             }
 
             if (!expr.typeRef) {
@@ -959,7 +940,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker {
             // TODO: Validate type
             expr.argument?.accept(this);
         }
-        return undefined;
     }
 
     private checkArguments(symbol: UCMethodSymbol, expr: UCCallExpression | UCDefaultMemberCallExpression, inferredType?: ITypeSymbol) {

@@ -105,7 +105,7 @@ export abstract class UCSymbol implements ISymbol {
 		);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visit(this);
 	}
 }

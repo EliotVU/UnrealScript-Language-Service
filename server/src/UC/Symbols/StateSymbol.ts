@@ -3,7 +3,7 @@ import { Location, Position, SymbolKind } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { Name } from '../names';
 import { SymbolWalker } from '../symbolWalker';
-import { UCStructSymbol, UCSymbolReference, UCTypeFlags } from './';
+import { UCFieldSymbol, UCStructSymbol, UCSymbolReference, UCTypeFlags } from './';
 
 export class UCStateSymbol extends UCStructSymbol {
 	public overriddenState?: UCStateSymbol;
@@ -47,8 +47,8 @@ export class UCStateSymbol extends UCStructSymbol {
 		return super.getContainedSymbolAtPos(position);
 	}
 
-	findSuperSymbol(id: Name, kind?: SymbolKind) {
-		const symbol = super.findSuperSymbol(id, kind) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id, kind);
+	findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: SymbolKind) {
+		const symbol = super.findSuperSymbol<T>(id, kind) || (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
 		return symbol;
 	}
 
@@ -73,7 +73,7 @@ export class UCStateSymbol extends UCStructSymbol {
 		}
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitState(this);
 	}
 }

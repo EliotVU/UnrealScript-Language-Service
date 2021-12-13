@@ -17,7 +17,7 @@ export class UCDefaultPropertiesBlock extends UCStructSymbol {
 		return false;
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitDefaultPropertiesBlock(this);
 	}
 }

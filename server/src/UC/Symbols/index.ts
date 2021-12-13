@@ -8,7 +8,7 @@ export * from './StructSymbol';
 export * from './EnumSymbol';
 export * from './EnumMemberSymbol';
 export * from './ScriptStructSymbol';
-export * from './ObjectSymbol';
+export * from './ArchetypeSymbol';
 export * from './MethodSymbol';
 export * from './PropertySymbol';
 export * from './ParamSymbol';

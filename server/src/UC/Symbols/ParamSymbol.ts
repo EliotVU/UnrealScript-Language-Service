@@ -114,7 +114,7 @@ export class UCParamSymbol extends UCPropertySymbol {
 		return text;
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitParameter(this);
 	}
 }

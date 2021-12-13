@@ -1,8 +1,8 @@
 import { UCDocument } from './document';
 import {
     EnumCoerceFlags, hasChildren, IContextInfo, isParamSymbol, UCClassSymbol,
-    UCDefaultPropertiesBlock, UCMethodSymbol, UCObjectSymbol, UCReplicationBlock, UCStateSymbol,
-    UCStructSymbol, UCTypeFlags
+    UCDefaultPropertiesBlock, UCMethodSymbol, UCReplicationBlock, UCStateSymbol, UCStructSymbol,
+    UCTypeFlags
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
@@ -10,7 +10,7 @@ import { DefaultSymbolWalker } from './symbolWalker';
  * Will initiate the indexing of all struct symbols that contain a block.
  * The indexing of a block is handled separately here so that we can resolve recursive dependencies within blocks.
  */
-export class DocumentIndexer extends DefaultSymbolWalker {
+export class DocumentIndexer extends DefaultSymbolWalker<undefined> {
 	constructor(private document: UCDocument) {
 		super();
 	}
@@ -21,7 +21,6 @@ export class DocumentIndexer extends DefaultSymbolWalker {
 				child.accept(this);
 			}
 		}
-		return symbol;
 	}
 
 	visitClass(symbol: UCClassSymbol) {
@@ -52,7 +51,6 @@ export class DocumentIndexer extends DefaultSymbolWalker {
 				child.defaultExpression.index(this.document, symbol, context);
 			}
 		}
-		return symbol;
 	}
 
 	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
@@ -66,13 +64,5 @@ export class DocumentIndexer extends DefaultSymbolWalker {
 		if (symbol.block) {
 			symbol.block.index(this.document, symbol);
 		}
-		return symbol;
-	}
-
-	visitObjectSymbol(symbol: UCObjectSymbol) {
-		if (symbol.block) {
-			symbol.block.index(this.document, symbol.super || symbol);
-		}
-		return this.visitStructBase(symbol);
 	}
 }

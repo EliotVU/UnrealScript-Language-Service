@@ -23,6 +23,18 @@ import {
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
+function removeChildren(scope: UCStructSymbol) {
+    for (let child = scope.children; child; child = child.next) {
+        if (child instanceof UCStructSymbol) {
+            removeChildren(child);
+        }
+        if (child.getKind() === SymbolKind.Struct
+            || child.getKind() === SymbolKind.Enum) {
+            removeHashedSymbol(child);
+        }
+    }
+}
+
 export interface DocumentParseData {
     context?: ProgramContext;
     parser: UCParser;
@@ -146,17 +158,6 @@ export class UCDocument {
             // This however does not however not invoke any invalidation calls to dependencies.
             // TODO: Merge this with scope.clear();
             if (this.class) {
-                function removeChildren(scope: UCStructSymbol) {
-                    for (let child = scope.children; child; child = child.next) {
-                        if (child instanceof UCStructSymbol) {
-                            removeChildren(child);
-                        }
-                        if (child.getKind() === SymbolKind.Struct
-                            || child.getKind() === SymbolKind.Enum) {
-                            removeHashedSymbol(child);
-                        }
-                    }
-                }
                 removeChildren(this.class);
                 removeHashedSymbol(this.class);
             }
@@ -219,7 +220,7 @@ export class UCDocument {
         IndexedReferencesMap.set(key, gRefs);
     }
 
-    accept<Result>(visitor: SymbolWalker<Result>): Result {
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
         return visitor.visitDocument(this);
     }
 }

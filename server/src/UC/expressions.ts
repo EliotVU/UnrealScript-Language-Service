@@ -10,8 +10,8 @@ import {
     isStateSymbol, ISymbol, ITypeSymbol, NativeClass, ObjectsTable, OuterObjectsTable, resolveType,
     RngMethodLike, RotMethodLike, StaticBoolType, StaticByteType, StaticFloatType, StaticIntType,
     StaticNameType, StaticNoneType, StaticRangeType, StaticRotatorType, StaticStringType,
-    StaticVectorType, tryFindClassSymbol, typeMatchesFlags, UCArrayTypeSymbol, UCBaseOperatorSymbol,
-    UCNameTypeSymbol, UCObjectSymbol, UCObjectTypeSymbol, UCPackage, UCQualifiedTypeSymbol,
+    StaticVectorType, tryFindClassSymbol, typeMatchesFlags, UCArchetypeSymbol, UCArrayTypeSymbol,
+    UCBaseOperatorSymbol, UCNameTypeSymbol, UCObjectTypeSymbol, UCPackage, UCQualifiedTypeSymbol,
     UCStructSymbol, UCSymbol, UCSymbolReference, UCTypeFlags, VectMethodLike
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
@@ -25,7 +25,7 @@ export interface IExpression {
 
     // TODO: Consider using visitor pattern to index.
     index(document: UCDocument, context?: UCStructSymbol, info?: IContextInfo): void;
-    accept<Result>(visitor: SymbolWalker<Result>): Result;
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void;
 }
 
 export abstract class UCExpression implements IExpression {
@@ -61,7 +61,7 @@ export abstract class UCExpression implements IExpression {
         //
     }
 
-    accept<Result>(visitor: SymbolWalker<Result>): Result {
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
         return visitor.visitExpression(this);
     }
 }
@@ -611,7 +611,7 @@ export class UCMemberExpression extends UCExpression {
  * Represents an identifier in a defaultproperties block. e.g. "Class=ClassName", here "ClassName" would be represented by this expression.
  **/
 export class UCIdentifierLiteralExpression extends UCMemberExpression {
-    index(document: UCDocument, context?: UCObjectSymbol, info?: IContextInfo) {
+    index(document: UCDocument, context?: UCArchetypeSymbol, info?: IContextInfo) {
         if (!context || !info || !info.typeFlags) {
             return;
         } else if ((info.typeFlags & AssignableByIdentifierFlags) === 0) {

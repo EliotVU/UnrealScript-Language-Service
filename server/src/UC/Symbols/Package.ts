@@ -126,7 +126,7 @@ export class UCPackage extends UCSymbol {
 		return 'package ' + this.getName();
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitPackage(this);
 	}
 }

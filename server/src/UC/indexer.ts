@@ -107,7 +107,7 @@ function postIndexDocument(document: UCDocument) {
     if (document.class) {
         try {
             const indexer = new DocumentIndexer(document);
-            document.class.accept<any>(indexer);
+            document.class.accept(indexer);
         } catch (err) {
             console.error(
                 `An error was thrown while post indexing document: "${document.uri}"`,

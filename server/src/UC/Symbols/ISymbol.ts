@@ -33,7 +33,7 @@ export interface ISymbol {
 	 **/
 	getTypeFlags(): UCTypeFlags;
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result;
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void;
 }
 
 export interface ISymbolContainer<T extends ISymbol> {

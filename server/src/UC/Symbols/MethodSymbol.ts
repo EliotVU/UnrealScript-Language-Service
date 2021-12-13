@@ -5,7 +5,7 @@ import { Name, NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
     DEFAULT_RANGE, FieldModifiers, isMethodSymbol, ISymbol, IWithReference, ParamModifiers,
-    UCParamSymbol, UCStructSymbol, UCSymbol, UCTypeFlags
+    UCFieldSymbol, UCParamSymbol, UCStructSymbol, UCSymbol, UCTypeFlags
 } from './';
 
 export enum MethodSpecifiers {
@@ -112,8 +112,8 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return super.getCompletionSymbols<C>(document, context, kind);
 	}
 
-	findSuperSymbol(id: Name, kind?: SymbolKind) {
-		return this.getSymbol(id, kind) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id, kind);
+	findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: SymbolKind) {
+		return this.getSymbol<T>(id, kind) || (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
 	}
 
 	index(document: UCDocument, context: UCStructSymbol) {
@@ -141,7 +141,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 		}
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitMethod(this);
 	}
 

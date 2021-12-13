@@ -6,7 +6,8 @@ import { UCDocument } from './document';
 import { IExpression } from './expressions';
 import { intersectsWith } from './helpers';
 import {
-    IContextInfo, Identifier, ISymbol, UCObjectSymbol, UCStructSymbol, UCTypeFlags
+    IContextInfo, Identifier, ISymbol, UCArchetypeSymbol, UCStructSymbol, UCSymbolReference,
+    UCTypeFlags
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
@@ -15,7 +16,7 @@ export interface IStatement {
 	getSymbolAtPos(position: Position): ISymbol | undefined;
 
 	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo): void;
-	accept<Result>(visitor: SymbolWalker<Result>): Result;
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void;
 }
 
 export class UCExpressionStatement implements IStatement {
@@ -44,7 +45,7 @@ export class UCExpressionStatement implements IStatement {
 		this.expression?.index.apply(this.expression, arguments);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitExpressionStatement(this);
 	}
 }
@@ -63,7 +64,7 @@ export abstract class UCThenStatement extends UCExpressionStatement {
 }
 
 export class UCBlock implements IStatement {
-	statements!: Array<IStatement | undefined>;
+	statements: Array<IStatement | undefined>;
 
 	constructor(protected range: Range) {
 
@@ -93,21 +94,33 @@ export class UCBlock implements IStatement {
 	index(_document: UCDocument, _context: UCStructSymbol, info: IContextInfo = {}) {
 		const typeFlags = info.typeFlags;
 		for (const statement of this.statements) if (statement) {
-			if (statement instanceof UCObjectSymbol) {
-				continue;
-			}
 			statement.index.apply(statement, arguments);
 			info.typeFlags = typeFlags; // Reset any modification (during the last index() call) made to typeFlags
 		}
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitBlock(this);
 	}
 }
 
+export class UCArchetypeBlockStatement extends UCBlock {
+    public archetypeSymbol: UCArchetypeSymbol;
+
+    index(document: UCDocument, context: UCStructSymbol, info: IContextInfo = {}) {
+        // TODO: Find @super, for declarations where no class=NAME was specified
+        if (this.archetypeSymbol.extendsType) {
+            // FIXME: extendsType is indexed twice (by assignmentExpresion "class=ClassNameManually")
+            // -- set the type reference here so that turn on "noIndex".
+        }
+        this.archetypeSymbol.index(document, context);
+        super.index(document, this.archetypeSymbol);
+	}
+
+}
+
 export class UCAssertStatement extends UCExpressionStatement {
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitAssertStatement(this);
 	}
 }
@@ -124,19 +137,48 @@ export class UCIfStatement extends UCThenStatement {
 		this.else?.index(document, context, info);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitIfStatement(this);
 	}
 }
 
+export class UCRepIfStatement extends UCExpressionStatement {
+	public symbolRefs: UCSymbolReference[] | undefined;
+
+	getContainedSymbolAtPos(position: Position) {
+        if (this.symbolRefs) for (const ref of this.symbolRefs) {
+			const symbol = ref.getSymbolAtPos(position);
+			if (symbol) {
+				return symbol;
+			}
+		}
+		return super.getContainedSymbolAtPos(position);
+	}
+
+	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
+		super.index(document, context, info);
+        if (this.symbolRefs) for (const ref of this.symbolRefs) {
+			const symbol = context.findSuperSymbol(ref.getName());
+			if (typeof symbol === 'undefined') {
+				continue;
+			}
+			ref.setReference(symbol, document);
+		}
+	}
+
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+		return visitor.visitRepIfStatement(this);
+	}
+}
+
 export class UCDoUntilStatement extends UCThenStatement {
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitDoUntilStatement(this);
 	}
 }
 
 export class UCWhileStatement extends UCThenStatement {
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitWhileStatement(this);
 	}
 }
@@ -157,19 +199,19 @@ export class UCSwitchStatement extends UCThenStatement {
 		// super.index(document, context, info);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitSwitchStatement(this);
 	}
 }
 
 export class UCCaseClause extends UCThenStatement {
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitCaseClause(this);
 	}
 }
 
 export class UCDefaultClause extends UCThenStatement {
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitDefaultClause(this);
 	}
 }
@@ -191,13 +233,13 @@ export class UCForStatement extends UCThenStatement {
 		this.next?.index(document, context, info);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitForStatement(this);
 	}
 }
 
 export class UCForEachStatement extends UCThenStatement {
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitForEachStatement(this);
 	}
 }
@@ -225,7 +267,7 @@ export class UCLabeledStatement implements IStatement {
         //
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitLabeledStatement(this);
 	}
 }
@@ -239,7 +281,7 @@ export class UCReturnStatement extends UCExpressionStatement {
 		super.index(document, context, info);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitReturnStatement(this);
 	}
 }
@@ -249,7 +291,7 @@ export class UCGotoStatement extends UCExpressionStatement {
         super.index(document, context, { typeFlags: UCTypeFlags.Name });
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitGotoStatement(this);
 	}
 }
