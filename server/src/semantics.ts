@@ -230,6 +230,16 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         }
     }
 
+    visitRepIfStatement(stm: UCRepIfStatement): void {
+        super.visitRepIfStatement(stm);
+        if (stm.symbolRefs) for (const repSymbolRef of stm.symbolRefs) {
+            const symbolRef = repSymbolRef.getRef<UCSymbol>();
+            if (symbolRef) {
+                this.pushSymbol(symbolRef, repSymbolRef.id);
+            }
+        }
+    }
+
     // FIXME: DRY
     // FIXME: Infinite loop in Test.uc
     visitExpression(expr: IExpression) {
