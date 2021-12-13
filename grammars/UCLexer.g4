@@ -47,7 +47,12 @@ BLOCK_COMMENT
 	;
 
 WS
-	: [ \t\r\n]+
+	: [ \t]+
+	-> channel(HIDDEN)
+	;
+
+NEWLINE
+	: '\r'? '\n'
 	-> channel(HIDDEN)
 	;
 

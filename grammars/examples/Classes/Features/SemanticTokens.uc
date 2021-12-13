@@ -22,6 +22,12 @@ const DIM_SIZE = 5;
 var int dimProperty[DIM_SIZE];
 // var int dimProperty2[ETest.MyEnumMember];
 
+replication
+{
+    reliable if (true)
+        classProperty, Test;
+}
+
 function Test(int param1)
 {
     local Class obj;

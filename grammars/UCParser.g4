@@ -182,28 +182,15 @@ identifier
 // Class / Field
 qualifiedIdentifier: left=identifier (DOT right=identifier)?;
 
-// FIXME: Consumes atleast one token after "#error"
 directive
-	: SHARP identifier
-	{((): boolean => {
-			if (!this.currentToken) {
-				return true;
-			}
-
-			const initialLine = this.currentToken.line;
-			while (this.currentToken.line === initialLine) {
-				if (this.matchedEOF) {
-					break;
-				}
-
-				this.consume();
-				// FIXME!
-				if (!this.currentToken || this.currentToken.text === '<EOF>') {
-					break;
-				}
-			}
-			return true;
-	})()}?
+	: SHARP { let i = this._input.index; } identifier
+	{
+        let token;
+        do {
+            token = this._input.get(i++);
+        } while (token.type !== UCParser.NEWLINE && token.type !== UCParser.EOF)
+        this._input.seek(i);
+	}
 	;
 
 program: member* EOF;
@@ -214,11 +201,11 @@ member
 	| (enumDecl SEMICOLON)
 	| (structDecl SEMICOLON)
 	| varDecl
-	| cppText
-	| replicationBlock
-	| functionDecl
 	| stateDecl
+	| functionDecl
+	| replicationBlock
 	| defaultPropertiesBlock
+	| cppText
 	| directive
 	| SEMICOLON
 	;
@@ -398,8 +385,8 @@ structMember
 	| (enumDecl SEMICOLON)
 	| (structDecl SEMICOLON)
 	| varDecl
-	| structCppText
 	| structDefaultPropertiesBlock
+	| structCppText
 	| directive
 	| SEMICOLON
 	;
@@ -516,20 +503,20 @@ primitiveType
 	| 'int'
 	| 'float'
 	| 'bool'
-	| 'pointer'
 	| 'string'
 	| 'name'
+	| 'pointer'
 	| 'button' // alias for a string with an input modifier
 	;
 
 typeDecl
-	: enumDecl 		// Only allowed as a top-scope member.
-	| structDecl 	// Only allowed as a top-scope member.
-	| primitiveType
+	: primitiveType
 	| classType
 	| arrayType
 	| delegateType
 	| mapType
+	| enumDecl 		// Only allowed as a top-scope member.
+	| structDecl 	// Only allowed as a top-scope member.
 	| qualifiedIdentifier
 	;
 
@@ -609,8 +596,8 @@ functionBody
  * { local Actor test, test2; return test.Class; }
  */
 functionMember
-	: constDecl
-	| localDecl
+	: localDecl
+	| constDecl
 	| directive
 	| SEMICOLON
 	;
@@ -687,8 +674,8 @@ stateModifier
 	;
 
 stateMember
-	: constDecl
-	| localDecl
+	: localDecl
+	| constDecl
 	| ignoresDecl
 	| functionDecl
 	| directive
@@ -713,9 +700,9 @@ statement
 	| doStatement
 	| switchStatement
 
+	| returnStatement
 	| breakStatement
 	| continueStatement
-	| returnStatement
 	| gotoStatement
 
 	| labeledStatement

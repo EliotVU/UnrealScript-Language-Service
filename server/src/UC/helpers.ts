@@ -8,7 +8,7 @@ import { UCLexer } from './antlr/generated/UCLexer';
 import { UCDocument } from './document';
 import { DocumentCodeActionsBuilder } from './documentCodeActionsBuilder';
 import { getDocumentByURI, getIndexedReferences } from './indexer';
-import { ISymbol, IWithReference, UCFieldSymbol, UCStructSymbol, UCSymbol } from './Symbols';
+import { isFieldSymbol, ISymbol, IWithReference, UCStructSymbol, UCSymbol } from './Symbols';
 
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 
@@ -95,7 +95,7 @@ export function getDocumentSymbol(document: UCDocument, position: Position): ISy
 export function getDocumentContext(document: UCDocument, position: Position): ISymbol | undefined {
     const symbols = document.getSymbols();
     for (const symbol of symbols) {
-        if (symbol instanceof UCFieldSymbol) {
+        if (isFieldSymbol(symbol)) {
             const child = symbol.getCompletionContext(position);
             if (child) {
                 return child;
