@@ -15,7 +15,7 @@ export class UCReplicationBlock extends UCStructSymbol {
 
 	// Just return the keyword identifier.
 	getTooltip(): string {
-		return this.getName().toString();
+		return this.getName().text;
 	}
 
 	acceptCompletion(_document: UCDocument, context: UCSymbol): boolean {

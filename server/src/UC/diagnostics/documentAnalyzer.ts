@@ -86,7 +86,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
             this.diagnostics.add({
                 range: symbol.id.range,
                 message: diagnosticMessages.TYPE_0_NOT_FOUND,
-                args: [symbol.getName().toString()]
+                args: [symbol.getName().text]
             });
         }
     }
@@ -118,7 +118,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
             this.diagnostics.add({
                 range: symbol.id.range,
                 message: diagnosticMessages.CLASS_NAME_0_MUST_MATCH_DOCUMENT_NAME_1,
-                args: [className.toString(), this.document.fileName]
+                args: [className.text, this.document.fileName]
             });
         }
 
@@ -182,7 +182,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                 this.diagnostics.add({
                     range: symbol.extendsType.id.range,
                     message: diagnosticMessages.TYPE_0_CANNOT_EXTEND_TYPE_OF_1,
-                    args: [NAME_STRUCT.toString(), referredSymbol.getPath()]
+                    args: [NAME_STRUCT.text, referredSymbol.getPath()]
                 });
             }
         }
@@ -226,7 +226,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                     this.diagnostics.add({
                         range: baseType.id.range,
                         message: {
-                            text: `Illegal array type '${baseType.id.name}'`,
+                            text: `Illegal array type '${baseType.id.name.text}'`,
                             severity: DiagnosticSeverity.Error
                         }
                     });
@@ -255,7 +255,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                         this.diagnostics.add({
                             range: param.id.range,
                             message: {
-                                text: `Parameter '${param.getName()}' must be marked 'optional' after an optional parameter.`,
+                                text: `Parameter '${param.getName().text}' must be marked 'optional' after an optional parameter.`,
                                 severity: DiagnosticSeverity.Error
                             }
                         });
@@ -324,7 +324,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                 this.diagnostics.add({
                     range: symbol.extendsType.id.range,
                     message: diagnosticMessages.TYPE_0_CANNOT_EXTEND_TYPE_OF_1,
-                    args: [NAME_STATE.toString(), referredSymbol.getPath()]
+                    args: [NAME_STATE.text, referredSymbol.getPath()]
                 });
             }
         }
@@ -336,7 +336,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                 this.diagnostics.add({
                     range: ref.id.range,
                     message: diagnosticMessages.COULDNT_FIND_0,
-                    args: [ref.getName().toString()]
+                    args: [ref.getName().text]
                 });
             } else if (isMethodSymbol(referredSymbol)) {
                 if (referredSymbol.isFinal()) {
@@ -352,7 +352,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                 this.diagnostics.add({
                     range: ref.id.range,
                     message: {
-                        text: `'${referredSymbol.getName()}' is not a function.`,
+                        text: `'${referredSymbol.getName().text}' is not a function.`,
                         severity: DiagnosticSeverity.Error
                     }
                 });
@@ -419,7 +419,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                 this.diagnostics.add({
                     range: ref.id.range,
                     message: {
-                        text: `Variable '${ref.getName()}' not found!`,
+                        text: `Variable '${ref.getName().text}' not found!`,
                         severity: DiagnosticSeverity.Error
                     }
                 });
@@ -441,7 +441,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                 this.diagnostics.add({
                     range: ref.id.range,
                     message: {
-                        text: `Type of '${symbol.getName()}' is neither a variable nor function!`,
+                        text: `Type of '${symbol.getName().text}' is neither a variable nor function!`,
                         severity: DiagnosticSeverity.Error
                     }
                 });
@@ -723,7 +723,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                         text: `Invalid unary operator '{0}'.`,
                         severity: DiagnosticSeverity.Error
                     },
-                    args: [expr.operator.getName().toString()]
+                    args: [expr.operator.getName().text]
                 });
             }
         } else if (expr instanceof UCBinaryOperatorExpression) {
@@ -765,7 +765,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                     this.diagnostics.add({
                         range: expr.left.getRange(),
                         message: {
-                            text: `Cannot assign to '${letSymbol.getName()}' because it is a function. Did you mean to assign a delegate?`,
+                            text: `Cannot assign to '${letSymbol.getName().text}' because it is a function. Did you mean to assign a delegate?`,
                             severity: DiagnosticSeverity.Error
                         }
                     });
@@ -776,7 +776,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                         this.diagnostics.add({
                             range: expr.left.getRange(),
                             message: {
-                                text: `Cannot assign to '${letSymbol.getName()}' because it is a constant.`,
+                                text: `Cannot assign to '${letSymbol.getName().text}' because it is a constant.`,
                                 severity: DiagnosticSeverity.Error
                             }
                         });
@@ -878,7 +878,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                             text: diagnosticMessages.ID_0_DOES_NOT_EXIST_ON_TYPE_1.text,
                             severity: DiagnosticSeverity.Error
                         },
-                        args: [expr.id.name.toString(), this.context.getPath()]
+                        args: [expr.id.name.text, this.context.getPath()]
                     });
                 } else {
                     this.diagnostics.add({
@@ -887,7 +887,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                             text: diagnosticMessages.COULDNT_FIND_0.text,
                             severity: DiagnosticSeverity.Error
                         },
-                        args: [expr.id.name.toString()]
+                        args: [expr.id.name.text]
                     });
                 }
             }
@@ -899,7 +899,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                         text: diagnosticMessages.ID_0_DOES_NOT_EXIST_ON_TYPE_1.text,
                         severity: DiagnosticSeverity.Error
                     },
-                    args: [expr.id.name.toString(), this.context.getPath()]
+                    args: [expr.id.name.text, this.context.getPath()]
                 });
             }
         } else if (expr instanceof UCSuperExpression) {
@@ -911,7 +911,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                         text: diagnosticMessages.TYPE_0_NOT_FOUND.text,
                         severity: DiagnosticSeverity.Error
                     },
-                    args: [expr.structTypeRef.getName().toString()]
+                    args: [expr.structTypeRef.getName().text]
                 });
             }
         } else if (expr instanceof UCDefaultStructLiteral) {
@@ -960,7 +960,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                 ++passedArgumentsCount;
                 if (arg instanceof UCEmptyArgument) {
                     this.pushError(arg.getRange(),
-                        `An argument for non-optional parameter '${param.getName()}' is missing.`
+                        `An argument for non-optional parameter '${param.getName().text}' is missing.`
                     );
                     continue;
                 }

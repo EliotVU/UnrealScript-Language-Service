@@ -247,7 +247,7 @@ export function preprocessDocument(document: UCDocument, macroParser: UCPreproce
     const classNameMacro = { text: document.fileName.substr(0, document.fileName.indexOf('.uc')) };
     macroParser.currentSymbols.set("classname", classNameMacro);
 
-    const packageNameMacro = { text: document.classPackage.getName().toString() };
+    const packageNameMacro = { text: document.classPackage.getName().text };
     macroParser.currentSymbols.set("packagename", packageNameMacro);
 
     if (walker) {

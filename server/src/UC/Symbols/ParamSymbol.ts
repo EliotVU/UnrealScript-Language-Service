@@ -59,7 +59,7 @@ export class UCParamSymbol extends UCPropertySymbol {
 		if (this.type) {
 			text.push(this.type.getTypeText());
 		}
-		text.push(this.getName().toString());
+		text.push(this.getName().text);
 
 		return text.filter(s => s).join(' ');
 	}
@@ -80,7 +80,7 @@ export class UCParamSymbol extends UCPropertySymbol {
 	}
 
 	protected getTooltipId(): string {
-		return this.getName().toString();
+		return this.getName().text;
 	}
 
 	getContainedSymbolAtPos(position: Position) {

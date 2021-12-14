@@ -22,7 +22,7 @@ export class DocumentCodeActionsBuilder extends DefaultSymbolWalker<undefined> {
 		if (!referredSymbol) {
             if ((symbol.getValidTypeKind() & UCTypeFlags.Class) !== 0) {
                 const documentUri = this.document.filePath;
-                const newClassName = symbol.getName().toString();
+                const newClassName = symbol.getName().text;
                 const newFileName =  newClassName + '.uc';
 
                 const uri = URI

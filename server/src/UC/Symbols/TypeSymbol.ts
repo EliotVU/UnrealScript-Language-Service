@@ -162,11 +162,11 @@ export class UCPredefinedTypeSymbol extends UCSymbol implements ITypeSymbol {
 	}
 
 	getTooltip(): string {
-		return 'type ' + this.id.name;
+		return 'type ' + this.id.name.text;
 	}
 
 	getTypeText(): string {
-		return this.id.name.toString();
+		return this.id.name.text;
 	}
 
 	getSymbolAtPos(position: Position) {
@@ -227,8 +227,8 @@ export class UCNameTypeSymbol extends UCPredefinedTypeSymbol {
 
     getTooltip(): string {
 		return this.id.name === NAME_NAME
-            ? 'type ' + this.id.name
-            : `'${this.id.name}'`;
+            ? 'type ' + this.id.name.text
+            : `'${this.id.name.text}'`;
 	}
 
 	static getStaticName(): Name {
@@ -310,9 +310,9 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 
 	getTypeText(): string {
 		if (this.baseType) {
-			return this.getName() + `<${this.baseType.getTypeText()}>`;
+			return this.getName().text + `<${this.baseType.getTypeText()}>`;
 		}
-		return this.getName().toString();
+		return this.getName().text;
 	}
 
 	getTypeFlags(): UCTypeFlags {

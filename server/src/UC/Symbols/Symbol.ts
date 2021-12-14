@@ -30,7 +30,7 @@ export abstract class UCSymbol implements ISymbol {
 		return this.id.range;
 	}
 
-	getName(): Name {
+    getName(): Name {
 		return this.id.name;
 	}
 
@@ -38,15 +38,15 @@ export abstract class UCSymbol implements ISymbol {
 	getHash(): number {
 		let hash: number = this.id.name.hash;
 		for (let outer = this.outer; outer; outer = outer.outer) {
-			hash = hash ^ (outer.getName().hash >> 4);
+			hash = hash ^ (outer.id.name.hash >> 4);
 		}
 		return hash;
 	}
 
 	getPath(): string {
-        const names: Name[] = [this.getName()];
+        const names: string[] = [this.id.name.text];
 		for (let outer = this.outer; outer; outer = outer.outer) {
-            names.unshift(outer.getName());
+            names.unshift(outer.id.name.text);
 		}
 		return names.join('.');
 	}
@@ -99,9 +99,9 @@ export abstract class UCSymbol implements ISymbol {
 
 	toSymbolInfo(): SymbolInformation {
 		return SymbolInformation.create(
-			this.getName().toString(), this.getKind(),
+			this.getName().text, this.getKind(),
 			this.getRange(), undefined,
-			this.outer?.getName().toString()
+			this.outer?.getName().text
 		);
 	}
 

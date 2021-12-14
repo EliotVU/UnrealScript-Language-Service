@@ -228,7 +228,7 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
                     case undefined:
                     case UCParser.RULE_classDecl: {
                         items.push({
-                            label: document.name.toString(),
+                            label: document.name.text,
                             kind: CompletionItemKind.Class
                         });
                         break;
@@ -387,7 +387,7 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
 function symbolToCompletionItem(symbol: ISymbol): CompletionItem {
     if (symbol instanceof UCSymbol) {
         return {
-            label: symbol.getName().toString(),
+            label: symbol.getName().text,
             kind: symbol.getCompletionItemKind(),
             detail: symbol.getTooltip(),
             data: symbol.id
@@ -395,7 +395,7 @@ function symbolToCompletionItem(symbol: ISymbol): CompletionItem {
     }
 
     return {
-        label: symbol.getName().toString()
+        label: symbol.getName().text
     };
 }
 
