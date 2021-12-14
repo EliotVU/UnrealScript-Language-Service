@@ -26,7 +26,7 @@ import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
 import { UCLexer } from './UC/antlr/generated/UCLexer';
 import { DocumentParseData, UCDocument } from './UC/document';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
-import { getSymbolDefinition, getSymbolTooltip, VALID_ID_REGEXP } from './UC/helpers';
+import { getSymbol, getSymbolDefinition, getSymbolTooltip, VALID_ID_REGEXP } from './UC/helpers';
 import {
     applyMacroSymbols, clearMacroSymbols, config, createDocumentByPath, createPackage, documentsMap,
     getDocumentById, getDocumentByURI, getIndexedReferences, getPackageByDir,
@@ -35,8 +35,9 @@ import {
 } from './UC/indexer';
 import { toName } from './UC/name';
 import {
-    addHashedSymbol, DEFAULT_RANGE, FieldModifiers, isClassSymbol, isFieldSymbol, NativeArray,
-    ObjectsTable, UCClassSymbol, UCMethodSymbol, UCObjectTypeSymbol, UCSymbol, UCTypeFlags
+    addHashedSymbol, DEFAULT_RANGE, FieldModifiers, isClassSymbol, isFieldSymbol, ISymbol,
+    NativeArray, ObjectsTable, supportsRef, UCClassSymbol, UCMethodSymbol, UCObjectTypeSymbol,
+    UCSymbol, UCTypeFlags
 } from './UC/Symbols';
 
 /**
@@ -486,21 +487,29 @@ connection.onCompletionResolve(getFullCompletionItem);
 connection.onSignatureHelp((e) => getSignatureHelp(e.textDocument.uri, activeDocumentParseData, e.position));
 
 connection.onPrepareRename(async (e) => {
-    const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
-    if (!symbol) {
+    const symbol = await getSymbol(e.textDocument.uri, e.position);
+    if (!symbol || !(symbol instanceof UCSymbol)) {
+        throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
+    }
+
+    const symbolRef: ISymbol | undefined = supportsRef(symbol)
+        ? symbol.getRef<UCSymbol>()
+        : symbol;
+
+    if (!(symbolRef instanceof UCSymbol)) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
 
     // Symbol without a defined type e.g. defaultproperties, replication etc.
-    if (symbol.getTypeFlags() === UCTypeFlags.Error) {
+    if (symbolRef.getTypeFlags() === UCTypeFlags.Error) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
 
-    if (isFieldSymbol(symbol)) {
-        if (isClassSymbol(symbol)) {
+    if (isFieldSymbol(symbolRef)) {
+        if (isClassSymbol(symbolRef)) {
             throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename a class!');
         }
-        if (symbol.modifiers & FieldModifiers.Intrinsic)  {
+        if (symbolRef.modifiers & FieldModifiers.Intrinsic)  {
             throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
         }
     } else {
@@ -508,7 +517,7 @@ connection.onPrepareRename(async (e) => {
     }
 
     // Disallow symbols with invalid identifiers, such as an operator.
-    if (!VALID_ID_REGEXP.test(symbol.getName().toString())) {
+    if (!VALID_ID_REGEXP.test(symbol.getName().text)) {
         throw new ResponseError(ErrorCodes.InvalidParams, 'You cannot rename this element!');
     }
 
