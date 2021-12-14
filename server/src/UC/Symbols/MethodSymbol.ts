@@ -1,7 +1,8 @@
 import { CompletionItemKind, Location, Position, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { Name, NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
+import { Name } from '../name';
+import { NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
     DEFAULT_RANGE, FieldModifiers, isMethodSymbol, ISymbol, IWithReference, ParamModifiers,

@@ -13,28 +13,30 @@ import {
 } from 'vscode-languageserver/node';
 import { URI } from 'vscode-uri';
 
+import { buildCodeActions } from './codeActions';
 import {
     DefaultIgnoredTokensSet, getCompletableSymbolItems, getFullCompletionItem, getSignatureHelp,
     setIgnoredTokensSet
 } from './completion';
-import { getSemanticTokens, TokenModifiers, TokenTypes } from './semantics';
+import { getHighlights } from './documentHighlight';
+import { getSymbols } from './documentSymbol';
+import { getReferences } from './references';
+import { buildSemanticTokens } from './semantics';
 import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
 import { UCLexer } from './UC/antlr/generated/UCLexer';
 import { DocumentParseData, UCDocument } from './UC/document';
-import {
-    getCodeActions, getSymbolDefinition, getSymbolHighlights, getSymbolReferences, getSymbols,
-    getSymbolTooltip, VALID_ID_REGEXP
-} from './UC/helpers';
+import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
+import { getSymbolDefinition, getSymbolTooltip, VALID_ID_REGEXP } from './UC/helpers';
 import {
     applyMacroSymbols, clearMacroSymbols, config, createDocumentByPath, createPackage, documentsMap,
     getDocumentById, getDocumentByURI, getIndexedReferences, getPackageByDir,
-    IntrinsicSymbolItemMap, lastIndexedDocuments$, queuIndexDocument, removeDocumentByPath,
+    IntrinsicSymbolItemMap, lastIndexedDocuments$, queueIndexDocument, removeDocumentByPath,
     UCGeneration, UELicensee
 } from './UC/indexer';
-import { toName } from './UC/names';
+import { toName } from './UC/name';
 import {
-    addHashedSymbol, DEFAULT_RANGE, NativeArray, ObjectsTable, UCClassSymbol, UCFieldSymbol,
-    UCMethodSymbol, UCObjectTypeSymbol, UCSymbol, UCTypeFlags
+    addHashedSymbol, DEFAULT_RANGE, FieldModifiers, isClassSymbol, isFieldSymbol, NativeArray,
+    ObjectsTable, UCClassSymbol, UCMethodSymbol, UCObjectTypeSymbol, UCSymbol, UCTypeFlags
 } from './UC/Symbols';
 
 /**
@@ -208,7 +210,7 @@ connection.onInitialized(() => {
                 }
 
                 if (!document.hasBeenIndexed) {
-                    const parser = queuIndexDocument(document, textDocument.getText());
+                    const parser = queueIndexDocument(document, textDocument.getText());
                     if (textDocuments.get(textDocument.uri)) {
                         activeDocumentParseData = parser;
                     }
@@ -243,7 +245,7 @@ connection.onInitialized(() => {
                 // TODO: does not respect multiple globals.uci files
                 const globalUci = getDocumentById(globalsUCIFileName);
                 if (globalUci) {
-                    queuIndexDocument(globalUci);
+                    queueIndexDocument(globalUci);
                 }
 
                 if (config.indexAllDocuments) {
@@ -253,7 +255,7 @@ connection.onInitialized(() => {
                         }
 
                         work.report(i / documents.length, `${documents[i].fileName} + dependencies`);
-                        queuIndexDocument(documents[i]);
+                        queueIndexDocument(documents[i]);
                     }
                 } else {
                     textDocuments
@@ -322,7 +324,7 @@ connection.onInitialized(() => {
             const newFiles = params.files.map(f => url.fileURLToPath(f.uri));
             createDocuments(newFiles)
                 .forEach(document => {
-                    queuIndexDocument(document);
+                    queueIndexDocument(document);
                 });
         });
 
@@ -334,7 +336,7 @@ connection.onInitialized(() => {
             const newFiles = params.files.map(f => url.fileURLToPath(f.newUri));
             createDocuments(newFiles)
                 .forEach(document => {
-                    queuIndexDocument(document);
+                    queueIndexDocument(document);
                 });
         });
 
@@ -349,7 +351,7 @@ connection.onInitialized(() => {
 
     if (hasSemanticTokensCapability) {
         connection.languages.semanticTokens.on(e => {
-            return getSemanticTokens(e.textDocument.uri);
+            return buildSemanticTokens(e.textDocument.uri);
         });
         // TODO: Support range
         // connection.languages.semanticTokens.onRange(e => getSemanticTokens(e.textDocument.uri));
@@ -454,7 +456,6 @@ function setupIgnoredTokens(generation: UCGeneration) {
     setIgnoredTokensSet(ignoredTokensSet);
 }
 
-connection.onDocumentSymbol((e) => getSymbols(e.textDocument.uri));
 connection.onHover((e) => getSymbolTooltip(e.textDocument.uri, e.position));
 
 connection.onDefinition(async (e) => {
@@ -470,8 +471,9 @@ connection.onDefinition(async (e) => {
     return undefined;
 });
 
-connection.onReferences((e) => getSymbolReferences(e.textDocument.uri, e.position));
-connection.onDocumentHighlight((e) => getSymbolHighlights(e.textDocument.uri, e.position));
+connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
+connection.onDocumentSymbol((e) => getSymbols(e.textDocument.uri));
+connection.onDocumentHighlight((e) => getHighlights(e.textDocument.uri, e.position));
 connection.onCompletion((e) => {
     if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
         return firstValueFrom(lastIndexedDocuments$).then(documents => {
@@ -494,16 +496,14 @@ connection.onPrepareRename(async (e) => {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
 
-    if (symbol instanceof UCFieldSymbol) {
-        if (symbol instanceof UCClassSymbol) {
+    if (isFieldSymbol(symbol)) {
+        if (isClassSymbol(symbol)) {
             throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename a class!');
         }
+        if (symbol.modifiers & FieldModifiers.Intrinsic)  {
+            throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
+        }
     } else {
-        throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
-    }
-
-    // Intrinsic type?
-    if (symbol.id.range === DEFAULT_RANGE) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
 
@@ -543,7 +543,7 @@ connection.onRenameRequest(async (e) => {
 });
 
 connection.onCodeAction(e => {
-    return getCodeActions(e.textDocument.uri, e.range);
+    return buildCodeActions(e.textDocument.uri, e.range);
 });
 
 connection.onExecuteCommand(e => {

@@ -3,7 +3,7 @@ import { Location, Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 import {
-    isTypeSymbol, ISymbol, ISymbolReference, ITypeSymbol, IWithReference, UCSymbol, UCTypeFlags
+    isTypeSymbol, ISymbol, ITypeSymbol, IWithReference, SymbolReference, UCSymbol, UCTypeFlags
 } from './';
 
 /**
@@ -44,13 +44,13 @@ export class UCSymbolReference extends UCSymbol implements IWithReference {
 		}
 	}
 
-	setReference(symbol: ISymbol, document: UCDocument, noIndex?: boolean, range?: Range): ISymbolReference | undefined {
+	setReference(symbol: ISymbol, document: UCDocument, noIndex?: boolean, range?: Range): SymbolReference | undefined {
 		this.reference = symbol;
 
 		if (noIndex) {
 			return undefined;
 		}
-		const ref: ISymbolReference = { location: Location.create(document.uri, range || this.id.range) };
+		const ref: SymbolReference = { location: Location.create(document.uri, range || this.id.range) };
 		document.indexReference(symbol, ref);
 		return ref;
 	}

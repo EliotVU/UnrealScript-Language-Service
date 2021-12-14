@@ -3,7 +3,7 @@ import { Location, Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 import { Identifier, ISymbol, ITypeSymbol, UCStructSymbol, UCSymbol } from './';
-import { ISymbolReference } from './ISymbol';
+import { SymbolReference } from './ISymbol';
 
 export enum FieldModifiers {
 	None 				= 0x0000,
@@ -95,7 +95,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	}
 
 	private indexDeclaration(document: UCDocument) {
-		const ref: ISymbolReference = {
+		const ref: SymbolReference = {
 			location: Location.create(document.uri, this.id.range),
 			inAssignment: true
 		};

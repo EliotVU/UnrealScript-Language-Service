@@ -13,12 +13,12 @@ import { DiagnosticCollection, IDiagnosticNode } from './diagnostics/diagnostic'
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
 import { DocumentASTWalker } from './documentASTWalker';
 import { applyMacroSymbols, config, IndexedReferencesMap, UCGeneration } from './indexer';
-import { Name, toName } from './names';
+import { Name, toName } from './name';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
 import { CommonTokenStreamExt } from './Parser/CommonTokenStreamExt';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import {
-    ISymbol, ISymbolReference, removeHashedSymbol, SymbolsTable, UCClassSymbol, UCPackage,
+    ISymbol, removeHashedSymbol, SymbolReference, SymbolsTable, UCClassSymbol, UCPackage,
     UCStructSymbol, UCSymbol
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
@@ -52,7 +52,7 @@ export class UCDocument {
     public class?: UCClassSymbol;
     public hasBeenIndexed = false;
 
-    private readonly indexReferencesMade = new Map<number, Set<ISymbolReference>>();
+    private readonly indexReferencesMade = new Map<number, Set<SymbolReference>>();
 
     // List of symbols, including macro declarations.
     private scope = new SymbolsTable<UCSymbol>();
@@ -203,11 +203,11 @@ export class UCDocument {
             });
     }
 
-    indexReference(symbol: ISymbol, ref: ISymbolReference) {
+    indexReference(symbol: ISymbol, ref: SymbolReference) {
         const key = symbol.getHash();
         const value = this.indexReferencesMade.get(key);
 
-        const set = value || new Set<ISymbolReference>();
+        const set = value || new Set<SymbolReference>();
         set.add(ref);
 
         if (!value) {
@@ -215,7 +215,7 @@ export class UCDocument {
         }
 
         // TODO: Refactor this, we are pretty much duplicating this function's job.
-        const gRefs = IndexedReferencesMap.get(key) || new Set<ISymbolReference>();
+        const gRefs = IndexedReferencesMap.get(key) || new Set<SymbolReference>();
         gRefs.add(ref);
         IndexedReferencesMap.set(key, gRefs);
     }

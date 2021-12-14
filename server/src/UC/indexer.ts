@@ -6,9 +6,9 @@ import { EAnalyzeOption, UCLanguageServerSettings } from '../settings';
 import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
 import { DocumentParseData, UCDocument } from './document';
 import { DocumentIndexer } from './documentIndexer';
-import { Name, toName } from './names';
+import { Name, toName } from './name';
 import {
-    addHashedSymbol, ISymbolReference, ObjectsTable, TRANSIENT_PACKAGE, UCEnumMemberSymbol,
+    addHashedSymbol, ObjectsTable, SymbolReference, TRANSIENT_PACKAGE, UCEnumMemberSymbol,
     UCPackage, UCTypeFlags
 } from './Symbols';
 
@@ -117,7 +117,7 @@ function postIndexDocument(document: UCDocument) {
     }
 }
 
-export function queuIndexDocument(document: UCDocument, text?: string): DocumentParseData | undefined {
+export function queueIndexDocument(document: UCDocument, text?: string): DocumentParseData | undefined {
     const parseData = indexDocument(document, text);
     if (pendingIndexedDocuments) {
         const startTime = performance.now();
@@ -194,7 +194,7 @@ export function getDocumentById(id: Name): UCDocument | undefined {
     return documentsMap.get(id.hash);
 }
 
-export const IndexedReferencesMap = new Map<number, Set<ISymbolReference>>();
+export const IndexedReferencesMap = new Map<number, Set<SymbolReference>>();
 export function getIndexedReferences(hash: number) {
     return IndexedReferencesMap.get(hash);
 }

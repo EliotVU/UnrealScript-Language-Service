@@ -1,7 +1,8 @@
 import { SymbolKind } from 'vscode-languageserver-types';
 
 import { getDocumentById, indexDocument } from '../indexer';
-import { Name, NAME_NONE } from '../names';
+import { Name } from '../name';
+import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
     DEFAULT_RANGE, ISymbol, ISymbolContainer, UCClassSymbol, UCFieldSymbol, UCStructSymbol, UCSymbol

@@ -1,4 +1,5 @@
-import { NAME_ARRAY, toName } from '../names';
+import { toName } from '../name';
+import { NAME_ARRAY } from '../names';
 import {
     DEFAULT_RANGE, FieldModifiers, StaticIntType, UCMethodSymbol, UCParamSymbol, UCStructSymbol
 } from './';

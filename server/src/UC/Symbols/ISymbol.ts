@@ -1,10 +1,12 @@
 import { Location, Range, SymbolKind } from 'vscode-languageserver-types';
 
-import { Name } from '../names';
+import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import { UCTypeFlags } from './';
 
 export interface ISymbol {
+    readonly id: Identifier;
+
 	/** Parent symbol, mirroring Unreal Engine's Object class structure. */
 	outer?: ISymbol;
 
@@ -41,14 +43,14 @@ export interface ISymbolContainer<T extends ISymbol> {
 	getSymbol(id: Name | number, type?: UCTypeFlags, outer?: ISymbol): T | undefined;
 }
 
-export interface IContextInfo {
+export type ContextInfo = {
 	typeFlags?: UCTypeFlags;
 	inAssignment?: boolean;
 	isOptional?: boolean;
 	hasArguments?: boolean;
-}
+};
 
-export interface ISymbolReference {
+export type SymbolReference = {
 	/**
 	 * The location where a symbol is being referenced.
 	 * This symbol is mapped by a qualifiedId as key by a map that's holding an object of this interface.
@@ -57,13 +59,17 @@ export interface ISymbolReference {
 
 	// Context was referred by an assignment operator.
 	inAssignment?: boolean;
-}
+};
 
-export interface IWithReference extends ISymbol {
+export interface IWithReference {
 	getRef<T extends ISymbol>(): T | undefined;
 }
 
-export interface Identifier {
+export function supportsRef<T>(obj: T & any): obj is T & IWithReference {
+    return typeof obj['getRef'] !== 'undefined';
+}
+
+export type Identifier = Readonly<{
 	readonly name: Name;
 	readonly range: Range;
-}
+}>;

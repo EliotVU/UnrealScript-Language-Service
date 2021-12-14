@@ -1,7 +1,7 @@
 import { Location, Position, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { Name } from '../names';
+import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import { UCFieldSymbol, UCStructSymbol, UCSymbolReference, UCTypeFlags } from './';
 

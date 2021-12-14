@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 
-import { toName } from './names';
+import { toName } from './name';
 
 describe('Names hashing', () => {
 	it('Test == test', () => {

@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 
-import { toName } from '../names';
+import { toName } from '../name';
 import { DEFAULT_RANGE, UCClassSymbol, UCTypeFlags } from './';
 import {
     addHashedSymbol, getSymbolHash, ObjectsTable, removeHashedSymbol, UCPackage

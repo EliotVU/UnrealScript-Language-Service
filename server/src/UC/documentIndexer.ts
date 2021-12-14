@@ -1,6 +1,6 @@
 import { UCDocument } from './document';
 import {
-    EnumCoerceFlags, hasChildren, IContextInfo, isParamSymbol, UCClassSymbol,
+    ContextInfo, EnumCoerceFlags, hasChildren, isParamSymbol, UCClassSymbol,
     UCDefaultPropertiesBlock, UCMethodSymbol, UCReplicationBlock, UCStateSymbol, UCStructSymbol,
     UCTypeFlags
 } from './Symbols';
@@ -42,7 +42,7 @@ export class DocumentIndexer extends DefaultSymbolWalker<undefined> {
 		for (let child = symbol.children; child; child = child.next) {
 			// Parameter?
 			if (child && isParamSymbol(child) && child.defaultExpression) {
-                let context: IContextInfo | undefined;
+                let context: ContextInfo | undefined;
                 if (child.getTypeFlags() & EnumCoerceFlags) {
                     context = {
                         typeFlags: UCTypeFlags.Enum

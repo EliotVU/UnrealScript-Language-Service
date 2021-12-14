@@ -6,7 +6,7 @@ import { UCDocument } from './document';
 import { IExpression } from './expressions';
 import { intersectsWith } from './helpers';
 import {
-    IContextInfo, Identifier, ISymbol, UCArchetypeSymbol, UCStructSymbol, UCSymbolReference,
+    ContextInfo, Identifier, ISymbol, UCArchetypeSymbol, UCStructSymbol, UCSymbolReference,
     UCTypeFlags
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
@@ -15,7 +15,7 @@ export interface IStatement {
 	getRange(): Range;
 	getSymbolAtPos(position: Position): ISymbol | undefined;
 
-	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo): void;
+	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo): void;
 	accept<Result>(visitor: SymbolWalker<Result>): Result | void;
 }
 
@@ -41,7 +41,7 @@ export class UCExpressionStatement implements IStatement {
 		return this.expression?.getSymbolAtPos(position);
 	}
 
-	index(_document: UCDocument, _context: UCStructSymbol, _info?: IContextInfo) {
+	index(_document: UCDocument, _context: UCStructSymbol, _info?: ContextInfo) {
 		this.expression?.index.apply(this.expression, arguments);
 	}
 
@@ -57,7 +57,7 @@ export abstract class UCThenStatement extends UCExpressionStatement {
 		return super.getContainedSymbolAtPos(position) || this.then?.getSymbolAtPos(position);
 	}
 
-	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
+	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
 		super.index(document, context, info);
 		this.then?.index(document, context, info);
 	}
@@ -91,7 +91,7 @@ export class UCBlock implements IStatement {
 		}
 	}
 
-	index(_document: UCDocument, _context: UCStructSymbol, info: IContextInfo = {}) {
+	index(_document: UCDocument, _context: UCStructSymbol, info: ContextInfo = {}) {
 		const typeFlags = info.typeFlags;
 		for (const statement of this.statements) if (statement) {
 			statement.index.apply(statement, arguments);
@@ -107,7 +107,7 @@ export class UCBlock implements IStatement {
 export class UCArchetypeBlockStatement extends UCBlock {
     public archetypeSymbol: UCArchetypeSymbol;
 
-    index(document: UCDocument, context: UCStructSymbol, info: IContextInfo = {}) {
+    index(document: UCDocument, context: UCStructSymbol, info: ContextInfo = {}) {
         // TODO: Find @super, for declarations where no class=NAME was specified
         if (this.archetypeSymbol.extendsType) {
             // FIXME: extendsType is indexed twice (by assignmentExpresion "class=ClassNameManually")
@@ -132,7 +132,7 @@ export class UCIfStatement extends UCThenStatement {
 		return super.getContainedSymbolAtPos(position) || this.else?.getSymbolAtPos(position);
 	}
 
-	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
+	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
 		super.index(document, context, info);
 		this.else?.index(document, context, info);
 	}
@@ -155,7 +155,7 @@ export class UCRepIfStatement extends UCExpressionStatement {
 		return super.getContainedSymbolAtPos(position);
 	}
 
-	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
+	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
 		super.index(document, context, info);
         if (this.symbolRefs) for (const ref of this.symbolRefs) {
 			const symbol = context.findSuperSymbol(ref.getName());
@@ -184,7 +184,7 @@ export class UCWhileStatement extends UCThenStatement {
 }
 
 export class UCSwitchStatement extends UCThenStatement {
-	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
+	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
 		if (this.expression) {
 			this.expression.index(document, context, info);
 			// TODO: validate all legal switch types!
@@ -227,7 +227,7 @@ export class UCForStatement extends UCThenStatement {
 			|| this.next?.getSymbolAtPos(position);
 	}
 
-	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
+	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
 		super.index(document, context, info);
 		this.init?.index(document, context, info);
 		this.next?.index(document, context, info);
@@ -263,7 +263,7 @@ export class UCLabeledStatement implements IStatement {
 		return undefined;
 	}
 
-	index(_document: UCDocument, _context: UCStructSymbol, _info?: IContextInfo) {
+	index(_document: UCDocument, _context: UCStructSymbol, _info?: ContextInfo) {
         //
 	}
 
@@ -273,7 +273,7 @@ export class UCLabeledStatement implements IStatement {
 }
 
 export class UCReturnStatement extends UCExpressionStatement {
-	index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
+	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
 		const type = context.getType();
 		if (type) {
 			info = { typeFlags: type.getTypeFlags() };
@@ -287,7 +287,7 @@ export class UCReturnStatement extends UCExpressionStatement {
 }
 
 export class UCGotoStatement extends UCExpressionStatement {
-    index(document: UCDocument, context: UCStructSymbol, info?: IContextInfo) {
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         super.index(document, context, { typeFlags: UCTypeFlags.Name });
 	}
 

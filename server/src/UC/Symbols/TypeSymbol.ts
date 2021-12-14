@@ -2,16 +2,17 @@ import { Position, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { intersectsWithRange } from '../helpers';
+import { Name } from '../name';
 import {
-    Name, NAME_ARRAY, NAME_BOOL, NAME_BUTTON, NAME_BYTE, NAME_DELEGATE, NAME_FLOAT, NAME_INT,
-    NAME_MAP, NAME_NAME, NAME_NONE, NAME_OBJECT, NAME_POINTER, NAME_RANGE, NAME_ROTATOR,
-    NAME_STRING, NAME_VECTOR
+    NAME_ARRAY, NAME_BOOL, NAME_BUTTON, NAME_BYTE, NAME_DELEGATE, NAME_FLOAT, NAME_INT, NAME_MAP,
+    NAME_NAME, NAME_NONE, NAME_OBJECT, NAME_POINTER, NAME_RANGE, NAME_ROTATOR, NAME_STRING,
+    NAME_VECTOR
 } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
     DEFAULT_RANGE, Identifier, ISymbol, IWithReference, NativeArray, ObjectsTable,
-    UCArchetypeSymbol, UCConstSymbol, UCEnumSymbol, UCFieldSymbol, UCMethodSymbol, UCParamSymbol,
-    UCScriptStructSymbol, UCStructSymbol, UCSymbol, UCSymbolReference
+    UCArchetypeSymbol, UCClassSymbol, UCConstSymbol, UCEnumSymbol, UCFieldSymbol, UCMethodSymbol,
+    UCParamSymbol, UCScriptStructSymbol, UCStructSymbol, UCSymbol, UCSymbolReference
 } from './';
 import { tryFindClassSymbol, tryFindSymbolInPackage, UCPackage } from './Package';
 import { UCPropertySymbol } from './PropertySymbol';
@@ -566,6 +567,10 @@ export function isMethodSymbol(symbol: ISymbol): symbol is UCMethodSymbol {
 
 export function isStateSymbol(symbol: ISymbol): symbol is UCStateSymbol {
     return (symbol.getTypeFlags() & UCTypeFlags.State & ~UCTypeFlags.Object) !== 0;
+}
+
+export function isClassSymbol(symbol: ISymbol): symbol is UCClassSymbol {
+    return (symbol.getTypeFlags() & UCTypeFlags.Class & ~UCTypeFlags.Object) !== 0;
 }
 
 export function isArchetypeSymbol(symbol: ISymbol): symbol is UCArchetypeSymbol {

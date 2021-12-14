@@ -26,9 +26,10 @@ import {
 } from './expressions';
 import { rangeFromBound, rangeFromBounds, rangeFromCtx } from './helpers';
 import { setEnumMember } from './indexer';
+import { toName } from './name';
 import {
     NAME_ARRAY, NAME_CLASS, NAME_DEFAULT, NAME_DELEGATE, NAME_ENUMCOUNT, NAME_MAP, NAME_NONE,
-    NAME_REPLICATION, toName
+    NAME_REPLICATION
 } from './names';
 import {
     IStatement, UCArchetypeBlockStatement, UCAssertStatement, UCBlock, UCCaseClause,

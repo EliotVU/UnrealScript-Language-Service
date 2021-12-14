@@ -5,7 +5,7 @@ import {
 
 import { UCDocument } from '../document';
 import { intersectsWithRange } from '../helpers';
-import { Name } from '../names';
+import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import { Identifier, ISymbol, UCStructSymbol, UCTypeFlags } from './';
 

@@ -17,7 +17,7 @@ import {
     UCReturnStatement, UCSwitchStatement, UCWhileStatement
 } from '../statements';
 import {
-    areMethodsCompatibleWith, AssignableByIdentifierFlags, AssignToDelegateFlags, IContextInfo,
+    areMethodsCompatibleWith, AssignableByIdentifierFlags, AssignToDelegateFlags, ContextInfo,
     isFieldSymbol, isMethodSymbol, isStateSymbol, ITypeSymbol, LengthProperty, NameCoerceFlags,
     NativeClass, NativeEnum, NumberCoerceFlags, quoteTypeFlags, ReplicatableTypeFlags, resolveType,
     StaticBoolType, StaticNameType, typeMatchesFlags, UCArchetypeSymbol, UCArrayTypeSymbol,
@@ -32,8 +32,8 @@ import * as diagnosticMessages from './diagnosticMessages.json';
 export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
     private scopes: UCStructSymbol[] = [];
     private context?: UCStructSymbol;
-    private state: IContextInfo = {};
-    private cachedState: IContextInfo = {};
+    private state: ContextInfo = {};
+    private cachedState: ContextInfo = {};
 
     constructor(private document: UCDocument, private diagnostics: DiagnosticCollection) {
         super();
