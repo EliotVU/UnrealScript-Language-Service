@@ -52,6 +52,7 @@ defaultproperties
 {
     nameVar="NameAsString"
     nameVar=NameAsString
+    nameVar=none
 
     vectorVar=(x=0)
     vectorVar={(

@@ -64,7 +64,7 @@ export const EnumCoerceFlags		        = UCTypeFlags.Enum | UCTypeFlags.Int | UCT
 export const NoneCoerceFlags		        = UCTypeFlags.Delegate | UCTypeFlags.Object | UCTypeFlags.Name;
 
 // TODO: Verify if "coerce" is required when passing a "Name" to a "String" type.
-export const NameCoerceFlags		        = UCTypeFlags.Name | UCTypeFlags.String;
+export const NameCoerceFlags		        = UCTypeFlags.Name | UCTypeFlags.String | UCTypeFlags.None;
 
 // Can be coerced to type "String", if marked with "coerce".
 export const CoerceToStringFlags	        = UCTypeFlags.Name | UCTypeFlags.String | UCTypeFlags.Object | NumberCoerceFlags | UCTypeFlags.Bool | UCTypeFlags.None;
