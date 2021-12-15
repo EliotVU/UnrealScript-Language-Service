@@ -23,35 +23,35 @@ export enum UCTypeFlags {
 	Error			    = 0,
 
 	// PRIMITIVE TYPES
-	Float 			    = 1 << 1,
-	Int 			    = 1 << 2, // Also true for a pointer
-	Byte 			    = 1 << 3, // Also true for an enum member.
-	String			    = 1 << 4,
-	Name			    = 1 << 5,
-	Bool			    = 1 << 6,
-	Array			    = 1 << 7,
+	Float 			    = 1 << 0,
+	Int 			    = 1 << 1, // Also true for a pointer
+	Byte 			    = 1 << 2, // Also true for an enum member.
+	String			    = 1 << 3,
+	Name			    = 1 << 4,
+	Bool			    = 1 << 5,
+	Array			    = 1 << 6,
     // Also used to flag functions of the delegate type
-	Delegate		    = 1 << 8,
+	Delegate		    = 1 << 7,
 
 	// OBJECT TYPES
     // TODO: Deprecate | Object, as this complicates things too much
-	Object			    = 1 << 9,
-	Archetype 		    = 1 << 10 | Object,
-	Package			    = 1 << 11 | Object, // For use cases like e.g. "class Actor extends Core.Object" where "Core" would be of type "Package".
-	Class			    = 1 << 12 | Object, // A class like class<CLASSNAME>.
-	Interface		    = 1 << 13,
-	Enum			    = 1 << 14 | Object,
-	Struct			    = 1 << 15 | Object,
-	Property		    = 1 << 16 | Object,
-	Function		    = 1 << 17 | Object,
-	State			    = 1 << 18 | Object,
-	Const			    = 1 << 19 | Object,
+	Object			    = 1 << 8,
+	Archetype 		    = 1 << 9 | Object,
+	Package			    = 1 << 10 | Object, // For use cases like e.g. "class Actor extends Core.Object" where "Core" would be of type "Package".
+	Class			    = 1 << 11 | Object, // A class like class<CLASSNAME>.
+	Interface		    = 1 << 12,
+	Enum			    = 1 << 13 | Object,
+	Struct			    = 1 << 14 | Object,
+	Property		    = 1 << 15 | Object,
+	Function		    = 1 << 16 | Object,
+	State			    = 1 << 17 | Object,
+	Const			    = 1 << 18 | Object,
 
 	// Special case for property type validations.
-	Type			    = 1 << 20,
+	Type			    = 1 << 19,
 	// Refers the special "None" identifier, if we do actual reffer an undefined symbol, we should be an @Error.
-	None			    = 1 << 21,
-    Max                 = 1 << 22,
+	None			    = 1 << 20,
+    Max                 = 1 << 21,
 }
 
 // For readability, UnrealScript does not a unique type for enum values, instead they are always interpreted as a byte.

@@ -7,7 +7,7 @@ import { UCDocument } from '../document';
 import { intersectsWithRange } from '../helpers';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
-import { Identifier, ISymbol, UCStructSymbol, UCTypeFlags } from './';
+import { getSymbolPathHash, Identifier, ISymbol, UCStructSymbol, UCTypeFlags } from './';
 
 export const DEFAULT_POSITION = Position.create(0, 0);
 export const DEFAULT_RANGE = Range.create(DEFAULT_POSITION, DEFAULT_POSITION);
@@ -36,11 +36,7 @@ export abstract class UCSymbol implements ISymbol {
 
     // Particular use case to index symbol references by outer.
 	getHash(): number {
-		let hash: number = this.id.name.hash;
-		for (let outer = this.outer; outer; outer = outer.outer) {
-			hash = hash ^ (outer.id.name.hash >> 4);
-		}
-		return hash;
+		return getSymbolPathHash(this);
 	}
 
 	getPath(): string {

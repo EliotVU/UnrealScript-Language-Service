@@ -57,5 +57,7 @@ export const NAME_REPLICATION = toName('Replication');
 export const NAME_DEFAULTPROPERTIES = toName('DefaultProperties');
 export const NAME_STRUCTDEFAULTPROPERTIES = toName('StructDefaultProperties');
 
+export const NAME_OUTER = toName('Outer');
+
 export const NAME_RETURNVALUE = toName('ReturnValue');
 export const NAME_SPAWN = toName('Spawn');

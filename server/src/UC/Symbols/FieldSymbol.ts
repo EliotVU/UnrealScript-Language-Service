@@ -18,6 +18,8 @@ export enum FieldModifiers {
 }
 
 export abstract class UCFieldSymbol extends UCSymbol {
+    outer: ISymbol;
+
 	public next?: UCFieldSymbol;
 	public containingStruct?: UCStructSymbol;
 

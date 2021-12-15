@@ -7,7 +7,7 @@ import { UCBlock } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
     Identifier, isMethodSymbol, isStateSymbol, ISymbol, ISymbolContainer, ITypeSymbol,
-    UCFieldSymbol, UCSymbol, UCTypeFlags
+    UCFieldSymbol, UCTypeFlags
 } from './';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
@@ -121,7 +121,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return undefined;
 	}
 
-	findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCTypeFlags): UCSymbol | undefined {
+	findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCTypeFlags): T | undefined {
 		return this.getSymbol<T>(id, kind) ?? this.super?.findSuperSymbol(id, kind);
 	}
 
@@ -131,7 +131,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			this.extendsType.index(document, context);
 			// Ensure that we don't overwrite super assignment from our descendant class.
 			if (!this.super) {
-				this.super = this.extendsType.getRef() as UCStructSymbol;
+				this.super = this.extendsType.getRef<UCStructSymbol>();
 			}
 		}
 
@@ -150,7 +150,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 }
 
 /**
- * Looks up the @struct's hierachy for a matching @id
+ * Looks up the @struct's hierarchy for a matching @id
  */
 export function findSuperStruct(context: UCStructSymbol, id: Name): UCStructSymbol | undefined {
 	for (let other = context.super; other; other = other.super) {
@@ -165,7 +165,7 @@ export function findSuperStruct(context: UCStructSymbol, id: Name): UCStructSymb
  * Searches a @param context for a symbol with a matching @param id along with a @param predicate,
  * - if there was no predicate match, the last id matched symbol will be returned instead.
  */
-export function findSymbol(context: UCStructSymbol, id: Name, predicate: (symbol: UCFieldSymbol) => boolean): UCSymbol | undefined {
+export function findSymbol<T extends UCFieldSymbol>(context: UCStructSymbol, id: Name, predicate: (symbol: UCFieldSymbol) => boolean): T | undefined {
 	let scope: UCStructSymbol | undefined = isMethodSymbol(context)
         ? context.outer as UCStructSymbol
         : context;
@@ -173,14 +173,14 @@ export function findSymbol(context: UCStructSymbol, id: Name, predicate: (symbol
 		scope = scope.outer as UCStructSymbol;
 	}
 
-	let bestChild: UCSymbol | undefined = undefined;
+	let bestChild: T | undefined = undefined;
 	for (; scope; scope = scope.super) {
 		for (let child = scope.children; child; child = child.next) {
 			if (child.getName() === id) {
 				if (predicate(child)) {
-					return child;
+					return child as T;
 				}
-				bestChild = child;
+				bestChild = child as T;
 			}
 		}
 	}

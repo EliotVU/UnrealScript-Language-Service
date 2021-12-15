@@ -705,7 +705,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
             expr.left.accept(this);
             this.resumeState();
 
-            const memberContext = expr.left.getType()?.getRef() as UCStructSymbol;
+            const memberContext = expr.left.getType()?.getRef<UCStructSymbol>();
             this.pushScope(memberContext);
             expr.member?.accept(this);
             this.popScope();

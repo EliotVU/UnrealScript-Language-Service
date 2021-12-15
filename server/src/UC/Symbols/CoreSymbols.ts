@@ -2,13 +2,13 @@ import {
     NAME_ARRAYPROPERTY, NAME_BOOLPROPERTY, NAME_BYTEPROPERTY, NAME_CLASS, NAME_CLASSPROPERTY,
     NAME_COMPONENTPROPERTY, NAME_CONST, NAME_CORE, NAME_DELEGATEPROPERTY, NAME_ENUM, NAME_FIELD,
     NAME_FLOATPROPERTY, NAME_FUNCTION, NAME_INTERFACE, NAME_INTERFACEPROPERTY, NAME_INTPROPERTY,
-    NAME_MAPPROPERTY, NAME_NAMEPROPERTY, NAME_OBJECT, NAME_OBJECTPROPERTY, NAME_PACKAGE,
-    NAME_POINTERPROPERTY, NAME_PROPERTY, NAME_SCRIPTSTRUCT, NAME_STATE, NAME_STRINGPROPERTY,
-    NAME_STRPROPERTY, NAME_STRUCT, NAME_STRUCTPROPERTY
+    NAME_MAPPROPERTY, NAME_NAME, NAME_NAMEPROPERTY, NAME_OBJECT, NAME_OBJECTPROPERTY, NAME_OUTER,
+    NAME_PACKAGE, NAME_POINTERPROPERTY, NAME_PROPERTY, NAME_SCRIPTSTRUCT, NAME_STATE,
+    NAME_STRINGPROPERTY, NAME_STRPROPERTY, NAME_STRUCT, NAME_STRUCTPROPERTY
 } from '../names';
-import { DEFAULT_RANGE, FieldModifiers, UCClassSymbol, UCPackage } from './';
+import { DEFAULT_RANGE, FieldModifiers, UCClassSymbol, UCPackage, UCPropertySymbol } from './';
 import { addHashedSymbol } from './Package';
-import { StaticObjectType } from './TypeSymbol';
+import { StaticNameType, StaticObjectType } from './TypeSymbol';
 
 export const CORE_PACKAGE = new UCPackage(NAME_CORE);
 addHashedSymbol(CORE_PACKAGE);
@@ -17,6 +17,21 @@ export const NativeObject = new UCClassSymbol({ name: NAME_OBJECT, range: DEFAUL
 NativeObject.modifiers |= FieldModifiers.Native;
 NativeObject.extendsType = StaticObjectType;
 NativeObject.outer = CORE_PACKAGE;
+
+export const OuterProperty = new UCPropertySymbol({ name: NAME_OUTER, range: DEFAULT_RANGE });
+OuterProperty.modifiers |= FieldModifiers.Native;
+OuterProperty.type = StaticObjectType;
+OuterProperty.outer = NativeObject;
+
+export const NameProperty = new UCPropertySymbol({ name: NAME_NAME, range: DEFAULT_RANGE });
+NameProperty.modifiers |= FieldModifiers.Native;
+NameProperty.type = StaticNameType;
+NameProperty.outer = NativeObject;
+
+export const ClassProperty = new UCPropertySymbol({ name: NAME_CLASS, range: DEFAULT_RANGE });
+ClassProperty.modifiers |= FieldModifiers.Native;
+ClassProperty.type = StaticObjectType;
+ClassProperty.outer = NativeObject;
 
 export const NativeField = new UCClassSymbol({ name: NAME_FIELD, range: DEFAULT_RANGE });
 NativeField.modifiers |= FieldModifiers.Native;
