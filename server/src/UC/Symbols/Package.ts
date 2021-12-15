@@ -124,7 +124,7 @@ export class UCPackage extends UCSymbol {
 	}
 
 	getTooltip(): string {
-		return 'package ' + this.getName();
+		return `package ${this.getName().text}`;
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
@@ -141,11 +141,19 @@ export const ObjectsTable = new SymbolsTable<UCSymbol>();
 export const OuterObjectsTable = new SymbolsTable<UCSymbol>();
 
 export function getSymbolHash(symbol: ISymbol) {
-	return symbol.getName().hash;
+	return symbol.id.name.hash;
 }
 
 export function getSymbolOuterHash(symbolHash: number, outerHash: number) {
 	return symbolHash + (outerHash >> 4);
+}
+
+export function getSymbolPathHash(symbol: ISymbol): number {
+    let hash: number = symbol.id.name.hash;
+    for (let outer = symbol.outer; outer; outer = outer.outer) {
+        hash = hash ^ (outer.id.name.hash >> 4);
+    }
+    return hash;
 }
 
 export function addHashedSymbol(symbol: UCSymbol) {
