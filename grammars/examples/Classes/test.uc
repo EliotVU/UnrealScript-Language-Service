@@ -367,7 +367,6 @@ defaultproperties
 
 	defaultInt=1024				|defaultFloat=1.0f			|defaultByte=1
 	defaultBool=true			|defaultBool=false
-    // FIXME: CONST fields are not recognized
 	defaultName=CONST_NAME		|defaultName=MyName
 	defaultStr=CONST_STRING		|defaultStr="string"
 

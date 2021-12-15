@@ -2,30 +2,32 @@ class DelegateTest;
 
 var delegate<OnDelegate> DelegateProperty;
 var delegate<OnDelegate2> Delegate2Property;
+
 var delegate<OnDelegate3> Delegate3Property;
 var delegate<DelegateTest.OnDelegate> QualifiedDelegateProperty;
 var const delegate<DelegateTest.OnDelegate> ConstDelegateProperty;
+
 var DelegateProperty DelegatePropertyRef;
 
 // @EXPECT ERROR
-var delegate<AcceptDelegate> InvalidProperty;
+var delegate<InternalAcceptDelegate> InvalidProperty;
 
 delegate OnDelegate(name param1, bool param2);
 delegate OnDelegate2(name param1, bool param2);
 delegate bool OnDelegate3(name param1, bool param2);
 
-function AcceptDelegate(delegate<OnDelegate> delegate);
+function InternalAcceptDelegate(delegate<OnDelegate> delegate);
 
 function delegate<OnDelegate> GetDelegate() {
     return DelegateProperty;
 }
 
-function OnAcceptCompatible(name param1, bool param2)
+function InternalOnAcceptCompatible(name param1, bool param2)
 {
     ;
 }
 
-function OnAcceptIncompatible(name param1, name param2, name param3)
+function InternalOnAcceptIncompatible(name param1, name param2, name param3)
 {
     ;
 }
@@ -34,43 +36,43 @@ function bool Test(name param1, bool param2)
 {
     local DelegateTest object;
 
-    AcceptDelegate(none);
-    AcceptDelegate(OnDelegate);
-    AcceptDelegate(GetDelegate());
-    AcceptDelegate(DelegateProperty);
-    AcceptDelegate(Delegate2Property);
-    AcceptDelegate(OnAcceptCompatible);
-    AcceptDelegate(OnDelegate != none ? GetDelegate() : OnDelegate);
+    InternalAcceptDelegate(none);
+    InternalAcceptDelegate(OnDelegate);
+    InternalAcceptDelegate(GetDelegate());
+    InternalAcceptDelegate(DelegateProperty);
+    InternalAcceptDelegate(Delegate2Property);
+    InternalAcceptDelegate(InternalOnAcceptCompatible);
+    InternalAcceptDelegate(OnDelegate != none ? GetDelegate() : OnDelegate);
 
     // @EXPECT ERROR
-    AcceptDelegate(Delegate3Property);
-    AcceptDelegate(OnAcceptIncompatible);
-    AcceptDelegate(Test);
-    AcceptDelegate(true);
-    AcceptDelegate('');
-    AcceptDelegate("");
-    AcceptDelegate(0);
-    AcceptDelegate(self);
-    AcceptDelegate(class'DelegateTest');
+    InternalAcceptDelegate(Delegate3Property);
+    InternalAcceptDelegate(InternalOnAcceptIncompatible);
+    InternalAcceptDelegate(Test);
+    InternalAcceptDelegate(true);
+    InternalAcceptDelegate('');
+    InternalAcceptDelegate("");
+    InternalAcceptDelegate(0);
+    InternalAcceptDelegate(self);
+    InternalAcceptDelegate(class'DelegateTest');
 
     DelegateProperty = none;
     DelegateProperty = OnDelegate;
     DelegateProperty = OnDelegate != none ? GetDelegate() : OnDelegate;
-    DelegateProperty = OnAcceptCompatible;
+    DelegateProperty = InternalOnAcceptCompatible;
 
     // @EXPECT ERROR
-    DelegateProperty = OnAcceptIncompatible;
+    DelegateProperty = InternalOnAcceptIncompatible;
 
     // @EXPECT ERROR
-    ConstDelegateProperty = OnAcceptCompatible;
+    ConstDelegateProperty = InternalOnAcceptCompatible;
 
     // @EXPECT ERROR
-    AcceptDelegate(GetDelegate);
+    InternalAcceptDelegate(GetDelegate);
 
-    OnDelegate = OnAcceptCompatible;
+    OnDelegate = InternalOnAcceptCompatible;
 
     // @EXPECT ERROR
-    OnDelegate = OnAcceptIncompatible;
+    OnDelegate = InternalOnAcceptIncompatible;
 
     // @EXPECT ERROR
     DelegateProperty = Test;
@@ -86,22 +88,28 @@ function bool Test(name param1, bool param2)
     DelegatePropertyRef = DelegateProperty'examples.DelegateTest.DelegatePropertyRef';
 
     // @EXPECT ERROR
-    OnAcceptCompatible = DelegateProperty;
+    InternalOnAcceptCompatible = DelegateProperty;
 }
 
 defaultproperties
 {
-    DelegateProperty=OnAcceptCompatible
+    DelegateProperty=InternalOnAcceptCompatible
     DelegateProperty=none
-    OnDelegate=OnAcceptCompatible
+    OnDelegate=InternalOnAcceptCompatible
+    OnDelegate=none
 
     // @EXPECT ERROR
     DelegateProperty=Test
-    OnDelegate=OnAcceptIncompatible
+    OnDelegate=InternalOnAcceptIncompatible
     DelegateProperty=true
     // DelegateProperty=''
     DelegateProperty=""
     DelegateProperty=0
     DelegateProperty=self
     DelegateProperty=class'DelegateTest'
+
+    begin object class=ArchetypeTest name=archetype
+        MyDelegate=InternalOnAcceptCompatible
+    end object
+
 }

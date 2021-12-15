@@ -876,43 +876,68 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	}
 
 	visitObjectDecl(ctx: UCGrammar.ObjectDeclContext) {
-		let nameIdentifier: Identifier | undefined;
-		let classIdentifier: Identifier | undefined;
+        const range = rangeFromBounds(ctx.start, ctx.stop);
+        const block = new UCArchetypeBlockStatement(range);
 
+        let nameExpr: UCDefaultAssignmentExpression | undefined;
+        let nameId: Identifier | undefined;
+        let nameType: UCObjectTypeSymbol | undefined;
+		let classExpr: UCDefaultAssignmentExpression | undefined;
+        let classId: Identifier | undefined;
+        let classType: UCObjectTypeSymbol | undefined;
+
+        const hardcodedStatements: IExpression[] = [];
 		const attrs = ctx.objectAttribute();
 		if (attrs) for (const objAttr of attrs) {
 			switch (objAttr._id.type) {
-				case UCLexer.KW_NAME:
-					nameIdentifier = { name: toName(objAttr._value.text), range: rangeFromBound(objAttr._value.start) };
+				case UCLexer.KW_NAME: {
+                    nameExpr = new UCDefaultAssignmentExpression(rangeFromBounds(ctx.start, ctx.stop));
+                    nameExpr.left = new UCMemberExpression(idFromToken(objAttr._id));
+                    nameId = idFromCtx(objAttr._value);
+                    const idExpr = new UCIdentifierLiteralExpression(nameId);
+                    nameType = new UCObjectTypeSymbol(nameId, undefined, UCTypeFlags.Object);
+                    idExpr.typeRef = nameType;
+                    nameExpr.right = idExpr;
+                    hardcodedStatements.push(nameExpr);
 					break;
+                }
 
-				case UCLexer.KW_CLASS:
-					classIdentifier = { name: toName(objAttr._value.text), range: rangeFromBound(objAttr._value.start) };
+				case UCLexer.KW_CLASS: {
+                    classExpr = new UCDefaultAssignmentExpression(rangeFromBounds(ctx.start, ctx.stop));
+                    classExpr.left = new UCMemberExpression(idFromToken(objAttr._id));
+                    classId = idFromCtx(objAttr._value);
+                    const idExpr = new UCIdentifierLiteralExpression(classId);
+                    classType = new UCObjectTypeSymbol(classId, undefined, UCTypeFlags.Class);
+                    idExpr.typeRef = classType;
+                    classExpr.right = idExpr;
+                    hardcodedStatements.push(classExpr);
 					break;
+                }
 
 				default:
-					throw Error("Invalid object attribute!");
+					throw Error(`Invalid archetype '${objAttr._id.text}' variable!`);
 			}
 		}
 
-		const range = rangeFromBounds(ctx.start, ctx.stop);
-		const identifier = nameIdentifier || { name: NAME_NONE, range };
-        const block = new UCArchetypeBlockStatement(range);
-		const symbol = new UCArchetypeSymbol(identifier, range);
-		if (classIdentifier) {
-			symbol.extendsType = new UCObjectTypeSymbol(classIdentifier, undefined, UCTypeFlags.Class);
+		const archId = nameId || { name: NAME_NONE, range };
+		const symbol = new UCArchetypeSymbol(archId, range);
+		if (classType) {
+			symbol.extendsType = classType;
 		}
+        if (nameType) {
+            nameType.setReference(symbol, this.document);
+        }
+        block.archetypeSymbol = symbol;
+
 		this.declare(symbol, ctx);
 		this.push(symbol);
 		try {
 			const statementNodes = ctx.defaultStatement();
-			block.statements = ([] as ParserRuleContext[])
-				.concat(attrs, statementNodes)
-				.map(node => node.accept(this));
+			block.statements = hardcodedStatements
+                .concat(statementNodes.map(node => node.accept(this)));
 		} finally {
 			this.pop();
 		}
-        block.archetypeSymbol = symbol;
 		return block;
 	}
 
@@ -929,13 +954,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	visitDefaultArgument(ctx: UCGrammar.DefaultArgumentContext) {
 		const child = ctx.getChild(0);
 		return child?.accept(this);
-	}
-
-	visitObjectAttribute(ctx: UCGrammar.ObjectAttributeContext) {
-		const expression = new UCDefaultAssignmentExpression(rangeFromBounds(ctx.start, ctx.stop));
-		expression.left = new UCMemberExpression(idFromToken(ctx._id));
-		expression.right = new UCIdentifierLiteralExpression(idFromCtx(ctx._value));
-		return expression;
 	}
 
 	visitDefaultAssignmentExpression(ctx: UCGrammar.DefaultAssignmentExpressionContext) {

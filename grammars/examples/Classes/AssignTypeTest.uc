@@ -1,12 +1,20 @@
 class AssignTypeTest extends Object;
 
-const READONLY_FIELD = '';
+const NAME_CONSTANT = '';
+const STRING_CONSTANT = "";
+const BYTE_CONSTANT = 0;
 
-struct myVector {
+enum EEnum {
+    E_NONE,
+};
+
+var EEnum enumVar;
+
+struct sVector {
     var int x;
 };
 
-var myVector vectorVar;
+var sVector vectorVar;
 
 var int property;
 var int dimVar[2];
@@ -16,7 +24,7 @@ var name nameVar;
 function int AssignTest() {
     local AssignTypeTest obj;
     local array<AssignTypeTest> objs;
-    local myVector v;
+    local sVector v;
 
     // VALID
     property = 0;
@@ -35,7 +43,7 @@ function int AssignTest() {
     nameVar = "NameAsString";
 
     // INVALID
-    READONLY_FIELD = 'NameLiteral';
+    NAME_CONSTANT = 'NameLiteral';
     constVar = 0;
     AssignTest = AssignTest;
     AssignTest() = 0;
@@ -46,13 +54,16 @@ function int AssignTest() {
     sqdqsd = 0;
     AssignTypeTest = none;
     class'AssignTypeTest' = self.class;
+
+    // FIXME: Type error
+    getName(enum'EEnum', enumVar);
 }
+
+function name getName(Object obj, byte index);
 
 defaultproperties
 {
-    nameVar="NameAsString"
-    nameVar=NameAsString
-    nameVar=none
+    enumVar=E_NONE
 
     vectorVar=(x=0)
     vectorVar={(
@@ -60,10 +71,17 @@ defaultproperties
 		y=0,
 	)}
 
+    nameVar="NameAsString"
+    nameVar=STRING_CONSTANT // FIXME: Is this allowed?
+    nameVar=NameAsString
+    nameVar=NAME_CONSTANT
+    nameVar=none
+
     // INVALID
+    nameVar=BYTE_CONSTANT
     nameVar='NameAsString'
-    READONLY_FIELD=0
-    myVector=0
+    NAME_CONSTANT=0
+    sVector=0
     AssignTest=0
     0=0
 }

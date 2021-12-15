@@ -4,14 +4,13 @@ import { UCDocument } from './document';
 import { intersectsWith } from './helpers';
 import { config, getEnumMember } from './indexer';
 import {
-    AssignableByIdentifierFlags, CastTypeSymbolMap, ContextInfo, CORE_PACKAGE, DefaultArray,
-    EnumCoerceFlags, findOrIndexClassSymbol, findSuperStruct, findSymbol, getSymbolHash,
-    getSymbolOuterHash, hasDefinedBaseType, Identifier, isConstSymbol, isMethodSymbol,
-    isPropertySymbol, isStateSymbol, ISymbol, ITypeSymbol, NativeClass, ObjectsTable,
-    OuterObjectsTable, resolveType, RngMethodLike, RotMethodLike, StaticBoolType, StaticByteType,
-    StaticFloatType, StaticIntType, StaticNameType, StaticNoneType, StaticRangeType,
-    StaticRotatorType, StaticStringType, StaticVectorType, tryFindClassSymbol, typeMatchesFlags,
-    UCArchetypeSymbol, UCArrayTypeSymbol, UCBaseOperatorSymbol, UCNameTypeSymbol,
+    CastTypeSymbolMap, ContextInfo, CORE_PACKAGE, DefaultArray, EnumCoerceFlags,
+    findOrIndexClassSymbol, findSuperStruct, findSymbol, getSymbolHash, getSymbolOuterHash,
+    hasDefinedBaseType, Identifier, isConstSymbol, isMethodSymbol, isPropertySymbol, isStateSymbol,
+    ISymbol, ITypeSymbol, NativeClass, ObjectsTable, OuterObjectsTable, resolveType, RngMethodLike,
+    RotMethodLike, StaticBoolType, StaticByteType, StaticFloatType, StaticIntType, StaticNameType,
+    StaticNoneType, StaticRangeType, StaticRotatorType, StaticStringType, StaticVectorType,
+    tryFindClassSymbol, typeMatchesFlags, UCArrayTypeSymbol, UCBaseOperatorSymbol, UCNameTypeSymbol,
     UCObjectTypeSymbol, UCPackage, UCQualifiedTypeSymbol, UCStructSymbol, UCSymbol,
     UCSymbolReference, UCTypeFlags, VectMethodLike
 } from './Symbols';
@@ -292,13 +291,17 @@ export class UCPropertyAccessExpression extends UCExpression {
         // DO NOT PASS @info, only our right expression needs access to @info.
         this.left.index(document, context);
 
-        const leftType = this.left.getType();
-        // Resolve meta class
-        const ref = leftType?.getRef<UCStructSymbol>();
-        const memberContext = (ref === NativeClass)
-            ? resolveType(leftType!).getRef<UCStructSymbol>()
-            : ref;
-        this.member?.index(document, memberContext, info);
+        if (this.member) {
+            const leftType = this.left.getType();
+            // Resolve meta class
+            const ref = leftType?.getRef<UCStructSymbol>();
+            const memberContext = (ref === NativeClass)
+                ? resolveType(leftType!).getRef<UCStructSymbol>()
+                : ref;
+            if (memberContext instanceof UCStructSymbol) {
+                this.member.index(document, memberContext, info);
+            }
+        }
     }
 }
 
@@ -562,11 +565,11 @@ export class UCMemberExpression extends UCExpression {
         return this.typeRef?.getRef() && this.typeRef;
     }
 
-    index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         const id = this.id.name;
 
         if (info && info.typeFlags && info.typeFlags & UCTypeFlags.Name) {
-            const label = context!.labels?.[id.hash];
+            const label = context.labels?.[id.hash];
             if (label) {
                 const nameType = new UCNameTypeSymbol(this.id);
                 this.typeRef = nameType;
@@ -612,37 +615,36 @@ export class UCMemberExpression extends UCExpression {
  * Represents an identifier in a defaultproperties block. e.g. "Class=ClassName", here "ClassName" would be represented by this expression.
  **/
 export class UCIdentifierLiteralExpression extends UCMemberExpression {
-    index(document: UCDocument, context?: UCArchetypeSymbol, info?: ContextInfo) {
-        if (!context || !info || !info.typeFlags) {
-            return;
-        } else if ((info.typeFlags & AssignableByIdentifierFlags) === 0) {
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+        if (this.typeRef) {
+            this.typeRef.index(document, context);
             return;
         }
+
+        const flags = info?.typeFlags ?? UCTypeFlags.Error;
+        if (flags === UCTypeFlags.Error) {
+            return;
+        }
+
+        // TODO: Const precedence?
 
         const id = this.id.name;
         let member: UCSymbol | undefined;
-        const expectingEnum = (info.typeFlags & EnumCoerceFlags) !== 0;
-        if (expectingEnum) {
+        if (flags & EnumCoerceFlags) {
             member = getEnumMember(id);
+        } else if (flags & UCTypeFlags.Object) {
+            member = context.findSuperSymbol(id);
+        } else {
+            // Pickup const variables...
+            member = context.findSuperSymbol(id);
         }
 
-        if (!member) {
-            const expectingClass = info.typeFlags === UCTypeFlags.Class;
-            if (expectingClass) {
-                member = tryFindClassSymbol(id);
-            }
-        }
-
-        if (!member) {
-            // const expectingDelegate = (info.typeFlags & UCTypeFlags.FunctionDelegate) !== 0;
-            // if (expectingDelegate) {
-            // }
-            member = context?.findSuperSymbol(id);
-        }
-
-        if (member) {
+        if (typeof member !== 'undefined') {
             const type = new UCObjectTypeSymbol(this.id);
-            type.setReference(member, document, ((info.typeFlags & UCTypeFlags.Name) !== 0) ? true : false);
+            type.setReference(member, document);
+            this.typeRef = type;
+        } else if (flags & UCTypeFlags.Name) {
+            const type = new UCNameTypeSymbol(this.id);
             this.typeRef = type;
         }
     }

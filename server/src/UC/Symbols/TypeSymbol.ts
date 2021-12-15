@@ -58,7 +58,7 @@ export enum UCTypeFlags {
 export const EnumValueTypeFlag              = UCTypeFlags.Byte;
 
 export const NumberCoerceFlags	            = UCTypeFlags.Float | UCTypeFlags.Int | UCTypeFlags.Byte | UCTypeFlags.Bool;
-export const EnumCoerceFlags		        = UCTypeFlags.Enum | UCTypeFlags.Int | UCTypeFlags.Byte;
+export const EnumCoerceFlags		        = (UCTypeFlags.Enum & ~UCTypeFlags.Object) | UCTypeFlags.Int | UCTypeFlags.Byte;
 
 // "None" can be passed to...
 export const NoneCoerceFlags		        = UCTypeFlags.Delegate | UCTypeFlags.Object | UCTypeFlags.Name;
@@ -69,8 +69,6 @@ export const NameCoerceFlags		        = UCTypeFlags.Name | UCTypeFlags.String | 
 // Can be coerced to type "String", if marked with "coerce".
 export const CoerceToStringFlags	        = UCTypeFlags.Name | UCTypeFlags.String | UCTypeFlags.Object | NumberCoerceFlags | UCTypeFlags.Bool | UCTypeFlags.None;
 
-// Types that can be assigned to by an identifier literal.
-export const AssignableByIdentifierFlags    = (EnumCoerceFlags | UCTypeFlags.Class | UCTypeFlags.Archetype | UCTypeFlags.Delegate) & ~Object;
 export const ObjectTypeFlags                = UCTypeFlags.Object;
 export const ReplicatableTypeFlags          = (UCTypeFlags.Function | UCTypeFlags.Property) & ~UCTypeFlags.Object;
 export const AssignToDelegateFlags          = UCTypeFlags.Delegate | (UCTypeFlags.Function & ~UCTypeFlags.Object) | UCTypeFlags.None;

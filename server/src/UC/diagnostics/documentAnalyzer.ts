@@ -17,12 +17,12 @@ import {
     UCReturnStatement, UCSwitchStatement, UCWhileStatement
 } from '../statements';
 import {
-    areMethodsCompatibleWith, AssignableByIdentifierFlags, AssignToDelegateFlags, ContextInfo,
-    isFieldSymbol, isMethodSymbol, isStateSymbol, ITypeSymbol, LengthProperty, NameCoerceFlags,
-    NativeClass, NativeEnum, NumberCoerceFlags, quoteTypeFlags, ReplicatableTypeFlags, resolveType,
-    StaticBoolType, StaticNameType, typeMatchesFlags, UCArchetypeSymbol, UCArrayTypeSymbol,
-    UCClassSymbol, UCConstSymbol, UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumSymbol,
-    UCMethodSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
+    areMethodsCompatibleWith, AssignToDelegateFlags, ContextInfo, isFieldSymbol, isMethodSymbol,
+    isStateSymbol, ITypeSymbol, LengthProperty, NameCoerceFlags, NativeClass, NativeEnum,
+    NumberCoerceFlags, quoteTypeFlags, ReplicatableTypeFlags, resolveType, StaticBoolType,
+    StaticNameType, typeMatchesFlags, UCArchetypeSymbol, UCArrayTypeSymbol, UCClassSymbol,
+    UCConstSymbol, UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumSymbol, UCMethodSymbol,
+    UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
     UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeFlags
 } from '../Symbols';
 import { DefaultSymbolWalker } from '../symbolWalker';
@@ -826,7 +826,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
             if (config.checkTypes && expr instanceof UCDefaultAssignmentExpression) {
                 // Exceptional case for Name assignments, a string can be assigned to a name in a defaultproperties block only.
                 if ((letType.getTypeFlags() & UCTypeFlags.Name)) {
-                    if ((valueFlags & NameCoerceFlags) === 0) {
+                    if ((valueFlags & (NameCoerceFlags | (UCTypeFlags.Archetype & ~UCTypeFlags.Object))) === 0) {
                         this.diagnostics.add({
                             range: expr.right.getRange(),
                             message: createTypeCannotBeAssignedToMessage(letType.getTypeFlags(), valueFlags),
@@ -864,9 +864,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                 this.pushError(expr.methodMember.getRange(), `Operation can only be applied to an array!`);
             }
         } else if (expr instanceof UCIdentifierLiteralExpression) {
-            if (!this.context || !this.state.typeFlags) {
-                return;
-            } else if ((this.state.typeFlags & AssignableByIdentifierFlags) === 0) {
+            if (!this.state.typeFlags) {
                 return;
             }
 

@@ -74,9 +74,12 @@ export const TypeToTokenTypeIndexMap = {
     [UCTypeFlags.Enum]: TokenTypesMap[SemanticTokenTypes.enum],
     [EnumValueTypeFlag]: TokenTypesMap[SemanticTokenTypes.enumMember],
     [UCTypeFlags.Function]: TokenTypesMap[SemanticTokenTypes.function],
+    [UCTypeFlags.Function | UCTypeFlags.Delegate]: TokenTypesMap[SemanticTokenTypes.function],
     [UCTypeFlags.Property]: TokenTypesMap[SemanticTokenTypes.property],
     [UCTypeFlags.Const]: TokenTypesMap[SemanticTokenTypes.property],
     [UCTypeFlags.String]: TokenTypesMap[SemanticTokenTypes.string],
+    // TODO: Custom type for archetypes?
+    [UCTypeFlags.Archetype]: TokenTypesMap[SemanticTokenTypes.property],
 };
 
 export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
