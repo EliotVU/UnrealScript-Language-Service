@@ -352,7 +352,19 @@ connection.onInitialized(() => {
 
     if (hasSemanticTokensCapability) {
         connection.languages.semanticTokens.on(e => {
-            return buildSemanticTokens(e.textDocument.uri);
+            const document = getDocumentByURI(e.textDocument.uri);
+            if (!document) {
+                return {
+                    data: []
+                };
+            }
+
+            if (!document.hasBeenIndexed) {
+                return firstValueFrom(lastIndexedDocuments$).then(() => {
+                    return buildSemanticTokens(document);
+                });
+            }
+            return buildSemanticTokens(document);
         });
         // TODO: Support range
         // connection.languages.semanticTokens.onRange(e => getSemanticTokens(e.textDocument.uri));

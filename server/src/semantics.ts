@@ -1,16 +1,9 @@
 import { SemanticTokens } from 'vscode-languageserver/node';
 
+import { UCDocument } from './UC/document';
 import { DocumentSemanticsBuilder } from './UC/documentSemanticsBuilder';
-import { getDocumentByURI } from './UC/indexer';
 
-export async function buildSemanticTokens(uri: string): Promise<SemanticTokens> {
-    const document = getDocumentByURI(uri);
-    if (!document) {
-        return {
-            data: []
-        };
-    }
-
+export async function buildSemanticTokens(document: UCDocument): Promise<SemanticTokens> {
     const walker = new DocumentSemanticsBuilder(document);
     document.accept(walker);
 
