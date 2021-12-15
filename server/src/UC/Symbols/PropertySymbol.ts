@@ -40,7 +40,6 @@ export class UCPropertySymbol extends UCFieldSymbol {
 
             if (config.generation === UCGeneration.UC3) {
                 if (isEnumSymbol(symbol)) {
-                    // FIXME: Does .EnumCount tally the *_MAX member?
                     return symbol.maxValue;
                 }
                 if (symbol instanceof UCEnumMemberSymbol) {

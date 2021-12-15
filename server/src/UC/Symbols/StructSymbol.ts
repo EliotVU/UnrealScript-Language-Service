@@ -85,6 +85,14 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
         this.labels![label.name.hash] = label;
     }
 
+    childrenCount(): number {
+        let l = 0;
+        for (let child = this.children; child; child = child.next) {
+            ++l;
+        }
+        return l;
+    }
+
 	addSymbol(symbol: UCFieldSymbol): number | undefined {
 		symbol.outer = this;
 		symbol.next = this.children;
@@ -111,7 +119,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 
 	getSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCTypeFlags): T | undefined {
 		for (let child = this.children; child; child = child.next) {
-			if (child.getName() === id) {
+			if (child.id.name === id) {
 				if (kind !== undefined && (child.getTypeFlags() & kind) === 0) {
 					continue;
 				}
@@ -120,6 +128,16 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		}
 		return undefined;
 	}
+
+    findSymbolPredicate<T extends UCFieldSymbol>(predicate: (symbol: UCFieldSymbol) => boolean): T | undefined {
+		for (let child = this.children; child; child = child.next) {
+            if (predicate(child)) {
+                return child as T;
+            }
+		}
+		return undefined;
+	}
+
 
 	findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCTypeFlags): T | undefined {
 		return this.getSymbol<T>(id, kind) ?? this.super?.findSuperSymbol(id, kind);
@@ -154,7 +172,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
  */
 export function findSuperStruct(context: UCStructSymbol, id: Name): UCStructSymbol | undefined {
 	for (let other = context.super; other; other = other.super) {
-		if (other.getName() === id) {
+		if (other.id.name === id) {
 			return other;
 		}
 	}
@@ -176,7 +194,7 @@ export function findSymbol<T extends UCFieldSymbol>(context: UCStructSymbol, id:
 	let bestChild: T | undefined = undefined;
 	for (; scope; scope = scope.super) {
 		for (let child = scope.children; child; child = child.next) {
-			if (child.getName() === id) {
+			if (child.id.name === id) {
 				if (predicate(child)) {
 					return child as T;
 				}

@@ -6,6 +6,7 @@ const BYTE_CONSTANT = 0;
 
 enum EEnum {
     E_NONE,
+    E_2,
 };
 
 var EEnum enumVar;
@@ -17,6 +18,9 @@ struct sVector {
 var sVector vectorVar;
 
 var int property;
+// FIXME: Qualified enum access
+var int dimVar[EEnum.EnumCount];
+var int dimVar[EEnum];
 var int dimVar[2];
 var const int constVar;
 var name nameVar;

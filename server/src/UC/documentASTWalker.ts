@@ -25,7 +25,7 @@ import {
     UCRngLiteral, UCRotLiteral, UCSizeOfLiteral, UCStringLiteral, UCSuperExpression, UCVectLiteral
 } from './expressions';
 import { rangeFromBound, rangeFromBounds, rangeFromCtx } from './helpers';
-import { setEnumMember } from './indexer';
+import { config, setEnumMember, UCGeneration } from './indexer';
 import { toName } from './name';
 import {
     NAME_ARRAY, NAME_CLASS, NAME_DEFAULT, NAME_DELEGATE, NAME_ENUMCOUNT, NAME_MAP, NAME_NONE,
@@ -438,16 +438,34 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 				memberSymbol.outer = symbol;
 				memberSymbol.value = count++;
 			}
-
             symbol.maxValue = count;
 
-			// Insert the compiler-generated enum member "EnumCount".
-			// TODO: Insert another generated member, e.g. NM_MAX for ENetMode
-			const enumId: Identifier = { name: NAME_ENUMCOUNT, range: symbol.getRange() };
+            if (config.generation === UCGeneration.UC3) {
+                if (symbol.children) {
+                    const prefixIndex = symbol.children.id.name.text.lastIndexOf('_');
+                    if (prefixIndex !== -1) {
+                        const prefix = symbol.children.id.name.text.substring(0, prefixIndex);
+                        const maxName = toName(prefix + "_MAX");
+                        const enumId: Identifier = { name: maxName, range: identifier.range };
+                        const maxEnumMember = new UCEnumMemberSymbol(enumId, enumId.range);
+                        maxEnumMember.modifiers |= FieldModifiers.Generated;
+                        maxEnumMember.outer = symbol;
+                        maxEnumMember.value = count;
+                        this.declare(maxEnumMember);
+                        setEnumMember(maxEnumMember);
+                    }
+                }
+            }
+
+			// Insert the intrinsic "EnumCount" as an enum member,
+            // -- but don't register it, we don't want to index, nor link it in the linked children..
+			const enumId: Identifier = { name: NAME_ENUMCOUNT, range: identifier.range };
 			const enumCountMember = new UCEnumMemberSymbol(enumId, enumId.range);
-			this.declare(enumCountMember);
+            enumCountMember.modifiers |= FieldModifiers.Intrinsic;
+            // FIXME: Is this worth it? This allows an end-user to find all its references.
 			enumCountMember.outer = symbol;
 			enumCountMember.value = count;
+            symbol.enumCountMember = enumCountMember;
         } finally {
 			this.pop();
 		}

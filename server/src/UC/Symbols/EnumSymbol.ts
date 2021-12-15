@@ -1,11 +1,16 @@
 import { CompletionItemKind, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
+import { Name } from '../name';
+import { NAME_ENUMCOUNT } from '../names';
 import { SymbolWalker } from '../symbolWalker';
-import { ISymbol, UCStructSymbol, UCTypeFlags } from './';
+import { ISymbol, UCEnumMemberSymbol, UCFieldSymbol, UCStructSymbol, UCTypeFlags } from './';
 
 export class UCEnumSymbol extends UCStructSymbol {
+    /** Excludes E_MAX */
     public maxValue: number;
+
+    public enumCountMember: UCEnumMemberSymbol;
 
 	isProtected(): boolean {
 		return true;
@@ -34,7 +39,15 @@ export class UCEnumSymbol extends UCStructSymbol {
 				symbols.push(child);
 			}
 		}
+        symbols.push(this.enumCountMember);
 		return symbols as C[];
+	}
+
+    getSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCTypeFlags): T | undefined {
+        if (id === NAME_ENUMCOUNT) {
+            return this.enumCountMember as unknown as T;
+        }
+        return super.getSymbol(id, kind);
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result | void {

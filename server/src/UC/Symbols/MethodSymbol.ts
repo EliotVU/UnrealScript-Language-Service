@@ -290,24 +290,23 @@ export function areMethodsCompatibleWith(a: UCMethodSymbol, b: UCMethodSymbol): 
         return true;
     }
 
-    if (typeof a.params === 'undefined') {
-        return typeof b.params === 'undefined';
-    }
-    if (typeof b.params === 'undefined') {
-        return false;
-    }
-    if (a.params.length !== b.params.length) {
-        return false;
-    }
-    for (let i = 0; i < a.params.length; ++i) {
-        if (a.params[i].getType()?.getTypeFlags() === b.params[i].getType()?.getTypeFlags()) {
-            continue;
+    if (a.returnValue && b.returnValue) {
+        if (a.returnValue.getType()?.getTypeFlags() !== b.returnValue.getType()?.getTypeFlags()) {
+            return false;
         }
-        return false;
     }
-    if (typeof a.returnValue === 'undefined') {
-        return typeof b.returnValue === 'undefined';
+
+    if (a.params && b.params) {
+        if (a.params.length !== b.params.length) {
+            return false;
+        }
+
+        for (let i = 0; i < a.params.length; ++i) {
+            if (a.params[i].getType()?.getTypeFlags() === b.params[i].getType()?.getTypeFlags()) {
+                continue;
+            }
+            return false;
+        }
     }
-    return typeof b.returnValue !== 'undefined'
-            && a.returnValue.getType()?.getTypeFlags() === b.returnValue.getType()?.getTypeFlags();
+    return typeof a.params === typeof b.params && typeof a.returnValue === typeof b.returnValue;
 }

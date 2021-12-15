@@ -36,7 +36,7 @@
 	},
 
     "CLASS_0_IS_NOT_AN_INTERFACE": {
-		"text": "Class '{0}' is not an interface",
+		"text": "Class '{0}' is not an interface.",
 		"code": "6",
 		"severity": 1
 	},

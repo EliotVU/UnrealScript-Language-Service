@@ -136,7 +136,9 @@ export class DefaultSymbolWalker<T> implements SymbolWalker<T> {
 	}
 
 	visitEnum(symbol: UCEnumSymbol) {
-		return this.visitStructBase(symbol);
+        for (let child = symbol.children; child; child = child.next) {
+			child.accept(this);
+		}
 	}
 
 	visitEnumMember(symbol: UCEnumMemberSymbol) {

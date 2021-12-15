@@ -10,7 +10,7 @@ import {
     UCPropertyAccessExpression, UCSuperExpression
 } from '../expressions';
 import { config, UCGeneration } from '../indexer';
-import { NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
+import { NAME_ENUMCOUNT, NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
 import {
     UCAssertStatement, UCBlock, UCCaseClause, UCDoUntilStatement, UCExpressionStatement,
     UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement, UCRepIfStatement,
@@ -21,8 +21,8 @@ import {
     isStateSymbol, ITypeSymbol, LengthProperty, NameCoerceFlags, NativeClass, NativeEnum,
     NumberCoerceFlags, quoteTypeFlags, ReplicatableTypeFlags, resolveType, StaticBoolType,
     StaticNameType, typeMatchesFlags, UCArchetypeSymbol, UCArrayTypeSymbol, UCClassSymbol,
-    UCConstSymbol, UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumSymbol, UCMethodSymbol,
-    UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
+    UCConstSymbol, UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol,
+    UCMethodSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
     UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeFlags
 } from '../Symbols';
 import { DefaultSymbolWalker } from '../symbolWalker';
@@ -169,7 +169,54 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
     }
 
     visitEnum(symbol: UCEnumSymbol) {
-        // Do nothing, we don't have any useful analytics for enum declarations yet!
+        if (typeof symbol.children === 'undefined') {
+            this.diagnostics.add({
+                range: symbol.getRange(),
+                message: {
+                    text: `Enumeration must contain at least one enumerator.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+            return;
+        }
+
+        this.pushScope(symbol);
+        super.visitEnum(symbol);
+        this.popScope();
+    }
+
+    visitEnumMember(symbol: UCEnumMemberSymbol) {
+        const enumSymbol = this.context as UCEnumSymbol;
+        // The compiler interprets NAME_None as not found, and NAME_ENUMCOUNT is always preceded.
+        if (symbol.id.name === NAME_ENUMCOUNT || symbol.id.name === NAME_NONE) {
+            this.diagnostics.add({
+                range: symbol.id.range,
+                message: {
+                    text: `Enumeration tag '${symbol.getName().text}' is obscured by keyword ${symbol.getName().text}.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+            return;
+        }
+
+        const duplicateEnumerator = enumSymbol.findSymbolPredicate(s => s.id.name === symbol.id.name && s !== symbol);
+        if (typeof duplicateEnumerator !== 'undefined') {
+            this.diagnostics.add({
+                range: symbol.id.range,
+                message: {
+                    text: `Duplicate enumeration tag '${symbol.getName().text}'.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+        } else if (symbol.value > 255) {
+            this.diagnostics.add({
+                range: symbol.id.range,
+                message: {
+                    text: `Exceeded maximum of 255 enumerators.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+        }
     }
 
     visitScriptStruct(symbol: UCScriptStructSymbol) {
@@ -206,7 +253,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                 this.diagnostics.add({
                     range: symbol.arrayDimRange,
                     message: {
-                        text: `Illegal array size, must be between 2-2048`,
+                        text: `Illegal array size, must be between 2-2048.`,
                         severity: DiagnosticSeverity.Error
                     }
                 });
@@ -226,7 +273,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                     this.diagnostics.add({
                         range: baseType.id.range,
                         message: {
-                            text: `Illegal array type '${baseType.id.name.text}'`,
+                            text: `Illegal array type '${baseType.id.name.text}'.`,
                             severity: DiagnosticSeverity.Error
                         }
                     });

@@ -13,6 +13,7 @@ export * from './CoreSymbols';
 
 // HACK: Not truly an uc object, but since NativeArray has psuedo properties, it's a convencience to re-use the struct's features.
 export const NativeArray = new UCStructSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });
+NativeArray.modifiers |= FieldModifiers.Intrinsic;
 
 export const LengthProperty = new UCPropertySymbol({ name: toName('Length'), range: DEFAULT_RANGE });
 LengthProperty.type = StaticIntType;

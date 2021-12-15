@@ -454,8 +454,9 @@ function setupIgnoredTokens(generation: UCGeneration) {
     if (generation === UCGeneration.UC3) {
         ignoredTokensSet.add(UCLexer.KW_CPPSTRUCT);
     } else {
-        // Some custom UE2 builds do have implements
+        // Some custom UE2 builds do have implements and interface
         ignoredTokensSet.add(UCLexer.KW_IMPLEMENTS);
+        ignoredTokensSet.add(UCLexer.KW_INTERFACE);
 
         ignoredTokensSet.add(UCLexer.KW_STRUCTDEFAULTPROPERTIES);
         ignoredTokensSet.add(UCLexer.KW_STRUCTCPPTEXT);
