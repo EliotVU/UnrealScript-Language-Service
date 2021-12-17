@@ -5,32 +5,28 @@ import { SymbolWalker } from '../symbolWalker';
 import {
     ISymbol, UCMethodSymbol, UCPropertySymbol, UCStructSymbol, UCSymbol, UCTypeFlags
 } from './';
-import { FieldModifiers } from './FieldSymbol';
+import { ModifierFlags } from './FieldSymbol';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
-    modifiers = FieldModifiers.ReadOnly;
+    override modifiers = ModifierFlags.ReadOnly;
 
-	isProtected(): boolean {
-		return true;
-	}
-
-	getKind(): SymbolKind {
+	override getKind(): SymbolKind {
 		return SymbolKind.Struct;
 	}
 
-	getTypeFlags() {
+	override getTypeFlags() {
 		return UCTypeFlags.Struct;
 	}
 
-	getCompletionItemKind(): CompletionItemKind {
+	override getCompletionItemKind(): CompletionItemKind {
 		return CompletionItemKind.Struct;
 	}
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		return `struct ${this.getPath()}`;
 	}
 
-    getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, type?: UCTypeFlags) {
+    override getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, type?: UCTypeFlags) {
 		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
 			if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
@@ -58,15 +54,15 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return symbols as C[];
 	}
 
-	acceptCompletion(_document: UCDocument, context: UCSymbol): boolean {
+	override acceptCompletion(_document: UCDocument, context: UCSymbol): boolean {
 		return (context instanceof UCPropertySymbol || context instanceof UCMethodSymbol);
 	}
 
-	index(document: UCDocument, _context: UCStructSymbol) {
+	override index(document: UCDocument, _context: UCStructSymbol) {
 		super.index(document, this);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitScriptStruct(this);
 	}
 }

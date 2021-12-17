@@ -18,6 +18,7 @@ import {
     DefaultIgnoredTokensSet, getCompletableSymbolItems, getFullCompletionItem, getSignatureHelp,
     setIgnoredTokensSet
 } from './completion';
+import { getDiagnostics } from './diagnostics';
 import { getHighlights } from './documentHighlight';
 import { getSymbols } from './documentSymbol';
 import { getReferences } from './references';
@@ -35,7 +36,7 @@ import {
 } from './UC/indexer';
 import { toName } from './UC/name';
 import {
-    addHashedSymbol, DEFAULT_RANGE, FieldModifiers, isClassSymbol, isFieldSymbol, ISymbol,
+    addHashedSymbol, DEFAULT_RANGE, isClassSymbol, isFieldSymbol, ISymbol, ModifierFlags,
     NativeArray, ObjectsTable, supportsRef, UCClassSymbol, UCMethodSymbol, UCObjectTypeSymbol,
     UCSymbol, UCTypeFlags
 } from './UC/Symbols';
@@ -182,7 +183,7 @@ connection.onInitialized(() => {
 
             for (const document of documents) {
                 try {
-                    const diagnostics = document.analyze();
+                    const diagnostics = getDiagnostics(document);
                     connection.sendDiagnostics({
                         uri: document.uri,
                         diagnostics
@@ -522,7 +523,7 @@ connection.onPrepareRename(async (e) => {
         if (isClassSymbol(symbolRef)) {
             throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename a class!');
         }
-        if (symbolRef.modifiers & FieldModifiers.Intrinsic)  {
+        if (symbolRef.modifiers & ModifierFlags.Intrinsic)  {
             throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
         }
     } else {

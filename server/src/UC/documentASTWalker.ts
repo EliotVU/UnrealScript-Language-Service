@@ -38,16 +38,16 @@ import {
     UCSwitchStatement, UCWhileStatement
 } from './statements';
 import {
-    addHashedSymbol, FieldModifiers, Identifier, ISymbol, ISymbolContainer, ITypeSymbol,
-    MethodSpecifiers, ParamModifiers, ReturnValueIdentifier, UCArchetypeSymbol, UCArrayTypeSymbol,
-    UCBinaryOperatorSymbol, UCBoolTypeSymbol, UCButtonTypeSymbol, UCByteTypeSymbol, UCClassSymbol,
-    UCConstSymbol, UCDefaultPropertiesBlock, UCDelegateSymbol, UCDelegateTypeSymbol,
-    UCDocumentClassSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCEventSymbol, UCFloatTypeSymbol,
-    UCIntTypeSymbol, UCLocalSymbol, UCMapTypeSymbol, UCMethodSymbol, UCNameTypeSymbol,
-    UCObjectTypeSymbol, UCParamSymbol, UCPointerTypeSymbol, UCPostOperatorSymbol,
-    UCPredefinedTypeSymbol, UCPreOperatorSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
-    UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStringTypeSymbol, UCStructSymbol,
-    UCSymbol, UCSymbolReference, UCTypeFlags
+    addHashedSymbol, Identifier, ISymbol, ISymbolContainer, ITypeSymbol, MethodFlags, ModifierFlags,
+    ReturnValueIdentifier, UCArchetypeSymbol, UCArrayTypeSymbol, UCBinaryOperatorSymbol,
+    UCBoolTypeSymbol, UCButtonTypeSymbol, UCByteTypeSymbol, UCClassSymbol, UCConstSymbol,
+    UCDefaultPropertiesBlock, UCDelegateSymbol, UCDelegateTypeSymbol, UCDocumentClassSymbol,
+    UCEnumMemberSymbol, UCEnumSymbol, UCEventSymbol, UCFloatTypeSymbol, UCIntTypeSymbol,
+    UCLocalSymbol, UCMapTypeSymbol, UCMethodSymbol, UCNameTypeSymbol, UCObjectTypeSymbol,
+    UCParamSymbol, UCPointerTypeSymbol, UCPostOperatorSymbol, UCPredefinedTypeSymbol,
+    UCPreOperatorSymbol, UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock,
+    UCScriptStructSymbol, UCStateSymbol, UCStringTypeSymbol, UCStructSymbol, UCSymbol,
+    UCSymbolReference, UCTypeFlags
 } from './Symbols';
 
 function idFromCtx(ctx: ParserRuleContext) {
@@ -448,7 +448,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                         const maxName = toName(prefix + "_MAX");
                         const enumId: Identifier = { name: maxName, range: identifier.range };
                         const maxEnumMember = new UCEnumMemberSymbol(enumId, enumId.range);
-                        maxEnumMember.modifiers |= FieldModifiers.Generated;
+                        maxEnumMember.modifiers |= ModifierFlags.Generated;
                         maxEnumMember.outer = symbol;
                         maxEnumMember.value = count;
                         this.declare(maxEnumMember);
@@ -461,7 +461,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             // -- but don't register it, we don't want to index, nor link it in the linked children..
 			const enumId: Identifier = { name: NAME_ENUMCOUNT, range: identifier.range };
 			const enumCountMember = new UCEnumMemberSymbol(enumId, enumId.range);
-            enumCountMember.modifiers |= FieldModifiers.Intrinsic;
+            enumCountMember.modifiers |= ModifierFlags.Intrinsic;
             // FIXME: Is this worth it? This allows an end-user to find all its references.
 			enumCountMember.outer = symbol;
 			enumCountMember.value = count;
@@ -531,76 +531,76 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	visitFunctionDecl(ctx: UCGrammar.FunctionDeclContext) {
 		const nameNode: UCGrammar.FunctionNameContext | undefined = ctx.functionName();
 
-		let modifiers: FieldModifiers = 0;
-		let specifiers: MethodSpecifiers = MethodSpecifiers.None;
+		let modifiers: ModifierFlags = 0;
+		let specifiers: MethodFlags = MethodFlags.None;
 		let precedence: number | undefined;
 
 		const specifierNodes = ctx.functionSpecifier();
 		for (const specifier of specifierNodes) {
 			switch (specifier.start.type) {
 				case UCGrammar.UCParser.KW_NATIVE:
-					modifiers |= FieldModifiers.Native;
+					modifiers |= ModifierFlags.Native;
 					break;
 				case UCGrammar.UCParser.KW_INTRINSIC:
-					modifiers |= FieldModifiers.Native;
+					modifiers |= ModifierFlags.Native;
 					break;
 				case UCGrammar.UCParser.KW_CONST:
-					modifiers |= FieldModifiers.ReadOnly;
+					modifiers |= ModifierFlags.ReadOnly;
 					break;
 				case UCGrammar.UCParser.KW_PROTECTED:
-					modifiers |= FieldModifiers.Protected;
+					modifiers |= ModifierFlags.Protected;
 					break;
 				case UCGrammar.UCParser.KW_PRIVATE:
-					modifiers |= FieldModifiers.Private;
+					modifiers |= ModifierFlags.Private;
 					break;
 				case UCGrammar.UCParser.KW_FUNCTION:
-					specifiers |= MethodSpecifiers.Function;
+					specifiers |= MethodFlags.Function;
 					break;
 				case UCGrammar.UCParser.KW_OPERATOR:
-					specifiers |= MethodSpecifiers.Operator;
+					specifiers |= MethodFlags.Operator;
 					if (specifier._operatorPrecedence) {
 						precedence = Number(specifier._operatorPrecedence.text);
 					}
 					break;
 				case UCGrammar.UCParser.KW_PREOPERATOR:
-					specifiers |= MethodSpecifiers.PreOperator;
+					specifiers |= MethodFlags.PreOperator;
 					break;
 				case UCGrammar.UCParser.KW_POSTOPERATOR:
-					specifiers |= MethodSpecifiers.PostOperator;
+					specifiers |= MethodFlags.PostOperator;
 					break;
 				case UCGrammar.UCParser.KW_DELEGATE:
-					specifiers |= MethodSpecifiers.Delegate;
+					specifiers |= MethodFlags.Delegate;
 					break;
 				case UCGrammar.UCParser.KW_EVENT:
-					specifiers |= MethodSpecifiers.Event;
+					specifiers |= MethodFlags.Event;
 					break;
 				case UCGrammar.UCParser.KW_STATIC:
-					specifiers |= MethodSpecifiers.Static;
+					specifiers |= MethodFlags.Static | MethodFlags.Final;
 					break;
 				case UCGrammar.UCParser.KW_FINAL:
-					specifiers |= MethodSpecifiers.Final;
+					specifiers |= MethodFlags.Final;
 					break;
 				case UCGrammar.UCParser.KW_TRANSIENT:
-					modifiers |= FieldModifiers.Transient;
+					modifiers |= ModifierFlags.Transient;
 					break;
 			}
 		}
 
-		const type = (specifiers & MethodSpecifiers.Function)
+		const type = (specifiers & MethodFlags.Function)
 			? UCMethodSymbol
-			: (specifiers & MethodSpecifiers.Event)
+			: (specifiers & MethodFlags.Event)
 			? UCEventSymbol
-			: (specifiers & MethodSpecifiers.Operator)
+			: (specifiers & MethodFlags.Operator)
 			? UCBinaryOperatorSymbol
-			: (specifiers & MethodSpecifiers.PreOperator)
+			: (specifiers & MethodFlags.PreOperator)
 			? UCPreOperatorSymbol
-			: (specifiers & MethodSpecifiers.PostOperator)
+			: (specifiers & MethodFlags.PostOperator)
 			? UCPostOperatorSymbol
-			: (specifiers & MethodSpecifiers.Delegate)
+			: (specifiers & MethodFlags.Delegate)
 			? UCDelegateSymbol
 			: UCMethodSymbol;
 
-		if ((specifiers & MethodSpecifiers.HasKind) === 0) {
+		if ((specifiers & MethodFlags.HasKind) === 0) {
 			this.document.nodes.push(new ErrorDiagnostic(rangeFromBound(ctx.start),
 				`Method must be declared as either one of the following: (Function, Event, Operator, PreOperator, PostOperator, or Delegate).`
 			));
@@ -622,16 +622,16 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 		this.push(symbol);
 		try {
 			if (ctx._returnParam) {
-				let paramModifiers: ParamModifiers = ParamModifiers.ReturnParam;
+				let paramModifiers: ModifierFlags = ModifierFlags.ReturnParam | ModifierFlags.Out;
 				const modifierNode = ctx._returnParam.returnTypeModifier();
 				if (modifierNode?.start.type === UCGrammar.UCParser.KW_COERCE) {
-					paramModifiers |= ParamModifiers.Coerce;
+					paramModifiers |= ModifierFlags.Coerce;
 				}
 
 				const typeSymbol = this.visitTypeDecl(ctx._returnParam.typeDecl());
 				const returnValue = new UCParamSymbol(ReturnValueIdentifier, rangeFromBounds(ctx.start, ctx.stop));
 				returnValue.type = typeSymbol;
-				returnValue.paramModifiers |= paramModifiers;
+				returnValue.modifiers |= paramModifiers;
 
 				this.declare(returnValue);
 				symbol.returnValue = returnValue;
@@ -682,25 +682,24 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	}
 
 	visitParamDecl(ctx: UCGrammar.ParamDeclContext) {
-		let modifiers: FieldModifiers = 0;
-		let paramModifiers: ParamModifiers = 0;
+		let modifiers: ModifierFlags = 0;
 		const modifierNodes = ctx.paramModifier();
 		for (const modNode of modifierNodes) {
 			switch (modNode.start.type) {
 				case UCGrammar.UCParser.KW_CONST:
-					modifiers |= FieldModifiers.ReadOnly;
+					modifiers |= ModifierFlags.ReadOnly;
 					break;
 				case UCGrammar.UCParser.KW_OUT:
-					paramModifiers |= ParamModifiers.Out;
+					modifiers |= ModifierFlags.Out;
 					break;
 				case UCGrammar.UCParser.KW_OPTIONAL:
-					paramModifiers |= ParamModifiers.Optional;
+					modifiers |= ModifierFlags.Optional;
 					break;
 				case UCGrammar.UCParser.KW_COERCE:
-					paramModifiers |= ParamModifiers.Coerce;
+					modifiers |= ModifierFlags.Coerce;
 					break;
 				case UCGrammar.UCParser.KW_REF:
-					paramModifiers |= ParamModifiers.Ref;
+					modifiers |= ModifierFlags.Ref;
 					break;
 			}
 		}
@@ -715,10 +714,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 		symbol.type = typeSymbol;
 		if (ctx._expr) {
 			symbol.defaultExpression = ctx._expr.accept(this);
-			paramModifiers |= ParamModifiers.Optional;
+			modifiers |= ModifierFlags.Optional;
 		}
 		symbol.modifiers |= modifiers;
-		symbol.paramModifiers |= paramModifiers;
 
 		this.initVariable(symbol, varNode);
 		this.declare(symbol, ctx);
@@ -731,7 +729,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 			return;
 		}
 
-		property.modifiers |= FieldModifiers.WithDimension;
+		property.modifiers |= ModifierFlags.WithDimension;
 
 		const qualifiedNode = arrayDimNode.qualifiedIdentifier();
 		if (qualifiedNode) {
@@ -761,7 +759,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	}
 
 	visitVarDecl(ctx: UCGrammar.VarDeclContext) {
-        let modifiers: FieldModifiers = 0;
+        let modifiers: ModifierFlags = 0;
 
 		const declTypeNode: UCGrammar.VarTypeContext | undefined = ctx.varType();
 		if (typeof declTypeNode !== 'undefined') {
@@ -769,23 +767,22 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             for (const modNode of modifierNodes) {
                 switch (modNode.start.type) {
                     case UCGrammar.UCParser.KW_CONST:
-                        modifiers |= FieldModifiers.ReadOnly;
+                        modifiers |= ModifierFlags.ReadOnly;
                         break;
                     case UCGrammar.UCParser.KW_NATIVE:
-                        modifiers |= FieldModifiers.Native;
+                        modifiers |= ModifierFlags.Native;
                         break;
                     case UCGrammar.UCParser.KW_INTRINSIC:
-                        modifiers |= FieldModifiers.Native;
+                        modifiers |= ModifierFlags.Native;
                         break;
                     case UCGrammar.UCParser.KW_PROTECTED:
-                        modifiers |= FieldModifiers.Protected;
+                        modifiers |= ModifierFlags.Protected;
                         break;
                     case UCGrammar.UCParser.KW_PRIVATE:
-                        modifiers |= FieldModifiers.Private;
+                        modifiers |= ModifierFlags.Private;
                         break;
-                    case UCGrammar.UCParser.KW_DUPLICATETRANSIENT:
                     case UCGrammar.UCParser.KW_TRANSIENT:
-                        modifiers |= FieldModifiers.Transient;
+                        modifiers |= ModifierFlags.Transient;
                         break;
                 }
             }

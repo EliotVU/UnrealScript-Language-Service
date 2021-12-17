@@ -4,7 +4,8 @@ import { UCDocument } from '../document';
 import { config, UCGeneration } from '../indexer';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ISymbol, ITypeSymbol, UCEnumMemberSymbol, UCFieldSymbol, UCStructSymbol, UCSymbol, UCTypeFlags
+    ISymbol, ITypeSymbol, ModifierFlags, UCEnumMemberSymbol, UCFieldSymbol, UCStructSymbol,
+    UCSymbol, UCTypeFlags
 } from './';
 import { isConstSymbol, isEnumSymbol, UCArrayTypeSymbol } from './TypeSymbol';
 
@@ -50,23 +51,23 @@ export class UCPropertySymbol extends UCFieldSymbol {
         return this.arrayDim;
     }
 
-    getKind(): SymbolKind {
+    override getKind(): SymbolKind {
         return SymbolKind.Property;
     }
 
-    getTypeFlags() {
+    override getTypeFlags() {
         return UCTypeFlags.Property;
     }
 
-    getType() {
+    override getType() {
         return this.type;
     }
 
-    getCompletionItemKind(): CompletionItemKind {
+    override getCompletionItemKind(): CompletionItemKind {
         return CompletionItemKind.Property;
     }
 
-    protected getTypeKeyword() {
+    protected override getTypeKeyword() {
         return 'var';
     }
 
@@ -74,17 +75,17 @@ export class UCPropertySymbol extends UCFieldSymbol {
         return this.getPath();
     }
 
-    protected buildModifiers(): string[] {
-        const text = super.buildModifiers();
+    override buildModifiers(modifiers = this.modifiers): string[] {
+        const text = super.buildModifiers(modifiers);
 
-        if (this.isReadOnly()) {
+        if (modifiers & ModifierFlags.ReadOnly) {
             text.push('const');
         }
 
         return text;
     }
 
-    getTooltip() {
+    override getTooltip() {
         const text: Array<string | undefined> = [];
 
         text.push(this.getTypeKeyword());
@@ -103,11 +104,11 @@ export class UCPropertySymbol extends UCFieldSymbol {
         return text.filter(s => s).join(' ');
     }
 
-    getContainedSymbolAtPos(position: Position) {
+    override getContainedSymbolAtPos(position: Position) {
         return this.type?.getSymbolAtPos(position) || this.arrayDimRef?.getSymbolAtPos(position);
     }
 
-    getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: string, kind?: UCTypeFlags): C[] {
+    override getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: string, kind?: UCTypeFlags): C[] {
         if (context === '.') {
             const resolvedType = this.type?.getRef();
             if (resolvedType instanceof UCSymbol) {
@@ -121,14 +122,14 @@ export class UCPropertySymbol extends UCFieldSymbol {
         return [];
     }
 
-    public index(document: UCDocument, context: UCStructSymbol) {
+    override index(document: UCDocument, context: UCStructSymbol) {
         super.index(document, context);
 
         this.type?.index(document, context);
         this.arrayDimRef?.index(document, context);
     }
 
-    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+    override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
         return visitor.visitProperty(this);
     }
 }

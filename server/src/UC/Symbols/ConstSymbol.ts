@@ -4,10 +4,10 @@ import { UCDocument } from '../document';
 import { IExpression } from '../expressions';
 import { SymbolWalker } from '../symbolWalker';
 import { UCFieldSymbol, UCStructSymbol, UCTypeFlags } from './';
-import { FieldModifiers } from './FieldSymbol';
+import { ModifierFlags } from './FieldSymbol';
 
 export class UCConstSymbol extends UCFieldSymbol {
-    modifiers = FieldModifiers.ReadOnly;
+    override modifiers = ModifierFlags.ReadOnly;
 
 	public expression?: IExpression;
 
@@ -15,27 +15,23 @@ export class UCConstSymbol extends UCFieldSymbol {
 		return this.expression?.getValue();
 	}
 
-	isProtected(): boolean {
-		return true;
-	}
-
-	getKind(): SymbolKind {
+	override getKind(): SymbolKind {
 		return SymbolKind.Constant;
 	}
 
-    getType() {
+    override getType() {
         return this.expression?.getType();
     }
 
-	getTypeFlags() {
+	override getTypeFlags() {
 		return UCTypeFlags.Const;
 	}
 
-	getCompletionItemKind(): CompletionItemKind {
+	override getCompletionItemKind(): CompletionItemKind {
 		return CompletionItemKind.Constant;
 	}
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		const text = `const ${this.getPath()}`;
         const value = this.getComputedValue();
         if (typeof value === 'number') {
@@ -44,16 +40,16 @@ export class UCConstSymbol extends UCFieldSymbol {
 		return text;
 	}
 
-	getContainedSymbolAtPos(position: Position) {
+	override getContainedSymbolAtPos(position: Position) {
 		return this.expression?.getSymbolAtPos(position) || super.getContainedSymbolAtPos(position);
 	}
 
-	public index(document: UCDocument, context: UCStructSymbol) {
+	override index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
 		this.expression?.index(document, context);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitConst(this);
 	}
 }

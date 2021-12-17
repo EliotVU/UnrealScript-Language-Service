@@ -12,8 +12,8 @@ import {
 } from './expressions';
 import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from './statements';
 import {
-    EnumValueTypeFlag, FieldModifiers, Identifier, isFieldSymbol, isMethodSymbol, isParamSymbol,
-    ISymbol, MethodSpecifiers, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbol,
+    EnumValueTypeFlag, Identifier, isFieldSymbol, isMethodSymbol, isParamSymbol, ISymbol,
+    MethodFlags, ModifierFlags, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbol,
     UCTypeFlags
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
@@ -127,15 +127,15 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
             if (typeof type !== 'undefined') {
                 let modifiers = 0;
                 if (isFieldSymbol(symbol)) {
-                    if (symbol.modifiers & FieldModifiers.ReadOnly) {
+                    if (symbol.modifiers & ModifierFlags.ReadOnly) {
                         modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.readonly];
                     }
-                    if (symbol.modifiers & FieldModifiers.Intrinsic) {
+                    if (symbol.modifiers & ModifierFlags.Intrinsic) {
                         modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.defaultLibrary];
                     }
 
                     if (isMethodSymbol(symbol)) {
-                        if (symbol.specifiers & MethodSpecifiers.Static) {
+                        if (symbol.specifiers & MethodFlags.Static) {
                             modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.static];
                         }
 
@@ -143,7 +143,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
                         // if (ref.modifiers & FieldModifiers.Intrinsic) {
                         //     type = TokenTypesMap[SemanticTokenTypes.keyword];
                         // }
-                        if (symbol.specifiers & MethodSpecifiers.OperatorKind) {
+                        if (symbol.specifiers & MethodFlags.OperatorKind) {
                             type = TokenTypesMap[SemanticTokenTypes.operator];
                         }
                     }

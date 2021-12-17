@@ -9,19 +9,19 @@ export class UCStateSymbol extends UCStructSymbol {
 	public overriddenState?: UCStateSymbol;
 	public ignoreRefs?: UCSymbolReference[];
 
-	getKind(): SymbolKind {
+	override getKind(): SymbolKind {
 		return SymbolKind.Namespace;
 	}
 
-	getTypeFlags() {
+	override getTypeFlags() {
 		return UCTypeFlags.State;
 	}
 
-	getTypeKeyword(): string {
+	override getTypeKeyword(): string {
 		return 'state';
 	}
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		const text: Array<string | undefined> = [];
 
 		if (this.overriddenState) {
@@ -37,7 +37,7 @@ export class UCStateSymbol extends UCStructSymbol {
 		return text.filter(s => s).join(' ');
 	}
 
-	getContainedSymbolAtPos(position: Position) {
+	override getContainedSymbolAtPos(position: Position) {
 		if (this.ignoreRefs) {
 			const symbol = this.ignoreRefs.find(ref => !!(ref.getSymbolAtPos(position)));
 			if (symbol) {
@@ -47,12 +47,12 @@ export class UCStateSymbol extends UCStructSymbol {
 		return super.getContainedSymbolAtPos(position);
 	}
 
-	findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: SymbolKind) {
+	override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: SymbolKind) {
 		const symbol = super.findSuperSymbol<T>(id, kind) || (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
 		return symbol;
 	}
 
-	index(document: UCDocument, context: UCStructSymbol) {
+	override index(document: UCDocument, context: UCStructSymbol) {
 		// Look for an overridden state, e.g. "state Pickup {}" would override "Pickup" of "Pickup.uc".
 		if (!this.super && context.super) {
 			// TODO: If truthy, should "extends ID" be disallowed? Need to investigate how UMake handles this situation.
@@ -73,7 +73,7 @@ export class UCStateSymbol extends UCStructSymbol {
 		}
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitState(this);
 	}
 }

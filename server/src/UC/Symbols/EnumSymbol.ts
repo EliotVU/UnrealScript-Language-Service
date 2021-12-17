@@ -12,10 +12,6 @@ export class UCEnumSymbol extends UCStructSymbol {
 
     public enumCountMember: UCEnumMemberSymbol;
 
-	isProtected(): boolean {
-		return true;
-	}
-
 	getKind(): SymbolKind {
 		return SymbolKind.Enum;
 	}

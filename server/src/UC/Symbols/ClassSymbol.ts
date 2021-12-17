@@ -4,12 +4,12 @@ import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    FieldModifiers, Identifier, ISymbol, ITypeSymbol, UCObjectTypeSymbol, UCQualifiedTypeSymbol,
+    Identifier, ISymbol, ITypeSymbol, ModifierFlags, UCObjectTypeSymbol, UCQualifiedTypeSymbol,
     UCStructSymbol, UCTypeFlags
 } from './';
 
 export class UCClassSymbol extends UCStructSymbol {
-	modifiers = FieldModifiers.ReadOnly;
+	override modifiers = ModifierFlags.ReadOnly;
 
 	public withinType?: ITypeSymbol;
 
@@ -24,27 +24,27 @@ export class UCClassSymbol extends UCStructSymbol {
         return (this.typeFlags & UCTypeFlags.Interface) === UCTypeFlags.Interface;
     }
 
-	getKind(): SymbolKind {
+	override getKind(): SymbolKind {
 		return this.isInterface()
             ? SymbolKind.Interface
             : SymbolKind.Class;
 	}
 
-	getTypeFlags() {
+	override getTypeFlags() {
 		return this.typeFlags;
 	}
 
-	getCompletionItemKind(): CompletionItemKind {
+	override getCompletionItemKind(): CompletionItemKind {
 		return this.isInterface()
             ? CompletionItemKind.Interface
             : CompletionItemKind.Class;
 	}
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		return `class ${this.getPath()}`;
 	}
 
-	getSymbolAtPos(position: Position) {
+	override getSymbolAtPos(position: Position) {
 		if (intersectsWith(this.getRange(), position)) {
 			if (intersectsWithRange(position, this.id.range)) {
 				return this;
@@ -55,7 +55,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		return this.getChildSymbolAtPos(position);
 	}
 
-	getContainedSymbolAtPos(position: Position) {
+	override getContainedSymbolAtPos(position: Position) {
 		let symbol: ISymbol | undefined = undefined;
 		if (this.extendsType && (symbol = this.extendsType.getSymbolAtPos(position))) {
 			return symbol;
@@ -87,7 +87,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
-	index(document: UCDocument, context: UCClassSymbol) {
+	override index(document: UCDocument, context: UCClassSymbol) {
 		if (this.withinType) {
 			this.withinType.index(document, context);
 
@@ -110,7 +110,7 @@ export class UCClassSymbol extends UCStructSymbol {
 		super.index(document, context);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitClass(this);
 	}
 }

@@ -5,33 +5,49 @@ import { intersectsWith, intersectsWithRange } from '../helpers';
 import { Identifier, ISymbol, ITypeSymbol, UCStructSymbol, UCSymbol } from './';
 import { SymbolReference } from './ISymbol';
 
-export enum FieldModifiers {
+export enum ModifierFlags {
 	None 				= 0x0000,
-	Protected 			= 0x0001,
-	Private 			= 0x0002,
-	Native 				= 0x0004,
-	ReadOnly 			= 0x0008,
-	WithDimension		= 0x0010,
-    // Not to be confused with the alternative keyword of "Native"
-    Intrinsic           = 0x0020,
-    Generated           = 0x0040,
-    Transient           = 0x0080,
+
+    // PropertyFlags
+	Protected 			= 1 << 0,
+	Private 			= 1 << 1,
 	NotPublic 			= Protected | Private,
+	Native 				= 1 << 2,
+	ReadOnly 			= 1 << 3, // aka Const
+	WithDimension		= 1 << 4, // A multiple dimension property
+    Transient           = 1 << 6,
+
+    // ParamFlags
+    Param               = 1 << 7,
+	ReturnParam			= 1 << 8,
+	Out 			    = 1 << 9,
+	Optional		    = 1 << 10,
+	Init 			    = 1 << 11, // NOT SUPPORTED
+	Skip			    = 1 << 12, // NOT SUPPORTED
+	Coerce			    = 1 << 13,
+    // XCom
+	Ref				    = 1 << 14, // NOT SUPPORTED
+
+    // LocalFlags
+    Local	            = 1 << 15,
+
+    // InternalFlags
+    // Not to be confused with the alternative keyword of "Native"
+    Intrinsic           = 1 << 16,
+    Generated           = 1 << 17,
 }
 
 export abstract class UCFieldSymbol extends UCSymbol {
-    outer: ISymbol;
+    override outer: ISymbol;
 
-	public next?: UCFieldSymbol;
-	public containingStruct?: UCStructSymbol;
-
-	public modifiers: FieldModifiers = FieldModifiers.None;
+	public modifiers: ModifierFlags = ModifierFlags.None;
+	public next?: UCFieldSymbol = undefined;
 
 	constructor(id: Identifier, private readonly range: Range = id.range) {
 		super(id);
 	}
 
-	getRange(): Range {
+	override getRange(): Range {
 		return this.range;
 	}
 
@@ -43,11 +59,11 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return undefined;
 	}
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		return this.getPath();
 	}
 
-	getSymbolAtPos(position: Position) {
+	override getSymbolAtPos(position: Position) {
 		if (!intersectsWith(this.getRange(), position)) {
 			return undefined;
 		}
@@ -62,39 +78,23 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		return undefined;
 	}
 
-	isPublic(): boolean {
-		return (this.modifiers & FieldModifiers.NotPublic) === 0;
-	}
-
-	isPrivate(): boolean {
-		return (this.modifiers & FieldModifiers.Private) !== 0;
-	}
-
-	isProtected(): boolean {
-		return (this.modifiers & FieldModifiers.Protected) !== 0;
-	}
-
-	isReadOnly(): boolean {
-		return (this.modifiers & FieldModifiers.ReadOnly) !== 0;
-	}
-
-	isNative(): boolean {
-		return (this.modifiers & FieldModifiers.Native) !== 0;
-	}
+    hasAnyModifierFlags(flags: ModifierFlags): boolean {
+        return (this.modifiers & flags) !== 0;
+    }
 
     /**
 	 * Returns true if this property is declared as a static array type (false if it's dynamic!).
 	 * Note that this property will be seen as a static array even if the @arrayDim value is invalid.
 	 */
 	isFixedArray(): boolean {
-		return (this.modifiers & FieldModifiers.WithDimension) === FieldModifiers.WithDimension;
+		return (this.modifiers & ModifierFlags.WithDimension) === ModifierFlags.WithDimension;
 	}
 
-	acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
+	override acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
 		return true;
 	}
 
-	index(document: UCDocument, _context: UCStructSymbol) {
+	override index(document: UCDocument, _context: UCStructSymbol) {
 		this.indexDeclaration(document);
 	}
 
@@ -106,29 +106,24 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		document.indexReference(this, ref);
 	}
 
-	protected buildModifiers(modifiers = this.modifiers): string[] {
+	public buildModifiers(modifiers = this.modifiers): string[] {
 		const text: string[] = [];
 
-		if (modifiers & FieldModifiers.Native) {
+		if (modifiers & ModifierFlags.Native) {
 			text.push('native');
 		}
 
-        if (modifiers & FieldModifiers.Transient) {
+        if (modifiers & ModifierFlags.Transient) {
             text.push('transient');
         }
 
-		if (modifiers & FieldModifiers.Protected) {
+		if (modifiers & ModifierFlags.Protected) {
 			text.push('protected');
 		}
-		else if (modifiers & FieldModifiers.Private) {
+		else if (modifiers & ModifierFlags.Private) {
 			text.push('private');
 		}
 
 		return text;
 	}
-
-    // TODO: Merge with buildModifiers(), but for now this quick workaround will suffice
-	public buildModifiersWith(modifiers: FieldModifiers): string[] {
-        return this.buildModifiers(modifiers);
-    }
 }

@@ -17,9 +17,9 @@ import {
     UCReturnStatement, UCSwitchStatement, UCWhileStatement
 } from '../statements';
 import {
-    areMethodsCompatibleWith, AssignToDelegateFlags, ContextInfo, FieldModifiers, isFieldSymbol,
-    isMethodSymbol, isStateSymbol, ITypeSymbol, LengthProperty, NameCoerceFlags, NativeClass,
-    NativeEnum, NumberCoerceFlags, quoteTypeFlags, ReplicatableTypeFlags, resolveType,
+    areMethodsCompatibleWith, AssignToDelegateFlags, ContextInfo, isFieldSymbol, isMethodSymbol,
+    isStateSymbol, ITypeSymbol, LengthProperty, MethodFlags, ModifierFlags, NameCoerceFlags,
+    NativeClass, NativeEnum, NumberCoerceFlags, quoteTypeFlags, ReplicatableTypeFlags, resolveType,
     StaticBoolType, StaticNameType, typeMatchesFlags, UCArchetypeSymbol, UCArrayTypeSymbol,
     UCClassSymbol, UCConstSymbol, UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumMemberSymbol,
     UCEnumSymbol, UCMethodSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol,
@@ -291,11 +291,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
         if (symbol.params) {
             let requiredParamsCount = 0;
             for (; requiredParamsCount < symbol.params.length; ++requiredParamsCount) {
-                if (symbol.params[requiredParamsCount].isOptional()) {
+                if (symbol.params[requiredParamsCount].hasAnyModifierFlags(ModifierFlags.Optional)) {
                     // All trailing params after the first optional param, are required to be declared as 'optional' too.
                     for (let i = requiredParamsCount + 1; i < symbol.params.length; ++i) {
                         const param = symbol.params[i];
-                        if (param.isOptional()) {
+                        if (param.hasAnyModifierFlags(ModifierFlags.Optional)) {
                             continue;
                         }
 
@@ -314,7 +314,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
         }
 
         if (symbol.isOperatorKind()) {
-            if (!symbol.isFinal()) {
+            if (!symbol.hasAnySpecifierFlags(MethodFlags.Final)) {
                 this.diagnostics.add({
                     range: symbol.id.range,
                     message: {
@@ -386,7 +386,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                     args: [ref.getName().text]
                 });
             } else if (isMethodSymbol(referredSymbol)) {
-                if (referredSymbol.isFinal()) {
+                if (referredSymbol.hasAnySpecifierFlags(MethodFlags.Final)) {
                     this.diagnostics.add({
                         range: ref.id.range,
                         message: {
@@ -413,7 +413,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
 
         if (symbol.defaultExpression) {
             if (config.generation === UCGeneration.UC3) {
-                if (!symbol.isOptional()) {
+                if (!symbol.hasAnyModifierFlags(ModifierFlags.Optional)) {
                     this.diagnostics.add({
                         range: symbol.id.range,
                         message: {
@@ -434,7 +434,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
         }
 
         if (config.generation !== UCGeneration.UC3) {
-            if (symbol.isRef()) {
+            if (symbol.hasAnyModifierFlags(ModifierFlags.Ref)) {
                 this.diagnostics.add({
                     range: symbol.id.range,
                     message: {
@@ -816,7 +816,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                             severity: DiagnosticSeverity.Error
                         }
                     });
-                } else if (letSymbol.isReadOnly()) {
+                } else if (letSymbol.hasAnyModifierFlags(ModifierFlags.ReadOnly)) {
                     if (expr instanceof UCDefaultAssignmentExpression) {
                         // TODO:
                     } else {
@@ -840,12 +840,12 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                     // });
                 } else if (
                     // Both Native and Transient modifiers will skip serialization, except for transient since UE3? (needs to be tested thoroughly).
-                        (letSymbol.modifiers & FieldModifiers.Native) !== 0
-                    || ((letSymbol.modifiers & FieldModifiers.Transient) !== 0
+                        (letSymbol.modifiers & ModifierFlags.Native) !== 0
+                    || ((letSymbol.modifiers & ModifierFlags.Transient) !== 0
                         && config.generation !== UCGeneration.UC3
                 )) {
                     const modifiers = letSymbol
-                        .buildModifiersWith(letSymbol.modifiers & (FieldModifiers.Native | FieldModifiers.Transient))
+                        .buildModifiers(letSymbol.modifiers & (ModifierFlags.Native | ModifierFlags.Transient))
                         .join(' ');
                     this.diagnostics.add({
                         range: expr.left.getRange(),
@@ -1017,7 +1017,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                 continue;
             }
 
-            if (!param.isOptional()) {
+            if (!param.hasAnyModifierFlags(ModifierFlags.Optional)) {
                 ++passedArgumentsCount;
                 if (arg instanceof UCEmptyArgument) {
                     this.pushError(arg.getRange(),
@@ -1038,7 +1038,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                 continue;
             }
 
-            if (param.isOut()) {
+            if (param.hasAnyModifierFlags(ModifierFlags.Out)) {
                 const argSymbol = arg.getMemberSymbol();
                 // if (!argSymbol) {
                 // 	this.pushError(
@@ -1051,7 +1051,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                         this.pushError(arg.getRange(),
                             `Cannot pass array property 'Length' to an 'out' parameter.`
                         );
-                    } else if (argSymbol.isReadOnly()) {
+                    } else if (argSymbol.hasAnyModifierFlags(ModifierFlags.ReadOnly)) {
                         // FIXME: Apparently possible?
                         // this.pushError(arg.getRange(),
                         //     `Argument '${argSymbol.getName()}' cannot be passed to an 'out' parameter, because it is a constant.`
@@ -1080,7 +1080,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                         }
                     }
 
-                    if (!typeMatchesFlags(argType, paramType, param.isCoerced())) {
+                    if (!typeMatchesFlags(argType, paramType, param.hasAnyModifierFlags(ModifierFlags.Coerce))) {
                         this.diagnostics.add({
                             range: arg.getRange(),
                             message: diagnosticMessages.ARGUMENT_IS_INCOMPATIBLE,

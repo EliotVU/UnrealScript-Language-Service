@@ -17,15 +17,15 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	public block?: UCBlock;
     public labels?: { [key: number]: Identifier };
 
-	getKind(): SymbolKind {
+	override getKind(): SymbolKind {
 		return SymbolKind.Namespace;
 	}
 
-	getCompletionItemKind(): CompletionItemKind {
+	override getCompletionItemKind(): CompletionItemKind {
 		return CompletionItemKind.Module;
 	}
 
-	getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, type?: UCTypeFlags) {
+	override getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, type?: UCTypeFlags) {
 		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
 			if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
@@ -50,7 +50,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return symbols as C[];
 	}
 
-	getCompletionContext(position: Position) {
+	override getCompletionContext(position: Position) {
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
 			if (intersectsWith(symbol.getRange(), position)) {
 				const context = symbol.getCompletionContext(position);
@@ -62,7 +62,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return this;
 	}
 
-	getContainedSymbolAtPos(position: Position) {
+	override getContainedSymbolAtPos(position: Position) {
 		return this.extendsType?.getSymbolAtPos(position)
 			?? this.block?.getSymbolAtPos(position)
 			?? this.getChildSymbolAtPos(position);
@@ -96,7 +96,6 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	addSymbol(symbol: UCFieldSymbol): number | undefined {
 		symbol.outer = this;
 		symbol.next = this.children;
-		symbol.containingStruct = this;
 		this.children = symbol;
 		// No key
 		return undefined;
@@ -143,7 +142,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		return this.getSymbol<T>(id, kind) ?? this.super?.findSuperSymbol(id, kind);
 	}
 
-	index(document: UCDocument, context: UCStructSymbol) {
+	override index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
 		if (this.extendsType) {
 			this.extendsType.index(document, context);
@@ -162,7 +161,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		}
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitStruct(this);
 	}
 }

@@ -10,7 +10,7 @@ import {
 } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    DEFAULT_RANGE, Identifier, ISymbol, IWithReference, NativeArray, ObjectsTable,
+    DEFAULT_RANGE, Identifier, ISymbol, IWithReference, ModifierFlags, NativeArray, ObjectsTable,
     UCArchetypeSymbol, UCClassSymbol, UCConstSymbol, UCEnumSymbol, UCFieldSymbol, UCMethodSymbol,
     UCParamSymbol, UCScriptStructSymbol, UCStructSymbol, UCSymbol, UCSymbolReference
 } from './';
@@ -105,7 +105,7 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		return this.type.getTypeText();
 	}
 
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return this.type.getTypeFlags();
 	}
 
@@ -113,7 +113,7 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		return this.type.getRef<T>();
 	}
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		return this.type.getTooltip();
 	}
 
@@ -126,7 +126,7 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		return symbol;
 	}
 
-	index(document: UCDocument, context: UCStructSymbol) {
+	override index(document: UCDocument, context: UCStructSymbol) {
 		if (this.left) {
 			this.left.index(document, context);
 			const leftContext = this.left.getRef();
@@ -145,7 +145,7 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		this.type.index(document, context);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitQualifiedType(this);
 	}
 }
@@ -155,11 +155,11 @@ export class UCPredefinedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		return undefined;
 	}
 
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Error;
 	}
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		return 'type ' + this.id.name.text;
 	}
 
@@ -167,7 +167,7 @@ export class UCPredefinedTypeSymbol extends UCSymbol implements ITypeSymbol {
 		return this.id.name.text;
 	}
 
-	getSymbolAtPos(position: Position) {
+	override getSymbolAtPos(position: Position) {
 		if (intersectsWithRange(position, this.id.range)) {
 			return this;
 		}
@@ -179,7 +179,7 @@ export class UCPredefinedTypeSymbol extends UCSymbol implements ITypeSymbol {
 }
 
 export class UCByteTypeSymbol extends UCPredefinedTypeSymbol {
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Byte;
 	}
 
@@ -189,7 +189,7 @@ export class UCByteTypeSymbol extends UCPredefinedTypeSymbol {
 }
 
 export class UCFloatTypeSymbol extends UCPredefinedTypeSymbol {
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Float;
 	}
 
@@ -199,7 +199,7 @@ export class UCFloatTypeSymbol extends UCPredefinedTypeSymbol {
 }
 
 export class UCIntTypeSymbol extends UCPredefinedTypeSymbol {
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Int;
 	}
 
@@ -209,7 +209,7 @@ export class UCIntTypeSymbol extends UCPredefinedTypeSymbol {
 }
 
 export class UCStringTypeSymbol extends UCPredefinedTypeSymbol {
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.String;
 	}
 
@@ -219,11 +219,11 @@ export class UCStringTypeSymbol extends UCPredefinedTypeSymbol {
 }
 
 export class UCNameTypeSymbol extends UCPredefinedTypeSymbol {
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Name;
 	}
 
-    getTooltip(): string {
+    override getTooltip(): string {
 		return this.id.name === NAME_NAME
             ? 'type ' + this.id.name.text
             : `'${this.id.name.text}'`;
@@ -235,7 +235,7 @@ export class UCNameTypeSymbol extends UCPredefinedTypeSymbol {
 }
 
 export class UCBoolTypeSymbol extends UCPredefinedTypeSymbol {
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Bool;
 	}
 
@@ -245,7 +245,7 @@ export class UCBoolTypeSymbol extends UCPredefinedTypeSymbol {
 }
 
 export class UCPointerTypeSymbol extends UCPredefinedTypeSymbol {
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Int;
 	}
 
@@ -255,7 +255,7 @@ export class UCPointerTypeSymbol extends UCPredefinedTypeSymbol {
 }
 
 export class UCButtonTypeSymbol extends UCPredefinedTypeSymbol {
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Byte;
 	}
 
@@ -265,7 +265,7 @@ export class UCButtonTypeSymbol extends UCPredefinedTypeSymbol {
 }
 
 export class UCNoneTypeSymbol extends UCPredefinedTypeSymbol {
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.None;
 	}
 
@@ -275,7 +275,7 @@ export class UCNoneTypeSymbol extends UCPredefinedTypeSymbol {
 }
 
 export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol {
-	protected reference?: ISymbol;
+	protected override reference?: ISymbol;
 
 	public baseType?: ITypeSymbol;
 
@@ -287,11 +287,11 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
         return Object.prototype.hasOwnProperty.call(symbol, 'baseType');
     }
 
-	getRange(): Range {
+	override getRange(): Range {
 		return this.range;
 	}
 
-	getContainedSymbolAtPos(position: Position) {
+	override getContainedSymbolAtPos(position: Position) {
 		// We don't want to provide hover info when we have no resolved reference.
 		if (this.reference && intersectsWithRange(position, this.id.range)) {
 			return this;
@@ -299,7 +299,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		return this.baseType?.getSymbolAtPos(position);
 	}
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		if (this.reference instanceof UCSymbol) {
 			return this.reference.getTooltip();
 		}
@@ -313,7 +313,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		return this.getName().text;
 	}
 
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return this.reference && isFieldSymbol(this.reference)
             ? this.reference.getTypeFlags()
             : UCTypeFlags.Error;
@@ -327,7 +327,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		this.validTypeKind = kind;
 	}
 
-	index(document: UCDocument, context?: UCStructSymbol) {
+	override index(document: UCDocument, context?: UCStructSymbol) {
 		// Don't move this below the reference return check,
 		// because, we still want to index baseType for Predefined array/delegate types.
 		this.baseType?.index(document, context);
@@ -378,63 +378,63 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 		symbol && this.setReference(symbol, document);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitObjectType(this);
 	}
 }
 
 export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
-	reference = NativeArray;
+	override reference = NativeArray;
 
     static is(symbol: ISymbol): symbol is UCArrayTypeSymbol {
         return (symbol.getTypeFlags() & UCTypeFlags.Array) !== 0;
     }
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		return 'type Array';
 	}
 
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Array;
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitArrayType(this);
 	}
 }
 
 export class UCDelegateTypeSymbol extends UCObjectTypeSymbol {
-	reference = StaticDelegateType;
+	override reference = StaticDelegateType;
 
     static is(symbol: ISymbol): symbol is UCArrayTypeSymbol {
         return (symbol.getTypeFlags() & UCTypeFlags.Delegate | (UCTypeFlags.Function & ~UCTypeFlags.Object)) === UCTypeFlags.Delegate;
     }
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		return 'type Delegate';
 	}
 
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Delegate;
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitDelegateType(this);
 	}
 }
 
 export class UCMapTypeSymbol extends UCObjectTypeSymbol {
-	reference = StaticMapType;
+	override reference = StaticMapType;
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		return 'type Map';
 	}
 
-	getTypeFlags(): UCTypeFlags {
+	override getTypeFlags(): UCTypeFlags {
 		return UCTypeFlags.Error;
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitMapType(this);
 	}
 }
@@ -535,8 +535,8 @@ export function hasChildren(symbol: ISymbol): symbol is UCStructSymbol {
     return symbol instanceof UCStructSymbol;
 }
 
-export function isFieldSymbol(symbol: ISymbol): symbol is UCFieldSymbol {
-    return Object.prototype.hasOwnProperty.call(symbol, 'modifiers');
+export function isFieldSymbol(symbol: ISymbol & { modifiers?: ModifierFlags }): symbol is UCFieldSymbol {
+    return typeof symbol.modifiers !== 'undefined';
 }
 
 export function isConstSymbol(symbol: ISymbol): symbol is UCConstSymbol {
@@ -551,8 +551,12 @@ export function isPropertySymbol(symbol: ISymbol): symbol is UCPropertySymbol {
     return (symbol.getTypeFlags() & UCTypeFlags.Property & ~UCTypeFlags.Object) !== 0;
 }
 
-export function isParamSymbol(symbol: ISymbol): symbol is UCParamSymbol {
-    return Object.prototype.hasOwnProperty.call(symbol, 'paramModifiers');
+export function isParamSymbol(symbol: ISymbol & { modifiers?: ModifierFlags }): symbol is UCParamSymbol {
+    return typeof symbol.modifiers !== 'undefined' && (symbol.modifiers & ModifierFlags.Param) !== 0;
+}
+
+export function isLocalSymbol(symbol: ISymbol & { modifiers?: ModifierFlags }): symbol is UCParamSymbol {
+    return typeof symbol.modifiers !== 'undefined' && (symbol.modifiers & ModifierFlags.Local) !== 0;
 }
 
 export function isScriptStructSymbol(symbol: ISymbol): symbol is UCScriptStructSymbol {
