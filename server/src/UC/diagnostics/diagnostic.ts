@@ -38,6 +38,10 @@ export class DiagnosticCollection {
 		this.items.push(template);
 	}
 
+    count(): number {
+        return this.items.length;
+    }
+
 	map(): Diagnostic[] {
 		return this.items.map(template => {
 			const diagnostic: Diagnostic = {

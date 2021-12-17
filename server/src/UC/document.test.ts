@@ -2,6 +2,8 @@ import { expect } from 'chai';
 import * as path from 'path';
 
 import { UCLexer } from './antlr/generated/UCLexer';
+import { DiagnosticCollection } from './diagnostics/diagnostic';
+import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
 import { createPreprocessor, preprocessDocument, UCDocument } from './document';
 import { applyMacroSymbols, indexDocument } from './indexer';
 import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
@@ -22,8 +24,10 @@ describe('Document', () => {
 	it('is diagnostics free?', () => {
 		indexDocument(document);
 
-		const diagnostics = document.analyze();
-		expect(diagnostics.length).to.equal(0);
+        const diagnostics = new DiagnosticCollection();
+        (new DocumentAnalyzer(document, diagnostics));
+
+		expect(diagnostics.count()).to.equal(0);
 	});
 });
 

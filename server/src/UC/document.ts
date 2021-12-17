@@ -3,14 +3,13 @@ import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
-import { Diagnostic, SymbolKind } from 'vscode-languageserver';
+import { SymbolKind } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
 import { UCLexer } from './antlr/generated/UCLexer';
 import { ProgramContext, UCParser } from './antlr/generated/UCParser';
 import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
-import { DiagnosticCollection, IDiagnosticNode } from './diagnostics/diagnostic';
-import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
+import { IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentASTWalker } from './documentASTWalker';
 import { applyMacroSymbols, config, IndexedReferencesMap, UCGeneration } from './indexer';
 import { Name, toName } from './name';
@@ -175,32 +174,6 @@ export class UCDocument {
             }
         }
         this.indexReferencesMade.clear();
-    }
-
-    public analyze(): Diagnostic[] {
-        const diagnostics = new DiagnosticCollection();
-        try {
-            (new DocumentAnalyzer(this, diagnostics));
-        } catch (err) {
-            console.error(
-                `An error was thrown while analyzing document: "${this.uri}"`,
-                err
-            );
-        }
-        return this.diagnosticsFromNodes(this.nodes).concat(diagnostics.map());
-    }
-
-    private diagnosticsFromNodes(nodes: IDiagnosticNode[]) {
-        return nodes
-            .map(node => {
-                return Diagnostic.create(
-                    node.getRange(),
-                    node.toString(),
-                    undefined,
-                    undefined,
-                    'unrealscript'
-                );
-            });
     }
 
     indexReference(symbol: ISymbol, ref: SymbolReference) {
