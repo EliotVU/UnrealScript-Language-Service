@@ -1,4 +1,5 @@
-class AssignTypeTest extends Object;
+class AssignTypeTest extends Object
+    native;
 
 const NAME_CONSTANT = '';
 const STRING_CONSTANT = "";
@@ -24,6 +25,9 @@ var int dimVar[EEnum];
 var int dimVar[2];
 var const int constVar;
 var name nameVar;
+
+var native int nativeVar;
+var transient int transientVar;
 
 function int AssignTest() {
     local AssignTypeTest obj;
@@ -80,6 +84,10 @@ defaultproperties
     nameVar=NameAsString
     nameVar=NAME_CONSTANT
     nameVar=none
+
+    // WARNING
+    nativeVar=0xFF
+    transientVar=0xFF
 
     // INVALID
     nameVar=BYTE_CONSTANT

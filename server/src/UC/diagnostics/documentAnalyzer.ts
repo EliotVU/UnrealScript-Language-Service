@@ -17,13 +17,13 @@ import {
     UCReturnStatement, UCSwitchStatement, UCWhileStatement
 } from '../statements';
 import {
-    areMethodsCompatibleWith, AssignToDelegateFlags, ContextInfo, isFieldSymbol, isMethodSymbol,
-    isStateSymbol, ITypeSymbol, LengthProperty, NameCoerceFlags, NativeClass, NativeEnum,
-    NumberCoerceFlags, quoteTypeFlags, ReplicatableTypeFlags, resolveType, StaticBoolType,
-    StaticNameType, typeMatchesFlags, UCArchetypeSymbol, UCArrayTypeSymbol, UCClassSymbol,
-    UCConstSymbol, UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol,
-    UCMethodSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
-    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeFlags
+    areMethodsCompatibleWith, AssignToDelegateFlags, ContextInfo, FieldModifiers, isFieldSymbol,
+    isMethodSymbol, isStateSymbol, ITypeSymbol, LengthProperty, NameCoerceFlags, NativeClass,
+    NativeEnum, NumberCoerceFlags, quoteTypeFlags, ReplicatableTypeFlags, resolveType,
+    StaticBoolType, StaticNameType, typeMatchesFlags, UCArchetypeSymbol, UCArrayTypeSymbol,
+    UCClassSymbol, UCConstSymbol, UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumMemberSymbol,
+    UCEnumSymbol, UCMethodSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol,
+    UCQualifiedTypeSymbol, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeFlags
 } from '../Symbols';
 import { DefaultSymbolWalker } from '../symbolWalker';
 import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
@@ -838,6 +838,22 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                     //         severity: DiagnosticSeverity.Error
                     //     }
                     // });
+                } else if (
+                    // Both Native and Transient modifiers will skip serialization, except for transient since UE3? (needs to be tested thoroughly).
+                        (letSymbol.modifiers & FieldModifiers.Native) !== 0
+                    || ((letSymbol.modifiers & FieldModifiers.Transient) !== 0
+                        && config.generation !== UCGeneration.UC3
+                )) {
+                    const modifiers = letSymbol
+                        .buildModifiersWith(letSymbol.modifiers & (FieldModifiers.Native | FieldModifiers.Transient))
+                        .join(' ');
+                    this.diagnostics.add({
+                        range: expr.left.getRange(),
+                        message: {
+                            text: `(${modifiers}) '${letSymbol.getName().text}' will not be serialized.`,
+                            severity: DiagnosticSeverity.Warning
+                        }
+                    });
                 }
 
                 if (config.checkTypes) {

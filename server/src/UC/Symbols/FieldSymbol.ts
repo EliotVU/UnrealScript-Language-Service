@@ -83,7 +83,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	}
 
     /**
-	 * Returns true if this property is declared as a static array type (false if it's is dynamic!).
+	 * Returns true if this property is declared as a static array type (false if it's dynamic!).
 	 * Note that this property will be seen as a static array even if the @arrayDim value is invalid.
 	 */
 	isFixedArray(): boolean {
@@ -106,20 +106,29 @@ export abstract class UCFieldSymbol extends UCSymbol {
 		document.indexReference(this, ref);
 	}
 
-	protected buildModifiers(): string[] {
+	protected buildModifiers(modifiers = this.modifiers): string[] {
 		const text: string[] = [];
 
-		if (this.isNative()) {
+		if (modifiers & FieldModifiers.Native) {
 			text.push('native');
 		}
 
-		if (this.isProtected()) {
+        if (modifiers & FieldModifiers.Transient) {
+            text.push('transient');
+        }
+
+		if (modifiers & FieldModifiers.Protected) {
 			text.push('protected');
 		}
-		else if (this.isPrivate()) {
+		else if (modifiers & FieldModifiers.Private) {
 			text.push('private');
 		}
 
 		return text;
 	}
+
+    // TODO: Merge with buildModifiers(), but for now this quick workaround will suffice
+	public buildModifiersWith(modifiers: FieldModifiers): string[] {
+        return this.buildModifiers(modifiers);
+    }
 }
