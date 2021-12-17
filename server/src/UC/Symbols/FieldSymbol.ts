@@ -15,6 +15,7 @@ export enum FieldModifiers {
     // Not to be confused with the alternative keyword of "Native"
     Intrinsic           = 0x0020,
     Generated           = 0x0040,
+    Transient           = 0x0080,
 	NotPublic 			= Protected | Private,
 }
 

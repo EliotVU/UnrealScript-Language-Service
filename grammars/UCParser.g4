@@ -626,6 +626,7 @@ functionSpecifier
 	| 'client'
 	| 'dllimport'
 	| 'demorecording'
+    | 'transient'
 	| 'k2call'
 	| 'k2pure'
 	| 'k2override')

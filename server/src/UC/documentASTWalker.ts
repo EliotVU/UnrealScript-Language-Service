@@ -580,6 +580,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 				case UCGrammar.UCParser.KW_FINAL:
 					specifiers |= MethodSpecifiers.Final;
 					break;
+				case UCGrammar.UCParser.KW_TRANSIENT:
+					modifiers |= FieldModifiers.Transient;
+					break;
 			}
 		}
 
@@ -779,6 +782,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                         break;
                     case UCGrammar.UCParser.KW_PRIVATE:
                         modifiers |= FieldModifiers.Private;
+                        break;
+                    case UCGrammar.UCParser.KW_DUPLICATETRANSIENT:
+                    case UCGrammar.UCParser.KW_TRANSIENT:
+                        modifiers |= FieldModifiers.Transient;
                         break;
                 }
             }

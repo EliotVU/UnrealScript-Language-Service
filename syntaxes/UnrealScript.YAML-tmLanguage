@@ -639,7 +639,7 @@ repository:
 
   method-modifier:
     patterns:
-      - match: (\b((?i)static|final|simulated|public|protected|private|exec|iterator|latent|singular|const|noexport|noexportheader|virtual|reliable|unreliable|server|client|dllimport|demorecording|native|intrinsic|k2call|k2override|k2pure)\b)(\s*\(\s*([0-9]*)\s*\))?
+      - match: (\b((?i)static|final|simulated|public|protected|private|exec|iterator|latent|singular|const|noexport|noexportheader|virtual|reliable|unreliable|server|client|dllimport|demorecording|native|intrinsic|transient|k2call|k2override|k2pure)\b)(\s*\(\s*([0-9]*)\s*\))?
         captures:
           '2':
             name: storage.modifier.uc
