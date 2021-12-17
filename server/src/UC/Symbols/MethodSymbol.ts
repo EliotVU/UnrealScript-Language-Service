@@ -130,7 +130,10 @@ export class UCMethodSymbol extends UCStructSymbol {
 
 		if (context.super) {
 			const overriddenMethod = context.super.findSuperSymbol(this.getName());
-			if (overriddenMethod && isMethodSymbol(overriddenMethod)) {
+			if (overriddenMethod
+                && isMethodSymbol(overriddenMethod)
+                // Never override a private method
+                && !overriddenMethod.hasAnyModifierFlags(ModifierFlags.Private)) {
 				document.indexReference(overriddenMethod, {
 					location: Location.create(document.uri, this.id.range)
 				});

@@ -28,7 +28,7 @@ export interface IDiagnosticTemplate {
 	message: IDiagnosticMessage;
 	args?: string[];
 
-	custom?: { [key: string]: any, unnecessary?: {} };
+	custom?: { [key: string]: any };
 }
 
 export class DiagnosticCollection {

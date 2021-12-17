@@ -132,19 +132,19 @@ export function queueIndexDocument(document: UCDocument, text?: string): Documen
     return parseData;
 }
 
-function parsePackageNameInDir(dir: string): string {
+function parsePackageNameInDir(dir: string): string | undefined {
     const directories = dir.split(/\\|\//);
     for (let i = directories.length - 1; i >= 0; --i) {
         if (i > 0 && directories[i].toLowerCase() === 'classes') {
             return directories[i - 1];
         }
     }
-    return '';
+    return undefined;
 }
 
 export function getPackageByDir(dir: string): UCPackage {
     const pkgNameStr = parsePackageNameInDir(dir);
-    if (!pkgNameStr) {
+    if (typeof pkgNameStr === 'undefined') {
         return TRANSIENT_PACKAGE;
     }
     return createPackage(pkgNameStr);
