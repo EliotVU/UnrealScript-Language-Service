@@ -1,7 +1,8 @@
-import { DiagnosticCollection, IDiagnosticNode } from 'UC/diagnostics/diagnostic';
-import { DocumentAnalyzer } from 'UC/diagnostics/documentAnalyzer';
-import { UCDocument } from 'UC/document';
 import { Diagnostic } from 'vscode-languageserver';
+
+import { DiagnosticCollection, IDiagnosticNode } from './UC/diagnostics/diagnostic';
+import { DocumentAnalyzer } from './UC/diagnostics/documentAnalyzer';
+import { UCDocument } from './UC/document';
 
 export function diagnosticsFromNodes(nodes: IDiagnosticNode[]) {
     return nodes

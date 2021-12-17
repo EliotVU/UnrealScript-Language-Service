@@ -1,9 +1,9 @@
 // import * as CRC32 from 'crc-32';
 
-/*
- * (C) 2014-present SheetJS -- http://sheetjs.com
+/*!
+ * crc-32 (C) 2014-present SheetJS -- http://sheetjs.com
  *
- * This code copied and modified from https://github.com/SheetJS/js-crc32.
+ * The crc32 code is a modified copy of https://github.com/SheetJS/js-crc32.
  * The purpose is to optimize its hashing function to interpret characters case-insensitive,
  * -- so that we don't have to use toLowerCase(), which allocates a new string.
  */

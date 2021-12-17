@@ -46,6 +46,8 @@
         "merge-options": "^3.0.4",
         "rimraf": "^3.0.2",
         "ts-loader": "^9.2.6",
+        "ts-node": "^10.4.0",
+        "tsconfig-paths-webpack-plugin": "^3.5.2",
         "typescript": "^4.5.2",
         "typescript-eslint-language-service": "^5.0.0",
         "webpack": "^5.64.4",
@@ -53,20 +55,21 @@
     },
     "scripts": {
         "vscode:prepublish": "cd client && npm run update-vscode && cd .. && npm run build",
-        "build": "npx gulp buildSyntax && npm run compile:grammar && npm run compile:preprocessor && npm run clean && npx webpack --mode production --config ./client/webpack.config.js && npx webpack --mode production --config ./server/webpack.config.js",
-        "compile": "tsc -b",
+        "build": "npx gulp buildSyntax && npm run compile:grammar && npm run compile:preprocessor && npm run clean && npx webpack --mode production --config ./webpack.config.js",
+        "compile": "npx webpack --mode development --config ./webpack.config.js",
         "compile:grammar": "npx antlr4ts -visitor -no-listener grammars/UCLexer.g4 -o server/src/UC/antlr/generated && npx antlr4ts -visitor -no-listener grammars/UCParser.g4 -o server/src/UC/antlr/generated",
         "compile:preprocessor": "npx antlr4ts -visitor -no-listener grammars/UCPreprocessorParser.g4 -o server/src/UC/antlr/generated",
-        "watch": "(set NODE_ENV=development) & start gulp & tsc -b -w",
-        "clean": "rimraf client/out && rimraf server/out",
+        "watch": "(set NODE_ENV=development) & start gulp & npx webpack --mode development --config ./webpack.config.js --watch",
+        "clean": "rimraf out",
         "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
-        "test": "cd server && npm test"
+        "test": "cd server && npm test",
+        "test-live": "cd server && npm run test-live"
     },
     "activationEvents": [
         "onLanguage:unrealscript",
         "workspaceContains:**/*.upkg"
     ],
-    "main": "client/out/extension.js",
+    "main": "out/extension.js",
     "extensionKind": [
         "workspace"
     ],
@@ -100,7 +103,7 @@
                         "3"
                     ],
                     "default": "3",
-                    "description": "The UnrealScript generation your project is working withh.."
+                    "description": "The UnrealScript generation your project is working with.."
                 },
                 "unrealscript.licensee": {
                     "scope": "resource",

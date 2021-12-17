@@ -5,16 +5,17 @@
         "lib": [
             "es2019"
         ],
-        "outDir": "out",
-		"rootDir": "src",
+        "plugins": [
+            {
+                "name": "typescript-eslint-language-service"
+            }
+        ],
         "resolveJsonModule": true,
+        "strict": true,
+        "strictBindCallApply": false,
+        "strictPropertyInitialization": false,
+        "downlevelIteration": true,
     },
-    "include": [
-		"src"
-	],
-    "exclude": [
-        "node_modules"
-    ],
     "references": [
         {
             "path": "./client"
@@ -22,5 +23,5 @@
         {
             "path": "./server"
         }
-    ]
+    ],
 }

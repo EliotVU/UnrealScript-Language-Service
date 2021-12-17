@@ -1,25 +1,6 @@
 {
+    "extends": "../tsconfig.json",
 	"compilerOptions": {
-        "module": "commonjs",
-        "target": "es2019",
-        "lib": [
-            "ES2019"
-        ],
-        "plugins": [
-            {
-                "name": "typescript-eslint-language-service"
-            }
-        ],
-        "baseUrl": ".",
-		"outDir": "out",
-		"rootDir": "src",
-		"sourceMap": true,
-        "strict": true,
-		"strictNullChecks": true
+        "baseUrl": "./src",
 	},
-	"include": ["src"],
-    "exclude": [
-		"node_modules",
-		".vscode-test"
-	],
 }

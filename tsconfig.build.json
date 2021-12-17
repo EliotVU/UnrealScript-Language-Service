@@ -1,0 +1,21 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "baseUrl": ".",
+        "outDir": "out",
+        "sourceMap": true,
+    },
+    "include": [
+        "client",
+        "server"
+    ],
+    "files": [
+        "server/src/UC/diagnostics/diagnosticMessages.json"
+    ],
+    "exclude": [
+        "node_modules",
+        ".vscode-test",
+        "**/*.test.ts",
+        "**/test/*.ts",
+    ],
+}

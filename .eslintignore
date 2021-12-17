@@ -5,3 +5,4 @@ server/node_modules/**
 server/out/**
 server/src/antlr/**
 dist/**
+webpack.config.js

@@ -1,37 +1,25 @@
-//@ts-check
-
 'use strict';
 
 const path = require('path');
+const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin');
+
+const config = require('./webpack.config.base');
+const merge = require('merge-options');
 
 /**@type {import('webpack').Configuration}*/
-const config = {
-    target: 'node',
-
-    output: {
-        filename: '[name].js',
-        libraryTarget: 'commonjs2',
-        devtoolModuleFilenameTemplate: '../[resource-path]'
+const partialConfig = {
+    mode: 'development',
+    context: path.join(__dirname),
+    entry: {
+        extension: './client/src/extension.ts',
+        server: './server/src/server.ts',
     },
-    devtool: 'source-map',
-    externals: {
-        vscode: 'commonjs vscode',
+    output: {
+        path: path.resolve(__dirname, 'out'),
+        filename: '[name].js'
     },
     resolve: {
-        extensions: ['.ts', '.js']
-    },
-    module: {
-        rules: [
-            {
-                test: /\.ts$/,
-                exclude: /node_modules/,
-                use: [
-                    {
-                        loader: 'ts-loader'
-                    }
-                ]
-            }
-        ]
+        plugins: [new TsconfigPathsPlugin({ configFile: path.resolve(__dirname, 'tsconfig.build.json') })]
     }
 };
-module.exports = config;
+module.exports = merge(config, partialConfig);
