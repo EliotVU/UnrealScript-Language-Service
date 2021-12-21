@@ -96,13 +96,6 @@ export class UCClassSymbol extends UCStructSymbol {
 	}
 
 	override index(document: UCDocument, context: UCClassSymbol) {
-		if (this.withinType) {
-			this.withinType.index(document, context);
-
-			// Overwrite extendsRef super, we inherit from the within class instead.
-			this.super = this.withinType.getRef() as UCClassSymbol;
-		}
-
 		if (this.dependsOnTypes) {
 			for (const classTypeRef of this.dependsOnTypes) {
 				classTypeRef.index(document, context);
