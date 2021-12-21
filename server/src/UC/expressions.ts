@@ -6,13 +6,13 @@ import { config, getEnumMember } from './indexer';
 import {
     CastTypeSymbolMap, ContextInfo, CORE_PACKAGE, DefaultArray, EnumCoerceFlags,
     findOrIndexClassSymbol, findSuperStruct, findSymbol, getSymbolHash, getSymbolOuterHash,
-    hasDefinedBaseType, Identifier, isConstSymbol, isMethodSymbol, isPropertySymbol, isStateSymbol,
-    ISymbol, ITypeSymbol, ModifierFlags, NativeClass, ObjectsTable, OuterObjectsTable, resolveType,
-    RngMethodLike, RotMethodLike, StaticBoolType, StaticByteType, StaticFloatType, StaticIntType,
-    StaticNameType, StaticNoneType, StaticRangeType, StaticRotatorType, StaticStringType,
-    StaticVectorType, tryFindClassSymbol, typeMatchesFlags, UCArrayTypeSymbol, UCBaseOperatorSymbol,
-    UCNameTypeSymbol, UCObjectTypeSymbol, UCPackage, UCQualifiedTypeSymbol, UCStructSymbol,
-    UCSymbol, UCSymbolReference, UCTypeFlags, VectMethodLike
+    hasDefinedBaseType, Identifier, IntrinsicClass, IntrinsicRngLiteral, IntrinsicRotLiteral,
+    IntrinsicVectLiteral, isConstSymbol, isMethodSymbol, isPropertySymbol, isStateSymbol, ISymbol,
+    ITypeSymbol, ModifierFlags, ObjectsTable, OuterObjectsTable, resolveType, StaticBoolType,
+    StaticByteType, StaticFloatType, StaticIntType, StaticNameType, StaticNoneType, StaticRangeType,
+    StaticRotatorType, StaticStringType, StaticVectorType, tryFindClassSymbol, typeMatchesFlags,
+    UCArrayTypeSymbol, UCBaseOperatorSymbol, UCNameTypeSymbol, UCObjectTypeSymbol, UCPackage,
+    UCQualifiedTypeSymbol, UCStructSymbol, UCSymbol, UCSymbolReference, UCTypeFlags
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
@@ -293,7 +293,7 @@ export class UCPropertyAccessExpression extends UCExpression {
             const leftType = this.left.getType();
             // Resolve meta class
             const ref = leftType?.getRef<UCStructSymbol>();
-            const memberContext = (ref === NativeClass)
+            const memberContext = (ref === IntrinsicClass)
                 ? resolveType(leftType!).getRef<UCStructSymbol>()
                 : ref;
             if (memberContext instanceof UCStructSymbol) {
@@ -932,7 +932,7 @@ export class UCVectLiteral extends UCStructLiteral {
     structType = StaticVectorType;
 
     getContainedSymbolAtPos(_position: Position) {
-        return VectMethodLike as unknown as UCSymbolReference;
+        return IntrinsicVectLiteral as unknown as UCSymbolReference;
     }
 }
 
@@ -940,7 +940,7 @@ export class UCRotLiteral extends UCStructLiteral {
     structType = StaticRotatorType;
 
     getContainedSymbolAtPos(_position: Position) {
-        return RotMethodLike as unknown as UCSymbolReference;
+        return IntrinsicRotLiteral as unknown as UCSymbolReference;
     }
 }
 
@@ -948,7 +948,7 @@ export class UCRngLiteral extends UCStructLiteral {
     structType = StaticRangeType;
 
     getContainedSymbolAtPos(_position: Position) {
-        return RngMethodLike as unknown as UCSymbolReference;
+        return IntrinsicRngLiteral as unknown as UCSymbolReference;
     }
 }
 

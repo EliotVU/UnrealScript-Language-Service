@@ -36,9 +36,9 @@ import {
 } from './UC/indexer';
 import { toName } from './UC/name';
 import {
-    addHashedSymbol, DEFAULT_RANGE, isClassSymbol, isFieldSymbol, ISymbol, ModifierFlags,
-    NativeArray, ObjectsTable, supportsRef, UCClassSymbol, UCMethodSymbol, UCObjectTypeSymbol,
-    UCSymbol, UCTypeFlags
+    addHashedSymbol, DEFAULT_RANGE, IntrinsicArray, isClassSymbol, isFieldSymbol, ISymbol,
+    ModifierFlags, ObjectsTable, supportsRef, UCClassSymbol, UCMethodSymbol, UCObjectTypeSymbol,
+    UCStructSymbol, UCSymbol, UCTypeFlags
 } from './UC/Symbols';
 
 /**
@@ -427,14 +427,14 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
     }
 
     const randomizeOrderName = toName('RandomizeOrder');
-    let randomizeOrderSymbol = NativeArray.getSymbol(randomizeOrderName);
+    let randomizeOrderSymbol = IntrinsicArray.getSymbol(randomizeOrderName);
     if (randomizeOrderSymbol) {
         if (config.licensee !== UELicensee.XCom) {
-            NativeArray.removeSymbol(randomizeOrderSymbol);
+            IntrinsicArray.removeSymbol(randomizeOrderSymbol);
         }
     } else if (config.licensee === UELicensee.XCom) {
         randomizeOrderSymbol = new UCMethodSymbol({ name: randomizeOrderName, range: DEFAULT_RANGE });
-        NativeArray.addSymbol(randomizeOrderSymbol);
+        IntrinsicArray.addSymbol(randomizeOrderSymbol);
     }
 }
 

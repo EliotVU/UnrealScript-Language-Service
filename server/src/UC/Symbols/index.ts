@@ -18,5 +18,5 @@ export * from './LocalSymbol';
 export * from './StateSymbol';
 export * from './DefaultPropertiesBlock';
 export * from './ReplicationBlock';
-export * from './NativeSymbols';
+export * from './IntrinsicSymbols';
 export * from './ArrayOperations';

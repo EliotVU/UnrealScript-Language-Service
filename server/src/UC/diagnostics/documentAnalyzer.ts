@@ -17,13 +17,14 @@ import {
     UCReturnStatement, UCSwitchStatement, UCWhileStatement
 } from '../statements';
 import {
-    areMethodsCompatibleWith, AssignToDelegateFlags, ContextInfo, isFieldSymbol, isMethodSymbol,
-    isStateSymbol, ITypeSymbol, LengthProperty, MethodFlags, ModifierFlags, NameCoerceFlags,
-    NativeClass, NativeEnum, NumberCoerceFlags, quoteTypeFlags, ReplicatableTypeFlags, resolveType,
-    StaticBoolType, StaticNameType, typeMatchesFlags, UCArchetypeSymbol, UCArrayTypeSymbol,
-    UCClassSymbol, UCConstSymbol, UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumMemberSymbol,
-    UCEnumSymbol, UCMethodSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol,
-    UCQualifiedTypeSymbol, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeFlags
+    areMethodsCompatibleWith, Array_LengthProperty, AssignToDelegateFlags, ContextInfo,
+    IntrinsicClass, IntrinsicEnum, isFieldSymbol, isMethodSymbol, isStateSymbol, ITypeSymbol,
+    MethodFlags, ModifierFlags, NameCoerceFlags, NumberCoerceFlags, quoteTypeFlags,
+    ReplicatableTypeFlags, resolveType, StaticBoolType, StaticNameType, typeMatchesFlags,
+    UCArchetypeSymbol, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol, UCDelegateSymbol,
+    UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCMethodSymbol, UCObjectTypeSymbol,
+    UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol, UCScriptStructSymbol, UCStateSymbol,
+    UCStructSymbol, UCTypeFlags
 } from '../Symbols';
 import { DefaultSymbolWalker } from '../symbolWalker';
 import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
@@ -987,9 +988,9 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
 
                 const objectSymbol = expr.objectRef.getRef();
                 if (config.checkTypes && objectSymbol) {
-                    if (castSymbol === NativeClass && !(objectSymbol instanceof UCClassSymbol)) {
+                    if (castSymbol === IntrinsicClass && !(objectSymbol instanceof UCClassSymbol)) {
                         this.pushError(expr.objectRef.id.range, `Type of '${objectSymbol.getPath()}' is not a class!`);
-                    } else if (castSymbol === NativeEnum && !(objectSymbol instanceof UCEnumSymbol)) {
+                    } else if (castSymbol === IntrinsicEnum && !(objectSymbol instanceof UCEnumSymbol)) {
                         this.pushError(expr.objectRef.id.range, `Type of '${objectSymbol.getPath()}' is not an enum!`);
                     }
                 }
@@ -1049,7 +1050,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
                 // 	);
                 // } else
                 if (argSymbol && isFieldSymbol(argSymbol)) {
-                    if (argSymbol === LengthProperty) {
+                    if (argSymbol === Array_LengthProperty) {
                         this.pushError(arg.getRange(),
                             `Cannot pass array property 'Length' to an 'out' parameter.`
                         );

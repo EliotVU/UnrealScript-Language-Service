@@ -10,7 +10,7 @@ import {
 } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    DEFAULT_RANGE, Identifier, ISymbol, IWithReference, ModifierFlags, NativeArray, ObjectsTable,
+    DEFAULT_RANGE, Identifier, IntrinsicArray, ISymbol, IWithReference, ModifierFlags, ObjectsTable,
     UCArchetypeSymbol, UCClassSymbol, UCConstSymbol, UCEnumSymbol, UCFieldSymbol, UCMethodSymbol,
     UCParamSymbol, UCScriptStructSymbol, UCStructSymbol, UCSymbol, UCSymbolReference
 } from './';
@@ -384,7 +384,7 @@ export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol
 }
 
 export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
-	override reference = NativeArray;
+	override reference = IntrinsicArray;
 
     static is(symbol: ISymbol): symbol is UCArrayTypeSymbol {
         return (symbol.getTypeFlags() & UCTypeFlags.Array) !== 0;
