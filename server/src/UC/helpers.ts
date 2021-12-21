@@ -105,7 +105,11 @@ export async function getSymbolTooltip(uri: string, position: Position): Promise
     const document = getDocumentByURI(uri);
     const ref = document && getDocumentSymbol(document, position);
     if (ref && ref instanceof UCSymbol) {
-        const contents = [{ language: 'unrealscript', value: ref.getTooltip() }];
+        const tooltipText = ref.getTooltip();
+        if (!tooltipText) {
+            return undefined;
+        }
+        const contents = [{ language: 'unrealscript', value: tooltipText }];
 
         const documentation = ref.getDocumentation();
         if (documentation) {
