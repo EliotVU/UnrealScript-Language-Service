@@ -23,12 +23,12 @@ export class UCEnumMemberSymbol extends UCFieldSymbol {
 
 	protected override getTypeKeyword(): string {
         if (this.modifiers & ModifierFlags.Intrinsic) {
-            return '(intrinsic enum member)';
+            return '(intrinsic enum tag)';
         }
         if (this.modifiers & ModifierFlags.Generated) {
-            return '(generated enum member)';
+            return '(generated enum tag)';
         }
-		return '(enum member)';
+		return '(enum tag)';
 	}
 
 	override getTooltip(): string {
