@@ -8,7 +8,7 @@ import {
     UCCallExpression, UCConditionalExpression, UCDefaultMemberCallExpression,
     UCDefaultStructLiteral, UCElementAccessExpression, UCMemberExpression, UCMetaClassExpression,
     UCNameOfExpression, UCObjectLiteral, UCParenthesizedExpression, UCPredefinedAccessExpression,
-    UCPropertyAccessExpression, UCSuperExpression
+    UCPropertyAccessExpression, UCSizeOfLiteral, UCSuperExpression
 } from './expressions';
 import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from './statements';
 import {
@@ -288,6 +288,8 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
             expr.argument?.accept(this);
         } else if (expr instanceof UCNameOfExpression) {
             expr.argument?.accept(this);
+        } else if (expr instanceof UCSizeOfLiteral) {
+            expr.argumentRef?.accept(this);
         }
         return super.visitExpression(expr);
     }

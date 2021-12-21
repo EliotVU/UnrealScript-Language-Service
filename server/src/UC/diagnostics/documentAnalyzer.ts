@@ -7,7 +7,7 @@ import {
     UCDefaultAssignmentExpression, UCDefaultMemberCallExpression, UCDefaultStructLiteral,
     UCElementAccessExpression, UCEmptyArgument, UCIdentifierLiteralExpression, UCMemberExpression,
     UCMetaClassExpression, UCNameOfExpression, UCObjectLiteral, UCParenthesizedExpression,
-    UCPropertyAccessExpression, UCSuperExpression
+    UCPropertyAccessExpression, UCSizeOfLiteral, UCSuperExpression
 } from '../expressions';
 import { config, UCGeneration } from '../indexer';
 import { NAME_ENUMCOUNT, NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
@@ -1000,6 +1000,8 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
         } else if (expr instanceof UCNameOfExpression) {
             // TODO: Validate type
             expr.argument?.accept(this);
+        } else if (expr instanceof UCSizeOfLiteral) {
+            expr.argumentRef?.accept(this);
         }
     }
 
