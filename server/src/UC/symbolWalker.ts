@@ -97,10 +97,6 @@ export class DefaultSymbolWalker<T> implements SymbolWalker<T> {
 	}
 
 	visitStructBase(symbol: UCStructSymbol) {
-		if (symbol.extendsType) {
-			symbol.extendsType.accept(this);
-		}
-
 		for (let child = symbol.children; child; child = child.next) {
 			child.accept(this);
 		}
@@ -111,6 +107,10 @@ export class DefaultSymbolWalker<T> implements SymbolWalker<T> {
 	}
 
 	visitClass(symbol: UCClassSymbol) {
+        if (symbol.extendsType) {
+			symbol.extendsType.accept(this);
+		}
+
 		if (symbol.withinType) {
 			symbol.withinType.accept(this);
 		}
@@ -150,6 +150,9 @@ export class DefaultSymbolWalker<T> implements SymbolWalker<T> {
 	}
 
 	visitScriptStruct(symbol: UCScriptStructSymbol) {
+        if (symbol.extendsType) {
+			symbol.extendsType.accept(this);
+		}
 		return this.visitStructBase(symbol);
 	}
 
@@ -184,6 +187,10 @@ export class DefaultSymbolWalker<T> implements SymbolWalker<T> {
 	}
 
 	visitState(symbol: UCStateSymbol) {
+        if (symbol.extendsType) {
+			symbol.extendsType.accept(this);
+		}
+
 		if (symbol.ignoreRefs) for (const ref of symbol.ignoreRefs){
             ref.accept(this);
 		}

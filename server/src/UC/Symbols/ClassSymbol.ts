@@ -2,16 +2,18 @@ import { CompletionItemKind, Position, Range, SymbolKind } from 'vscode-language
 
 import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
+import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    Identifier, ISymbol, ITypeSymbol, ModifierFlags, UCObjectTypeSymbol, UCQualifiedTypeSymbol,
-    UCStructSymbol, UCTypeFlags
+    Identifier, ISymbol, ITypeSymbol, ModifierFlags, UCFieldSymbol, UCObjectTypeSymbol,
+    UCQualifiedTypeSymbol, UCStructSymbol, UCTypeFlags
 } from './';
 
 export class UCClassSymbol extends UCStructSymbol {
 	override modifiers = ModifierFlags.ReadOnly;
 
 	public withinType?: ITypeSymbol;
+    public within?: UCClassSymbol;
 
 	public dependsOnTypes?: UCObjectTypeSymbol[];
 	public implementsTypes?: (UCQualifiedTypeSymbol | UCObjectTypeSymbol)[];
@@ -87,6 +89,12 @@ export class UCClassSymbol extends UCStructSymbol {
 		return undefined;
 	}
 
+	findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCTypeFlags): T | undefined {
+		return this.getSymbol<T>(id, kind)
+            ?? this.within?.findSuperSymbol(id, kind)
+            ?? this.super?.findSuperSymbol(id, kind);
+	}
+
 	override index(document: UCDocument, context: UCClassSymbol) {
 		if (this.withinType) {
 			this.withinType.index(document, context);
@@ -108,6 +116,11 @@ export class UCClassSymbol extends UCStructSymbol {
 		}
 
 		super.index(document, context);
+
+        if (this.withinType) {
+			this.withinType.index(document, context);
+            this.within = this.withinType.getRef<UCClassSymbol>();
+		}
 	}
 
 	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
