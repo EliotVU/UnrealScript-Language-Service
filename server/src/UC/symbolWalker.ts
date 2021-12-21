@@ -168,9 +168,6 @@ export class DefaultSymbolWalker<T> implements SymbolWalker<T> {
 	}
 
 	visitMethod(symbol: UCMethodSymbol) {
-		if (symbol.returnValue) {
-			symbol.returnValue.accept(this);
-		}
 		return this.visitStructBase(symbol);
 	}
 
