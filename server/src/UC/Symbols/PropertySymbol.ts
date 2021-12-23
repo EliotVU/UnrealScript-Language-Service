@@ -88,6 +88,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
     override getTooltip() {
         const text: Array<string | undefined> = [];
 
+        text.push(this.getTypeHint());
         text.push(this.getTypeKeyword());
 
         const modifiers = this.buildModifiers();

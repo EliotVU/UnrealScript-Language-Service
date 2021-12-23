@@ -21,14 +21,19 @@ export class UCEnumMemberSymbol extends UCFieldSymbol {
 		return CompletionItemKind.EnumMember;
 	}
 
-	protected override getTypeKeyword(): string {
+    protected override getTypeHint(): string {
         if (this.modifiers & ModifierFlags.Intrinsic) {
-            return '(intrinsic enum tag)';
-        }
+			return '(intrinsic enum tag)';
+		}
+
         if (this.modifiers & ModifierFlags.Generated) {
             return '(generated enum tag)';
         }
-		return '(enum tag)';
+        return '(enum tag)';
+    }
+
+	protected override getTypeKeyword(): string {
+		return this.getTypeHint();
 	}
 
 	override getTooltip(): string {

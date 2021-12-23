@@ -142,6 +142,16 @@ export class UCMethodSymbol extends UCStructSymbol {
 		}
 	}
 
+    protected override getTypeHint(): string | undefined {
+        if (this.modifiers & ModifierFlags.Intrinsic) {
+			return '(intrinsic)';
+		}
+
+		if (this.overriddenMethod) {
+            return '(override)';
+		}
+    }
+
 	protected override getTypeKeyword(): string {
 		return 'function';
 	}
@@ -149,13 +159,11 @@ export class UCMethodSymbol extends UCStructSymbol {
 	override getTooltip(): string {
 		const text: Array<string | undefined> = [];
 
-		if (this.overriddenMethod) {
-			text.push('(override)');
-		}
-
+		text.push(this.getTypeHint());
 		const modifiers = this.buildModifiers();
-		text.push(...modifiers);
-
+        if (modifiers.length > 0) {
+            text.push(modifiers.join(' '));
+        }
 		text.push(this.getTypeKeyword());
 		if (this.returnValue) {
 			text.push(this.returnValue.getTextForReturnValue());
@@ -204,10 +212,6 @@ export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference
 
     getTypeFlags() {
 		return this.returnValue?.getTypeFlags() ?? UCTypeFlags.Error;
-	}
-
-	protected getTypeKeyword(): string {
-		return '(intrinsic)';
 	}
 
 	getRef<T extends ISymbol>(): T | undefined {

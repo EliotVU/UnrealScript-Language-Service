@@ -17,6 +17,12 @@ export class UCStateSymbol extends UCStructSymbol {
 		return UCTypeFlags.State;
 	}
 
+    protected override getTypeHint(): string | undefined {
+		if (this.overriddenState) {
+            return '(override)';
+		}
+    }
+
 	override getTypeKeyword(): string {
 		return 'state';
 	}
@@ -24,10 +30,7 @@ export class UCStateSymbol extends UCStructSymbol {
 	override getTooltip(): string {
 		const text: Array<string | undefined> = [];
 
-		if (this.overriddenState) {
-			text.push('(override)');
-		}
-
+        text.push(this.getTypeHint());
 		const modifiers = this.buildModifiers();
 		text.push(...modifiers);
 

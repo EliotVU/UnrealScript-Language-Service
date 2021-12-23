@@ -24,8 +24,12 @@ export class UCEnumSymbol extends UCStructSymbol {
 		return CompletionItemKind.Enum;
 	}
 
+    protected override getTypeKeyword(): string {
+		return 'enum';
+	}
+
 	getTooltip(): string {
-		return `enum ${this.getPath()}`;
+		return `${this.getTypeKeyword()} ${this.getPath()}`;
 	}
 
 	getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, _kind?: UCTypeFlags): C[] {

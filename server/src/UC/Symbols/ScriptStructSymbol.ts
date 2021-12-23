@@ -22,8 +22,37 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return CompletionItemKind.Struct;
 	}
 
+    protected override getTypeKeyword(): string | undefined {
+		return 'struct';
+	}
+
 	override getTooltip(): string {
-		return `struct ${this.getPath()}`;
+        const text: Array<string | undefined> = [];
+		text.push(this.getTypeHint());
+        text.push(this.getTypeKeyword());
+        const modifiers = this.buildModifiers();
+        if (modifiers.length > 0) {
+            text.push(modifiers.join(' '));
+        }
+        text.push(this.getPath());
+        if (this.super) {
+            text.push(`extends ${this.super.getPath()}`);
+        }
+		return text.join(' ');
+	}
+
+    override buildModifiers(modifiers = this.modifiers): string[] {
+		const text: string[] = [];
+
+		if (modifiers & ModifierFlags.Native) {
+			text.push('native');
+		}
+
+        if (modifiers & ModifierFlags.Transient) {
+            text.push('transient');
+        }
+
+		return text;
 	}
 
     override getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, type?: UCTypeFlags) {

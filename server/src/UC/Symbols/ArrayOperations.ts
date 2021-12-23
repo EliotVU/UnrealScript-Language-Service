@@ -6,27 +6,28 @@ import {
 
 /** (defaultproperties) Acts as a template for array operations such as MyArray.Replace(item1, item2) etc.  */
 export const DefaultArray = new UCStructSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });
+DefaultArray.modifiers |= ModifierFlags.Intrinsic;
 
 const EmptyOperation = new UCMethodSymbol({ name: toName('Empty'), range: DEFAULT_RANGE });
-EmptyOperation.modifiers |= ModifierFlags.Native | ModifierFlags.Intrinsic;
+EmptyOperation.modifiers |= ModifierFlags.Intrinsic;
 DefaultArray.addSymbol(EmptyOperation);
 
 const AddOperation = new UCMethodSymbol({ name: toName('Add'), range: DEFAULT_RANGE });
-AddOperation.modifiers |= ModifierFlags.Native | ModifierFlags.Intrinsic;
+AddOperation.modifiers |= ModifierFlags.Intrinsic;
 const AddElementParam = new UCParamSymbol({ name: toName('Element'), range: DEFAULT_RANGE });
 AddOperation.addSymbol(AddElementParam);
 AddOperation.params = [AddElementParam];
 DefaultArray.addSymbol(AddOperation);
 
 const RemoveOperation = new UCMethodSymbol({ name: toName('Remove'), range: DEFAULT_RANGE });
-RemoveOperation.modifiers |= ModifierFlags.Native | ModifierFlags.Intrinsic;
+RemoveOperation.modifiers |= ModifierFlags.Intrinsic;
 const RemoveElementParam = new UCParamSymbol({ name: toName('Element'), range: DEFAULT_RANGE });
 RemoveOperation.addSymbol(RemoveElementParam);
 RemoveOperation.params = [RemoveElementParam];
 DefaultArray.addSymbol(RemoveOperation);
 
 const RemoveIndexOperation = new UCMethodSymbol({ name: toName('RemoveIndex'), range: DEFAULT_RANGE });
-RemoveIndexOperation.modifiers |= ModifierFlags.Native | ModifierFlags.Intrinsic;
+RemoveIndexOperation.modifiers |= ModifierFlags.Intrinsic;
 const RemoveIndexParam = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE });
 RemoveIndexParam.type = StaticIntType;
 RemoveIndexOperation.addSymbol(RemoveIndexParam);
@@ -34,7 +35,7 @@ RemoveIndexOperation.params = [RemoveIndexParam];
 DefaultArray.addSymbol(RemoveIndexOperation);
 
 const ReplaceOperation = new UCMethodSymbol({ name: toName('Replace'), range: DEFAULT_RANGE });
-ReplaceOperation.modifiers |= ModifierFlags.Native | ModifierFlags.Intrinsic;
+ReplaceOperation.modifiers |= ModifierFlags.Intrinsic;
 const ReplaceElement1Param = new UCParamSymbol({ name: toName('Element1'), range: DEFAULT_RANGE });
 const ReplaceElement2Param = new UCParamSymbol({ name: toName('Element2'), range: DEFAULT_RANGE });
 ReplaceOperation.addSymbol(ReplaceElement1Param);

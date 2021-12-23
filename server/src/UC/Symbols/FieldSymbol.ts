@@ -31,10 +31,13 @@ export enum ModifierFlags {
     // LocalFlags
     Local	            = 1 << 15,
 
+    // ClassFlags
+    Abstract            = 1 << 16,
+
     // InternalFlags
     // Not to be confused with the alternative keyword of "Native"
-    Intrinsic           = 1 << 16,
-    Generated           = 1 << 17,
+    Intrinsic           = 1 << 17,
+    Generated           = 1 << 18,
 }
 
 export abstract class UCFieldSymbol extends UCSymbol {
@@ -58,6 +61,16 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	protected getTypeKeyword(): string | undefined {
 		return undefined;
 	}
+
+    protected getTypeHint(): string | undefined {
+        if (this.modifiers & ModifierFlags.Intrinsic) {
+			return '(intrinsic)';
+		}
+        if (this.modifiers & ModifierFlags.Generated) {
+            return '(generated)';
+        }
+        return undefined;
+    }
 
 	override getTooltip(): string {
 		return this.getPath();

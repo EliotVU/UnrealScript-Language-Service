@@ -42,8 +42,44 @@ export class UCClassSymbol extends UCStructSymbol {
             : CompletionItemKind.Class;
 	}
 
+    protected override getTypeKeyword(): string | undefined {
+		return 'class';
+	}
+
 	override getTooltip(): string {
-		return `class ${this.getPath()}`;
+        const text: Array<string | undefined> = [];
+		text.push(this.getTypeHint());
+        text.push(`${this.getTypeKeyword()} ${this.getPath()}`);
+        if (this.super) {
+            text.push(`extends ${this.super.getPath()}`);
+        }
+        if (this.withinType) {
+            text.push(`within ${this.withinType.getRef()?.getPath()}`);
+        }
+
+		const modifiers = this.buildModifiers();
+        if (modifiers.length > 0) {
+            text.push('\n\t' + modifiers.join('\n\t'));
+        }
+		return text.filter(s => s).join(' ');
+	}
+
+    override buildModifiers(modifiers = this.modifiers): string[] {
+		const text: string[] = [];
+
+		if (modifiers & ModifierFlags.Native) {
+			text.push('native');
+		}
+
+        if (modifiers & ModifierFlags.Transient) {
+            text.push('abstract');
+        }
+
+        if (modifiers & ModifierFlags.Abstract) {
+            text.push('transient');
+        }
+
+		return text;
 	}
 
 	override getSymbolAtPos(position: Position) {

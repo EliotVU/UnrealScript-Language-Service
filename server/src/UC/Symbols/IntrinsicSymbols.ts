@@ -76,7 +76,7 @@ Array_RemoveItemFunction.params = [ItemParam3];
 IntrinsicArray.addSymbol(Array_RemoveItemFunction);
 
 const Array_FindFunction = new UCMethodSymbol({ name: toName('Find'), range: DEFAULT_RANGE });
-Array_FindFunction.modifiers |= ModifierFlags.Intrinsic;
+Array_FindFunction.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.ReadOnly;
 const ItemParam4 = new UCParamSymbol({ name: toName('Value|PropertyName'), range: DEFAULT_RANGE });
 Array_FindFunction.addSymbol(ItemParam4);
 const ItemParam5 = new UCParamSymbol({ name: toName('Value'), range: DEFAULT_RANGE });

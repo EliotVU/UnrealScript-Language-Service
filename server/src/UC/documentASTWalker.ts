@@ -374,7 +374,23 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 		this.push(symbol);
 		const modifierNodes = ctx.classModifier();
 		for (const modifierNode of modifierNodes) {
-            modifierNode.accept(this);
+            switch (modifierNode.start.type) {
+                case UCGrammar.UCParser.KW_NATIVE:
+                    symbol.modifiers |= ModifierFlags.Native;
+                    break;
+
+                case UCGrammar.UCParser.KW_TRANSIENT:
+                    symbol.modifiers |= ModifierFlags.Transient;
+                    break;
+
+                // case UCGrammar.UCParser.KW_ABSTRACT:
+                //     symbol.modifiers |= ModifierFlags.Abstract;
+                //     break;
+
+                default:
+                    modifierNode.accept(this);
+                    break;
+            }
 		}
 		return symbol;
 	}
@@ -483,6 +499,19 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	visitStructDecl(ctx: UCGrammar.StructDeclContext) {
 		const identifier: Identifier = idFromCtx(ctx.identifier());
 		const symbol = new UCScriptStructSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
+
+        const modifierNodes = ctx.structModifier();
+		for (const modifierNode of modifierNodes) {
+            switch (modifierNode.start.type) {
+                case UCGrammar.UCParser.KW_NATIVE:
+                    symbol.modifiers |= ModifierFlags.Native;
+                    break;
+
+                case UCGrammar.UCParser.KW_TRANSIENT:
+                    symbol.modifiers |= ModifierFlags.Transient;
+                    break;
+            }
+		}
 
 		const extendsNode = ctx.extendsClause();
 		if (extendsNode) {
