@@ -35,6 +35,7 @@ import {
     UCGeneration, UELicensee
 } from './UC/indexer';
 import { toName } from './UC/name';
+import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
 import {
     addHashedSymbol, DEFAULT_RANGE, IntrinsicArray, isClassSymbol, isFieldSymbol, ISymbol,
     ModifierFlags, ObjectsTable, supportsRef, UCClassSymbol, UCMethodSymbol, UCObjectTypeSymbol,
@@ -407,22 +408,68 @@ function clearIntrinsicSymbols() {
 function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
     const intSymbols = Object.entries(intrinsicSymbols);
     for (const [key, value] of intSymbols) {
-        const [pkgNameStr, symbolName] = key.split('.');
-        if (value.type === 'class') {
-            const classSymbolName = toName(symbolName);
-            if (ObjectsTable.getSymbol(classSymbolName, UCTypeFlags.Class)) {
-                continue;
+        const [pkgNameStr, symbolNameStr] = key.split('.');
+
+        const symbolName = VALID_ID_REGEXP.test(symbolNameStr)
+            ? toName(symbolNameStr) : NAME_NONE;
+
+        if (symbolName === NAME_NONE) {
+            console.error(`Invalid identifier '${symbolNameStr}' in key '${key}'`);
+            continue;
+        }
+
+        const typeName = value.type
+            ? toName(value.type) : NAME_NONE;
+        switch (typeName) {
+            case NAME_CLASS: {
+                if (ObjectsTable.getSymbol(symbolName, UCTypeFlags.Class)) {
+                    continue;
+                }
+
+                const symbol = new UCClassSymbol({ name: symbolName, range: DEFAULT_RANGE });
+                symbol.modifiers |= ModifierFlags.Intrinsic;
+                if (value.extends) {
+                    symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCTypeFlags.Class);
+                }
+                const pkg = createPackage(pkgNameStr);
+                symbol.outer = pkg;
+                addHashedSymbol(symbol);
+                break;
             }
 
-            const pkg = createPackage(pkgNameStr);
-            const symbol = new UCClassSymbol({ name: classSymbolName, range: DEFAULT_RANGE });
-            if (value.extends) {
-                symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCTypeFlags.Class);
+            case NAME_FUNCTION: {
+                if (typeof value.extends !== 'string') {
+                    console.error(`Invalid extends value in key '${key}'`);
+                    continue;
+                }
+                const extendsName = VALID_ID_REGEXP.test(value.extends)
+                    ? toName(value.extends) : NAME_NONE;
+                let superStruct: UCStructSymbol | undefined;
+                switch (extendsName) {
+                    case NAME_ARRAY:
+                        superStruct = IntrinsicArray;
+                        break;
+
+                    default:
+                        // superStruct = superStruct = ObjectsTable.getSymbol<UCStructSymbol>(extendsName.hash);
+                        console.error(`Unsupported extends type '${value.extends}' in key '${key}'`);
+                        break;
+                }
+
+                if (!(superStruct instanceof UCStructSymbol)) {
+                    console.error(`Couldn't find the specified struct of 'extends' '${value.extends}' in key '${key}'`);
+                    continue;
+                }
+
+                const symbol = new UCMethodSymbol({ name: symbolName, range: DEFAULT_RANGE });
+                symbol.modifiers |= ModifierFlags.Intrinsic;
+                superStruct.addSymbol(symbol);
+                break;
             }
-            symbol.outer = pkg;
-            addHashedSymbol(symbol);
-        } else {
-            console.error('Unsupported symbol type!', value.type, 'try \'class\'!');
+
+            default:
+                console.error(`Unsupported intrinsic type '${value.extends}' in key '${key}'`);
+                break;
         }
     }
 
