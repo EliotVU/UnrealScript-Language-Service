@@ -26,6 +26,8 @@ export enum MethodFlags {
 }
 
 export class UCMethodSymbol extends UCStructSymbol {
+    static readonly AllowedTypesMask = UCTypeFlags.Const | UCTypeFlags.Property/** params and locals */;
+
 	override modifiers = ModifierFlags.ReadOnly;
 
 	public specifiers: MethodFlags = MethodFlags.None;

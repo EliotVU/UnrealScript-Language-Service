@@ -36,6 +36,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
     private state: ContextInfo = {};
     private cachedState: ContextInfo = {};
     private diagnostics = new DiagnosticCollection();
+    private allowedTypesMask: UCTypeFlags = 0xFFFF;
 
     constructor(private document: UCDocument) {
         super();
@@ -67,6 +68,17 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
         this.state = this.cachedState;
     }
 
+    private isTypeAllowed(typeFlag: UCTypeFlags): boolean {
+        return (this.allowedTypesMask & (typeFlag & ~UCTypeFlags.Object)) === (typeFlag & ~UCTypeFlags.Object);
+    }
+
+    private setAllowedTypes(typeFlags: UCTypeFlags): void {
+        this.allowedTypesMask |= typeFlags;
+    }
+
+    private removeAllowedTypes(typeFlags: UCTypeFlags): void {
+        this.allowedTypesMask &= ~typeFlags;
+    }
 
     visitDocument(document: UCDocument) {
         super.visitDocument(document);
@@ -114,8 +126,18 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
     }
 
     visitClass(symbol: UCClassSymbol) {
+        if (!this.isTypeAllowed(UCTypeFlags.Class)) {
+            this.diagnostics.add({
+                range: symbol.getRange(),
+                message: {
+                    text: `Class cannot be declared here!`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+        }
+        this.setAllowedTypes(UCClassSymbol.AllowedTypesMask);
+        this.pushScope(symbol);
         super.visitClass(symbol);
-
         const className = symbol.getName();
         if (className.hash !== this.document.name.hash) {
             this.diagnostics.add({
@@ -172,6 +194,16 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
     }
 
     visitEnum(symbol: UCEnumSymbol) {
+        if (!this.isTypeAllowed(UCTypeFlags.Enum)) {
+            this.diagnostics.add({
+                range: symbol.getRange(),
+                message: {
+                    text: `Struct must be declared before any function or state.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+        }
+
         if (typeof symbol.children === 'undefined') {
             this.diagnostics.add({
                 range: symbol.getRange(),
@@ -223,6 +255,16 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
     }
 
     visitScriptStruct(symbol: UCScriptStructSymbol) {
+        if (!this.isTypeAllowed(UCTypeFlags.Struct)) {
+            this.diagnostics.add({
+                range: symbol.getRange(),
+                message: {
+                    text: `Struct must be declared before any function or state.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+        }
+
         this.pushScope(symbol);
         super.visitScriptStruct(symbol);
 
@@ -240,6 +282,15 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
     }
 
     visitProperty(symbol: UCPropertySymbol) {
+        if (!this.isTypeAllowed(UCTypeFlags.Property)) {
+            this.diagnostics.add({
+                range: symbol.getRange(),
+                message: {
+                    text: `Property must be declared before any function or state.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+        }
         super.visitProperty(symbol);
 
         if (symbol.isFixedArray() && symbol.arrayDimRange) {
@@ -289,7 +340,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
 
     visitMethod(symbol: UCMethodSymbol) {
         this.pushScope(symbol);
+        this.suspendState();
+        this.setAllowedTypes(UCMethodSymbol.AllowedTypesMask);
         super.visitMethod(symbol);
+        this.removeAllowedTypes(UCTypeFlags.Property);
+        this.resumeState();
 
         if (symbol.params) {
             let requiredParamsCount = 0;
@@ -366,7 +421,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
 
     visitState(symbol: UCStateSymbol) {
         this.pushScope(symbol);
+        this.suspendState();
+        this.setAllowedTypes(UCStateSymbol.AllowedTypesMask);
         super.visitState(symbol);
+        this.removeAllowedTypes(UCTypeFlags.Property);
+        this.resumeState();
 
         if (config.checkTypes && symbol.extendsType) {
             const referredSymbol = symbol.extendsType.getRef();

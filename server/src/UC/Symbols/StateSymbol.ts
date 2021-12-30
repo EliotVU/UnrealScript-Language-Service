@@ -6,6 +6,10 @@ import { SymbolWalker } from '../symbolWalker';
 import { UCFieldSymbol, UCStructSymbol, UCSymbolReference, UCTypeFlags } from './';
 
 export class UCStateSymbol extends UCStructSymbol {
+    static readonly AllowedTypesMask = UCTypeFlags.Const
+        | UCTypeFlags.Property
+        | UCTypeFlags.Function;
+
 	public overriddenState?: UCStateSymbol;
 	public ignoreRefs?: UCSymbolReference[];
 

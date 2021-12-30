@@ -8,6 +8,10 @@ import {
 import { ModifierFlags } from './FieldSymbol';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
+    static readonly AllowedTypesMask = UCTypeFlags.Const
+        | UCTypeFlags.Struct
+        | UCTypeFlags.Property;
+
     override modifiers = ModifierFlags.ReadOnly;
 
 	override getKind(): SymbolKind {

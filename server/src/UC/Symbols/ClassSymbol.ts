@@ -10,6 +10,12 @@ import {
 } from './';
 
 export class UCClassSymbol extends UCStructSymbol {
+    static readonly AllowedTypesMask = UCTypeFlags.Const
+        | UCTypeFlags.Enum
+        | UCTypeFlags.Struct
+        | UCTypeFlags.Property
+        | UCTypeFlags.Function;
+
 	override modifiers = ModifierFlags.ReadOnly;
 
 	public withinType?: ITypeSymbol;
