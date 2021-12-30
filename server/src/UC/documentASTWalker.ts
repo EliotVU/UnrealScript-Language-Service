@@ -1,10 +1,7 @@
-import {
-    ANTLRErrorListener, CommonTokenStream, ParserRuleContext, RecognitionException, Recognizer,
-    Token
-} from 'antlr4ts';
+import { CommonTokenStream, ParserRuleContext, Token } from 'antlr4ts';
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
 import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
-import { Position, Range } from 'vscode-languageserver-types';
+import { Range } from 'vscode-languageserver-types';
 
 import { UCLexer } from './antlr/generated/UCLexer';
 import * as UCGrammar from './antlr/generated/UCParser';
@@ -170,7 +167,7 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, type?: U
 	return leftType;
 }
 
-export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements UCPreprocessorParserVisitor<any>, UCParserVisitor<any>, ANTLRErrorListener<Token> {
+export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements UCPreprocessorParserVisitor<any>, UCParserVisitor<any> {
 	private scopes: ISymbolContainer<ISymbol>[] = [];
 	tokenStream: CommonTokenStream | undefined;
 
@@ -210,18 +207,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
 		const scope = this.scope();
 		scope.addSymbol(symbol);
-	}
-
-	syntaxError(_recognizer: Recognizer<Token, any>,
-		offendingSymbol: Token | undefined,
-		_line: number,
-		_charPositionInLine: number,
-		msg: string,
-		error: RecognitionException | undefined
-	) {
-		const range = Range.create(Position.create(_line - 1, _charPositionInLine), Position.create(_line - 1, _charPositionInLine));
-		const node = new ErrorDiagnostic(range, msg);
-		this.document.nodes.push(node);
 	}
 
 	visitErrorNode(errNode: ErrorNode) {
@@ -356,7 +341,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         if (ctx.KW_INTERFACE()) {
             symbol.typeFlags |= UCTypeFlags.Interface;
         }
-		addHashedSymbol(symbol);
+        if (this.document.class) {
+            addHashedSymbol(symbol);
+        }
 
 		this.declare(symbol, ctx);
 
@@ -442,7 +429,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 		const identifier: Identifier = idFromCtx(ctx.identifier());
 		const symbol = new UCEnumSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 		this.declare(symbol, ctx);
-		addHashedSymbol(symbol);
+        if (this.document.class) {
+            addHashedSymbol(symbol);
+        }
 
 		this.push(symbol);
 		try {
@@ -519,7 +508,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 		}
 
 		this.declare(symbol, ctx);
-		addHashedSymbol(symbol);
+        if (this.document.class) {
+            addHashedSymbol(symbol);
+        }
 
 		this.push(symbol);
 		try {

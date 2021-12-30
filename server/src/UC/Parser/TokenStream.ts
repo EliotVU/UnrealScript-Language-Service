@@ -2,19 +2,18 @@ import { ANTLRErrorListener, CommonTokenStream, Token, WritableToken } from 'ant
 
 import { UCLexer } from '../antlr/generated/UCLexer';
 import { MacroCallContext, MacroProgramContext } from '../antlr/generated/UCPreprocessorParser';
-import { CaseInsensitiveStream } from './CaseInsensitiveStream';
+import { UCInputStream } from './InputStream';
 
-const DEFAULT_INPUT = new CaseInsensitiveStream('');
+const DEFAULT_INPUT = UCInputStream.fromString('');
 
-export class CommonTokenStreamExt extends CommonTokenStream {
+export class UCTokenStream extends CommonTokenStream {
 	readonly evaluatedTokens = new Map<number, WritableToken[]>();
 
 	initMacroTree(macroTree: MacroProgramContext, errListener: ANTLRErrorListener<number>) {
 		const smNodes = macroTree.macroStatement();
 		if (smNodes) {
 			const rawLexer = new UCLexer(DEFAULT_INPUT);
-			rawLexer.removeErrorListeners();
-			rawLexer.addErrorListener(errListener);
+			rawLexer.removeErrorListeners(); rawLexer.addErrorListener(errListener);
 
 			for (const smNode of smNodes) {
 				const macroCtx = smNode.macro();
@@ -29,8 +28,8 @@ export class CommonTokenStreamExt extends CommonTokenStream {
 							continue;
 						}
 						const rawText = value.replace('\\', '');
-						const rawInput = new CaseInsensitiveStream(rawText);
-						rawLexer.inputStream = rawInput;
+						const inputStream = UCInputStream.fromString(rawText);
+						rawLexer.inputStream = inputStream;
 						tokens = rawLexer.getAllTokens();
 						macroCtx.evaluatedTokens = tokens;
 					}

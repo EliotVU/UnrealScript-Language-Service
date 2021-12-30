@@ -13,6 +13,7 @@
         "TS_NODE_COMPILER_OPTIONS": "{\"module\":\"commonjs\",\"strict\":false}",
     },
     "cSpell.words": [
-        "antlr"
+        "antlr",
+        "diagnoser"
     ],
 }

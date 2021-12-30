@@ -1,5 +1,5 @@
 import {
-    Range, SemanticTokenModifiers, SemanticTokensBuilder, SemanticTokenTypes
+    Range, SemanticTokenModifiers, SemanticTokens, SemanticTokensBuilder, SemanticTokenTypes
 } from 'vscode-languageserver/node';
 
 import { UCDocument } from './document';
@@ -12,9 +12,8 @@ import {
 } from './expressions';
 import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from './statements';
 import {
-    EnumValueTypeFlag, Identifier, isFieldSymbol, isMethodSymbol, isParamSymbol, ISymbol,
-    MethodFlags, ModifierFlags, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbol,
-    UCTypeFlags
+    EnumValueTypeFlag, Identifier, isFieldSymbol, isMethodSymbol, isParamSymbol, MethodFlags,
+    ModifierFlags, UCObjectTypeSymbol, UCSymbol, UCTypeFlags
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
@@ -89,7 +88,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         super();
     }
 
-    public getTokens() {
+    private getTokens() {
         return this.semanticTokensBuilder.build();
     }
 
@@ -164,28 +163,9 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    // HACK: We need to visit the children in reverse,
-    // -- otherwise we end up with non-sorted tokens, which VSCode will ignore.
-    // FIXME: This doesn't address the order in @visitClass()
-    visitStructBase(symbol: UCStructSymbol) {
-        if (symbol.extendsType) {
-            symbol.extendsType.accept(this);
-        }
-
-        if (symbol.children) {
-            const symbols: ISymbol[] = [];
-            for (let child: UCFieldSymbol | undefined = symbol.children; child; child = child.next) {
-                symbols.push(child);
-            }
-
-            for (let i = symbols.length - 1; i >= 0; --i) {
-                symbols[i].accept(this);
-            }
-        }
-
-        if (symbol.block) {
-            symbol.block.accept(this);
-        }
+    visitDocument(document: UCDocument): SemanticTokens {
+        super.visitDocument(document);
+        return this.getTokens();
     }
 
     visitBlock(symbol: UCBlock) {

@@ -5,7 +5,6 @@ import { DocumentSemanticsBuilder } from './UC/documentSemanticsBuilder';
 
 export async function buildSemanticTokens(document: UCDocument): Promise<SemanticTokens> {
     const walker = new DocumentSemanticsBuilder(document);
-    document.accept(walker);
-
-    return walker.getTokens();
+    const tokens = walker.visitDocument(document);
+    return tokens;
 }

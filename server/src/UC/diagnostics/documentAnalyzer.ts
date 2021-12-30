@@ -30,45 +30,47 @@ import { DefaultSymbolWalker } from '../symbolWalker';
 import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
 import * as diagnosticMessages from './diagnosticMessages.json';
 
-export class DocumentAnalyzer extends DefaultSymbolWalker<undefined> {
+export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection | undefined> {
     private scopes: UCStructSymbol[] = [];
     private context?: UCStructSymbol;
     private state: ContextInfo = {};
     private cachedState: ContextInfo = {};
+    private diagnostics = new DiagnosticCollection();
 
-    constructor(private document: UCDocument, private diagnostics: DiagnosticCollection) {
+    constructor(private document: UCDocument) {
         super();
-
-        if (document.class) {
-            this.pushScope(document.class);
-            document.class.accept(this);
-        }
     }
 
-    pushScope(context?: UCStructSymbol) {
+    private pushScope(context?: UCStructSymbol) {
         this.context = context;
         if (context) {
             this.scopes.push(context);
         }
     }
 
-    popScope(): UCStructSymbol | undefined {
+    private popScope(): UCStructSymbol | undefined {
         this.scopes.pop();
         this.context = this.scopes[this.scopes.length - 1];
         return this.context;
     }
 
-    resetState() {
+    private resetState() {
         this.state = {};
     }
 
-    suspendState() {
+    private suspendState() {
         this.cachedState = this.state;
         this.state = {};
     }
 
-    resumeState() {
+    private resumeState() {
         this.state = this.cachedState;
+    }
+
+
+    visitDocument(document: UCDocument) {
+        super.visitDocument(document);
+        return this.diagnostics;
     }
 
     visitQualifiedType(symbol: UCQualifiedTypeSymbol) {

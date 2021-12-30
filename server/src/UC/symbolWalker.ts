@@ -7,9 +7,10 @@ import {
 } from './statements';
 import {
     ISymbol, UCArchetypeSymbol, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol,
-    UCDefaultPropertiesBlock, UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCLocalSymbol,
-    UCMapTypeSymbol, UCMethodSymbol, UCObjectTypeSymbol, UCPackage, UCParamSymbol, UCPropertySymbol,
-    UCQualifiedTypeSymbol, UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol
+    UCDefaultPropertiesBlock, UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCFieldSymbol,
+    UCLocalSymbol, UCMapTypeSymbol, UCMethodSymbol, UCObjectTypeSymbol, UCPackage, UCParamSymbol,
+    UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock, UCScriptStructSymbol,
+    UCStateSymbol, UCStructSymbol
 } from './Symbols';
 
 export interface SymbolWalker<T> {
@@ -53,7 +54,7 @@ export interface SymbolWalker<T> {
 	visitExpression(expr: IExpression): T | void;
 }
 
-export class DefaultSymbolWalker<T> implements SymbolWalker<T> {
+export class DefaultSymbolWalker<T = undefined> implements SymbolWalker<T> {
 	visit(symbol: ISymbol) {
         return;
 	}
@@ -96,15 +97,26 @@ export class DefaultSymbolWalker<T> implements SymbolWalker<T> {
 		}
 	}
 
-	visitStructBase(symbol: UCStructSymbol) {
-		for (let child = symbol.children; child; child = child.next) {
-			child.accept(this);
-		}
+    // HACK: We need to visit the children in reverse,
+    // -- otherwise we end up with non-sorted tokens, which VSCode will ignore.
+    // FIXME: This doesn't address the order in @visitClass()
+    visitStructBase(symbol: UCStructSymbol) {
+        if (symbol.children) {
+            const symbols: ISymbol[] = Array(symbol.childrenCount());
 
-		if (symbol.block) {
-			symbol.block.accept(this);
-		}
-	}
+            for (let child: UCFieldSymbol | undefined = symbol.children, i = 0; child; child = child.next, ++i) {
+                symbols[i] = child;
+            }
+
+            for (let i = symbols.length - 1; i >= 0; --i) {
+                symbols[i].accept(this);
+            }
+        }
+
+        if (symbol.block) {
+            symbol.block.accept(this);
+        }
+    }
 
 	visitClass(symbol: UCClassSymbol) {
         if (symbol.extendsType) {

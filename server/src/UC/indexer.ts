@@ -84,15 +84,15 @@ export function indexDocument(document: UCDocument, text?: string): DocumentPars
         const parseData = document.build(text);
         document.hasBeenIndexed = true;
         const start = performance.now();
-        if (document.class) {
-            try {
-                document.class.index(document, document.class);
-            } catch (err) {
-                console.error(
-                    `An error was thrown while indexing document: "${document.uri}"`,
-                    err
-                );
+        try {
+            if (document.class) {
+                document.getSymbols().forEach(s => s.index(document, document.class!));
             }
+        } catch (err) {
+            console.error(
+                `An error was thrown while indexing document: "${document.uri}"`,
+                err
+            );
         }
         console.info(document.fileName + ': indexing time ' + (performance.now() - start));
         pendingIndexedDocuments.push(document);
@@ -104,16 +104,14 @@ export function indexDocument(document: UCDocument, text?: string): DocumentPars
 
 // To be initiated after we have indexed all dependencies, so that deep recursive context references can be resolved.
 function postIndexDocument(document: UCDocument) {
-    if (document.class) {
-        try {
-            const indexer = new DocumentIndexer(document);
-            document.class.accept(indexer);
-        } catch (err) {
-            console.error(
-                `An error was thrown while post indexing document: "${document.uri}"`,
-                err
-            );
-        }
+    try {
+        const indexer = new DocumentIndexer(document);
+        indexer.visitDocument(document);
+    } catch (err) {
+        console.error(
+            `An error was thrown while post indexing document: "${document.uri}"`,
+            err
+        );
     }
 }
 

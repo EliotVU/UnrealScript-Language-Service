@@ -1,4 +1,4 @@
-import { ANTLRErrorListener, CommonTokenStream } from 'antlr4ts';
+import { CommonTokenStream } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -13,9 +13,10 @@ import { IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentASTWalker } from './documentASTWalker';
 import { applyMacroSymbols, config, IndexedReferencesMap, UCGeneration } from './indexer';
 import { Name, toName } from './name';
-import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
-import { CommonTokenStreamExt } from './Parser/CommonTokenStreamExt';
+import { UCErrorListener } from './Parser/ErrorListener';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
+import { UCInputStream } from './Parser/InputStream';
+import { UCTokenStream } from './Parser/TokenStream';
 import {
     ISymbol, removeHashedSymbol, SymbolReference, SymbolsTable, UCClassSymbol, UCPackage,
     UCStructSymbol, UCSymbol
@@ -34,10 +35,10 @@ function removeChildren(scope: UCStructSymbol) {
     }
 }
 
-export interface DocumentParseData {
+export type DocumentParseData = {
     context?: ProgramContext;
     parser: UCParser;
-}
+};
 
 export class UCDocument {
     /** Parsed file name filtered of path and extension. */
@@ -73,12 +74,12 @@ export class UCDocument {
     public build(text: string = this.readText()): DocumentParseData {
         console.log('building document ' + this.fileName);
 
-        const inputStream = new CaseInsensitiveStream(text);
+        const inputStream = UCInputStream.fromString(text);
         const lexer = new UCLexer(inputStream);
-        lexer.removeErrorListeners();
+        const errorListener = new UCErrorListener();
+        lexer.removeErrorListeners(); lexer.addErrorListener(errorListener);
         const walker = new DocumentASTWalker(this, this.scope);
-        lexer.addErrorListener(walker as ANTLRErrorListener<number>);
-        const tokens = new CommonTokenStreamExt(lexer);
+        const tokens = new UCTokenStream(lexer);
 
         if (config.generation === UCGeneration.UC3) {
             const startPreprocressing = performance.now();
@@ -88,7 +89,7 @@ export class UCDocument {
                 try {
                     const macroTree = preprocessDocument(this, macroParser, walker);
                     if (macroTree) {
-                        tokens.initMacroTree(macroTree, walker as ANTLRErrorListener<number>);
+                        tokens.initMacroTree(macroTree, errorListener);
                     }
                 } catch (err) {
                     console.error(err);
@@ -106,19 +107,16 @@ export class UCDocument {
         try {
             parser.interpreter.setPredictionMode(PredictionMode.SLL);
             parser.errorHandler = ERROR_STRATEGY;
-            parser.removeErrorListeners();
-            parser.addErrorListener(walker);
+            parser.removeErrorListeners(); parser.addErrorListener(errorListener);
             context = parser.program();
         } catch (err) {
             console.debug('PredictionMode SLL has failed, rolling back to LL.');
             try {
-                this.nodes = [];
-
+                errorListener.nodes = [];
                 parser.reset();
                 parser.interpreter.setPredictionMode(PredictionMode.LL);
                 parser.errorHandler = ERROR_STRATEGY;
-                parser.removeErrorListeners();
-                parser.addErrorListener(walker);
+                parser.removeErrorListeners(); parser.addErrorListener(errorListener);
                 context = parser.program();
             } catch (err) {
                 console.error(
@@ -142,6 +140,7 @@ export class UCDocument {
             console.info(this.fileName + ': transforming time ' + (performance.now() - startWalking));
         }
         tokens.release(tokens.mark());
+        this.nodes = this.nodes.concat(errorListener.nodes);
         return { context, parser };
     }
 
@@ -154,7 +153,7 @@ export class UCDocument {
     public invalidate(cleanup = true) {
         if (cleanup) {
             // Remove hashed objects from the global objects table.
-            // This however does not however not invoke any invalidation calls to dependencies.
+            // This however does not invoke any invalidation calls to dependencies.
             // TODO: Merge this with scope.clear();
             if (this.class) {
                 removeChildren(this.class);
@@ -217,15 +216,15 @@ export function preprocessDocument(document: UCDocument, macroParser: UCPreproce
         applyMacroSymbols(config.macroSymbols);
     }
 
-    const classNameMacro = { text: document.fileName.substr(0, document.fileName.indexOf('.uc')) };
+    const classNameMacro = { text: document.fileName.substring(0, document.fileName.indexOf('.uc')) };
     macroParser.currentSymbols.set("classname", classNameMacro);
 
     const packageNameMacro = { text: document.classPackage.getName().text };
     macroParser.currentSymbols.set("packagename", packageNameMacro);
 
     if (walker) {
-        macroParser.removeErrorListeners();
-        macroParser.addErrorListener(walker);
+        const errorListener = new UCErrorListener();
+        macroParser.removeErrorListeners(); macroParser.addErrorListener(errorListener);
     }
     const macroCtx = macroParser.macroProgram();
     if (walker) {

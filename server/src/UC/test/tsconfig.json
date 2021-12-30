@@ -3,4 +3,7 @@
         "strict": false,
         "strictNullChecks": false
     },
+    "include": [
+        "**/*.test.ts"
+    ]
 }

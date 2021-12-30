@@ -2,11 +2,10 @@ import { expect } from 'chai';
 import * as path from 'path';
 
 import { UCLexer } from './antlr/generated/UCLexer';
-import { DiagnosticCollection } from './diagnostics/diagnostic';
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
 import { createPreprocessor, preprocessDocument, UCDocument } from './document';
 import { applyMacroSymbols, indexDocument } from './indexer';
-import { CaseInsensitiveStream } from './Parser/CaseInsensitiveStream';
+import { UCInputStream } from './Parser/InputStream';
 import { TRANSIENT_PACKAGE } from './Symbols';
 
 const GRAMMARS_DIR = path.resolve(__dirname, '../../../grammars/examples');
@@ -24,9 +23,8 @@ describe('Document', () => {
 	it('is diagnostics free?', () => {
 		indexDocument(document);
 
-        const diagnostics = new DiagnosticCollection();
-        (new DocumentAnalyzer(document, diagnostics));
-
+        const diagnoser = new DocumentAnalyzer(document);
+        const diagnostics = diagnoser.visitDocument(document);
 		expect(diagnostics.count()).to.equal(0);
 	});
 });
@@ -34,7 +32,7 @@ describe('Document', () => {
 describe('Document with macros', () => {
 	const document = new UCDocument(MACRO_PATH, TRANSIENT_PACKAGE);
 
-	const inputStream = new CaseInsensitiveStream(document.readText());
+    const inputStream = UCInputStream.fromString(document.readText());
 	const lexer = new UCLexer(inputStream);
 
 	const macroParser = createPreprocessor(document, lexer);
