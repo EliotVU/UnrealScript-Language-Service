@@ -3,18 +3,6 @@
 	"tasks": [
 		{
 			"type": "npm",
-			"script": "compile",
-			"group": "build",
-			"presentation": {
-				"panel": "dedicated",
-				"reveal": "never"
-			},
-			"problemMatcher": [
-				"$tsc"
-			]
-		},
-		{
-			"type": "npm",
 			"script": "watch",
 			"isBackground": true,
 			"group": {
@@ -26,7 +14,8 @@
 				"reveal": "never"
 			},
 			"problemMatcher": [
-				"$tsc-watch"
+                "$ts-webpack-watch",
+                "$tslint-webpack-watch"
 			]
 		}
 	]
