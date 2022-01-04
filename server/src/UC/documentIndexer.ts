@@ -1,8 +1,7 @@
 import { UCDocument } from './document';
 import {
-    ContextInfo, EnumCoerceFlags, hasChildren, isParamSymbol, UCClassSymbol,
-    UCDefaultPropertiesBlock, UCMethodSymbol, UCReplicationBlock, UCStateSymbol, UCStructSymbol,
-    UCTypeFlags
+    ContextInfo, hasChildren, isParamSymbol, UCClassSymbol, UCDefaultPropertiesBlock, UCEnumSymbol,
+    UCMethodSymbol, UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
@@ -11,58 +10,61 @@ import { DefaultSymbolWalker } from './symbolWalker';
  * The indexing of a block is handled separately here so that we can resolve recursive dependencies within blocks.
  */
 export class DocumentIndexer extends DefaultSymbolWalker<undefined> {
-	constructor(private document: UCDocument) {
-		super();
-	}
+    constructor(private document: UCDocument) {
+        super();
+    }
 
-	visitStructBase(symbol: UCStructSymbol) {
-		for (let child = symbol.children; child; child = child.next) {
-			if (hasChildren(child)) {
-				child.accept(this);
-			}
-		}
-	}
+    visitStructBase(symbol: UCStructSymbol) {
+        for (let child = symbol.children; child; child = child.next) {
+            if (hasChildren(child)) {
+                child.accept(this);
+            }
+        }
+    }
 
-	visitClass(symbol: UCClassSymbol) {
-		return this.visitStructBase(symbol);
-	}
+    visitEnum(symbol: UCEnumSymbol) { return; }
+	visitScriptStruct(symbol: UCScriptStructSymbol) { return; }
 
-	visitState(symbol: UCStateSymbol) {
-		if (symbol.block) {
-			symbol.block.index(this.document, symbol);
-		}
-		return this.visitStructBase(symbol);
-	}
+    visitClass(symbol: UCClassSymbol) {
+        this.visitStructBase(symbol);
+    }
 
-	visitMethod(symbol: UCMethodSymbol) {
-		if (symbol.block) {
-			symbol.block.index(this.document, symbol);
-		}
+    visitState(symbol: UCStateSymbol) {
+        this.visitStructBase(symbol);
 
-		for (let child = symbol.children; child; child = child.next) {
-			// Parameter?
-			if (child && isParamSymbol(child) && child.defaultExpression) {
-                let context: ContextInfo | undefined;
-                if (child.getTypeFlags() & EnumCoerceFlags) {
-                    context = {
-                        typeFlags: UCTypeFlags.Enum
-                    };
-                }
-				child.defaultExpression.index(this.document, symbol, context);
-			}
-		}
-	}
+        if (symbol.block) {
+            symbol.block.index(this.document, symbol);
+        }
+    }
 
-	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
-		if (symbol.block) {
-			symbol.block.index(this.document, symbol);
-		}
-		return this.visitStructBase(symbol);
-	}
+    visitMethod(symbol: UCMethodSymbol) {
+        for (let child = symbol.children; child; child = child.next) {
+            // Parameter?
+            if (child && isParamSymbol(child) && child.defaultExpression) {
+                const typeFlags = child.getType()?.getTypeFlags();
+                const context: ContextInfo | undefined = {
+                    typeFlags: typeFlags
+                };
+                child.defaultExpression.index(this.document, symbol, context);
+            }
+        }
 
-	visitReplicationBlock(symbol: UCReplicationBlock) {
-		if (symbol.block) {
-			symbol.block.index(this.document, symbol);
-		}
-	}
+        if (symbol.block) {
+            symbol.block.index(this.document, symbol);
+        }
+    }
+
+    visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
+        this.visitStructBase(symbol);
+
+        if (symbol.block) {
+            symbol.block.index(this.document, symbol);
+        }
+    }
+
+    visitReplicationBlock(symbol: UCReplicationBlock) {
+        if (symbol.block) {
+            symbol.block.index(this.document, symbol);
+        }
+    }
 }
