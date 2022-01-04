@@ -4,6 +4,7 @@ class AssignTypeTest extends Object
 const NAME_CONSTANT = '';
 const STRING_CONSTANT = "";
 const BYTE_CONSTANT = 0;
+const INT_CONSTANT = 2;
 
 enum EEnum {
     E_NONE,
@@ -16,7 +17,13 @@ struct sVector {
     var int x;
 };
 
+struct sStruct {
+    // FIXME: Type not found
+    var int var[INT_CONSTANT];
+};
+
 var sVector vectorVar;
+var Array<sVector> vectorArrayVar;
 
 var int property;
 // FIXME: Qualified enum access
@@ -32,6 +39,7 @@ var transient int transientVar;
 var float floatVar;
 var int intVar;
 var Class objectVar;
+var AssignTypeTest WhiteTexture;
 
 function int AssignTest() {
     local AssignTypeTest obj;
@@ -77,11 +85,15 @@ defaultproperties
 {
     enumVar=E_NONE
 
+    // TODO: Not yet indexed
     vectorVar=(x=0)
     vectorVar={(
 		x=0,
 		y=0,
 	)}
+
+    // FIXME: Indexed but lookups are made in the wrong context due an unexpected struct literal "()".
+    vectorArrayVar.Add((x=0,y=0))
 
     nameVar="NameAsString"
     nameVar=STRING_CONSTANT // FIXME: Is this allowed?
@@ -104,6 +116,9 @@ defaultproperties
     // FIXME: UE2, 3, 1?
     objectVar="Core.Object"
     objectVar=Core.Object
+    objectVar=Object
+    // Ambiguous assignment
+    WhiteTexture=WhiteTexture
     floatVar=.004
     // INVALID
     intVar=.004

@@ -22,6 +22,11 @@ function EEnumTest EnumTestMethod(EEnumTest p1 = ET_None, EEnumTest p2 = EEnumTe
     }
     return ET_None;
 
+    // FIXME: Missing enum hint, and type coercing is broken.
+	return String(self) != "none"
+        ? ET_Other
+        : ET_None;
+
     Enum'EEnumTest';
 }
 
