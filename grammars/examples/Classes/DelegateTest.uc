@@ -12,6 +12,11 @@ var DelegateProperty DelegatePropertyRef;
 // @EXPECT ERROR
 var delegate<InternalAcceptDelegate> InvalidProperty;
 
+struct mystruct {
+    // FIXME: Delegate not found
+	var delegate<OnDelegate> Callback;
+};
+
 delegate OnDelegate(name param1, bool param2);
 delegate OnDelegate2(name param1, bool param2);
 delegate bool OnDelegate3(name param1, bool param2);
@@ -32,9 +37,20 @@ function InternalOnAcceptIncompatible(name param1, name param2, name param3)
     ;
 }
 
+// FIXME: Missmatch
+function AmbiguousDelegateParam(delegate<OnDelegate> onDelegate);
+
 function bool Test(name param1, bool param2)
 {
     local DelegateTest object;
+	local delegate<OnDelegate3> localDelegate;
+
+    localDelegate = OnDelegate3;
+    // FIXME: Type checking
+    // FIXME: Error message is spanning the entire block.
+    if (localDelegate('', true)) {
+
+    }
 
     InternalAcceptDelegate(none);
     InternalAcceptDelegate(OnDelegate);

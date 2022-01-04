@@ -29,6 +29,10 @@ var name nameVar;
 var native int nativeVar;
 var transient int transientVar;
 
+var float floatVar;
+var int intVar;
+var Class objectVar;
+
 function int AssignTest() {
     local AssignTypeTest obj;
     local array<AssignTypeTest> objs;
@@ -96,4 +100,11 @@ defaultproperties
     sVector=0
     AssignTest=0
     0=0
+
+    // FIXME: UE2, 3, 1?
+    objectVar="Core.Object"
+    objectVar=Core.Object
+    floatVar=.004
+    // INVALID
+    intVar=.004
 }

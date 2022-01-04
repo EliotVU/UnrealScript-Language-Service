@@ -6,8 +6,8 @@ import { UCMethodSymbol, UCStateSymbol } from '../../Symbols';
 import { usingDocuments } from '../utils/utils';
 
 describe('Override', () => {
-    usingDocuments(__dirname, ['Override.uc', 'OverrideBase.uc'], () => {
-        const testDocument = getDocumentById(toName('Override'));
+    usingDocuments(__dirname, ['OverrideTest.uc', 'OverrideBase.uc'], () => {
+        const testDocument = getDocumentById(toName('OverrideTest'));
         indexDocument(testDocument);
 
         const overrideClass = testDocument.class;

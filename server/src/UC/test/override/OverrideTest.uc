@@ -1,4 +1,4 @@
-class Override extends OverrideBase;
+class OverrideTest extends OverrideBase;
 
 // Should override OverrideBase.MyMethod
 function MyMethod();
