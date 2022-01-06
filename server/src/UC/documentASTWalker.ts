@@ -1,6 +1,5 @@
 import { CommonTokenStream, ParserRuleContext, Token } from 'antlr4ts';
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
-import { ErrorNode } from 'antlr4ts/tree/ErrorNode';
 import { Range } from 'vscode-languageserver-types';
 
 import { UCLexer } from './antlr/generated/UCLexer';
@@ -207,12 +206,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
 		const scope = this.scope();
 		scope.addSymbol(symbol);
-	}
-
-	visitErrorNode(errNode: ErrorNode) {
-		const node = new ErrorDiagnostic(rangeFromBound(errNode.symbol), '(ANTLR) ' + errNode.text);
-		this.document.nodes.push(node);
-		return undefined!;
 	}
 
 	visitMacroDefine(ctx: UCMacro.MacroDefineContext) {
@@ -938,7 +931,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                     nameId = idFromCtx(objAttr._value);
                     const idExpr = new UCIdentifierLiteralExpression(nameId);
                     nameType = new UCObjectTypeSymbol(nameId, undefined, UCTypeFlags.Object);
-                    idExpr.typeRef = nameType;
+                    idExpr.type = nameType;
                     nameExpr.right = idExpr;
                     hardcodedStatements.push(nameExpr);
 					break;
@@ -950,7 +943,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                     classId = idFromCtx(objAttr._value);
                     const idExpr = new UCIdentifierLiteralExpression(classId);
                     classType = new UCObjectTypeSymbol(classId, undefined, UCTypeFlags.Class);
-                    idExpr.typeRef = classType;
+                    idExpr.type = classType;
                     classExpr.right = idExpr;
                     hardcodedStatements.push(classExpr);
 					break;
@@ -1018,14 +1011,18 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 	visitDefaultMemberCallExpression(ctx: UCGrammar.DefaultMemberCallExpressionContext) {
 		const expression = new UCDefaultMemberCallExpression(rangeFromBounds(ctx.start, ctx.stop));
 		expression.propertyMember = memberFromIdCtx(ctx.identifier(0));
-		expression.methodMember = memberFromIdCtx(ctx.identifier(1));
+        const operationId = idFromCtx(ctx.identifier(1));
+        expression.operationMember = new UCSymbolReference(operationId);
 		expression.arguments = ctx.arguments()?.accept(this);
 		return expression;
 	}
 
 	visitDefaultElementAccessExpression(ctx: UCGrammar.DefaultElementAccessExpressionContext) {
 		const expression = new UCDefaultElementAccessExpression(rangeFromBounds(ctx.start, ctx.stop));
-		expression.expression = memberFromIdCtx(ctx.identifier());
+		const idNode = ctx.identifier();
+        if (idNode) {
+            expression.expression = memberFromIdCtx(idNode);
+        }
 		expression.argument = ctx._arg?.accept(this);
 		return expression;
 	}

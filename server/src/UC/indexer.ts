@@ -198,8 +198,8 @@ export function getIndexedReferences(hash: number) {
 }
 
 const EnumMemberMap = new Map<number, UCEnumMemberSymbol>();
-export function getEnumMember(enumName: Name): UCEnumMemberSymbol | undefined {
-    return EnumMemberMap.get(enumName.hash);
+export function getEnumMember(enumMemberName: Name): UCEnumMemberSymbol | undefined {
+    return EnumMemberMap.get(enumMemberName.hash);
 }
 export function setEnumMember(enumMember: UCEnumMemberSymbol) {
     EnumMemberMap.set(enumMember.getName().hash, enumMember);

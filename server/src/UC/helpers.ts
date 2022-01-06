@@ -8,9 +8,33 @@ import { isFieldSymbol, ISymbol, supportsRef, UCSymbol } from './Symbols';
 
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 
+export function rangeAtStopFromBound(token: Token): Range {
+    const length = token.stopIndex - token.startIndex + 1;
+    const line = token.line - 1;
+    const position: Position = {
+        line,
+        character: token.charPositionInLine + length
+    };
+    return {
+        start: position,
+        end: position
+    };
+}
+
 export function rangeFromBound(token: Token): Range {
     const length = token.stopIndex - token.startIndex + 1;
     const line = token.line - 1;
+    if (length === 0) {
+        const position: Position = {
+            line,
+            character: token.charPositionInLine + length
+        };
+
+        return {
+            start: position,
+            end: position
+        };
+    }
     const start: Position = {
         line,
         character: token.charPositionInLine

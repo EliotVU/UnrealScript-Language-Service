@@ -42,7 +42,7 @@ export class UCScriptStructSymbol extends UCStructSymbol {
         if (this.super) {
             text.push(`extends ${this.super.getPath()}`);
         }
-		return text.join(' ');
+		return text.filter(Boolean).join(' ');
 	}
 
     override buildModifiers(modifiers = this.modifiers): string[] {

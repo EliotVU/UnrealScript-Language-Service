@@ -246,10 +246,14 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
             expr.right?.accept(this);
         } else if (expr instanceof UCDefaultMemberCallExpression) {
             expr.propertyMember.accept(this);
-            expr.methodMember.accept(this);
+            expr.operationMember.accept(this);
+            const symbolRef = expr.operationMember.getRef<UCSymbol>();
+            if (typeof symbolRef !== 'undefined') {
+                this.pushSymbol(symbolRef, expr.operationMember.id);
+            }
             expr.arguments?.forEach(arg => arg.accept(this));
         } else if (expr instanceof UCMemberExpression) {
-            expr.typeRef?.accept(this);
+            expr.type?.accept(this);
         } else if (expr instanceof UCPredefinedAccessExpression) {
             // Disabled for now, it doesn't look that pretty when namespace tokens are colored like a class type.
             // if (expr.id.name !== NAME_SELF) {

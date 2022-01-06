@@ -123,7 +123,7 @@ var int 					defaultIntArray[CONST_NUMBER]; const CONST_ARRAYCOUNT = arraycount(
 var array<int> 				defaultIntDynamicArray;
 var array<AStruct>          defaultStructArray;
 
-// TODO: Test how the UC compiler handles delegate names that are ambigues with a class.
+// TODO: Test how the UC compiler handles delegate names that are ambiguous with a class.
 // As it currently stands, the delegate is matched with class "Test" instead of function "Test".
 var delegate<DelegateFunction> 	defaultDelegate;
 

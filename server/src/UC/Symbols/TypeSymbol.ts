@@ -88,11 +88,23 @@ export function quoteTypeFlags(flags: UCTypeFlags): string {
 	return UCTypeFlags[flags].toString();
 }
 
+class UCType extends UCSymbol implements ITypeSymbol {
+    override outer: undefined;
+
+    getTypeText(): string {
+        throw new Error('Method not implemented.');
+    }
+
+    getRef<T extends ISymbol>(): T | undefined {
+        throw new Error('Method not implemented.');
+    }
+}
+
 /**
  * Represents a qualified identifier type reference such as "extends Core.Object",
  * -- where "Core" is assigned to @left and "Object" to @type.
  */
-export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
+export class UCQualifiedTypeSymbol extends UCType implements ITypeSymbol {
 	constructor(public type: UCObjectTypeSymbol, public left?: UCQualifiedTypeSymbol) {
 		super(type.id);
 	}
@@ -150,7 +162,7 @@ export class UCQualifiedTypeSymbol extends UCSymbol implements ITypeSymbol {
 	}
 }
 
-export class UCPredefinedTypeSymbol extends UCSymbol implements ITypeSymbol {
+export class UCPredefinedTypeSymbol extends UCType implements ITypeSymbol {
 	getRef<T extends ISymbol>(): T | undefined {
 		return undefined;
 	}

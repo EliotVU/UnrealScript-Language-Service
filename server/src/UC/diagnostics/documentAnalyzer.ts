@@ -903,9 +903,9 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                 } else if (
                     // Both Native and Transient modifiers will skip serialization, except for transient since UE3? (needs to be tested thoroughly).
                         (letSymbol.modifiers & ModifierFlags.Native) !== 0
-                    || ((letSymbol.modifiers & ModifierFlags.Transient) !== 0
-                        && config.generation !== UCGeneration.UC3
-                )) {
+                    || ((letSymbol.modifiers & ModifierFlags.Transient) !== 0 && config.generation !== UCGeneration.UC3)
+                    && expr instanceof UCDefaultAssignmentExpression
+                ) {
                     const modifiers = letSymbol
                         .buildModifiers(letSymbol.modifiers & (ModifierFlags.Native | ModifierFlags.Transient))
                         .join(' ');
@@ -978,22 +978,28 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
             }
         } else if (expr instanceof UCDefaultMemberCallExpression) {
             expr.propertyMember.accept(this);
-            expr.methodMember.accept(this);
-            expr.arguments?.forEach(arg => arg.accept(this));
 
-            const type = expr.methodMember.getType();
-            const symbol = type?.getRef();
-            if (symbol && isMethodSymbol(symbol)) {
-                this.checkArguments(symbol, expr, expr.getType());
-            } else {
-                this.pushError(expr.methodMember.getRange(), `Operation can only be applied to an array!`);
+            const type = expr.propertyMember.getType();
+            if (type) {
+                if (!UCArrayTypeSymbol.is(type)) {
+                    this.pushError(expr.operationMember.getRange(), `Array operations are only allowed on dynamic arrays.`);
+                } else {
+                    const operationType = expr.operationMember;
+                    const operationSymbol = operationType.getRef();
+                    if (typeof operationSymbol !== 'undefined' && isMethodSymbol(operationSymbol)) {
+                        this.checkArguments(operationSymbol, expr, expr.getType());
+                    } else {
+                        this.pushError(operationType.getRange(), `Unrecognized array operation '${operationType.id.name.text}'.`);
+                    }
+                }
             }
+            expr.arguments?.forEach(arg => arg.accept(this));
         } else if (expr instanceof UCIdentifierLiteralExpression) {
             if (!this.state.typeFlags) {
                 return;
             }
 
-            if (!expr.typeRef) {
+            if (!expr.type) {
                 if (this.context) {
                     this.diagnostics.add({
                         range: expr.getRange(),
@@ -1015,7 +1021,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                 }
             }
         } else if (expr instanceof UCMemberExpression) {
-            if (!expr.typeRef && this.context) {
+            if (!expr.type && this.context) {
                 this.diagnostics.add({
                     range: expr.getRange(),
                     message: {

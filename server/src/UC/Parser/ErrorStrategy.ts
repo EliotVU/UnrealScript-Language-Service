@@ -13,11 +13,11 @@ export class UCErrorStrategy extends DefaultErrorStrategy {
             const token = this.constructToken(
                 recognizer.inputStream.tokenSource,
                 UCParser.SEMICOLON, ';',
-                recognizer.currentToken
+                recognizer.currentToken,
             );
 
-            const errorNode = recognizer.createErrorNode(recognizer.context, token);
-            recognizer.context.addErrorNode(errorNode);
+            const node = recognizer.createTerminalNode(recognizer.context, token);
+            recognizer.context.addChild(node);
         // } else if (e.expectedTokens.contains(UCParser.OPEN_PARENS)) {
         //     const openToken = this.constructToken(
         //         recognizer.inputStream.tokenSource,

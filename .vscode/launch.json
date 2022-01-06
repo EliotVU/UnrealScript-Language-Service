@@ -28,7 +28,7 @@
 			"runtimeExecutable": "${execPath}",
 			"args": ["--extensionDevelopmentPath=${workspaceRoot}"],
 			"sourceMaps": true,
-			"outFiles": ["${workspaceRoot}/out/*.js"],
+			"outFiles": ["${workspaceRoot}/out/extension.js"],
             "stopOnEntry": false,
             "preLaunchTask": "npm: watch"
 		},
@@ -38,6 +38,7 @@
 			"name": "Attach to Server",
 			"port": 6010,
 			"sourceMaps": true,
+            "restart": true,
 			"outFiles": ["${workspaceRoot}/out/server.js"]
 		}
 	],

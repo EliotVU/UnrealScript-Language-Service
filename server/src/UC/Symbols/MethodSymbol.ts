@@ -212,10 +212,6 @@ export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference
 		super({ name, range: DEFAULT_RANGE });
 	}
 
-    getTypeFlags() {
-		return this.returnValue?.getTypeFlags() ?? UCTypeFlags.Error;
-	}
-
 	getRef<T extends ISymbol>(): T | undefined {
 		return this.returnValue?.getType()?.getRef<T>();
 	}

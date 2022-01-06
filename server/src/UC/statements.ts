@@ -126,6 +126,8 @@ export class UCAssertStatement extends UCExpressionStatement {
 }
 
 export class UCIfStatement extends UCThenStatement {
+    then?: UCBlock;
+
 	public else?: IStatement;
 
 	getContainedSymbolAtPos(position: Position) {
@@ -172,18 +174,24 @@ export class UCRepIfStatement extends UCExpressionStatement {
 }
 
 export class UCDoUntilStatement extends UCThenStatement {
+    then?: UCBlock;
+
 	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitDoUntilStatement(this);
 	}
 }
 
 export class UCWhileStatement extends UCThenStatement {
+    then?: UCBlock;
+
 	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitWhileStatement(this);
 	}
 }
 
 export class UCSwitchStatement extends UCThenStatement {
+    then?: UCBlock;
+
 	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
 		if (this.expression) {
 			this.expression.index(document, context, info);
@@ -205,18 +213,24 @@ export class UCSwitchStatement extends UCThenStatement {
 }
 
 export class UCCaseClause extends UCThenStatement {
+    then?: UCBlock;
+
 	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitCaseClause(this);
 	}
 }
 
 export class UCDefaultClause extends UCThenStatement {
+    then?: UCBlock;
+
 	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitDefaultClause(this);
 	}
 }
 
 export class UCForStatement extends UCThenStatement {
+    then?: UCBlock;
+
 	// @super.expression is the conditional if expression
 	public init?: IExpression;
 	public next?: IExpression;
@@ -239,6 +253,8 @@ export class UCForStatement extends UCThenStatement {
 }
 
 export class UCForEachStatement extends UCThenStatement {
+    then?: UCBlock;
+
 	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitForEachStatement(this);
 	}

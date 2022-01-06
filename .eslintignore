@@ -3,6 +3,6 @@ client/node_modules/**
 client/out/**
 server/node_modules/**
 server/out/**
-server/src/antlr/**
+server/src/UC/antlr/**
 dist/**
 webpack.config.js

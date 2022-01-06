@@ -13,12 +13,13 @@ export const DEFAULT_POSITION = Position.create(0, 0);
 export const DEFAULT_RANGE = Range.create(DEFAULT_POSITION, DEFAULT_POSITION);
 
 /**
- * A symbol build from a AST context.
+ * A symbol built from an AST context.
  */
 export abstract class UCSymbol implements ISymbol {
 	public outer?: ISymbol;
 	public description?: Token[];
 
+    // TODO: Clarify id
 	constructor(public readonly id: Identifier) {
 
 	}
@@ -104,4 +105,8 @@ export abstract class UCSymbol implements ISymbol {
 	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visit(this);
 	}
+
+    toString(): string {
+        return this.getPath();
+    }
 }

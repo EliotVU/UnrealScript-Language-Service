@@ -111,7 +111,6 @@ defaultproperties
     NAME_CONSTANT=0
     sVector=0
     AssignTest=0
-    0=0
 
     // FIXME: UE2, 3, 1?
     objectVar="Core.Object"

@@ -1,9 +1,9 @@
 {
+    "extends": "@tsconfig/recommended/tsconfig.json",
     "compilerOptions": {
-        "module": "commonjs",
-        "target": "es2019",
+        "target": "es2021",
         "lib": [
-            "es2019"
+            "es2021"
         ],
         "plugins": [
             {
@@ -11,10 +11,8 @@
             }
         ],
         "resolveJsonModule": true,
-        "strict": true,
         "strictBindCallApply": false,
         "strictPropertyInitialization": false,
-        "downlevelIteration": true,
     },
     "references": [
         {
