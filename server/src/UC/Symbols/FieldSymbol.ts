@@ -38,6 +38,7 @@ export enum ModifierFlags {
     // Not to be confused with the alternative keyword of "Native"
     Intrinsic           = 1 << 17,
     Generated           = 1 << 18,
+    Keyword             = 1 << 19,
 }
 
 export abstract class UCFieldSymbol extends UCSymbol {
