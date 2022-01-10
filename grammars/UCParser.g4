@@ -277,6 +277,9 @@ classModifier
 	// | (KW_SHOWCATEGORIES modifierArguments)
 	// | (KW_HIDECATEGORIES modifierArguments)
 	// | (KW_GUID (LPAREN INTEGER COMMA INTEGER COMMA INTEGER COMMA INTEGER RPAREN))
+    // UC2+
+    // | 'Interface'
+    // | 'NoPropertySort'
 	// // UC3+
 	// | KW_NATIVEONLY
 	// | KW_NONTRANSIENT
@@ -419,12 +422,14 @@ varDecl
 	   variable (COMMA variable)* SEMICOLON
 	;
 
-// id[5] {DWORD} <Order=1>
+// id[5] {DWORD} <Order=1> "PI:Property Two:Game:1:60:Check"
 variable
 	: identifier (OPEN_BRACKET arrayDim=arrayDimRefer? CLOSE_BRACKET)?
-	exportBlockText?
-	metaData?
+	(exportBlockText? metaData?) // UC3+
+    (optionText?) // UC2 (UT2004+, used in Pariah)
 	;
+
+optionText: STRING_LITERAL;
 
 // UC3 <UIMin=0.0|UIMax=1.0|Toolip=Hello world!>
 metaData
@@ -468,6 +473,8 @@ variableModifier
 	| 'editinlineuse'
 	| 'editconstarray'
 	| 'edfindable'
+    // UC2+
+    // | 'nonlocalized'
 	// UC3
 	| 'init'
 	| 'edithide'
