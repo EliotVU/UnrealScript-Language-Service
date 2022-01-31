@@ -87,6 +87,17 @@ function removeDocuments(files: string[]) {
     }
 }
 
+async function awaitDocumentDelivery(uri: string): Promise<UCDocument | undefined> {
+    const document = getDocumentByURI(uri);
+    if (document && document.hasBeenIndexed) {
+        return document;
+    }
+
+    return firstValueFrom(lastIndexedDocuments$).then(documents => {
+        return documents.find((d) => d.uri === uri);
+    });
+}
+
 export const connection = createConnection(ProposedFeatures.all);
 
 let lastIndexedDocumentsSub: Subscription;
@@ -518,10 +529,14 @@ function setupIgnoredTokens(generation: UCGeneration) {
     setIgnoredTokensSet(ignoredTokensSet);
 }
 
-connection.onHover((e) => getSymbolTooltip(e.textDocument.uri, e.position));
+connection.onHover(async (e) => {
+    await awaitDocumentDelivery(e.textDocument.uri);
+    return getSymbolTooltip(e.textDocument.uri, e.position);
+});
 
 connection.onDefinition(async (e) => {
-    const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
+    await awaitDocumentDelivery(e.textDocument.uri);
+    const symbol = getSymbolDefinition(e.textDocument.uri, e.position);
     if (symbol instanceof UCSymbol) {
         const uri = symbol.getUri();
         // This shouldn't happen, except for non UCSymbol objects.
@@ -538,7 +553,7 @@ connection.onDocumentSymbol((e) => getSymbols(e.textDocument.uri));
 connection.onDocumentHighlight((e) => getHighlights(e.textDocument.uri, e.position));
 connection.onCompletion((e) => {
     if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
-        return firstValueFrom(lastIndexedDocuments$).then(documents => {
+        return firstValueFrom(lastIndexedDocuments$).then(_documents => {
             return getCompletableSymbolItems(e.textDocument.uri, activeDocumentParseData, e.position);
         });
     }
@@ -548,7 +563,7 @@ connection.onCompletionResolve(getFullCompletionItem);
 connection.onSignatureHelp((e) => getSignatureHelp(e.textDocument.uri, activeDocumentParseData, e.position));
 
 connection.onPrepareRename(async (e) => {
-    const symbol = await getSymbol(e.textDocument.uri, e.position);
+    const symbol = getSymbol(e.textDocument.uri, e.position);
     if (!symbol || !(symbol instanceof UCSymbol)) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }

@@ -152,14 +152,14 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 			}
 		}
 
-		if (this.children) for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
+        if (this.children) for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
 			try {
 				child.index(document, this);
 			} catch (err) {
 				console.error(`Encountered an error while indexing '${child.getPath()}': ${err}`);
 			}
 		}
-	}
+    }
 
 	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitStruct(this);

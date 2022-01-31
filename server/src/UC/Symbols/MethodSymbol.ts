@@ -113,7 +113,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 	}
 
 	override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: SymbolKind) {
-		return this.getSymbol<T>(id, kind) || (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
+		return this.getSymbol<T>(id, kind) ?? (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
 	}
 
 	override index(document: UCDocument, context: UCStructSymbol) {

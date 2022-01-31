@@ -1,11 +1,31 @@
 parser grammar UCParser;
 
-options { tokenVocab = UCLexer; }
+options {
+    tokenVocab = UCLexer;
+}
+
+@members {
+    getIndex(): number {
+        return this._input.index;
+    }
+
+    skipLine(i = this._input.index): void {
+        let token;
+        do {
+            token = this._input.get(i++);
+        } while (token.type !== UCParser.NEWLINE && token.type !== UCParser.EOF)
+        this._input.seek(i);
+    }
+}
 
 // Class modifier keywords have been commented out, because we are not using them for parsing.
 identifier
-	: ID
-	| 'default'
+    : ID
+    | keyword
+    ;
+
+keyword
+	: 'default'
 	| 'self'
 	| 'super'
 	| 'global'
@@ -56,9 +76,10 @@ identifier
 	| 'button'
 	| 'bool'
 	| 'name'
-	| 'true'
-	| 'false'
-	| 'none'
+    // Allowed but leads to many ambiguous issues
+	// | 'true'
+	// | 'false'
+	// | 'none'
 	| 'extends'
 	| 'expands'
 	| 'public'
@@ -102,7 +123,7 @@ identifier
 	| 'intrinsic'
 	| 'native'
 	// | 'nativereplication'
-	// | 'nativeonly'
+	| 'nativeonly'
 	| 'export'
 	// | 'abstract'
 	// | 'perobjectconfig'
@@ -174,6 +195,9 @@ identifier
 	| 'vect'
 	| 'rot'
 	| 'rng'
+    | 'arraycount'
+    | 'enumcount'
+    | 'sizeof'
 	;
 
 // Parses the following possiblities.
@@ -183,17 +207,10 @@ identifier
 qualifiedIdentifier: left=identifier (DOT right=identifier)?;
 
 directive
-	: SHARP { let i = this._input.index; } identifier
-	{
-        let token;
-        do {
-            token = this._input.get(i++);
-        } while (token.type !== UCParser.NEWLINE && token.type !== UCParser.EOF)
-        this._input.seek(i);
-	}
+	: SHARP { const i = this.getIndex(); } identifier? { this.skipLine(i); }
 	;
 
-program: member* EOF;
+program: member* /* EOF */;
 
 member
 	: classDecl
@@ -211,32 +228,27 @@ member
 	;
 
 literal
-	: boolLiteral
-	| intLiteral
-	| floatLiteral
-	| stringLiteral
-	| noneLiteral
-	| nameLiteral
-	| vectToken
+	: BOOLEAN_LITERAL
+	| INTEGER_LITERAL
+	| DECIMAL_LITERAL
+	| STRING_LITERAL
+	| NAME_LITERAL
+	| NONE_LITERAL
+	;
+
+structLiteral
+    : vectToken
 	| rotToken
 	| rngToken
-	| objectLiteral
-	;
+    ;
 
-floatLiteral: (MINUS | PLUS)? FLOAT;
-intLiteral: (MINUS | PLUS)? INTEGER;
-
-numberLiteral: (MINUS | PLUS)? (FLOAT | INTEGER);
-stringLiteral: STRING;
-nameLiteral: NAME;
-boolLiteral
-	: 'true'
-	| 'false'
-	;
-noneLiteral: 'none';
+// FIXME: Only signed if the minus or plus has no spaces in between the decimal.
+// Adding this in the lexing pass causes issues with expressions,
+// - such as i = 1+1; i.e. (identifier ASSIGNMENT intLiteral intLiteral SEMICOLON)
+signedNumericLiteral: (MINUS | PLUS)? DOT? (DECIMAL_LITERAL | INTEGER_LITERAL);
 
 // e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
-objectLiteral: identifier NAME;
+objectLiteral: identifier NAME_LITERAL;
 
 classDecl
 	: ('class' | 'interface') identifier (extendsClause withinClause?)?
@@ -281,7 +293,6 @@ classModifier
     // | 'Interface'
     // | 'NoPropertySort'
 	// // UC3+
-	// | KW_NATIVEONLY
 	// | KW_NONTRANSIENT
 	// | KW_PEROBJECTLOCALIZED
 	// | KW_DEPRECATED
@@ -302,7 +313,8 @@ classModifier
 
 modifierValue
 	: identifier
-	| numberLiteral
+	| INTEGER_LITERAL
+    | BOOLEAN_LITERAL
 	;
 
 modifierArgument
@@ -322,24 +334,25 @@ qualifiedIdentifierArguments
     ;
 
 constDecl
-	: 'const' identifier (ASSIGNMENT expr=constValue)? SEMICOLON
+	: 'const' identifier (ASSIGNMENT value=constValue)? SEMICOLON
 	;
 
 constValue
-	: noneLiteral
-	| boolLiteral
-	| floatLiteral
-	| intLiteral
-	| stringLiteral
+	: literal
+	| signedNumericLiteral
 	| objectLiteral
-	| nameLiteral
-	| vectToken
-	| rotToken
-	| rngToken
+    | structLiteral
+    // <=UC1
+    // | enumCountToken
 	| arrayCountToken
+    // UC3+
 	| nameOfToken
 	| sizeOfToken
 	;
+
+enumCountToken
+    : 'enumcount' (OPEN_PARENS expr=primaryExpression CLOSE_PARENS)
+    ;
 
 arrayCountToken
     : 'arraycount' (OPEN_PARENS expr=primaryExpression CLOSE_PARENS)
@@ -350,15 +363,15 @@ nameOfToken
     ;
 
 vectToken
-	: 'vect' (OPEN_PARENS numberLiteral COMMA numberLiteral COMMA numberLiteral CLOSE_PARENS)
+	: 'vect' (OPEN_PARENS signedNumericLiteral COMMA signedNumericLiteral COMMA signedNumericLiteral CLOSE_PARENS)
 	;
 
 rotToken
-	: 'rot' (OPEN_PARENS numberLiteral COMMA numberLiteral COMMA numberLiteral CLOSE_PARENS)
+	: 'rot' (OPEN_PARENS signedNumericLiteral COMMA signedNumericLiteral COMMA signedNumericLiteral CLOSE_PARENS)
 	;
 
 rngToken
-	: 'rng' (OPEN_PARENS numberLiteral COMMA numberLiteral CLOSE_PARENS)
+	: 'rng' (OPEN_PARENS signedNumericLiteral COMMA signedNumericLiteral CLOSE_PARENS)
 	;
 
 sizeOfToken
@@ -410,7 +423,7 @@ structModifier
 	;
 
 arrayDimRefer
-	: INTEGER
+	: INTEGER_LITERAL
 	| qualifiedIdentifier // Referres a constant in class scope, or an enum's member.
 	;
 
@@ -637,9 +650,9 @@ functionSpecifier
 	| 'k2call'
 	| 'k2pure'
 	| 'k2override')
-	| ('native' (OPEN_PARENS nativeToken=INTEGER CLOSE_PARENS)?)
-	| ('intrinsic' (OPEN_PARENS nativeToken=INTEGER CLOSE_PARENS)?)
-	| ('operator' (OPEN_PARENS operatorPrecedence=INTEGER CLOSE_PARENS))
+	| ('native' (OPEN_PARENS nativeToken=INTEGER_LITERAL CLOSE_PARENS)?)
+	| ('intrinsic' (OPEN_PARENS nativeToken=INTEGER_LITERAL CLOSE_PARENS)?)
+	| ('operator' (OPEN_PARENS operatorPrecedence=INTEGER_LITERAL CLOSE_PARENS))
 	| ('public' exportBlockText?)
 	| ('protected' exportBlockText?)
 	| ('private' exportBlockText?)
@@ -723,7 +736,7 @@ statement
 	| directive
 	;
 
-expressionStatement: expressionWithAssignment SEMICOLON;
+expressionStatement: (assignmentExpression | primaryExpression) SEMICOLON;
 
 ifStatement
 	: 'if' (OPEN_PARENS expr=expression? CLOSE_PARENS)
@@ -735,7 +748,12 @@ elseStatement: 'else' codeBlockOptional;
 foreachStatement: 'foreach' expr=primaryExpression codeBlockOptional;
 
 forStatement
-	: 'for' (OPEN_PARENS (initExpr=expressionWithAssignment SEMICOLON) (condExpr=expressionWithAssignment SEMICOLON) nextExpr=expressionWithAssignment CLOSE_PARENS)
+	: 'for'
+        OPEN_PARENS
+            (initExpr=expressionWithAssignment? SEMICOLON
+            condExpr=expressionWithAssignment? SEMICOLON
+            nextExpr=expressionWithAssignment?)
+        CLOSE_PARENS
 		codeBlockOptional
 	;
 
@@ -856,6 +874,7 @@ primaryExpression
 	| id=SHARP right=primaryExpression														#preOperatorExpression
 	| id=DOLLAR right=primaryExpression														#preOperatorExpression
 	| id=AT right=primaryExpression															#preOperatorExpression
+
 	| left=primaryExpression id=INCR 														#postOperatorExpression
 	| left=primaryExpression id=DECR 														#postOperatorExpression
 
@@ -872,10 +891,6 @@ primaryExpression
 	| left=primaryExpression id=EXP right=primaryExpression 								#binaryOperatorExpression
 	| left=primaryExpression id=(STAR|DIV) right=primaryExpression 							#binaryOperatorExpression
 	| left=primaryExpression id=MODULUS right=primaryExpression 							#binaryOperatorExpression
-	// Note, checking for ID instead of identifier here,
-	// -- so that we don't missmtach 'if, or return' statements
-	// -- after a foreach's expression.
-	| left=primaryExpression id=ID right=primaryExpression 									#binaryNamedOperatorExpression
 	| left=primaryExpression id=(PLUS|MINUS) right=primaryExpression 						#binaryOperatorExpression
 	| left=primaryExpression id=(LSHIFT|RSHIFT|SHIFT) right=primaryExpression 				#binaryOperatorExpression
 	| left=primaryExpression id=(LT|GT|LEQ|GEQ|EQ|IEQ) right=primaryExpression 				#binaryOperatorExpression
@@ -885,7 +900,12 @@ primaryExpression
 	| left=primaryExpression id=OR right=primaryExpression 									#binaryOperatorExpression
 	| left=primaryExpression id=(DOLLAR|AT) right=primaryExpression 						#binaryOperatorExpression
 
-	| cond=primaryExpression INTERR left=primaryExpression COLON right=primaryExpression	#conditionalExpression
+	// Note, checking for ID instead of identifier here,
+	// -- so that we don't missmtach 'if, or return' statements
+	// -- after a foreach's expression.
+	| left=primaryExpression id=ID right=primaryExpression 									#binaryNamedOperatorExpression
+
+	| <assoc=right> cond=primaryExpression INTERR left=primaryExpression COLON right=primaryExpression	#conditionalExpression
 
 	| 'self'																				#selfReferenceExpression
 	| 'default'																				#defaultReferenceExpression
@@ -893,6 +913,8 @@ primaryExpression
 	| 'global'																				#globalAccessExpression
 
 	| literal 																				#literalExpression
+	| objectLiteral                                                                         #objectLiteralExpression
+    | structLiteral                                                                         #structLiteralExpression
 
 	// Note any keyword must preceed identifier!
 	| identifier 																			#memberExpression
@@ -918,14 +940,18 @@ defaultPropertiesBlock
 	:
 		'defaultproperties'
 		// UnrealScriptBug: Must be on the line after keyword!
-		(OPEN_BRACE defaultStatement* CLOSE_BRACE)
+		(OPEN_BRACE
+            defaultStatement*
+        CLOSE_BRACE)
 	;
 
 structDefaultPropertiesBlock
 	:
 		'structdefaultproperties'
 		// UnrealScriptBug: Must be on the line after keyword!
-		(OPEN_BRACE defaultStatement* CLOSE_BRACE)
+		(OPEN_BRACE
+            defaultStatement*
+        CLOSE_BRACE)
 	;
 
 // TODO: Perhaps do what we do in the directive rule, just skip until we hit a new line or a "|".
@@ -944,25 +970,25 @@ defaultStatement
 	;
 
 defaultExpression
-	: identifier (OPEN_BRACKET arg=defaultArgument CLOSE_BRACKET)				#defaultElementAccessExpression
-	| identifier (OPEN_PARENS arg=defaultArgument CLOSE_PARENS)					#defaultElementAccessExpression
-	| identifier																#defaultMemberExpression
+	: identifier (OPEN_BRACKET arg=defaultConstantArgument? CLOSE_BRACKET)				#defaultElementAccessExpression
+	| identifier (OPEN_PARENS arg=defaultConstantArgument? CLOSE_PARENS)				#defaultElementAccessExpression
+	| identifier																        #defaultMemberExpression
 	;
 
-// TODO: does UC coerce float here?
-defaultArgument
-	: intLiteral
-	| floatLiteral
-	// TODO: Is this possible?
-	// | qualifiedIdentifierLiteral
-	| identifierLiteral
+/**
+ * Parses an array index like MyArray(Numeric|Const|Enum)
+ * 0|0.0|identifier
+ */
+defaultConstantArgument
+	: INTEGER_LITERAL
+	| DECIMAL_LITERAL
+	| defaultIdentifierRef
 	;
 
 defaultAssignmentExpression
-	: defaultExpression ASSIGNMENT ((OPEN_BRACE defaultLiteral CLOSE_BRACE) | defaultLiteral)
+	: defaultExpression ASSIGNMENT ((OPEN_BRACE defaultValue? CLOSE_BRACE) | defaultValue)
 	;
 
-// TODO: (verify) Could the first identifier be a defaultExpression e.g. Array(0).ArrayMember.Add(1)?
 defaultMemberCallExpression
 	: identifier DOT propId=identifier (OPEN_PARENS arguments? CLOSE_PARENS)?
 	;
@@ -971,42 +997,47 @@ objectDecl
 	:
 		// UnrealScriptBug: name= and class= are required to be on the same line as the keyword!
 		('begin' 'object') objectAttribute+
-			defaultStatement*
+            defaultStatement*
 		('end' 'object')
 	;
 
 objectAttribute
 	: id=KW_NAME ASSIGNMENT value=identifier
 	| id=KW_CLASS ASSIGNMENT value=identifier
+    // Probably deprecated, but this attribute is still in use in some UDK classes.
+    // | id='legacyclassname'
+
+    // Seems to be absent, but it does compile and will override name=
+    // | id='objname'
+
+    // Is this feature used anywhere?
+    // | id='archetype' ASSIGNMENT value=identifier '\'' identifier
 	;
 
 // (variableList)
-structLiteral
-	: OPEN_PARENS structArguments? CLOSE_PARENS
+defaultStructLiteral
+	: OPEN_PARENS defaultArgumentsLiteral? CLOSE_PARENS
 	;
 
 // id=literal,* or literal,*
-structArguments
+defaultArgumentsLiteral
 	: (defaultAssignmentExpression (COMMA defaultAssignmentExpression)* COMMA?)
-	| (defaultLiteral (COMMA defaultLiteral)* COMMA?)
+	| (defaultValue (COMMA defaultValue)* COMMA?)
 	;
 
-qualifiedIdentifierLiteral
-	: identifier (DOT identifier)+
-	;
-
-identifierLiteral
+defaultIdentifierRef
 	: identifier
 	;
 
-defaultLiteral
-	: structLiteral
-	| noneLiteral
-	| boolLiteral
-	| floatLiteral
-	| intLiteral
-	| stringLiteral
+defaultQualifiedIdentifierRef
+	: identifier (DOT identifier)+
+	;
+
+defaultValue
+	: literal
+    | signedNumericLiteral
 	| objectLiteral
-	| qualifiedIdentifierLiteral
-	| identifierLiteral
+	| defaultQualifiedIdentifierRef
+	| defaultIdentifierRef
+    | defaultStructLiteral
 	;

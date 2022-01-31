@@ -5,7 +5,7 @@
 			"type": "antlr-debug",
             "request": "launch",
             "name": "Antlr UC Grammar",
-			"input": "grammars/examples/Classes/Gamma.uc",
+			"input": "grammars/examples/Classes/AmbiguousOperatorOverloadingTest.uc",
 			"grammar": "grammars/UCParser.g4",
             "startRule": "program",
 			"visualParseTree": true

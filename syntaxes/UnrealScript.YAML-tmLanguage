@@ -1,4 +1,4 @@
-# target_format: json, ext: tmLanguage
+# [PackageDev] target_format: json, ext: tmLanguage
 ---
 name: UnrealScript Syntax Definition (UC)
 fileTypes: [.uc, .uci]
@@ -60,6 +60,7 @@ repository:
             name: storage.type.class.jsdoc.uc
           '2':
             name: variable.other.jsdoc.uc
+
       - match: (?:(@\w+))
         captures:
           '1':
@@ -151,10 +152,14 @@ repository:
   numeric-literal:
     patterns:
       - name: constant.numeric.hex.uc
-        match: 0(x|X)[0-9a-fA-F]+
+        match: 0(?:x|X)[0-9a-fA-F]+
+
+    # Matches one of (.0¡.0f|0.f¡0.0)
+      - name: constant.numeric.decimal.uc
+        match: '[0-9]*\.(?:(?:f|F)|[0-9]+(?:f|F))'
 
       - name: constant.numeric.decimal.uc
-        match: '[0-9]+(f|F)?'
+        match: '[0-9]+(?:f|F)?'
 
   # Anything that is a static value such as a literal but including some "special tokens"
   constant:
@@ -464,7 +469,7 @@ repository:
         patterns:
           - include: '#comment'
 
-          - match: \b((?i)abstract|export|exportstructs|noexport|noexportheader|nativereplication|nativeonly|deprecated|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|hidedropdown|editinlinenew|noteditinlinenew|cacheexempt|perobjectconfig|perobjectlocalized|forcescriptorder|instanced)\b
+          - match: \b((?i)abstract|export|exportstructs|noexport|noexportheader|nativereplication|nativeonly|deprecated|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|parseconfig|hidedropdown|editinlinenew|noteditinlinenew|cacheexempt|perobjectconfig|perobjectlocalized|forcescriptorder|instanced)\b
             name: storage.modifier.uc
 
           # modifiers with optional params

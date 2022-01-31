@@ -188,6 +188,7 @@ export function getDocumentByURI(uri: string): UCDocument | undefined {
     return document;
 }
 
+/** Returns a mapped document by name (excluding the extension, unless it is a .uci file) */
 export function getDocumentById(id: Name): UCDocument | undefined {
     return documentsMap.get(id.hash);
 }

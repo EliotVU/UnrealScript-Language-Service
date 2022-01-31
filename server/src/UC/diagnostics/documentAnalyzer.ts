@@ -660,17 +660,68 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
     visitForStatement(stm: UCForStatement) {
         super.visitForStatement(stm);
 
-        if (!config.checkTypes)
-            return;
-
-        if (stm.expression) {
-            const type = stm.expression.getType();
-            if (type && !typeMatchesFlags(type, StaticBoolType)) {
+        if (stm.init) {
+            // TODO: Check if the operator has an "out" parameter?
+            const hasAffect = true;
+            if (!hasAffect) {
                 this.diagnostics.add({
-                    range: stm.getRange(),
-                    message: createExpectedTypeMessage(UCTypeFlags.Bool, type.getTypeFlags())
+                    range: stm.init.getRange(),
+                    message: {
+                        text: `Expression has no effect.`,
+                        severity: DiagnosticSeverity.Error
+                    }
                 });
             }
+        } else {
+            this.diagnostics.add({
+                range: stm.getRange(),
+                message: {
+                    text: `Missing initialization expression.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+        }
+
+        if (stm.expression) {
+            if (config.checkTypes) {
+                const type = stm.expression.getType();
+                if (type && !typeMatchesFlags(type, StaticBoolType)) {
+                    this.diagnostics.add({
+                        range: stm.getRange(),
+                        message: createExpectedTypeMessage(UCTypeFlags.Bool, type.getTypeFlags())
+                    });
+                }
+            }
+        } else {
+            this.diagnostics.add({
+                range: stm.getRange(),
+                message: {
+                    text: `Missing conditional expression.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+        }
+
+        if (stm.next) {
+            // TODO: Check if the operator has an "out" parameter? And how about functions?
+            const hasAffect = true;
+            if (!hasAffect) {
+                this.diagnostics.add({
+                    range: stm.next.getRange(),
+                    message: {
+                        text: `Expression has no effect.`,
+                        severity: DiagnosticSeverity.Error
+                    }
+                });
+            }
+        } else {
+            this.diagnostics.add({
+                range: stm.getRange(),
+                message: {
+                    text: `Missing next expression.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
         }
     }
 

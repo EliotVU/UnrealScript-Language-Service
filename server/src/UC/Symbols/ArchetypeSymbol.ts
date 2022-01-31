@@ -29,7 +29,7 @@ export class UCArchetypeSymbol extends UCStructSymbol {
 
         if (this.extendsType) {
             text.push(`class=${this.super?.getPath()}`);
-        } else {
+        } else if (this.super) {
             text.push(`(override)`);
         }
         text.push(`name=${this.getPath()}`);
@@ -37,7 +37,7 @@ export class UCArchetypeSymbol extends UCStructSymbol {
     }
 
     override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: SymbolKind) {
-        const symbol = super.findSuperSymbol<T>(id, kind) || this.outer.findSuperSymbol<T>(id, kind);
+        const symbol = this.super?.findSuperSymbol<T>(id, kind);
         return symbol;
     }
 
@@ -45,7 +45,13 @@ export class UCArchetypeSymbol extends UCStructSymbol {
         super.index(document, context);
         // Lookup the inherited archetype, if it exists.
         if (!this.extendsType && !this.super && context.outer instanceof UCStructSymbol) {
-            this.super = context.outer.findSuperSymbol<UCStructSymbol>(this.id.name);
+            const inheritedArchetype = ObjectsTable.getSymbol<UCArchetypeSymbol>(this.id.name);
+            this.super = inheritedArchetype;
+        }
+
+        // Note: It is crucial to hash the object POST @index()
+        if (this.id.name !== NAME_NONE) {
+            addHashedSymbol(this);
         }
     }
 

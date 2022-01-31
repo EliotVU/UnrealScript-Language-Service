@@ -44,6 +44,17 @@ export class UCStateSymbol extends UCStructSymbol {
 		return text.filter(s => s).join(' ');
 	}
 
+    override getDocumentation(): string | undefined {
+		const doc = super.getDocumentation();
+		if (doc) {
+			return doc;
+		}
+
+		if (this.overriddenState) {
+			return this.overriddenState.getDocumentation();
+		}
+	}
+
 	override getContainedSymbolAtPos(position: Position) {
 		if (this.ignoreRefs) {
 			const symbol = this.ignoreRefs.find(ref => !!(ref.getSymbolAtPos(position)));
@@ -55,7 +66,7 @@ export class UCStateSymbol extends UCStructSymbol {
 	}
 
 	override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: SymbolKind) {
-		const symbol = super.findSuperSymbol<T>(id, kind) || (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
+		const symbol = super.findSuperSymbol<T>(id, kind) ?? (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
 		return symbol;
 	}
 

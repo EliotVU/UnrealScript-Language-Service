@@ -16,10 +16,13 @@ import { usingDocuments } from '../utils/utils';
 describe('Enum', () => {
     usingDocuments(__dirname, ['EnumTest.uc'], () => {
         const testDocument = getDocumentById(toName('EnumTest'));
+        expect(testDocument).to.not.be.undefined;
+
         queueIndexDocument(testDocument);
 
         const documentClass = testDocument.class;
         const enumSymbol = documentClass.getSymbol<UCMethodSymbol>(toName('EEnumTest'));
+        expect(enumSymbol).to.not.be.undefined;
 
         it('Enum EEnumTest is declared', () => {
             expect(enumSymbol).to.not.be.undefined;
@@ -47,15 +50,17 @@ describe('Enum', () => {
         });
 
         it('Usage in Methods', () => {
-            const method = documentClass.getSymbol<UCMethodSymbol>(toName('EnumTestMethod'));
+            const symbol = documentClass.getSymbol<UCMethodSymbol>(toName('EnumTestMethod'));
+            expect(symbol, 'symbol').to.not.be.undefined;
 
-            expect(method.returnValue.getType().getRef()).to.equal(enumSymbol);
-            for (const param of method.params) {
+            expect(symbol.returnValue.getType().getRef()).to.equal(enumSymbol);
+            for (const param of symbol.params) {
                 expect(param.getType().getRef()).to.equal(enumSymbol);
                 expect(param.defaultExpression.getType().getRef().outer).to.equal(enumSymbol);
             }
 
-            for (const stm of method.block.statements) {
+            expect(symbol.block, 'method block').to.not.be.undefined;
+            for (const stm of symbol.block.statements) {
                 if (stm instanceof UCSwitchStatement) {
                     const expr = stm.expression;
                     expect(expr.getType().getRef()).to.equal(enumSymbol);
@@ -70,10 +75,10 @@ describe('Enum', () => {
                         expect(expr.left.getType().getRef()).to.equal(enumSymbol);
                         expect(expr.right.getType().getRef().outer).to.equal(enumSymbol);
                     } else if (expr instanceof UCObjectLiteral) {
-                        expect(expr.castRef.getRef()).to.equal(IntrinsicEnum);
-                        expect(expr.objectRef.getRef()).to.equal(enumSymbol);
+                        expect(expr.castRef.getRef(), 'castRef').to.equal(IntrinsicEnum, 'enum class');
+                        expect(expr.objectRef.getRef(), 'objectRef').to.equal(enumSymbol, 'enum object');
                     } else {
-                        expect(stm.expression.getType().getRef().outer).to.equal(enumSymbol);
+                        expect(stm.expression.getType().getRef().outer).to.equal(enumSymbol, 'enum object');
                     }
                 }
             }
@@ -81,6 +86,8 @@ describe('Enum', () => {
 
         it('Usage in DefaultProperties', () => {
             const symbol = documentClass.getSymbol<UCDefaultPropertiesBlock>(toName('Default'));
+            expect(symbol, 'symbol').to.not.be.undefined;
+            expect(symbol.block, 'symbol block').to.not.be.undefined;
             for (const stm of symbol.block.statements) {
                 if (stm instanceof UCDefaultAssignmentExpression) {
                     expect(stm.left.getType().getRef()).to.equal(enumSymbol);

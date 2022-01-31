@@ -16,6 +16,7 @@ export * from './ConstSymbol';
 export * from './ClassSymbol';
 export * from './LocalSymbol';
 export * from './StateSymbol';
+export * from './ArchetypeSymbol';
 export * from './DefaultPropertiesBlock';
 export * from './ReplicationBlock';
 export * from './IntrinsicSymbols';

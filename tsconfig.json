@@ -1,7 +1,7 @@
 {
     "extends": "@tsconfig/recommended/tsconfig.json",
     "compilerOptions": {
-        "target": "es2021",
+        "target": "esnext",
         "lib": [
             "es2021"
         ],
@@ -13,13 +13,6 @@
         "resolveJsonModule": true,
         "strictBindCallApply": false,
         "strictPropertyInitialization": false,
+        "sourceMap": true
     },
-    "references": [
-        {
-            "path": "./client"
-        },
-        {
-            "path": "./server"
-        }
-    ],
 }

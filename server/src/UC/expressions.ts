@@ -772,7 +772,7 @@ export class UCNameLiteral extends UCLiteral {
     }
 
     toString() {
-        return `'${this.id}'`;
+        return `'${this.id.name.text}'`;
     }
 }
 
@@ -829,11 +829,11 @@ export class UCObjectLiteral extends UCExpression {
     public objectRef?: UCObjectTypeSymbol | UCQualifiedTypeSymbol;
 
     getMemberSymbol() {
-        return this.objectRef?.getRef() || this.castRef.getRef();
+        return this.objectRef?.getRef() ?? this.castRef.getRef();
     }
 
     getType() {
-        return this.objectRef || this.castRef;
+        return this.objectRef ?? this.castRef;
     }
 
     getContainedSymbolAtPos(position: Position) {
@@ -864,9 +864,9 @@ export class UCObjectLiteral extends UCExpression {
             } else {
                 const id = this.objectRef.getName();
                 const symbol = ObjectsTable.getSymbol(id, this.castRef.getTypeFlags())
-                    || findOrIndexClassSymbol(id)
-                    // FIXME: Hacky case for literals like Property'TempColor', only enums and structs are added to the objects table.
-                    || context.findSuperSymbol(id);
+                        ?? findOrIndexClassSymbol(id)
+                        // FIXME: Hacky case for literals like Property'TempColor', only enums and structs are added to the objects table.
+                        ?? context.findSuperSymbol(id);
                 if (symbol) {
                     this.objectRef.setReference(symbol, document);
                 }
@@ -985,7 +985,7 @@ export class UCMetaClassExpression extends UCExpression {
 
     getContainedSymbolAtPos(position: Position) {
         const subSymbol = this.classRef?.getSymbolAtPos(position) as UCObjectTypeSymbol;
-        return this.expression?.getSymbolAtPos(position) || subSymbol?.getRef() && this.classRef;
+        return this.expression?.getSymbolAtPos(position) ?? (subSymbol?.getRef() && this.classRef);
     }
 
     index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {

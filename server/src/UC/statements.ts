@@ -12,302 +12,305 @@ import {
 import { SymbolWalker } from './symbolWalker';
 
 export interface IStatement {
-	getRange(): Range;
-	getSymbolAtPos(position: Position): ISymbol | undefined;
+    getRange(): Range;
+    getSymbolAtPos(position: Position): ISymbol | undefined;
 
-	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo): void;
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void;
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo): void;
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void;
 }
 
 export class UCExpressionStatement implements IStatement {
-	expression?: IExpression;
+    expression?: IExpression;
 
-	constructor(protected range: Range) {
+    constructor(protected range: Range) {
 
-	}
+    }
 
-	getRange(): Range {
-		return this.range;
-	}
+    getRange(): Range {
+        return this.range;
+    }
 
-	getSymbolAtPos(position: Position): ISymbol | undefined {
-		if (!intersectsWith(this.range, position)) {
-			return undefined;
-		}
-		return this.getContainedSymbolAtPos(position);
-	}
+    getSymbolAtPos(position: Position): ISymbol | undefined {
+        if (!intersectsWith(this.range, position)) {
+            return undefined;
+        }
+        return this.getContainedSymbolAtPos(position);
+    }
 
-	getContainedSymbolAtPos(position: Position): ISymbol | undefined {
-		return this.expression?.getSymbolAtPos(position);
-	}
+    getContainedSymbolAtPos(position: Position): ISymbol | undefined {
+        return this.expression?.getSymbolAtPos(position);
+    }
 
-	index(_document: UCDocument, _context: UCStructSymbol, _info?: ContextInfo) {
-		this.expression?.index.apply(this.expression, arguments);
-	}
+    index(_document: UCDocument, _context: UCStructSymbol, _info?: ContextInfo) {
+        this.expression?.index.apply(this.expression, arguments);
+    }
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitExpressionStatement(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitExpressionStatement(this);
+    }
 }
 
 export abstract class UCThenStatement extends UCExpressionStatement {
-	public then?: IStatement;
+    public then?: IStatement;
 
-	getContainedSymbolAtPos(position: Position) {
-		return super.getContainedSymbolAtPos(position) || this.then?.getSymbolAtPos(position);
-	}
+    getContainedSymbolAtPos(position: Position) {
+        return super.getContainedSymbolAtPos(position) ?? this.then?.getSymbolAtPos(position);
+    }
 
-	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-		super.index(document, context, info);
-		this.then?.index(document, context, info);
-	}
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+        super.index(document, context, info);
+        this.then?.index(document, context, info);
+    }
 }
 
 export class UCBlock implements IStatement {
-	statements: Array<IStatement | undefined>;
+    statements: Array<IStatement | undefined>;
 
-	constructor(protected range: Range) {
+    constructor(protected range: Range) {
 
-	}
+    }
 
-	getRange(): Range {
-		return this.range;
-	}
+    getRange(): Range {
+        return this.range;
+    }
 
-	getSymbolAtPos(position: Position) {
-		if (!intersectsWith(this.range, position)) {
-			return undefined;
-		}
-		const symbol = this.getContainedSymbolAtPos(position);
-		return symbol;
-	}
+    getSymbolAtPos(position: Position) {
+        if (!intersectsWith(this.range, position)) {
+            return undefined;
+        }
+        const symbol = this.getContainedSymbolAtPos(position);
+        return symbol;
+    }
 
-	getContainedSymbolAtPos(position: Position) {
-		for (const statement of this.statements) if (statement) {
-			const symbol = statement.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
-		}
-	}
+    getContainedSymbolAtPos(position: Position) {
+        for (const statement of this.statements) if (statement) {
+            const symbol = statement.getSymbolAtPos(position);
+            if (symbol) {
+                return symbol;
+            }
+        }
+    }
 
-	index(_document: UCDocument, _context: UCStructSymbol, info: ContextInfo = {}) {
-		const typeFlags = info.typeFlags;
-		for (const statement of this.statements) if (statement) {
-			statement.index.apply(statement, arguments);
-			info.typeFlags = typeFlags; // Reset any modification (during the last index() call) made to typeFlags
-		}
-	}
+    index(_document: UCDocument, _context: UCStructSymbol, info: ContextInfo = {}) {
+        const typeFlags = info.typeFlags;
+        for (const statement of this.statements) if (statement) {
+            statement.index.apply(statement, arguments);
+            info.typeFlags = typeFlags; // Reset any modification (during the last index() call) made to typeFlags
+        }
+    }
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitBlock(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitBlock(this);
+    }
 }
 
 export class UCArchetypeBlockStatement extends UCBlock {
     public archetypeSymbol: UCArchetypeSymbol;
 
-    index(document: UCDocument, context: UCStructSymbol, info: ContextInfo = {}) {
-        // TODO: Find @super, for declarations where no class=NAME was specified
-        if (this.archetypeSymbol.extendsType) {
-            // FIXME: extendsType is indexed twice (by assignmentExpresion "class=ClassNameManually")
-            // -- set the type reference here so that turn on "noIndex".
-        }
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         this.archetypeSymbol.index(document, context);
         super.index(document, this.archetypeSymbol);
-	}
-
+    }
 }
 
 export class UCAssertStatement extends UCExpressionStatement {
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitAssertStatement(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitAssertStatement(this);
+    }
 }
 
 export class UCIfStatement extends UCThenStatement {
-    then?: UCBlock;
+    declare then?: UCBlock;
 
-	public else?: IStatement;
+    public else?: IStatement;
 
-	getContainedSymbolAtPos(position: Position) {
-		return super.getContainedSymbolAtPos(position) || this.else?.getSymbolAtPos(position);
-	}
+    getContainedSymbolAtPos(position: Position) {
+        return super.getContainedSymbolAtPos(position) ?? this.else?.getSymbolAtPos(position);
+    }
 
-	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-		super.index(document, context, info);
-		this.else?.index(document, context, info);
-	}
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+        super.index(document, context, info);
+        this.else?.index(document, context, info);
+    }
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitIfStatement(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitIfStatement(this);
+    }
 }
 
 export class UCRepIfStatement extends UCExpressionStatement {
-	public symbolRefs: UCSymbolReference[] | undefined;
+    public symbolRefs: UCSymbolReference[] | undefined;
 
-	getContainedSymbolAtPos(position: Position) {
+    getContainedSymbolAtPos(position: Position) {
         if (this.symbolRefs) for (const ref of this.symbolRefs) {
-			const symbol = ref.getSymbolAtPos(position);
-			if (symbol) {
-				return symbol;
-			}
-		}
-		return super.getContainedSymbolAtPos(position);
-	}
+            const symbol = ref.getSymbolAtPos(position);
+            if (symbol) {
+                return symbol;
+            }
+        }
+        return super.getContainedSymbolAtPos(position);
+    }
 
-	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-		super.index(document, context, info);
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+        super.index(document, context, info);
         if (this.symbolRefs) for (const ref of this.symbolRefs) {
-			const symbol = context.findSuperSymbol(ref.getName());
-			if (typeof symbol === 'undefined') {
-				continue;
-			}
-			ref.setReference(symbol, document);
-		}
-	}
+            const symbol = context.findSuperSymbol(ref.getName());
+            if (typeof symbol === 'undefined') {
+                continue;
+            }
+            ref.setReference(symbol, document);
+        }
+    }
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitRepIfStatement(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitRepIfStatement(this);
+    }
 }
 
 export class UCDoUntilStatement extends UCThenStatement {
-    then?: UCBlock;
+    declare then?: UCBlock;
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitDoUntilStatement(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitDoUntilStatement(this);
+    }
 }
 
 export class UCWhileStatement extends UCThenStatement {
-    then?: UCBlock;
+    declare then?: UCBlock;
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitWhileStatement(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitWhileStatement(this);
+    }
 }
 
 export class UCSwitchStatement extends UCThenStatement {
-    then?: UCBlock;
+    declare then?: UCBlock;
 
-	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-		if (this.expression) {
-			this.expression.index(document, context, info);
-			// TODO: validate all legal switch types!
-			// Also, cannot switch on static arrays.
-			const type = this.expression.getType();
-			if (type) {
-				// Our case-statements need to know the type that our switch is working with.
-				info = { typeFlags: type.getTypeFlags() };
-			}
-		}
-		this.then?.index(document, context, info);
-		// super.index(document, context, info);
-	}
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+        if (this.expression) {
+            this.expression.index(document, context, info);
+            // TODO: validate all legal switch types!
+            // Also, cannot switch on static arrays.
+            const type = this.expression.getType();
+            // Our case-statements need to know the type that our switch is working with.
+            info = { typeFlags: type.getTypeFlags() };
+        }
+        this.then?.index(document, context, info);
+        // super.index(document, context, info);
+    }
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitSwitchStatement(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitSwitchStatement(this);
+    }
 }
 
 export class UCCaseClause extends UCThenStatement {
-    then?: UCBlock;
+    declare then?: UCBlock;
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitCaseClause(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitCaseClause(this);
+    }
 }
 
 export class UCDefaultClause extends UCThenStatement {
-    then?: UCBlock;
+    declare then?: UCBlock;
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitDefaultClause(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitDefaultClause(this);
+    }
 }
 
 export class UCForStatement extends UCThenStatement {
-    then?: UCBlock;
+    declare then?: UCBlock;
 
-	// @super.expression is the conditional if expression
-	public init?: IExpression;
-	public next?: IExpression;
+    // @super.expression is the conditional if expression
+    public init?: IExpression;
+    public next?: IExpression;
 
-	getContainedSymbolAtPos(position: Position) {
-		return super.getContainedSymbolAtPos(position)
-			|| this.init?.getSymbolAtPos(position)
-			|| this.next?.getSymbolAtPos(position);
-	}
+    getContainedSymbolAtPos(position: Position) {
+        return super.getContainedSymbolAtPos(position)
+            ?? this.init?.getSymbolAtPos(position)
+            ?? this.next?.getSymbolAtPos(position);
+    }
 
-	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-		super.index(document, context, info);
-		this.init?.index(document, context, info);
-		this.next?.index(document, context, info);
-	}
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+        super.index(document, context, info);
+        this.init?.index(document, context, info);
+        this.next?.index(document, context, info);
+    }
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitForStatement(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitForStatement(this);
+    }
 }
 
 export class UCForEachStatement extends UCThenStatement {
-    then?: UCBlock;
+    declare then?: UCBlock;
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitForEachStatement(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitForEachStatement(this);
+    }
 }
 
 export class UCLabeledStatement implements IStatement {
-	label?: Identifier;
+    label?: Identifier;
 
-	constructor(protected range: Range) {
+    constructor(protected range: Range) {
 
-	}
+    }
 
-	getRange(): Range {
-		return this.range;
-	}
+    getRange(): Range {
+        return this.range;
+    }
 
-	getSymbolAtPos(position: Position): ISymbol | undefined {
-		return undefined;
-	}
+    getSymbolAtPos(position: Position): ISymbol | undefined {
+        return undefined;
+    }
 
-	getContainedSymbolAtPos(position: Position): ISymbol | undefined {
-		return undefined;
-	}
+    getContainedSymbolAtPos(position: Position): ISymbol | undefined {
+        return undefined;
+    }
 
-	index(_document: UCDocument, _context: UCStructSymbol, _info?: ContextInfo) {
+    index(_document: UCDocument, _context: UCStructSymbol, _info?: ContextInfo) {
         //
-	}
+    }
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitLabeledStatement(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitLabeledStatement(this);
+    }
 }
 
 export class UCReturnStatement extends UCExpressionStatement {
-	index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-		const type = context.getType();
-		if (type) {
-			info = { typeFlags: type.getTypeFlags() };
-		}
-		super.index(document, context, info);
-	}
+    index(document: UCDocument, context: UCStructSymbol, _info?: ContextInfo) {
+        const type = context.getType();
+        super.index(document, context, info);
+    }
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitReturnStatement(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitReturnStatement(this);
+    }
 }
 
 export class UCGotoStatement extends UCExpressionStatement {
-    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+    index(document: UCDocument, context: UCStructSymbol, _info?: ContextInfo) {
         super.index(document, context, { typeFlags: UCTypeFlags.Name });
-	}
+    }
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitGotoStatement(this);
-	}
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitGotoStatement(this);
+    }
+}
+
+export class UCEmptyStatement extends UCExpressionStatement {
+    getSymbolAtPos(position: Position): ISymbol | undefined {
+        return undefined;
+    }
+
+    getContainedSymbolAtPos(position: Position): ISymbol | undefined {
+        return undefined;
+    }
+
+    index(_document: UCDocument, _context: UCStructSymbol, _info?: ContextInfo) {
+        //
+    }
 }

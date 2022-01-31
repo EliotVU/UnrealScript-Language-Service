@@ -24,7 +24,7 @@ fragment EXPONENT
 	: [eE] SIGN? DIGIT+
 	;
 
-fragment FLOATING_SUFFIX
+fragment FLOAT_TYPE_SUFFIX
 	: [fF]
 	;
 
@@ -61,8 +61,20 @@ MACRO_CHAR
 	-> channel(MACRO), pushMode(MACRO_MODE)
 	;
 
-STRING: '"' (~["\\] | ESC_SEQ)* '"';
-NAME: '\'' (~['\\] | ESC_SEQ)* '\'';
+DECIMAL_LITERAL
+	: DIGIT+ '.' [0-9fF]* EXPONENT? FLOAT_TYPE_SUFFIX?
+	| DIGIT+ (FLOAT_TYPE_SUFFIX | EXPONENT FLOAT_TYPE_SUFFIX?)
+	;
+
+INTEGER_LITERAL
+	: DIGIT+ [xX] HEX_DIGIT+
+	| DIGIT+
+	;
+
+STRING_LITERAL: '"' (~["\\] | ESC_SEQ)* '"';
+NAME_LITERAL: '\'' (~['\\] | ESC_SEQ)* '\'';
+BOOLEAN_LITERAL: 'true' | 'false';
+NONE_LITERAL: 'none';
 
 KW_DEFAULT: 'default';
 KW_GLOBAL: 'global';
@@ -100,15 +112,13 @@ KW_STRUCTCPPTEXT: 'structcpptext';
 KW_CPPSTRUCT: 'cppstruct';
 KW_ARRAY: 'array';
 KW_BYTE: 'byte';
-KW_INT: 'int';
 KW_FLOAT: 'float';
+KW_INT: 'int';
 KW_STRING: 'string';
-KW_BUTTON: 'button';
-KW_BOOL: 'bool';
 KW_NAME: 'name';
-KW_TRUE: 'true';
-KW_FALSE: 'false';
-KW_NONE: 'none';
+KW_BOOL: 'bool';
+KW_POINTER: 'pointer';
+KW_BUTTON: 'button';
 KW_EXTENDS: 'extends';
 KW_PUBLIC: 'public';
 KW_PROTECTED: 'protected';
@@ -148,6 +158,7 @@ KW_SERIALIZETEXT: 'serializetext';
 KW_CONFIG: 'config';
 KW_GLOBALCONFIG: 'globalconfig';
 KW_NATIVE: 'native';
+KW_NATIVEONLY: 'nativeonly';
 KW_INTRINSIC: 'intrinsic';
 KW_EXPORT: 'export';
 KW_LONG: 'long';
@@ -193,7 +204,6 @@ KW_PREOPERATOR: 'preoperator';
 KW_POSTOPERATOR: 'postoperator';
 KW_SELF: 'self';
 KW_SUPER: 'super';
-KW_POINTER: 'pointer';
 KW_EXPANDS: 'expands';
 KW_IMPLEMENTS: 'implements';
 KW_DEPENDSON: 'dependson';
@@ -205,6 +215,7 @@ KW_VECT: 'vect';
 KW_ROT: 'rot';
 KW_RNG: 'rng';
 KW_ARRAYCOUNT: 'arraycount';
+KW_ENUMCOUNT: 'enumcount';
 KW_NAMEOF: 'nameof';
 KW_SIZEOF: 'sizeof';
 KW_REF: 'ref';
@@ -212,16 +223,6 @@ KW_REF: 'ref';
 // Note: Keywords must precede the ID token.
 ID:	[a-zA-Z_][a-zA-Z0-9_]*;
 // ID:	[a-z_][a-z0-9_]*;
-
-FLOAT
-	: /* SIGN? */ DIGIT+ '.' [0-9fF]* EXPONENT? FLOATING_SUFFIX?
-	| /* SIGN? */ DIGIT+ (FLOATING_SUFFIX | EXPONENT FLOATING_SUFFIX?)
-	;
-
-INTEGER
-	: /* SIGN? */ DIGIT+ [xX] HEX_DIGIT+
-	| /* SIGN? */ DIGIT+
-	;
 
 ESCAPE: '\\';
 

@@ -19,7 +19,9 @@ const partialConfig = {
         filename: '[name].js'
     },
     resolve: {
-        plugins: [new TsconfigPathsPlugin({ configFile: path.resolve(__dirname, 'tsconfig.build.json') })]
-    }
+        plugins: [
+            new TsconfigPathsPlugin({ configFile: 'tsconfig.build.json' }),
+        ]
+    },
 };
 module.exports = merge(config, partialConfig);

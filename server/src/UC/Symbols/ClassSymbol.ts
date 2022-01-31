@@ -1,14 +1,15 @@
-import { CompletionItemKind, Position, Range, SymbolKind } from 'vscode-languageserver-types';
+import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    Identifier, ISymbol, ITypeSymbol, ModifierFlags, UCFieldSymbol, UCObjectTypeSymbol,
-    UCQualifiedTypeSymbol, UCStructSymbol, UCTypeFlags
+    ISymbol, ITypeSymbol, ModifierFlags, UCFieldSymbol, UCObjectTypeSymbol, UCQualifiedTypeSymbol,
+    UCStructSymbol, UCTypeFlags
 } from './';
 
+// TODO: Derive this class as UCInterfaceSymbol
 export class UCClassSymbol extends UCStructSymbol {
     static readonly AllowedTypesMask = UCTypeFlags.Const
         | UCTypeFlags.Enum
@@ -26,7 +27,9 @@ export class UCClassSymbol extends UCStructSymbol {
 
     // Maybe classFlags would make more sense,
     // -- however merging IsInterface with UCTypeFlags gives us the convenience of OR'ing type filters.
-    public typeFlags = UCTypeFlags.Class;
+    public typeFlags = UCTypeFlags.Object | UCTypeFlags.Class;
+
+    public documentUri?: string;
 
     isInterface(): boolean {
         return (this.typeFlags & UCTypeFlags.Interface) === UCTypeFlags.Interface;
@@ -50,6 +53,10 @@ export class UCClassSymbol extends UCStructSymbol {
 
     protected override getTypeKeyword(): string | undefined {
 		return 'class';
+	}
+
+    override getUri(): string {
+		return this.documentUri ?? '';
 	}
 
 	override getTooltip(): string {
@@ -160,15 +167,5 @@ export class UCClassSymbol extends UCStructSymbol {
 
 	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitClass(this);
-	}
-}
-
-export class UCDocumentClassSymbol extends UCClassSymbol {
-	constructor(id: Identifier, range: Range = id.range, private document: UCDocument) {
-		super(id, range);
-	}
-
-	getUri(): string {
-		return this.document.uri;
 	}
 }

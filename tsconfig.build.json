@@ -4,6 +4,7 @@
         "baseUrl": ".",
         "outDir": "out",
         "sourceMap": true,
+        "declaration": false
     },
     "include": [
         "client",
@@ -17,5 +18,5 @@
         ".vscode-test",
         "**/*.test.ts",
         "**/test/*.ts",
-    ],
+    ]
 }

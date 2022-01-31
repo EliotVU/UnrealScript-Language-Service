@@ -139,15 +139,15 @@ export async function getSymbolTooltip(uri: string, position: Position): Promise
         if (documentation) {
             contents.push({ language: 'unrealscript', value: documentation });
         }
-
-        return {
-            contents,
-            range: ref.id.range
-        };
     }
+
+    return {
+        contents,
+        range: ref.id.range
+    };
 }
 
-export async function getSymbolDefinition(uri: string, position: Position): Promise<ISymbol | undefined> {
+export function getSymbolDefinition(uri: string, position: Position): ISymbol | undefined {
     const document = getDocumentByURI(uri);
     const symbol = document && getDocumentSymbol(document, position);
     if (!symbol) {
@@ -164,7 +164,7 @@ export async function getSymbolDefinition(uri: string, position: Position): Prom
     return symbol;
 }
 
-export async function getSymbol(uri: string, position: Position): Promise<ISymbol | undefined> {
+export function getSymbol(uri: string, position: Position): ISymbol | undefined {
     const document = getDocumentByURI(uri);
     return document && getDocumentSymbol(document, position);
 }

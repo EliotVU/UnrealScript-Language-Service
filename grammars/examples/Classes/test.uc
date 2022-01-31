@@ -51,6 +51,9 @@ const CONST_BOOL					= true;
 const CONST_INT1                    = 0;
 const CONST_INT2                    = 1;
 
+// FIXME: UnrealScript's lexer skips over the trailing .05
+const CONST_INT3                    = 0.4.05;
+
 // To test enum and constant values usage in defaultproperties.
 const DEFAULT_CONST	= 0;
 enum EDefault {
@@ -339,6 +342,7 @@ function byte TestInvalidCode(){
 
 defaultproperties
 {
+    defaultInt=+004
     // Verify that non-spaced comments don't break the highlighter.
     /**/
 

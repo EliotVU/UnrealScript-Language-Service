@@ -106,7 +106,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
     }
 
     override getContainedSymbolAtPos(position: Position) {
-        return this.type?.getSymbolAtPos(position) || this.arrayDimRef?.getSymbolAtPos(position);
+        return this.type?.getSymbolAtPos(position) ?? this.arrayDimRef?.getSymbolAtPos(position);
     }
 
     override getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: string, kind?: UCTypeFlags): C[] {

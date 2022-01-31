@@ -50,7 +50,7 @@ export class UCParamSymbol extends UCPropertySymbol {
 	}
 
 	override getContainedSymbolAtPos(position: Position) {
-		const symbol = this.defaultExpression?.getSymbolAtPos(position) || super.getContainedSymbolAtPos(position);
+		const symbol = this.defaultExpression?.getSymbolAtPos(position) ?? super.getContainedSymbolAtPos(position);
 		return symbol;
 	}
 

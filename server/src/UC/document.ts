@@ -3,7 +3,7 @@ import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
-import { SymbolKind } from 'vscode-languageserver';
+import { DocumentUri } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
 import { UCLexer } from './antlr/generated/UCLexer';
@@ -44,11 +44,12 @@ export class UCDocument {
     /** Parsed file name filtered of path and extension. */
     public readonly fileName: string;
     public readonly name: Name;
-    public readonly uri: string;
+    public readonly uri: DocumentUri;
 
     // TODO: Displace this with a DiagnosticCollection visitor.
     public nodes: IDiagnosticNode[] = [];
 
+    /** The class or interface header symbol */
     public class?: UCClassSymbol;
     public hasBeenIndexed = false;
 
@@ -179,7 +180,7 @@ export class UCDocument {
         const key = symbol.getHash();
         const value = this.indexReferencesMade.get(key);
 
-        const set = value || new Set<SymbolReference>();
+        const set = value ?? new Set<SymbolReference>();
         set.add(ref);
 
         if (!value) {
@@ -187,7 +188,7 @@ export class UCDocument {
         }
 
         // TODO: Refactor this, we are pretty much duplicating this function's job.
-        const gRefs = IndexedReferencesMap.get(key) || new Set<SymbolReference>();
+        const gRefs = IndexedReferencesMap.get(key) ?? new Set<SymbolReference>();
         gRefs.add(ref);
         IndexedReferencesMap.set(key, gRefs);
     }

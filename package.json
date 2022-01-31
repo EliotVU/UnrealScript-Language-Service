@@ -37,11 +37,12 @@
     },
     "devDependencies": {
         "@tsconfig/recommended": "^1.0.1",
-        "@types/node": "^16.11.11",
-        "@typescript-eslint/eslint-plugin": "^5.5.0",
-        "@typescript-eslint/parser": "^5.5.0",
+        "@types/node": "^17.0.12",
+        "@typescript-eslint/eslint-plugin": "^5.10.1",
+        "@typescript-eslint/parser": "^5.10.1",
         "antlr4ts-cli": "0.5.0-alpha.4",
-        "eslint": "^8.3.0",
+        "copy-webpack-plugin": "^10.2.1",
+        "eslint": "^8.7.0",
         "gulp": "^4.0.2",
         "js-yaml": "^4.1.0",
         "merge-options": "^3.0.4",
@@ -49,10 +50,10 @@
         "ts-loader": "^9.2.6",
         "ts-node": "^10.4.0",
         "tsconfig-paths-webpack-plugin": "^3.5.2",
-        "typescript": "^4.5.2",
+        "typescript": "^4.5.5",
         "typescript-eslint-language-service": "^5.0.0",
-        "webpack": "^5.64.4",
-        "webpack-cli": "^4.9.1"
+        "webpack": "^5.67.0",
+        "webpack-cli": "^4.9.2"
     },
     "scripts": {
         "vscode:prepublish": "cd client && npm run update-vscode && cd .. && npm run build",
