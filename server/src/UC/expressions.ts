@@ -253,7 +253,7 @@ export class UCElementAccessExpression extends UCExpression {
 }
 
 export class UCDefaultElementAccessExpression extends UCElementAccessExpression {
-    override expression: UCMemberExpression;
+    declare expression: UCMemberExpression;
 
     index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         this.expression?.index(document, context, info);
@@ -752,23 +752,8 @@ export class UCNameLiteral extends UCLiteral {
         super(id.range);
     }
 
-    public typeRef = new UCObjectTypeSymbol(this.id);
-
-    getMemberSymbol() {
-        return this.typeRef?.getRef();
-    }
-
     getType() {
         return StaticNameType;
-    }
-
-    getContainedSymbolAtPos(_position: Position) {
-        return this.typeRef.getRef() && this.typeRef;
-    }
-
-    index(document: UCDocument, _context?: UCStructSymbol) {
-        const nameType = new UCNameTypeSymbol(this.id);
-        this.typeRef.setReference(nameType, document, true);
     }
 
     toString() {

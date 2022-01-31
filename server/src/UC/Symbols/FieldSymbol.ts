@@ -42,7 +42,7 @@ export enum ModifierFlags {
 }
 
 export abstract class UCFieldSymbol extends UCSymbol {
-    override outer: ISymbol;
+    declare outer: ISymbol;
 
 	public modifiers: ModifierFlags = ModifierFlags.None;
 	public next?: UCFieldSymbol = undefined;

@@ -2,14 +2,17 @@ import { SymbolKind } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { Name } from '../name';
+import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
-import { ModifierFlags, UCFieldSymbol, UCStructSymbol, UCTypeFlags } from './';
+import {
+    addHashedSymbol, ModifierFlags, ObjectsTable, UCFieldSymbol, UCStructSymbol, UCTypeFlags
+} from './';
 
 /**
  * Represents an instanced Archetype found within a defaultproperties block e.g. "begin object class=classID name=objectName".
  */
 export class UCArchetypeSymbol extends UCStructSymbol {
-    override outer: UCStructSymbol;
+    declare outer: UCStructSymbol;
     override modifiers = ModifierFlags.ReadOnly;
 
     override getKind(): SymbolKind {

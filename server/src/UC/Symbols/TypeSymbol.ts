@@ -89,7 +89,7 @@ export function quoteTypeFlags(flags: UCTypeFlags): string {
 }
 
 class UCType extends UCSymbol implements ITypeSymbol {
-    override outer: undefined;
+    declare outer: undefined;
 
     getTypeText(): string {
         throw new Error('Method not implemented.');
@@ -287,7 +287,7 @@ export class UCNoneTypeSymbol extends UCPredefinedTypeSymbol {
 }
 
 export class UCObjectTypeSymbol extends UCSymbolReference implements ITypeSymbol {
-	protected override reference?: ISymbol;
+	protected declare reference?: ISymbol;
 
 	public baseType?: ITypeSymbol;
 

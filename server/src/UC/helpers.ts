@@ -139,12 +139,12 @@ export async function getSymbolTooltip(uri: string, position: Position): Promise
         if (documentation) {
             contents.push({ language: 'unrealscript', value: documentation });
         }
-    }
 
-    return {
-        contents,
-        range: ref.id.range
-    };
+        return {
+            contents,
+            range: ref.id.range
+        };
+    }
 }
 
 export function getSymbolDefinition(uri: string, position: Position): ISymbol | undefined {

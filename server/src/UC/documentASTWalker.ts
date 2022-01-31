@@ -40,9 +40,9 @@ import {
     UCDefaultPropertiesBlock, UCDelegateSymbol, UCDelegateTypeSymbol, UCEnumMemberSymbol,
     UCEnumSymbol, UCEventSymbol, UCFloatTypeSymbol, UCIntTypeSymbol, UCLocalSymbol, UCMapTypeSymbol,
     UCMethodSymbol, UCNameTypeSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPointerTypeSymbol,
-    UCPostOperatorSymbol, UCPreOperatorSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
-    UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStringTypeSymbol, UCStructSymbol,
-    UCSymbol, UCSymbolReference, UCTypeFlags
+    UCPostOperatorSymbol, UCPredefinedTypeSymbol, UCPreOperatorSymbol, UCPropertySymbol,
+    UCQualifiedTypeSymbol, UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol,
+    UCStringTypeSymbol, UCStructSymbol, UCSymbol, UCSymbolReference, UCTypeFlags
 } from './Symbols';
 
 function getDebugInfo(ctx: ParserRuleContext): string {
@@ -169,7 +169,19 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, type?: U
 }
 
 export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements UCPreprocessorParserVisitor<any>, UCParserVisitor<any> {
-    private scopes: ISymbolContainer<ISymbol>[] = [];
+	private scopes: ISymbolContainer<ISymbol>[] = [];
+	tokenStream: CommonTokenStream | undefined;
+
+	TypeKeywordToTypeSymbolMap: { [key: number]: typeof UCPredefinedTypeSymbol } = {
+		[UCLexer.KW_BYTE]		: UCByteTypeSymbol,
+		[UCLexer.KW_FLOAT]		: UCFloatTypeSymbol,
+		[UCLexer.KW_INT]		: UCIntTypeSymbol,
+		[UCLexer.KW_STRING]		: UCStringTypeSymbol,
+		[UCLexer.KW_NAME]		: UCNameTypeSymbol,
+		[UCLexer.KW_BOOL]		: UCBoolTypeSymbol,
+		[UCLexer.KW_POINTER]	: UCPointerTypeSymbol,
+		[UCLexer.KW_BUTTON]		: UCButtonTypeSymbol
+	};
 
     constructor(private document: UCDocument, scope: ISymbolContainer<ISymbol>) {
         super();
@@ -189,7 +201,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         return scope;
     }
 
-    declare(symbol: UCObjectSymbol, ctx?: ParserRuleContext) {
+    declare(symbol: UCSymbol, ctx?: ParserRuleContext) {
         if (ctx) {
             symbol.description = findHeaderComments(this.tokenStream!, ctx);
         }
@@ -838,7 +850,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 		const scope = this.scope<UCStateSymbol>();
 		const idNodes = ctx.identifier();
         if (idNodes) {
-            scope.ignoreRefs = idNodes.map(n => {
+            const ignoreRefs = idNodes.map(n => {
                 const identifier: Identifier = idFromCtx(n);
                 const ref = new UCSymbolReference(identifier);
                 return ref;
@@ -846,7 +858,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             if (!scope.ignoreRefs) {
                 scope.ignoreRefs = [];
             }
-            scope.ignoreRefs = ignoreRefs.concat(ignoreRefs);
+            scope.ignoreRefs = scope.ignoreRefs.concat(ignoreRefs);
         }
 		return undefined;
 	}

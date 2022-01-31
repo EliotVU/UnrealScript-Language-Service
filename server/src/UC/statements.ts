@@ -193,7 +193,7 @@ export class UCSwitchStatement extends UCThenStatement {
             // Also, cannot switch on static arrays.
             const type = this.expression.getType();
             // Our case-statements need to know the type that our switch is working with.
-            info = { typeFlags: type.getTypeFlags() };
+            info = { typeFlags: type?.getTypeFlags() };
         }
         this.then?.index(document, context, info);
         // super.index(document, context, info);
@@ -281,7 +281,7 @@ export class UCLabeledStatement implements IStatement {
 }
 
 export class UCReturnStatement extends UCExpressionStatement {
-    index(document: UCDocument, context: UCStructSymbol, _info?: ContextInfo) {
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         const type = context.getType();
         super.index(document, context, info);
     }
