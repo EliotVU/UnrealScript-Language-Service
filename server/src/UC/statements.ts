@@ -6,12 +6,12 @@ import { UCDocument } from './document';
 import { IExpression } from './expressions';
 import { intersectsWith } from './helpers';
 import {
-    ContextInfo, Identifier, ISymbol, UCArchetypeSymbol, UCStructSymbol, UCSymbolReference,
-    UCTypeFlags
+    ContextInfo, Identifier, ISymbol, IWithIndex, IWithInnerSymbols, StaticNameType,
+    UCArchetypeSymbol, UCObjectTypeSymbol, UCStructSymbol
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
-export interface IStatement {
+export interface IStatement extends IWithIndex, IWithInnerSymbols {
     getRange(): Range;
     getSymbolAtPos(position: Position): ISymbol | undefined;
 
@@ -92,10 +92,10 @@ export class UCBlock implements IStatement {
     }
 
     index(_document: UCDocument, _context: UCStructSymbol, info: ContextInfo = {}) {
-        const typeFlags = info.typeFlags;
+        const typeFlags = info.contextType;
         for (const statement of this.statements) if (statement) {
             statement.index.apply(statement, arguments);
-            info.typeFlags = typeFlags; // Reset any modification (during the last index() call) made to typeFlags
+            info.contextType = typeFlags; // Reset any modification (during the last index() call) made to typeFlags
         }
     }
 
@@ -139,7 +139,7 @@ export class UCIfStatement extends UCThenStatement {
 }
 
 export class UCRepIfStatement extends UCExpressionStatement {
-    public symbolRefs: UCSymbolReference[] | undefined;
+    public symbolRefs: UCObjectTypeSymbol[] | undefined;
 
     getContainedSymbolAtPos(position: Position) {
         if (this.symbolRefs) for (const ref of this.symbolRefs) {
@@ -158,7 +158,7 @@ export class UCRepIfStatement extends UCExpressionStatement {
             if (typeof symbol === 'undefined') {
                 continue;
             }
-            ref.setReference(symbol, document);
+            ref.setRef(symbol, document);
         }
     }
 
@@ -193,7 +193,7 @@ export class UCSwitchStatement extends UCThenStatement {
             // Also, cannot switch on static arrays.
             const type = this.expression.getType();
             // Our case-statements need to know the type that our switch is working with.
-            info = { typeFlags: type.getTypeFlags() };
+            info = { contextType: type };
         }
         this.then?.index(document, context, info);
         // super.index(document, context, info);
@@ -283,7 +283,7 @@ export class UCLabeledStatement implements IStatement {
 export class UCReturnStatement extends UCExpressionStatement {
     index(document: UCDocument, context: UCStructSymbol, _info?: ContextInfo) {
         const type = context.getType();
-        super.index(document, context, info);
+        super.index(document, context, { contextType: type });
     }
 
     accept<Result>(visitor: SymbolWalker<Result>): Result | void {
@@ -293,7 +293,7 @@ export class UCReturnStatement extends UCExpressionStatement {
 
 export class UCGotoStatement extends UCExpressionStatement {
     index(document: UCDocument, context: UCStructSymbol, _info?: ContextInfo) {
-        super.index(document, context, { typeFlags: UCTypeFlags.Name });
+        super.index(document, context, { contextType: StaticNameType });
     }
 
     accept<Result>(visitor: SymbolWalker<Result>): Result | void {

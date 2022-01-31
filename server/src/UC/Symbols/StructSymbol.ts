@@ -1,4 +1,4 @@
-import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
+import { Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { intersectsWith } from '../helpers';
@@ -6,29 +6,25 @@ import { Name } from '../name';
 import { UCBlock } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    Identifier, isMethodSymbol, isStateSymbol, ISymbol, ISymbolContainer, ITypeSymbol,
-    UCFieldSymbol, UCTypeFlags
+    ContextKind, Identifier, isFunction, isStateSymbol, ISymbol, ISymbolContainer, UCFieldSymbol,
+    UCObjectSymbol, UCSymbolKind
 } from './';
+import { UCBaseOperatorSymbol } from './MethodSymbol';
+import { isOperator, UCObjectTypeSymbol, UCQualifiedTypeSymbol } from './TypeSymbol';
 
-export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<ISymbol> {
-	public extendsType?: ITypeSymbol;
+export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<UCObjectSymbol> {
+	public extendsType?: UCObjectTypeSymbol | UCQualifiedTypeSymbol;
 	public super?: UCStructSymbol;
 	public children?: UCFieldSymbol;
+    // TODO: Map operators by param types
+	public operators?: UCFieldSymbol;
 	public block?: UCBlock;
     public labels?: { [key: number]: Identifier };
 
-	override getKind(): SymbolKind {
-		return SymbolKind.Namespace;
-	}
-
-	override getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Module;
-	}
-
-	override getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, type?: UCTypeFlags) {
+	override getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: ContextKind, kinds?: UCSymbolKind) {
 		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
-			if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
+			if (typeof kinds !== 'undefined' && ((1 << child.kind) & kinds) === 0) {
 				continue;
 			}
 			if (child.acceptCompletion(document, this)) {
@@ -39,7 +35,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		let parent: UCStructSymbol | undefined = this.super ?? this.outer as UCStructSymbol;
 		for (; parent; parent = parent.super ?? parent.outer as UCStructSymbol) {
 			for (let child = parent.children; child; child = child.next) {
-				if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
+				if (typeof kinds !== 'undefined' && ((1 << child.kind) & kinds) === 0) {
 					continue;
 				}
 				if (child.acceptCompletion(document, this)) {
@@ -97,6 +93,9 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		symbol.outer = this;
 		symbol.next = this.children;
 		this.children = symbol;
+        if (isOperator(symbol)) {
+            this.operators = symbol;
+        }
 		// No key
 		return undefined;
 	}
@@ -116,11 +115,11 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 		}
     }
 
-	getSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCTypeFlags): T | undefined {
+	getSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind): T | undefined {
 		for (let child = this.children; child; child = child.next) {
 			if (child.id.name === id) {
-				if (kind !== undefined && (child.getTypeFlags() & kind) === 0) {
-					continue;
+				if (kind !== undefined && child.kind !== kind) {
+					break;
 				}
 				return child as T;
 			}
@@ -138,20 +137,24 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<IS
 	}
 
 
-	findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCTypeFlags): T | undefined {
+	findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind): T | undefined {
 		return this.getSymbol<T>(id, kind) ?? this.super?.findSuperSymbol(id, kind);
 	}
 
 	override index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
-		if (this.extendsType) {
-			this.extendsType.index(document, context);
-			// Ensure that we don't overwrite super assignment from our descendant class.
-			if (!this.super) {
-				this.super = this.extendsType.getRef<UCStructSymbol>();
-			}
-		}
+        this.indexSuper(document, context);
+        this.indexChildren(document);
+	}
 
+    protected indexSuper(document: UCDocument, context: UCStructSymbol) {
+		if (this.extendsType && this.extendsType.id.name !== this.id.name) {
+			this.extendsType.index(document, context);
+            this.super ??= this.extendsType.getRef<UCStructSymbol>();
+		}
+    }
+
+    protected indexChildren(document: UCDocument) {
         if (this.children) for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
 			try {
 				child.index(document, this);
@@ -178,28 +181,27 @@ export function findSuperStruct(context: UCStructSymbol, id: Name): UCStructSymb
 	return undefined;
 }
 
-/**
- * Searches a @param context for a symbol with a matching @param id along with a @param predicate,
- * - if there was no predicate match, the last id matched symbol will be returned instead.
- */
-export function findSymbol<T extends UCFieldSymbol>(context: UCStructSymbol, id: Name, predicate: (symbol: UCFieldSymbol) => boolean): T | undefined {
-	let scope: UCStructSymbol | undefined = isMethodSymbol(context)
+export function findOverloadedOperator<T extends UCBaseOperatorSymbol>(
+    context: UCStructSymbol,
+    id: Name,
+    predicate: (symbol: T) => boolean
+): T | undefined {
+	let scope: UCStructSymbol | undefined = isFunction(context)
         ? context.outer as UCStructSymbol
         : context;
-	if (scope && isStateSymbol(scope)) {
-		scope = scope.outer as UCStructSymbol;
-	}
 
-	let bestChild: T | undefined = undefined;
-	for (; scope; scope = scope.super) {
-		for (let child = scope.children; child; child = child.next) {
-			if (child.id.name === id) {
-				if (predicate(child)) {
-					return child as T;
-				}
-				bestChild = child as T;
+	for (; scope; scope = isStateSymbol(scope)
+        ? scope.outer as UCStructSymbol
+        : scope.super) {
+		for (let child = scope.operators; child; child = child.next) {
+            if (!isOperator(child)) {
+                continue;
+            }
+
+			if (child.id.name === id && predicate(child as T)) {
+                return child as T;
 			}
 		}
 	}
-	return bestChild;
+	return undefined;
 }

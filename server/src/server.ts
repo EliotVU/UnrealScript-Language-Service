@@ -27,7 +27,9 @@ import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
 import { UCLexer } from './UC/antlr/generated/UCLexer';
 import { DocumentParseData, UCDocument } from './UC/document';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
-import { getSymbol, getSymbolDefinition, getSymbolTooltip, VALID_ID_REGEXP } from './UC/helpers';
+import {
+    getSymbol, getSymbolDefinition, getSymbolDocument, getSymbolTooltip, VALID_ID_REGEXP
+} from './UC/helpers';
 import {
     applyMacroSymbols, clearMacroSymbols, config, createDocumentByPath, createPackage, documentsMap,
     getDocumentById, getDocumentByURI, getIndexedReferences, getPackageByDir,
@@ -37,9 +39,9 @@ import {
 import { toName } from './UC/name';
 import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
 import {
-    addHashedSymbol, DEFAULT_RANGE, IntrinsicArray, isClassSymbol, isFieldSymbol, ISymbol,
-    ModifierFlags, ObjectsTable, supportsRef, UCClassSymbol, UCMethodSymbol, UCObjectTypeSymbol,
-    UCStructSymbol, UCSymbol, UCTypeFlags
+    addHashedSymbol, DEFAULT_RANGE, IntrinsicArray, isClass as isClass, isField, ISymbol,
+    ModifierFlags, ObjectsTable, supportsRef, UCClassSymbol, UCMethodSymbol, UCObjectSymbol,
+    UCObjectTypeSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
 } from './UC/Symbols';
 
 /**
@@ -433,14 +435,14 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
             ? toName(value.type) : NAME_NONE;
         switch (typeName) {
             case NAME_CLASS: {
-                if (ObjectsTable.getSymbol(symbolName, UCTypeFlags.Class)) {
+                if (ObjectsTable.getSymbol(symbolName, UCSymbolKind.Class)) {
                     continue;
                 }
 
                 const symbol = new UCClassSymbol({ name: symbolName, range: DEFAULT_RANGE });
                 symbol.modifiers |= ModifierFlags.Intrinsic;
                 if (value.extends) {
-                    symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCTypeFlags.Class);
+                    symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCSymbolKind.Class);
                 }
                 const pkg = createPackage(pkgNameStr);
                 symbol.outer = pkg;
@@ -537,13 +539,12 @@ connection.onHover(async (e) => {
 connection.onDefinition(async (e) => {
     await awaitDocumentDelivery(e.textDocument.uri);
     const symbol = getSymbolDefinition(e.textDocument.uri, e.position);
-    if (symbol instanceof UCSymbol) {
-        const uri = symbol.getUri();
-        // This shouldn't happen, except for non UCSymbol objects.
-        if (!uri) {
-            return undefined;
-        }
-        return Location.create(uri, symbol.id.range);
+    if (symbol) {
+        const document = getSymbolDocument(symbol);
+        const documentUri = document?.uri;
+        return documentUri
+            ? Location.create(documentUri, symbol.id.range)
+            : undefined;
     }
     return undefined;
 });
@@ -564,25 +565,25 @@ connection.onSignatureHelp((e) => getSignatureHelp(e.textDocument.uri, activeDoc
 
 connection.onPrepareRename(async (e) => {
     const symbol = getSymbol(e.textDocument.uri, e.position);
-    if (!symbol || !(symbol instanceof UCSymbol)) {
+    if (!symbol || !(symbol instanceof UCObjectSymbol)) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
 
     const symbolRef: ISymbol | undefined = supportsRef(symbol)
-        ? symbol.getRef<UCSymbol>()
+        ? symbol.getRef<UCObjectSymbol>()
         : symbol;
 
-    if (!(symbolRef instanceof UCSymbol)) {
+    if (!(symbolRef instanceof UCObjectSymbol)) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
 
     // Symbol without a defined type e.g. defaultproperties, replication etc.
-    if (symbolRef.getTypeFlags() === UCTypeFlags.Error) {
+    if (symbolRef.getTypeKind() === UCTypeKind.Error) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
 
-    if (isFieldSymbol(symbolRef)) {
-        if (isClassSymbol(symbolRef)) {
+    if (isField(symbolRef)) {
+        if (isClass(symbolRef)) {
             throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename a class!');
         }
         if (symbolRef.modifiers & ModifierFlags.Intrinsic)  {
@@ -605,7 +606,7 @@ connection.onRenameRequest(async (e) => {
         throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid identifier!');
     }
 
-    const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
+    const symbol = getSymbolDefinition(e.textDocument.uri, e.position);
     if (!symbol) {
         return undefined;
     }

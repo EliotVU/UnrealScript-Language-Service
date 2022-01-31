@@ -1,6 +1,5 @@
 export * from './ISymbol';
 export * from './Symbol';
-export * from './SymbolReference';
 export * from './TypeSymbol';
 export * from './Package';
 export * from './FieldSymbol';
@@ -14,6 +13,7 @@ export * from './PropertySymbol';
 export * from './ParamSymbol';
 export * from './ConstSymbol';
 export * from './ClassSymbol';
+export * from './InterfaceSymbol';
 export * from './LocalSymbol';
 export * from './StateSymbol';
 export * from './ArchetypeSymbol';

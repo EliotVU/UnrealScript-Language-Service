@@ -3,7 +3,7 @@ import { CodeAction, CodeActionKind, Command } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
 import { UCDocument } from './document';
-import { UCObjectTypeSymbol, UCTypeFlags } from './Symbols';
+import { UCObjectTypeSymbol, UCSymbolKind } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
 export class DocumentCodeActionsBuilder extends DefaultSymbolWalker<undefined> {
@@ -20,7 +20,7 @@ export class DocumentCodeActionsBuilder extends DefaultSymbolWalker<undefined> {
     visitObjectType(symbol: UCObjectTypeSymbol) {
         const referredSymbol = symbol.getRef();
 		if (!referredSymbol) {
-            if ((symbol.getValidTypeKind() & UCTypeFlags.Class) !== 0) {
+            if (symbol.getExpectedKind() === UCSymbolKind.Class) {
                 const documentUri = this.document.filePath;
                 const newClassName = symbol.getName().text;
                 const newFileName =  newClassName + '.uc';

@@ -18,18 +18,19 @@ import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import { UCInputStream } from './Parser/InputStream';
 import { UCTokenStream } from './Parser/TokenStream';
 import {
-    ISymbol, removeHashedSymbol, SymbolReference, SymbolsTable, UCClassSymbol, UCPackage,
-    UCStructSymbol, UCSymbol
+    isStruct, ISymbol, removeHashedSymbol, SymbolReference, SymbolsTable, UCClassSymbol,
+    UCObjectSymbol, UCPackage, UCStructSymbol, UCSymbolKind
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
 function removeChildren(scope: UCStructSymbol) {
     for (let child = scope.children; child; child = child.next) {
-        if (child instanceof UCStructSymbol) {
+        if (isStruct(child)) {
             removeChildren(child);
         }
-        if (child.getKind() === SymbolKind.Struct
-            || child.getKind() === SymbolKind.Enum) {
+        if (child.kind === UCSymbolKind.ScriptStruct
+            || child.kind === UCSymbolKind.Enum
+            || child.kind === UCSymbolKind.Archetype) {
             removeHashedSymbol(child);
         }
     }
@@ -56,7 +57,7 @@ export class UCDocument {
     private readonly indexReferencesMade = new Map<number, Set<SymbolReference>>();
 
     // List of symbols, including macro declarations.
-    private scope = new SymbolsTable<UCSymbol>();
+    private scope = new SymbolsTable<UCObjectSymbol>();
 
     constructor(readonly filePath: string, public readonly classPackage: UCPackage) {
         this.fileName = path.basename(filePath, '.uc');
@@ -68,7 +69,7 @@ export class UCDocument {
         return Array.from(this.scope.getAll());
     }
 
-    public addSymbol(symbol: UCSymbol) {
+    public addSymbol(symbol: UCObjectSymbol) {
         this.scope.addSymbol(symbol);
     }
 
@@ -79,8 +80,8 @@ export class UCDocument {
         const lexer = new UCLexer(inputStream);
         const errorListener = new UCErrorListener();
         lexer.removeErrorListeners(); lexer.addErrorListener(errorListener);
-        const walker = new DocumentASTWalker(this, this.scope);
         const tokens = new UCTokenStream(lexer);
+        const walker = new DocumentASTWalker(this, this.scope, tokens);
 
         if (config.generation === UCGeneration.UC3) {
             const startPreprocressing = performance.now();
@@ -129,7 +130,6 @@ export class UCDocument {
             try {
                 parser.reset(true);
                 if (context) {
-                    walker.tokenStream = tokens;
                     walker.visit(context);
                 }
             } catch (err) {

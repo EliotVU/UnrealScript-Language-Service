@@ -1,16 +1,17 @@
 import { UCDocument } from './document';
 import { IExpression } from './expressions';
 import {
-    UCAssertStatement, UCBlock, UCCaseClause, UCDefaultClause, UCDoUntilStatement,
-    UCExpressionStatement, UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement,
-    UCLabeledStatement, UCRepIfStatement, UCReturnStatement, UCSwitchStatement, UCWhileStatement
+    UCArchetypeBlockStatement, UCAssertStatement, UCBlock, UCCaseClause, UCDefaultClause,
+    UCDoUntilStatement, UCExpressionStatement, UCForEachStatement, UCForStatement, UCGotoStatement,
+    UCIfStatement, UCLabeledStatement, UCRepIfStatement, UCReturnStatement, UCSwitchStatement,
+    UCWhileStatement
 } from './statements';
 import {
     ISymbol, UCArchetypeSymbol, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol,
     UCDefaultPropertiesBlock, UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCFieldSymbol,
-    UCLocalSymbol, UCMapTypeSymbol, UCMethodSymbol, UCObjectTypeSymbol, UCPackage, UCParamSymbol,
-    UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock, UCScriptStructSymbol,
-    UCStateSymbol, UCStructSymbol
+    UCInterfaceSymbol, UCLocalSymbol, UCMapTypeSymbol, UCMethodSymbol, UCObjectTypeSymbol,
+    UCPackage, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock,
+    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol
 } from './Symbols';
 
 export interface SymbolWalker<T> {
@@ -22,6 +23,7 @@ export interface SymbolWalker<T> {
 	visitMapType(symbol: UCMapTypeSymbol): T | void;
 	visitDelegateType(symbol: UCDelegateTypeSymbol): T | void;
 	visitArrayType(symbol: UCArrayTypeSymbol): T | void;
+	visitInterface(symbol: UCInterfaceSymbol): T | void;
 	visitClass(symbol: UCClassSymbol): T | void;
 	visitConst(symbol: UCConstSymbol): T | void;
 	visitEnum(symbol: UCEnumSymbol): T | void;
@@ -51,6 +53,7 @@ export interface SymbolWalker<T> {
 	visitForEachStatement(stm: UCForEachStatement): T | void;
 	visitReturnStatement(stm: UCReturnStatement): T | void;
 	visitGotoStatement(stm: UCGotoStatement): T | void;
+	visitArchetypeBlockStatement(stm: UCArchetypeBlockStatement): T | void;
 	visitExpression(expr: IExpression): T | void;
 }
 
@@ -116,6 +119,10 @@ export class DefaultSymbolWalker<T = undefined> implements SymbolWalker<T> {
         if (symbol.block) {
             symbol.block.accept(this);
         }
+    }
+
+    visitInterface(symbol: UCInterfaceSymbol) {
+        return this.visitClass(symbol);
     }
 
 	visitClass(symbol: UCClassSymbol) {
@@ -215,15 +222,15 @@ export class DefaultSymbolWalker<T = undefined> implements SymbolWalker<T> {
 	}
 
 	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
-		if (symbol.block) {
-			symbol.block.accept(this);
-		}
-		// Each child is already registered as a statement, thus will be indexed by the block.index call!
-		// return this.visitStructBase(symbol);
+        if (symbol.block) {
+            symbol.block.accept(this);
+        }
 	}
 
 	visitArchetypeSymbol(symbol: UCArchetypeSymbol) {
-        return;
+        if (symbol.block) {
+            symbol.block.accept(this);
+        }
 	}
 
 	visitExpression(expr: IExpression) {
@@ -298,4 +305,8 @@ export class DefaultSymbolWalker<T = undefined> implements SymbolWalker<T> {
 	visitGotoStatement(stm: UCGotoStatement) {
 		stm.expression?.accept(this);
 	}
+
+    visitArchetypeBlockStatement(stm: UCArchetypeBlockStatement) {
+        stm.archetypeSymbol.accept(this);
+    }
 }

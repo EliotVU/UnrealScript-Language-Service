@@ -210,10 +210,11 @@ directive
 	: SHARP { const i = this.getIndex(); } identifier? { this.skipLine(i); }
 	;
 
-program: member* /* EOF */;
+program: member* | EOF;
 
 member
 	: classDecl
+    | interfaceDecl
 	| constDecl
 	| (enumDecl SEMICOLON)
 	| (structDecl SEMICOLON)
@@ -248,20 +249,38 @@ structLiteral
 signedNumericLiteral: (MINUS | PLUS)? DOT? (DECIMAL_LITERAL | INTEGER_LITERAL);
 
 // e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
-objectLiteral: identifier NAME_LITERAL;
+objectLiteral: classRef=identifier path=NAME_LITERAL;
 
+interfaceDecl
+    : 'interface' identifier
+        qualifiedExtendsClause?
+        interfaceModifier*
+        SEMICOLON
+    ;
 classDecl
-	: ('class' | 'interface') identifier (extendsClause withinClause?)?
+	: 'class' identifier
+        qualifiedExtendsClause?
+        qualifiedWithinClause?
 		classModifier*
 		SEMICOLON
 	;
 
-extendsClause: ('extends' | 'expands') id=qualifiedIdentifier;
-withinClause: 'within' id=qualifiedIdentifier;
+extendsClause: ('extends' | 'expands') id=identifier;
+qualifiedExtendsClause: ('extends' | 'expands') id=qualifiedIdentifier;
+qualifiedWithinClause: 'within' id=qualifiedIdentifier;
+
+// UC3+
+interfaceModifier
+    : (KW_NATIVE modifierArgument?)                                                             #nativeInterfaceModifier
+	| (KW_NATIVEONLY modifierArgument?)                                                         #nativeOnlyInterfaceModifier
+
+    // | KW_EDITINLINENEW
+	| (KW_DEPENDSON OPEN_PARENS identifierArguments CLOSE_PARENS)                               #dependsOnInterfaceModifier
+    | (identifier modifierArguments?)                                                           #unidentifiedInterfaceModifier
+    ;
 
 classModifier
-    :
-	// in UC3 a class can have a custom native name.
+    : // in UC3 a class can have a custom native name.
 	(KW_NATIVE modifierArgument?)                                                               #nativeModifier
 	// | KW_NATIVEREPLICATION
 	// | KW_LOCALIZED // UC1
@@ -390,7 +409,7 @@ enumMember
 	;
 
 structDecl
-	:	'struct' exportBlockText? structModifier* identifier extendsClause?
+	:	'struct' exportBlockText? structModifier* identifier qualifiedExtendsClause?
 		OPEN_BRACE
 			structMember*
 		CLOSE_BRACE
@@ -935,6 +954,9 @@ classPropertyAccessSpecifier
 argument: COMMA | expression COMMA?;
 arguments: argument+;
 
+defaultArgument: COMMA | defaultValue;
+defaultArguments: defaultArgument (COMMA defaultArgument)*;
+
 // (~CLOSE_BRACE { this.notifyErrorListeners('Redundant token!'); })
 defaultPropertiesBlock
 	:
@@ -960,6 +982,9 @@ defaultStatement
 	| defaultMemberCallExpression
     | objectDecl
 
+    // Error tolerant incomplete statement
+    | identifier
+
 	// "command chaining", e.g. "IntA=1|IntB=2" is valid code,
 	// -- but if the | were a space, the second variable will be ignored (by the compiler).
 	| BITWISE_OR
@@ -967,6 +992,8 @@ defaultStatement
 	// TODO: Add a warning, from a technical point of view,
 	// -- the UC compiler just skips any character till it hits a newline character.
 	| SEMICOLON
+
+    // | . { this.skipLine(); }
 	;
 
 defaultExpression
@@ -990,7 +1017,7 @@ defaultAssignmentExpression
 	;
 
 defaultMemberCallExpression
-	: identifier DOT propId=identifier (OPEN_PARENS arguments? CLOSE_PARENS)?
+	: identifier DOT propId=identifier (OPEN_PARENS defaultArguments? CLOSE_PARENS)?
 	;
 
 objectDecl
@@ -1041,3 +1068,7 @@ defaultValue
 	| defaultIdentifierRef
     | defaultStructLiteral
 	;
+
+testDefaultValue
+    : OPEN_BRACE (defaultValue SEMICOLON)+ CLOSE_BRACE
+    ;

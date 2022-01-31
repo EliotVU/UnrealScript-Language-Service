@@ -1,12 +1,12 @@
-import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
+import { Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { IExpression } from '../expressions';
 import { SymbolWalker } from '../symbolWalker';
-import { UCFieldSymbol, UCStructSymbol, UCTypeFlags } from './';
-import { ModifierFlags } from './FieldSymbol';
+import { ModifierFlags, UCFieldSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
 
 export class UCConstSymbol extends UCFieldSymbol {
+    override kind = UCSymbolKind.Const;
     override modifiers = ModifierFlags.ReadOnly;
 
 	public expression?: IExpression;
@@ -15,20 +15,12 @@ export class UCConstSymbol extends UCFieldSymbol {
 		return this.expression?.getValue();
 	}
 
-	override getKind(): SymbolKind {
-		return SymbolKind.Constant;
-	}
-
     override getType() {
         return this.expression?.getType();
     }
 
-	override getTypeFlags() {
-		return UCTypeFlags.Const;
-	}
-
-	override getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Constant;
+	override getTypeKind() {
+		return UCTypeKind.Object;
 	}
 
 	override getTooltip(): string {
@@ -41,12 +33,14 @@ export class UCConstSymbol extends UCFieldSymbol {
 	}
 
 	override getContainedSymbolAtPos(position: Position) {
-		return this.expression?.getSymbolAtPos(position) || super.getContainedSymbolAtPos(position);
+		return this.expression?.getSymbolAtPos(position) ?? super.getContainedSymbolAtPos(position);
 	}
 
 	override index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
-		this.expression?.index(document, context);
+
+        // No type, enums are not visible in a constant assignment.
+		this.expression?.index(document, context, { contextType: undefined });
 	}
 
 	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {

@@ -1,6 +1,6 @@
 import { UCDocument } from './document';
 import {
-    ContextInfo, hasChildren, isParamSymbol, UCClassSymbol, UCDefaultPropertiesBlock, UCEnumSymbol,
+    ContextInfo, isParamSymbol, isStruct, UCClassSymbol, UCDefaultPropertiesBlock, UCEnumSymbol,
     UCMethodSymbol, UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
@@ -16,14 +16,16 @@ export class DocumentIndexer extends DefaultSymbolWalker<undefined> {
 
     visitStructBase(symbol: UCStructSymbol) {
         for (let child = symbol.children; child; child = child.next) {
-            if (hasChildren(child)) {
+            if (isStruct(child)) {
                 child.accept(this);
             }
         }
     }
 
-    visitEnum(symbol: UCEnumSymbol) { return; }
-	visitScriptStruct(symbol: UCScriptStructSymbol) { return; }
+    visitEnum(_symbol: UCEnumSymbol) { return; }
+	visitScriptStruct(symbol: UCScriptStructSymbol) {
+        this.visitStructBase(symbol);
+    }
 
     visitClass(symbol: UCClassSymbol) {
         this.visitStructBase(symbol);
@@ -41,9 +43,9 @@ export class DocumentIndexer extends DefaultSymbolWalker<undefined> {
         for (let child = symbol.children; child; child = child.next) {
             // Parameter?
             if (child && isParamSymbol(child) && child.defaultExpression) {
-                const typeFlags = child.getType()?.getTypeFlags();
+                const type = child.getType();
                 const context: ContextInfo | undefined = {
-                    typeFlags: typeFlags
+                    contextType: type
                 };
                 child.defaultExpression.index(this.document, symbol, context);
             }
@@ -55,8 +57,6 @@ export class DocumentIndexer extends DefaultSymbolWalker<undefined> {
     }
 
     visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
-        this.visitStructBase(symbol);
-
         if (symbol.block) {
             symbol.block.index(this.document, symbol);
         }

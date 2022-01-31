@@ -1,5 +1,6 @@
 import { performance } from 'perf_hooks';
 import { Subject } from 'rxjs';
+import { Location } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
 import { EAnalyzeOption, UCLanguageServerSettings } from '../settings';
@@ -8,8 +9,8 @@ import { DocumentParseData, UCDocument } from './document';
 import { DocumentIndexer } from './documentIndexer';
 import { Name, toName } from './name';
 import {
-    addHashedSymbol, ObjectsTable, SymbolReference, TRANSIENT_PACKAGE, UCEnumMemberSymbol,
-    UCPackage, UCTypeFlags
+    addHashedSymbol, ISymbol, ObjectsTable, SymbolReference, TRANSIENT_PACKAGE, UCEnumMemberSymbol,
+    UCPackage, UCSymbolKind
 } from './Symbols';
 
 export const documentsByPathMap = new Map<string, UCDocument>();
@@ -150,7 +151,7 @@ export function getPackageByDir(dir: string): UCPackage {
 
 export function createPackage(pkgNameStr: string): UCPackage {
     const pkgName = toName(pkgNameStr);
-    let pkg = ObjectsTable.getSymbol<UCPackage>(pkgName, UCTypeFlags.Package);
+    let pkg = ObjectsTable.getSymbol<UCPackage>(pkgName, UCSymbolKind.Package);
     if (!pkg) {
         pkg = new UCPackage(pkgName);
         addHashedSymbol(pkg);
@@ -196,6 +197,21 @@ export function getDocumentById(id: Name): UCDocument | undefined {
 export const IndexedReferencesMap = new Map<number, Set<SymbolReference>>();
 export function getIndexedReferences(hash: number) {
     return IndexedReferencesMap.get(hash);
+}
+
+export function indexReference(symbol: ISymbol, document: UCDocument, location: Location): SymbolReference {
+    const ref: SymbolReference = { location };
+    document.indexReference(symbol, ref);
+    return ref;
+}
+
+export function indexDeclarationReference(symbol: ISymbol, document: UCDocument): SymbolReference {
+    const ref: SymbolReference = {
+        location: Location.create(document.uri, symbol.id.range),
+        inAssignment: true
+    };
+    document.indexReference(symbol, ref);
+    return ref;
 }
 
 const EnumMemberMap = new Map<number, UCEnumMemberSymbol>();

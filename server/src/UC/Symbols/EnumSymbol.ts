@@ -1,38 +1,36 @@
-import { CompletionItemKind, SymbolKind } from 'vscode-languageserver-types';
+
 
 import { UCDocument } from '../document';
 import { Name } from '../name';
 import { NAME_ENUMCOUNT } from '../names';
 import { SymbolWalker } from '../symbolWalker';
-import { ISymbol, UCEnumMemberSymbol, UCFieldSymbol, UCStructSymbol, UCTypeFlags } from './';
+import {
+    ContextKind, ISymbol, UCEnumMemberSymbol, UCFieldSymbol, UCStructSymbol, UCSymbolKind,
+    UCTypeKind
+} from './';
 
 export class UCEnumSymbol extends UCStructSymbol {
+    override kind = UCSymbolKind.Enum;
+
+    declare public extendsType?: undefined;
+
     /** Excludes E_MAX */
     public maxValue: number;
-
     public enumCountMember: UCEnumMemberSymbol;
 
-	getKind(): SymbolKind {
-		return SymbolKind.Enum;
-	}
-
-	getTypeFlags() {
-		return UCTypeFlags.Enum;
-	}
-
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Enum;
+	override getTypeKind() {
+		return UCTypeKind.Byte;
 	}
 
     protected override getTypeKeyword(): string {
 		return 'enum';
 	}
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		return `${this.getTypeKeyword()} ${this.getPath()}`;
 	}
 
-	getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, _kind?: UCTypeFlags): C[] {
+	override getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: ContextKind, _kinds?: UCSymbolKind): C[] {
 		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
 			if (child.acceptCompletion(document, this)) {
@@ -43,14 +41,14 @@ export class UCEnumSymbol extends UCStructSymbol {
 		return symbols as C[];
 	}
 
-    getSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCTypeFlags): T | undefined {
+    override getSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind): T | undefined {
         if (id === NAME_ENUMCOUNT) {
             return this.enumCountMember as unknown as T;
         }
         return super.getSymbol(id, kind);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitEnum(this);
 	}
 }

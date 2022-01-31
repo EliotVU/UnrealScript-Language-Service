@@ -3,66 +3,75 @@ import * as path from 'path';
 
 import { UCLexer } from './antlr/generated/UCLexer';
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
-import { createPreprocessor, preprocessDocument, UCDocument } from './document';
-import { applyMacroSymbols, indexDocument } from './indexer';
+import { createPreprocessor, preprocessDocument } from './document';
+import { applyMacroSymbols, getDocumentById, queueIndexDocument } from './indexer';
+import { toName } from './name';
 import { UCInputStream } from './Parser/InputStream';
-import { TRANSIENT_PACKAGE } from './Symbols';
+import { usingDocuments } from './test/utils/utils';
 
-const GRAMMARS_DIR = path.resolve(__dirname, '../../../grammars/examples');
+const GRAMMARS_RELATIVE_DIR = path.resolve(__dirname, '../../../grammars/examples');
 const MACRO_FILE = 'macro.uci';
-const MACRO_PATH = path.join(GRAMMARS_DIR, MACRO_FILE);
 
 describe('Document', () => {
-	const document = new UCDocument(MACRO_PATH, TRANSIENT_PACKAGE);
+    usingDocuments(GRAMMARS_RELATIVE_DIR, [MACRO_FILE], () => {
+        const macroDocument = getDocumentById(toName(MACRO_FILE))!;
+        expect(macroDocument).to.not.be.undefined;
 
-	// Ensure that the extracted name matches the joined file name.
-	it(`document fileName === '${MACRO_FILE}'`, () => {
-		expect(document.fileName).to.equal(MACRO_FILE);
-	});
+        // Ensure that the extracted name matches the joined file name.
+        it(`fileName === '${MACRO_FILE}'`, () => {
+            expect(macroDocument.fileName).to.equal(MACRO_FILE);
+        });
 
-	it('is diagnostics free?', () => {
-		indexDocument(document);
+        it('Index', () => {
+            queueIndexDocument(macroDocument);
+            expect(macroDocument.hasBeenIndexed).to.be.true;
+        });
 
-        const diagnoser = new DocumentAnalyzer(document);
-        const diagnostics = diagnoser.visitDocument(document);
-		expect(diagnostics.count()).to.equal(0);
-	});
+        it('Diagnostics free?', () => {
+            const diagnoser = new DocumentAnalyzer(macroDocument);
+            const diagnostics = diagnoser.visitDocument(macroDocument);
+            expect(diagnostics.count()).to.be.null;
+        });
+    });
 });
 
 describe('Document with macros', () => {
-	const document = new UCDocument(MACRO_PATH, TRANSIENT_PACKAGE);
+    usingDocuments(GRAMMARS_RELATIVE_DIR, [MACRO_FILE], () => {
+        const macroDocument = getDocumentById(toName(MACRO_FILE))!;
+        expect(macroDocument).to.not.be.undefined;
 
-    const inputStream = UCInputStream.fromString(document.readText());
-	const lexer = new UCLexer(inputStream);
+        const inputStream = UCInputStream.fromString(macroDocument.readText());
+        const lexer = new UCLexer(inputStream);
 
-	const macroParser = createPreprocessor(document, lexer);
-	if (macroParser) {
-		applyMacroSymbols({ "debug": "" });
-		preprocessDocument(document, macroParser);
+        const macroParser = createPreprocessor(macroDocument, lexer);
+        if (macroParser) {
+            applyMacroSymbols({ "debug": "" });
+            preprocessDocument(macroDocument, macroParser);
 
-		it('macro debug !== undefined', () => {
-			const symbol = macroParser.getSymbolValue('debug'.toLowerCase());
-			expect(symbol).to.not.equal(undefined);
-		});
+            it('macro debug !== undefined', () => {
+                const symbol = macroParser.getSymbolValue('debug'.toLowerCase());
+                expect(symbol).to.not.equal(undefined);
+            });
 
-		it('macro classname !== undefined', () => {
-			const symbol = macroParser.getSymbolValue('classname'.toLowerCase());
-			expect(symbol).to.not.equal(undefined);
-		});
+            it('macro classname !== undefined', () => {
+                const symbol = macroParser.getSymbolValue('classname'.toLowerCase());
+                expect(symbol).to.not.equal(undefined);
+            });
 
-		it('macro packagename !== undefined', () => {
-			const symbol = macroParser.getSymbolValue('packagename'.toLowerCase());
-			expect(symbol).to.not.equal(undefined);
-		});
+            it('macro packagename !== undefined', () => {
+                const symbol = macroParser.getSymbolValue('packagename'.toLowerCase());
+                expect(symbol).to.not.equal(undefined);
+            });
 
-		it('macro IN_DEBUG === "true"', () => {
-			const symbol = macroParser.getSymbolValue('IN_DEBUG'.toLowerCase());
-			expect(symbol).to.not.equal(undefined);
-			// FIXME, need to properly format the captured text.
-			const cond = symbol && symbol.text === ' true\r';
-			expect(cond).to.equal(true);
-		});
-	} else {
-		// ??? no macros in macro.uci
-	}
+            it('macro IN_DEBUG === "true"', () => {
+                const symbol = macroParser.getSymbolValue('IN_DEBUG'.toLowerCase());
+                expect(symbol).to.not.equal(undefined);
+                // FIXME, need to properly format the captured text.
+                const cond = symbol && symbol.text === ' true\r';
+                expect(cond).to.equal(true);
+            });
+        } else {
+            // ??? no macros in macro.uci
+        }
+    });
 });
