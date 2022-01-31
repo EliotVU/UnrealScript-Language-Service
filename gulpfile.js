@@ -1,34 +1,6 @@
 const gulp = require('gulp');
-const fs = require('fs');
 const path = require('path');
-const jsyaml = require('js-yaml');
-
-const SYNTAX_FILE = 'UnrealScript.YAML-tmLanguage';
-const OUT_SYNTAX_FILE = 'UnrealScript.tmLanguage.json';
-const SYNTAX_DIR = 'syntaxes/';
-
-const SYNTAX_TASK = (function () {
-    const TASK_NAME = 'buildSyntax';
-
-    gulp.task(TASK_NAME, (cb) => {
-        const jsonData = jsyaml.load(fs.readFileSync(path.join(SYNTAX_DIR, SYNTAX_FILE), 'utf-8'));
-        const content = JSON.stringify(jsonData);
-        const outPath = path.join(SYNTAX_DIR, OUT_SYNTAX_FILE);
-        fs.writeFileSync(outPath, content);
-
-        if (cb) {
-            cb();
-        }
-    });
-
-    if (process.env.NODE_ENV === 'development') {
-        gulp.watch(path.join(SYNTAX_DIR, SYNTAX_FILE), (cb) => {
-            return gulp.task(TASK_NAME)(cb);
-        });
-    }
-
-    return TASK_NAME;
-})();
+const { exec } = require('child_process');
 
 const GRAMMAR_Dir = 'grammars/';
 
@@ -40,7 +12,6 @@ const GRAMMAR_TASK = (function () {
     const TASK_NAME = 'buildGrammar';
 
     gulp.task(TASK_NAME, (done) => {
-        var exec = require('child_process').exec;
         /* `cd node_modules/antlr4ts-cli && antlr4ts -visitor ${GRAMMAR_PATH} -o server/src/antlr` */
         exec('npm run compile:grammar', (err, stdout, stderr) => {
             console.log(stdout);
@@ -64,4 +35,4 @@ const GRAMMAR_TASK = (function () {
     return TASK_NAME;
 })();
 
-gulp.task('default', gulp.series([SYNTAX_TASK, GRAMMAR_TASK]));
+gulp.task('default', gulp.series([GRAMMAR_TASK]));
