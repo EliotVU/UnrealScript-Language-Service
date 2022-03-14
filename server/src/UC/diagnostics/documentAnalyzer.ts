@@ -625,10 +625,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
         }
     }
 
-    visitIfStatement(stm: UCIfStatement) {
-        super.visitIfStatement(stm);
-
-        this.verifyStatementExpression(stm);
+    private verifyStatementBooleanCondition(stm: UCExpressionStatement) {
         if (!config.checkTypes)
             return;
 
@@ -636,29 +633,25 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
             const type = stm.expression.getType();
             if (type && !typesMatch(type, StaticBoolType)) {
                 this.diagnostics.add({
-                    range: stm.getRange(),
+                    range: stm.expression.getRange(),
                     message: createExpectedTypeMessage(UCTypeKind.Bool, type.getTypeKind())
                 });
             }
         }
     }
 
+    visitIfStatement(stm: UCIfStatement) {
+        super.visitIfStatement(stm);
+
+        this.verifyStatementExpression(stm);
+        this.verifyStatementBooleanCondition(stm);
+    }
+
     visitWhileStatement(stm: UCWhileStatement) {
         super.visitWhileStatement(stm);
 
         this.verifyStatementExpression(stm);
-        if (!config.checkTypes)
-            return;
-
-        if (stm.expression) {
-            const type = stm.expression.getType();
-            if (type && !typesMatch(type, StaticBoolType)) {
-                this.diagnostics.add({
-                    range: stm.getRange(),
-                    message: createExpectedTypeMessage(UCTypeKind.Bool, type.getTypeKind())
-                });
-            }
-        }
+        this.verifyStatementBooleanCondition(stm);
     }
 
     visitSwitchStatement(stm: UCSwitchStatement) {
@@ -670,18 +663,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
         super.visitDoUntilStatement(stm);
 
         this.verifyStatementExpression(stm);
-        if (!config.checkTypes)
-            return;
-
-        if (stm.expression) {
-            const type = stm.expression.getType();
-            if (type && !typesMatch(type, StaticBoolType)) {
-                this.diagnostics.add({
-                    range: stm.getRange(),
-                    message: createExpectedTypeMessage(UCTypeKind.Bool, type.getTypeKind())
-                });
-            }
-        }
+        this.verifyStatementBooleanCondition(stm);
     }
 
     // TODO: Test if any of the three expression can be omitted?
@@ -711,15 +693,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
         }
 
         if (stm.expression) {
-            if (config.checkTypes) {
-                const type = stm.expression.getType();
-                if (type && !typesMatch(type, StaticBoolType)) {
-                    this.diagnostics.add({
-                        range: stm.getRange(),
-                        message: createExpectedTypeMessage(UCTypeKind.Bool, type.getTypeKind())
-                    });
-                }
-            }
+            this.verifyStatementBooleanCondition(stm);
         } else {
             this.diagnostics.add({
                 range: stm.getRange(),
@@ -814,15 +788,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
         super.visitAssertStatement(stm);
 
         this.verifyStatementExpression(stm);
-        if (stm.expression && config.checkTypes) {
-            const type = stm.expression.getType();
-            if (type && !typesMatch(type, StaticBoolType)) {
-                this.diagnostics.add({
-                    range: stm.getRange(),
-                    message: createExpectedTypeMessage(UCTypeKind.Bool, type.getTypeKind())
-                });
-            }
-        }
+        this.verifyStatementBooleanCondition(stm);
     }
 
     visitExpression(expr: IExpression) {
@@ -1007,8 +973,8 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
             } else if (
                 // Both Native and Transient modifiers will skip serialization, except for transient since UE3? (needs to be tested thoroughly).
                 ((letSymbol.modifiers & ModifierFlags.Native) !== 0
-                || ((letSymbol.modifiers & ModifierFlags.Transient) !== 0
-                    && config.generation !== UCGeneration.UC3)
+                    || ((letSymbol.modifiers & ModifierFlags.Transient) !== 0
+                        && config.generation !== UCGeneration.UC3)
                 ) && expr instanceof UCDefaultAssignmentExpression
             ) {
                 const modifiers = letSymbol
