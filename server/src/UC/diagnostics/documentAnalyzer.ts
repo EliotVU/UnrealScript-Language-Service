@@ -608,7 +608,8 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
             try {
                 statement.accept(this);
             } catch (err) {
-                const range = statement.getRange();
+                // Safely check getRange, because sometimes a statement is not what it seems!
+                const range = statement.getRange?.();
                 console.error('Error during analysis at', this.context ? this.context.getPath() : '???', range, err);
             }
         }
