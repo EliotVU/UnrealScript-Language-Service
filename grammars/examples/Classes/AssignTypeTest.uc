@@ -121,4 +121,8 @@ defaultproperties
     floatVar=.004
     // INVALID
     intVar=.004
+
+    // \ are interpreted as escape characters, leading to various parsing issues.
+    varPath="..\Path\"
+    nextVar="s"
 }
