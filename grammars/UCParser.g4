@@ -827,6 +827,11 @@ operatorName
 	| DOLLAR
 	| AT
 	| SHARP
+    // Allowed (UC1?, 2, 3), but idk any games using this.
+    | COLON
+    // Allowed (UC1?, 2, 3), seen this being used in some games
+    // using this may however may break the parser due the intrinsic operator ?:
+    | INTERR
 	| BANG
 	| AMP
 	| BITWISE_OR
