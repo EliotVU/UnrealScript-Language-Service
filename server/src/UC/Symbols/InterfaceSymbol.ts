@@ -3,7 +3,10 @@ import { ClassModifierFlags, UCClassSymbol } from './';
 import { UCSymbolKind, UCTypeKind } from './TypeSymbol';
 
 export class UCInterfaceSymbol extends UCClassSymbol {
-    static readonly allowedKindsMask = 1 << UCSymbolKind.Function;
+    static readonly allowedKindsMask = 1 << UCSymbolKind.Enum
+        | 1 << UCSymbolKind.ScriptStruct
+        | 1 << UCSymbolKind.Property
+        | 1 << UCSymbolKind.Function;
 
     override kind = UCSymbolKind.Interface;
     override classModifiers = ClassModifierFlags.Interface;

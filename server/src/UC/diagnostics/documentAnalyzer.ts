@@ -38,7 +38,9 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
     private state: ContextInfo = {};
     private cachedState: ContextInfo = {};
     private diagnostics = new DiagnosticCollection();
-    private allowedKindsMask: UCSymbolKind = 1 << UCClassSymbol.allowedKindsMask | 1 << UCSymbolKind.Class;
+    private allowedKindsMask: UCSymbolKind = 1 << UCClassSymbol.allowedKindsMask
+        | 1 << UCSymbolKind.Class
+        | 1 << UCSymbolKind.Interface;
 
     constructor(private document: UCDocument) {
         super();
