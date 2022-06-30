@@ -129,28 +129,31 @@ export function getDocumentContext(document: UCDocument, position: Position): IS
 
 export async function getSymbolTooltip(uri: string, position: Position): Promise<Hover | undefined> {
     const document = getDocumentByURI(uri);
-    const ref = document && getDocumentSymbol(document, position);
-    if (!ref) {
+    const symbol = document && getDocumentSymbol(document, position);
+    if (!symbol) {
         return undefined;
     }
 
-    const tooltipText = ref.getTooltip();
+    const symbolRef = supportsRef(symbol)
+        ? symbol.getRef()
+        : symbol;
+
+    const tooltipText = symbolRef!.getTooltip();
     if (!tooltipText) {
         return undefined;
     }
 
     const contents = [{ language: 'unrealscript', value: tooltipText }];
-    if (ref instanceof UCObjectSymbol) {
-        const documentation = ref.getDocumentation();
+    if (symbol instanceof UCObjectSymbol) {
+        const documentation = symbol.getDocumentation();
         if (documentation) {
             contents.push({ language: 'unrealscript', value: documentation });
         }
-
-        return {
-            contents,
-            range: ref.id.range
-        };
     }
+    return {
+        contents,
+        range: symbol.id.range
+    };
 }
 
 export function getSymbolDefinition(uri: string, position: Position): ISymbol | undefined {

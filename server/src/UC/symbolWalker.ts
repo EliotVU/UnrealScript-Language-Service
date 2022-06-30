@@ -234,7 +234,7 @@ export class DefaultSymbolWalker<T = undefined> implements SymbolWalker<T> {
         }
 	}
 
-    visitStatement(stm: IStatement): void | T {
+    visitStatement(stm: IStatement) {
         return;
     }
 
