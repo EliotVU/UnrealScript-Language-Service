@@ -1,7 +1,8 @@
 import { UCDocument } from './document';
 import {
-    ContextInfo, isParamSymbol, isStruct, UCClassSymbol, UCDefaultPropertiesBlock, UCEnumSymbol,
-    UCMethodSymbol, UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol
+    ContextInfo, isArchetypeSymbol, isParamSymbol, isStruct, UCClassSymbol,
+    UCDefaultPropertiesBlock, UCEnumSymbol, UCMethodSymbol, UCReplicationBlock,
+    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
@@ -59,6 +60,10 @@ export class DocumentIndexer extends DefaultSymbolWalker<undefined> {
     visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
         if (symbol.block) {
             symbol.block.index(this.document, symbol);
+        }
+
+        if (isArchetypeSymbol(symbol.default)) {
+            symbol.default.index(this.document, symbol.default);
         }
     }
 

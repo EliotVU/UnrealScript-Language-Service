@@ -989,9 +989,6 @@ defaultStatement
 	| defaultMemberCallExpression
     | objectDecl
 
-    // Error tolerant incomplete statement
-    | defaultExpression
-
 	// "command chaining", e.g. "IntA=1|IntB=2" is valid code,
 	// -- but if the | were a space, the second variable will be ignored (by the compiler).
 	| BITWISE_OR

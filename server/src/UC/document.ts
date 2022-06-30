@@ -3,7 +3,7 @@ import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
-import { DocumentUri, SymbolKind } from 'vscode-languageserver';
+import { DocumentUri } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
 import { UCLexer } from './antlr/generated/UCLexer';

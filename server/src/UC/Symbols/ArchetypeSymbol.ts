@@ -5,7 +5,7 @@ import { Name } from '../name';
 import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    isStruct, ModifierFlags, UCFieldSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
+    ModifierFlags, UCFieldSymbol, UCObjectSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
 } from './';
 import { addHashedSymbol, ObjectsTable } from './Package';
 
@@ -14,7 +14,7 @@ import { addHashedSymbol, ObjectsTable } from './Package';
  */
 export class UCArchetypeSymbol extends UCStructSymbol {
     override kind = UCSymbolKind.Archetype;
-    declare outer: UCStructSymbol;
+    declare outer: UCObjectSymbol;
     override modifiers = ModifierFlags.ReadOnly;
 
     override getTypeKind() {
@@ -28,10 +28,12 @@ export class UCArchetypeSymbol extends UCStructSymbol {
     override getTooltip(): string {
         const text: Array<string | undefined> = ['(archetype)'];
 
-        if (this.extendsType) {
+        text.push(super.getTypeHint());
+        if (this.super) {
+            if (!this.extendsType) {
+                text.push(`(override)`);
+            }
             text.push(`class=${this.super?.getPath()}`);
-        } else if (this.super) {
-            text.push(`(override)`);
         }
         text.push(`name=${this.getPath()}`);
         return text.filter(s => s).join(' ');
@@ -45,9 +47,9 @@ export class UCArchetypeSymbol extends UCStructSymbol {
     override index(document: UCDocument, context: UCStructSymbol) {
         super.index(document, context);
         // Lookup the inherited archetype, if it exists.
-        if (!this.extendsType && !this.super && isStruct(context.outer)) {
+        if (!this.extendsType && !this.super) {
             const inheritedArchetype = ObjectsTable.getSymbol<UCArchetypeSymbol>(this.id.name, UCSymbolKind.Archetype);
-            this.super = inheritedArchetype;
+            this.super = inheritedArchetype?.super;
         }
 
         // Note: It is crucial to hash the object POST @index()

@@ -24,8 +24,8 @@ import { rangeFromBound, rangeFromBounds, rangeFromCtx } from './helpers';
 import { config, setEnumMember, UCGeneration } from './indexer';
 import { toName } from './name';
 import {
-    NAME_ARRAY, NAME_CLASS, NAME_DEFAULT, NAME_DELEGATE, NAME_ENUMCOUNT, NAME_MAP, NAME_NONE,
-    NAME_REPLICATION
+    NAME_ARRAY, NAME_CLASS, NAME_DEFAULTPROPERTIES, NAME_DELEGATE, NAME_ENUMCOUNT, NAME_MAP,
+    NAME_NONE, NAME_REPLICATION, NAME_STRUCTDEFAULTPROPERTIES
 } from './names';
 import {
     IStatement, UCArchetypeBlockStatement, UCAssertStatement, UCBlock, UCCaseClause,
@@ -195,11 +195,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     constructor(
         private document: UCDocument,
-        scope: ISymbolContainer<ISymbol>,
+        private defaultScope: ISymbolContainer<ISymbol>,
         private tokenStream: CommonTokenStream | undefined
     ) {
         super();
-        this.scopes.push(scope);
+        this.scopes.push(defaultScope);
     }
 
     push(newContext: ISymbolContainer<ISymbol>) {
@@ -914,10 +914,13 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitStructDefaultPropertiesBlock(ctx: UCGrammar.StructDefaultPropertiesBlockContext) {
-        const identifier: Identifier = { name: NAME_DEFAULT, range: rangeFromBound(ctx.start) };
+        const identifier: Identifier = {
+            name: NAME_STRUCTDEFAULTPROPERTIES,
+            range: rangeFromBound(ctx.start)
+        };
         const range = rangeFromBounds(ctx.start, ctx.stop);
         const symbol = new UCDefaultPropertiesBlock(identifier, range);
-        symbol.super = this.scope<UCStructSymbol>();
+        symbol.default = this.scope<UCStructSymbol>();
 
         this.declare(symbol, ctx);
         this.push(symbol);
@@ -930,15 +933,30 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitDefaultPropertiesBlock(ctx: UCGrammar.DefaultPropertiesBlockContext) {
-        const identifier: Identifier = { name: NAME_DEFAULT, range: rangeFromBound(ctx.start) };
+        const identifier: Identifier = {
+            name: NAME_DEFAULTPROPERTIES,
+            range: rangeFromBound(ctx.start)
+        };
         const range = rangeFromBounds(ctx.start, ctx.stop);
         const symbol = new UCDefaultPropertiesBlock(identifier, range);
-        symbol.super = this.scope<UCStructSymbol>();
 
-        // TODO: Scope these to its own outer e.g. UE3 > Default__ContainedClassName.StaticMeshComponent0 and UE2 > ContainedClassName.StaticMeshComponent0
         this.declare(symbol, ctx);
         this.push(symbol);
         try {
+            if (config.generation === UCGeneration.UC3) {
+                const defaultId: Identifier = {
+                    name: toName(`Default__${this.document.name.text}`),
+                    range: identifier.range
+                };
+                const defaultObject = new UCArchetypeSymbol(defaultId, range);
+                defaultObject.modifiers |= ModifierFlags.Generated;
+                defaultObject.outer = this.document.classPackage;
+                defaultObject.super = this.document.class;
+                this.declare(defaultObject);
+                symbol.default = defaultObject;
+            } else {
+                symbol.default = this.document.class!;
+            }
             symbol.block = createBlock(this, ctx.defaultStatement());
         } finally {
             this.pop();
@@ -1003,8 +1021,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             const statementNodes = ctx.defaultStatement();
             block.statements = hardcodedStatements
                 .concat(statementNodes
-                    .map(node => node.accept(this)).
-                    filter(stm => stm && hasNoKind(stm))
+                    .map(node => node.accept(this))
                 );
         } finally {
             this.pop();

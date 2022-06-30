@@ -39,6 +39,7 @@ export enum ModifierFlags {
     Intrinsic           = 1 << 17,
     Generated           = 1 << 18,
     Keyword             = 1 << 19,
+    NoDeclaration       = 1 << 20,
 }
 
 export abstract class UCFieldSymbol extends UCObjectSymbol {
@@ -109,7 +110,7 @@ export abstract class UCFieldSymbol extends UCObjectSymbol {
 	}
 
 	override index(document: UCDocument, _context: UCStructSymbol) {
-		indexDeclarationReference(this, document);
+		if ((this.modifiers & ModifierFlags.NoDeclaration) == 0) indexDeclarationReference(this, document);
 	}
 
 	public buildModifiers(modifiers = this.modifiers): string[] {
