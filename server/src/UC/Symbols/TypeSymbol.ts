@@ -21,6 +21,11 @@ import { ContextInfo } from './ISymbol';
 import { UCDelegateSymbol } from './MethodSymbol';
 import { tryFindClassSymbol, tryFindSymbolInPackage, UCPackage } from './Package';
 
+export const enum UCNodeKind {
+    Expression,
+    Statement
+}
+
 export const enum UCSymbolKind {
     None,
     Type,
@@ -42,7 +47,8 @@ export const enum UCSymbolKind {
     Delegate,
     Operator,
     ReplicationBlock,
-    DefaultPropertiesBlock
+    DefaultPropertiesBlock,
+    Statement
 }
 
 export enum UCTypeKind {
@@ -632,6 +638,10 @@ export function resolveType(type: ITypeSymbol): ITypeSymbol {
 
 export function hasDefinedBaseType(type: ITypeSymbol & { baseType?: ITypeSymbol | undefined }): type is UCObjectTypeSymbol & { baseType: ITypeSymbol } {
     return typeof type.baseType !== 'undefined';
+}
+
+export function isSymbol(symbol: ISymbol): symbol is ISymbol {
+    return typeof symbol.kind !== 'undefined';
 }
 
 export function isPackage(symbol: ISymbol): symbol is UCPackage {

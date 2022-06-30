@@ -751,11 +751,13 @@ statement
 	| constDecl
 
 	// We must check for expressions after ALL statements so that we don't end up capturing statement keywords as identifiers.
+    | assignmentStatement
 	| expressionStatement
 	| directive
 	;
 
-expressionStatement: (assignmentExpression | primaryExpression) SEMICOLON;
+assignmentStatement: expr=assignmentExpression SEMICOLON;
+expressionStatement: expr=primaryExpression SEMICOLON;
 
 ifStatement
 	: 'if' (OPEN_PARENS expr=expression? CLOSE_PARENS)

@@ -91,7 +91,7 @@ export function indexDocument(document: UCDocument, text?: string): DocumentPars
             }
         } catch (err) {
             console.error(
-                `An error was thrown while indexing document: "${document.uri}"`,
+                `(symbol index error) in document "${document.uri}"`,
                 err
             );
         }
@@ -99,7 +99,7 @@ export function indexDocument(document: UCDocument, text?: string): DocumentPars
         pendingIndexedDocuments.push(document);
         return parseData;
     } catch (err) {
-        console.error(`An error occurred during the indexation of document ${document.uri}`, err);
+        console.error(`(index error) in document ${document.uri}`, err);
     }
 }
 
@@ -110,7 +110,7 @@ function postIndexDocument(document: UCDocument) {
         indexer.visitDocument(document);
     } catch (err) {
         console.error(
-            `An error was thrown while post indexing document: "${document.uri}"`,
+            `(post-index error) in document "${document.uri}"`,
             err
         );
     }

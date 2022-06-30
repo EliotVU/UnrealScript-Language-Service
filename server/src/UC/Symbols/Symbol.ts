@@ -104,3 +104,9 @@ export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWit
         return this.getPath();
     }
 }
+
+export class UCEmptySymbol extends UCObjectSymbol {
+    accept<Result>(visitor: SymbolWalker<Result>): void | Result {
+        return;
+    }
+}

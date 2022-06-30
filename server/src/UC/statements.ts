@@ -6,12 +6,12 @@ import { UCDocument } from './document';
 import { IExpression } from './expressions';
 import { intersectsWith } from './helpers';
 import {
-    ContextInfo, Identifier, ISymbol, IWithIndex, IWithInnerSymbols, StaticNameType,
-    UCArchetypeSymbol, UCObjectTypeSymbol, UCStructSymbol
+    ContextInfo, Identifier, INode, ISymbol, IWithIndex, IWithInnerSymbols, StaticNameType,
+    UCArchetypeSymbol, UCNodeKind, UCObjectTypeSymbol, UCStructSymbol
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
-export interface IStatement extends IWithIndex, IWithInnerSymbols {
+export interface IStatement extends INode, IWithIndex, IWithInnerSymbols {
     getRange(): Range;
     getSymbolAtPos(position: Position): ISymbol | undefined;
 
@@ -20,6 +20,8 @@ export interface IStatement extends IWithIndex, IWithInnerSymbols {
 }
 
 export class UCExpressionStatement implements IStatement {
+    readonly kind = UCNodeKind.Statement;
+
     expression?: IExpression;
 
     constructor(protected range: Range) {
@@ -64,6 +66,8 @@ export abstract class UCThenStatement extends UCExpressionStatement {
 }
 
 export class UCBlock implements IStatement {
+    readonly kind = UCNodeKind.Statement;
+
     statements: Array<IStatement | undefined>;
 
     constructor(protected range: Range) {
@@ -94,8 +98,13 @@ export class UCBlock implements IStatement {
     index(_document: UCDocument, _context: UCStructSymbol, info: ContextInfo = {}) {
         const typeFlags = info.contextType;
         for (const statement of this.statements) if (statement) {
-            statement.index.apply(statement, arguments);
-            info.contextType = typeFlags; // Reset any modification (during the last index() call) made to typeFlags
+            try {
+                statement.index.apply(statement, arguments);
+            } catch (err) {
+                console.error('(Index error) on statement', statement, err);
+            } finally {
+                info.contextType = typeFlags; // Reset any modification (during the last index() call) made to typeFlags
+            }
         }
     }
 
@@ -253,6 +262,8 @@ export class UCForEachStatement extends UCThenStatement {
 }
 
 export class UCLabeledStatement implements IStatement {
+    kind = UCNodeKind.Statement;
+
     label?: Identifier;
 
     constructor(protected range: Range) {
@@ -298,6 +309,21 @@ export class UCGotoStatement extends UCExpressionStatement {
 
     accept<Result>(visitor: SymbolWalker<Result>): Result | void {
         return visitor.visitGotoStatement(this);
+    }
+}
+
+// Temporary placeholder for basic statements that we don't analyze yet.
+export class UCDummyStatement extends UCExpressionStatement {
+    getSymbolAtPos(position: Position): ISymbol | undefined {
+        return undefined;
+    }
+
+    getContainedSymbolAtPos(position: Position): ISymbol | undefined {
+        return undefined;
+    }
+
+    index(_document: UCDocument, _context: UCStructSymbol, _info?: ContextInfo) {
+        //
     }
 }
 

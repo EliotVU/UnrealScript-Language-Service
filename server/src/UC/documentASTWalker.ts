@@ -29,22 +29,25 @@ import {
 } from './names';
 import {
     IStatement, UCArchetypeBlockStatement, UCAssertStatement, UCBlock, UCCaseClause,
-    UCDefaultClause, UCDoUntilStatement, UCEmptyStatement, UCExpressionStatement,
+    UCDefaultClause, UCDoUntilStatement, UCDummyStatement, UCEmptyStatement, UCExpressionStatement,
     UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement, UCLabeledStatement,
     UCRepIfStatement, UCReturnStatement, UCSwitchStatement, UCWhileStatement
 } from './statements';
 import {
-    addHashedSymbol, Identifier, ISymbol, ISymbolContainer, ITypeSymbol, MethodFlags, ModifierFlags,
-    ReturnValueIdentifier, UCArchetypeSymbol, UCArrayTypeSymbol, UCBinaryOperatorSymbol,
-    UCClassSymbol, UCConstSymbol, UCDefaultPropertiesBlock, UCDelegateSymbol, UCDelegateTypeSymbol,
-    UCEnumMemberSymbol, UCEnumSymbol, UCEventSymbol, UCInterfaceSymbol, UCLocalSymbol,
-    UCMapTypeSymbol, UCMethodSymbol, UCObjectSymbol, UCObjectTypeSymbol, UCParamSymbol,
-    UCPostOperatorSymbol, UCPreOperatorSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
-    UCReplicationBlock, UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCSymbolKind,
-    UCTypeKind, UCTypeSymbol
+    addHashedSymbol, hasNoKind, Identifier, ISymbol, ISymbolContainer, ITypeSymbol, MethodFlags,
+    ModifierFlags, ReturnValueIdentifier, UCArchetypeSymbol, UCArrayTypeSymbol,
+    UCBinaryOperatorSymbol, UCClassSymbol, UCConstSymbol, UCDefaultPropertiesBlock,
+    UCDelegateSymbol, UCDelegateTypeSymbol, UCEmptySymbol, UCEnumMemberSymbol, UCEnumSymbol,
+    UCEventSymbol, UCInterfaceSymbol, UCLocalSymbol, UCMapTypeSymbol, UCMethodSymbol,
+    UCObjectSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPostOperatorSymbol, UCPreOperatorSymbol,
+    UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock, UCScriptStructSymbol,
+    UCStateSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind, UCTypeSymbol
 } from './Symbols';
 
-function getDebugInfo(ctx: ParserRuleContext): string {
+function getDebugInfo(ctx?: ParserRuleContext): string {
+    if (typeof ctx === 'undefined') {
+        return '';
+    }
     return `(${ctx.start.line}:${ctx.start.charPositionInLine}) "${ctx.text}"`;
 }
 
@@ -73,24 +76,27 @@ function createMemberExpression(ctx: UCGrammar.IdentifierContext): UCMemberExpre
 
 function createBlock(
     visitor: DocumentASTWalker,
-    ctx: ParserRuleContext & { statement: () => UCGrammar.StatementContext[] }
+    nodes?: ParserRuleContext[]
 ): UCBlock | undefined {
-    const statementNodes = ctx.statement();
-    if (!statementNodes || statementNodes.length === 0) {
+    if (!nodes || nodes.length === 0) {
         return undefined;
     }
 
-    const startToken = statementNodes[0].start;
-    const stopToken = statementNodes[statementNodes.length - 1].stop;
+    const startToken = nodes[0].start;
+    const stopToken = nodes[nodes.length - 1].stop;
     const block = new UCBlock(rangeFromBounds(startToken, stopToken));
-    try {
-        block.statements = new Array(statementNodes.length);
-        for (let i = 0; i < statementNodes.length; ++i) {
-            const statement: IStatement = statementNodes[i].accept(visitor);
+    block.statements = new Array(nodes.length);
+    for (let i = 0; i < nodes.length; ++i) {
+        try {
+            const statement: IStatement | undefined = nodes[i].accept(visitor);
+            if (statement && hasNoKind(statement)) {
+                console.warn('Caught a corrupted statement', getDebugInfo(nodes[i]));
+                continue;
+            }
             block.statements[i] = statement;
+        } catch (err) {
+            console.error(`(internal transformation error)`, getDebugInfo(nodes[i]));
         }
-    } catch (err) {
-        console.error(`(Internal error) at block`, getDebugInfo(ctx), err);
     }
     return block;
 }
@@ -586,13 +592,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             return;
         }
 
-        const block = new UCBlock(rangeFromBounds(ctx.start, ctx.stop));
-        block.statements = Array(statementNodes.length);
-        for (let i = 0; i < statementNodes.length; ++i) {
-            const statement = statementNodes[i].accept(this);
-            block.statements[i] = statement;
-        }
-        symbol.block = block;
+        symbol.block = createBlock(this, ctx.replicationStatement());
         return symbol;
     }
 
@@ -736,7 +736,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         const method = this.scope<UCMethodSymbol>();
-        method.block = createBlock(this, ctx);
+        method.block = createBlock(this, ctx.statement());
     }
 
     visitParamDecl(ctx: UCGrammar.ParamDeclContext) {
@@ -888,7 +888,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             if (memberNodes) for (const member of memberNodes) {
                 member.accept(this);
             }
-            symbol.block = createBlock(this, ctx);
+            symbol.block = createBlock(this, ctx.statement());
         } finally {
             this.pop();
         }
@@ -922,12 +922,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         this.declare(symbol, ctx);
         this.push(symbol);
         try {
-            const statements = ctx.defaultStatement()?.map(node => node.accept(this));
-            if (statements) {
-                const block = new UCBlock(range);
-                block.statements = statements;
-                symbol.block = block;
-            }
+            symbol.block = createBlock(this, ctx.defaultStatement());
         } finally {
             this.pop();
         }
@@ -944,12 +939,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         this.declare(symbol, ctx);
         this.push(symbol);
         try {
-            const statements = ctx.defaultStatement()?.map(node => node.accept(this));
-            if (statements) {
-                const block = new UCBlock(range);
-                block.statements = statements;
-                symbol.block = block;
-            }
+            symbol.block = createBlock(this, ctx.defaultStatement());
         } finally {
             this.pop();
         }
@@ -1012,7 +1002,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         try {
             const statementNodes = ctx.defaultStatement();
             block.statements = hardcodedStatements
-                .concat(statementNodes.map(node => node.accept(this)));
+                .concat(statementNodes
+                    .map(node => node.accept(this)).
+                    filter(stm => stm && hasNoKind(stm))
+                );
         } finally {
             this.pop();
         }
@@ -1088,21 +1081,43 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         if (ctx.SEMICOLON()) {
             return new UCEmptyStatement(rangeFromCtx(ctx));
         }
+        const child = ctx.getChild(0)!;
+        return child.accept<IStatement>(this);
+    }
 
-        try {
-            const child = ctx.getChild(0);
-            return child?.accept<IStatement>(this);
-        } catch (err) {
-            console.error('(Internal error) at statement', getDebugInfo(ctx), err);
-            return new UCEmptyStatement(rangeFromCtx(ctx));
+    // Directives can occur in a statement or declaration scope.
+    // For the time being we don't want to run into analysis errors, so we transform directives into pseudo object symbols.
+    visitDirective(ctx: UCGrammar.DirectiveContext) {
+        return new UCEmptySymbol({ name: NAME_NONE, range: rangeFromCtx(ctx) });
+        // return new UCEmptyStatement(rangeFromCtx(ctx));
+    }
+
+    visitAssignmentStatement(ctx: UCGrammar.AssignmentStatementContext) {
+        const statement = new UCExpressionStatement(rangeFromCtx(ctx));
+        if (ctx._expr) {
+            statement.expression = ctx._expr.accept(this);
         }
+        return statement;
     }
 
     visitExpressionStatement(ctx: UCGrammar.ExpressionStatementContext) {
-        const expression: IExpression = ctx.getChild(0).accept(this);
-        const statement = new UCExpressionStatement(rangeFromBounds(ctx.start, ctx.stop));
-        statement.expression = expression;
+        const statement = new UCExpressionStatement(rangeFromCtx(ctx));
+        if (ctx._expr) {
+            statement.expression = ctx._expr.accept(this);
+        }
         return statement;
+    }
+
+    visitContinueStatement(ctx: UCGrammar.ContinueStatementContext): IStatement {
+        return new UCDummyStatement(rangeFromCtx(ctx));
+    }
+
+    visitBreakStatement(ctx: UCGrammar.BreakStatementContext): IStatement {
+        return new UCDummyStatement(rangeFromCtx(ctx));
+    }
+
+    visitStopStatement(ctx: UCGrammar.StopStatementContext): IStatement {
+        return new UCDummyStatement(rangeFromCtx(ctx));
     }
 
     visitLabeledStatement(ctx: UCGrammar.LabeledStatementContext): UCLabeledStatement {
@@ -1158,7 +1173,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         const blockNode = ctx.codeBlockOptional();
-        statement.then = createBlock(this, blockNode);
+        statement.then = createBlock(this, blockNode.statement());
         return statement;
     }
 
@@ -1170,7 +1185,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         const blockNode = ctx.codeBlockOptional();
-        statement.then = createBlock(this, blockNode);
+        statement.then = createBlock(this, blockNode.statement());
 
         const elseStatementNode = ctx.elseStatement();
         if (elseStatementNode) {
@@ -1181,7 +1196,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     visitElseStatement(ctx: UCGrammar.ElseStatementContext) {
         const blockNode = ctx.codeBlockOptional();
-        return createBlock(this, blockNode);
+        return createBlock(this, blockNode.statement());
     }
 
     visitDoStatement(ctx: UCGrammar.DoStatementContext): UCDoUntilStatement {
@@ -1192,7 +1207,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         const blockNode = ctx.codeBlockOptional();
-        statement.then = createBlock(this, blockNode);
+        statement.then = createBlock(this, blockNode.statement());
         return statement;
     }
 
@@ -1204,7 +1219,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         const blockNode = ctx.codeBlockOptional();
-        statement.then = createBlock(this, blockNode);
+        statement.then = createBlock(this, blockNode.statement());
         return statement;
     }
 
@@ -1226,7 +1241,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         const blockNode = ctx.codeBlockOptional();
-        statement.then = createBlock(this, blockNode);
+        statement.then = createBlock(this, blockNode.statement());
         return statement;
     }
 
@@ -1245,14 +1260,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             clauseNodes.push(defaultClauseNode);
         }
 
-        const block = new UCBlock(range);
-        block.statements = Array(clauseNodes.length);
-        for (let i = 0; i < clauseNodes.length; ++i) {
-            const caseStatement: IStatement = clauseNodes[i].accept(this);
-            block.statements[i] = caseStatement;
-        }
-        statement.then = block;
-
+        statement.then = createBlock(this, clauseNodes);
         return statement;
     }
 
@@ -1262,13 +1270,13 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         if (ctx._expr) {
             statement.expression = ctx._expr.accept(this);
         }
-        statement.then = createBlock(this, ctx);
+        statement.then = createBlock(this, ctx.statement());
         return statement;
     }
 
     visitDefaultClause(ctx: UCGrammar.DefaultClauseContext) {
         const statement = new UCDefaultClause(rangeFromBounds(ctx.start, ctx.stop));
-        statement.then = createBlock(this, ctx);
+        statement.then = createBlock(this, ctx.statement());
         return statement;
     }
 

@@ -4,12 +4,16 @@ import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import { UCStructSymbol } from './';
-import { ITypeSymbol, UCSymbolKind, UCTypeKind } from './TypeSymbol';
+import { ITypeSymbol, UCNodeKind, UCSymbolKind, UCTypeKind } from './TypeSymbol';
 
 export type Identifier = Readonly<{
     readonly name: Name;
     readonly range: Range;
 }>;
+
+export interface INode {
+    readonly kind: UCNodeKind;
+}
 
 export interface ISymbol {
     readonly kind: UCSymbolKind;
@@ -93,4 +97,8 @@ export function getOuter<T extends ISymbol = ISymbol>(symbol: ISymbol, kind: UCS
         outer = outer.outer
     );
     return outer as T | undefined;
+}
+
+export function hasNoKind(symbol: { kind: UCNodeKind }): boolean {
+    return typeof symbol.kind === 'undefined';
 }

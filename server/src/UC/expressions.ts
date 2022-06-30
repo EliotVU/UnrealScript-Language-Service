@@ -6,18 +6,21 @@ import { config, getEnumMember } from './indexer';
 import {
     CastTypeSymbolMap, ContextInfo, CORE_PACKAGE, DefaultArray, findOrIndexClassSymbol,
     findOverloadedOperator, findSuperStruct, getConversionCost, getOuter, getSymbolHash,
-    getSymbolOuterHash, hasDefinedBaseType, Identifier, IntrinsicClass, IntrinsicRngLiteral,
+    getSymbolOuterHash, hasDefinedBaseType, Identifier, INode, IntrinsicClass, IntrinsicRngLiteral,
     IntrinsicRotLiteral, IntrinsicVectLiteral, isConstSymbol, isFunction, isOperator, isProperty,
     isStateSymbol, isStruct, ISymbol, ITypeSymbol, IWithIndex, IWithInnerSymbols, ModifierFlags,
     ObjectsTable, OuterObjectsTable, resolveType, StaticBoolType, StaticByteType, StaticFloatType,
     StaticIntType, StaticMetaType, StaticNameType, StaticNoneType, StaticRangeType,
     StaticRotatorType, StaticStringType, StaticVectorType, tryFindClassSymbol, UCArrayTypeSymbol,
-    UCClassSymbol, UCMethodSymbol, UCObjectSymbol, UCObjectTypeSymbol, UCPackage,
+    UCClassSymbol, UCMethodSymbol, UCNodeKind, UCObjectSymbol, UCObjectTypeSymbol, UCPackage,
     UCQualifiedTypeSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind, UCTypeSymbol
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
-export interface IExpression extends IWithIndex, IWithInnerSymbols {
+export interface IExpression extends INode, IWithIndex, IWithInnerSymbols {
+    // Temporary solution to verify if the transformer picked up a valid expression.
+    kind: UCNodeKind;
+
     getRange(): Range;
     getMemberSymbol(): ISymbol | undefined;
     getType(): ITypeSymbol | undefined;
@@ -30,6 +33,8 @@ export interface IExpression extends IWithIndex, IWithInnerSymbols {
 }
 
 export abstract class UCExpression implements IExpression {
+    kind = UCNodeKind.Expression;
+
     constructor(protected range: Range) {
     }
 
@@ -67,15 +72,28 @@ export abstract class UCExpression implements IExpression {
     }
 }
 
-export class UCParenthesizedExpression extends UCExpression {
+export class UCParenthesizedExpression implements IExpression {
+    kind = UCNodeKind.Expression;
+
     public expression?: IExpression;
+
+    constructor(protected range: Range) {
+    }
+
+    getRange(): Range {
+        return this.range;
+    }
+
+    getSymbolAtPos(position: Position): ISymbol | undefined {
+        if (!intersectsWith(this.getRange(), position)) {
+            return undefined;
+        }
+        const symbol = this.getContainedSymbolAtPos(position);
+        return symbol;
+    }
 
     getMemberSymbol() {
         return this.expression?.getMemberSymbol();
-    }
-
-    getType() {
-        return this.expression?.getType();
     }
 
     getContainedSymbolAtPos(position: Position) {
@@ -83,8 +101,20 @@ export class UCParenthesizedExpression extends UCExpression {
         return symbol;
     }
 
+    getType() {
+        return this.expression?.getType();
+    }
+
+    getValue(): number | undefined {
+        return undefined;
+    }
+
     index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
         this.expression?.index(document, context, info);
+    }
+
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitExpression(this);
     }
 }
 
@@ -142,7 +172,7 @@ export class UCEmptyArgument extends UCExpression {
 }
 
 export class UCCallExpression extends UCExpression {
-    public expression!: IExpression;
+    public expression: IExpression;
     public arguments?: Array<IExpression>;
 
     getMemberSymbol() {
@@ -779,9 +809,46 @@ export class UCNewExpression extends UCCallExpression {
     // TODO: Implement pseudo new operator for hover info?
 }
 
-export abstract class UCLiteral extends UCExpression {
-    getContainedSymbolAtPos(_position: Position): ISymbol | undefined {
+export abstract class UCLiteral implements IExpression {
+    readonly kind = UCNodeKind.Expression;
+
+    constructor(protected range: Range) {
+    }
+
+    getRange(): Range {
+        return this.range;
+    }
+
+    getSymbolAtPos(position: Position): ISymbol | undefined {
+        if (!intersectsWith(this.getRange(), position)) {
+            return undefined;
+        }
+        const symbol = this.getContainedSymbolAtPos(position);
+        return symbol;
+    }
+
+    getMemberSymbol(): ISymbol | undefined {
         return undefined;
+    }
+
+    getContainedSymbolAtPos(position: Position): ISymbol | undefined {
+        return undefined;
+    }
+
+    getType(): ITypeSymbol | undefined{
+        return undefined;
+    }
+
+    getValue(): number | undefined {
+        return undefined;
+    }
+
+    index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+        //
+    }
+
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitExpression(this);
     }
 }
 
@@ -820,7 +887,7 @@ export class UCNameLiteral extends UCLiteral {
 }
 
 export class UCBoolLiteral extends UCLiteral {
-    value!: boolean;
+    value: boolean;
 
     getType() {
         return StaticBoolType;
@@ -832,7 +899,7 @@ export class UCBoolLiteral extends UCLiteral {
 }
 
 export class UCFloatLiteral extends UCLiteral {
-    value!: number;
+    value: number;
 
     getType() {
         return StaticFloatType;
@@ -844,7 +911,7 @@ export class UCFloatLiteral extends UCLiteral {
 }
 
 export class UCIntLiteral extends UCLiteral {
-    value!: number;
+    value: number;
 
     getType() {
         return StaticIntType;
@@ -856,7 +923,7 @@ export class UCIntLiteral extends UCLiteral {
 }
 
 export class UCByteLiteral extends UCLiteral {
-    value!: number;
+    value: number;
 
     getType() {
         return StaticByteType;
@@ -867,7 +934,7 @@ export class UCByteLiteral extends UCLiteral {
     }
 }
 
-export class UCObjectLiteral extends UCExpression {
+export class UCObjectLiteral extends UCLiteral {
     public castRef: UCObjectTypeSymbol;
     public objectRef?: UCObjectTypeSymbol | UCQualifiedTypeSymbol;
 
@@ -921,7 +988,7 @@ export class UCObjectLiteral extends UCExpression {
 }
 
 // Struct literals are limited to Vector, Rotator, and Range.
-export abstract class UCStructLiteral extends UCExpression {
+export abstract class UCStructLiteral extends UCLiteral {
     structType!: UCObjectTypeSymbol;
 
     getMemberSymbol() {
