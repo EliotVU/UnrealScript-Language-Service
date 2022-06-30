@@ -313,7 +313,17 @@ export class UCGotoStatement extends UCExpressionStatement {
 }
 
 // Temporary placeholder for basic statements that we don't analyze yet.
-export class UCDummyStatement extends UCExpressionStatement {
+export class UCControlStatement implements IStatement {
+    readonly kind = UCNodeKind.Statement;
+
+    constructor(protected range: Range) {
+
+    }
+
+    getRange(): Range {
+        return this.range;
+    }
+
     getSymbolAtPos(position: Position): ISymbol | undefined {
         return undefined;
     }
@@ -324,10 +334,24 @@ export class UCDummyStatement extends UCExpressionStatement {
 
     index(_document: UCDocument, _context: UCStructSymbol, _info?: ContextInfo) {
         //
+    }
+
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitStatement(this);
     }
 }
 
-export class UCEmptyStatement extends UCExpressionStatement {
+export class UCEmptyStatement implements IStatement {
+    readonly kind = UCNodeKind.Statement;
+
+    constructor(protected range: Range) {
+
+    }
+
+    getRange(): Range {
+        return this.range;
+    }
+
     getSymbolAtPos(position: Position): ISymbol | undefined {
         return undefined;
     }
@@ -338,5 +362,9 @@ export class UCEmptyStatement extends UCExpressionStatement {
 
     index(_document: UCDocument, _context: UCStructSymbol, _info?: ContextInfo) {
         //
+    }
+
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitStatement(this);
     }
 }

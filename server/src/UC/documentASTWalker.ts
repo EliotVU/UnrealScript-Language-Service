@@ -29,9 +29,9 @@ import {
 } from './names';
 import {
     IStatement, UCArchetypeBlockStatement, UCAssertStatement, UCBlock, UCCaseClause,
-    UCDefaultClause, UCDoUntilStatement, UCDummyStatement, UCEmptyStatement, UCExpressionStatement,
-    UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement, UCLabeledStatement,
-    UCRepIfStatement, UCReturnStatement, UCSwitchStatement, UCWhileStatement
+    UCControlStatement, UCDefaultClause, UCDoUntilStatement, UCEmptyStatement,
+    UCExpressionStatement, UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement,
+    UCLabeledStatement, UCRepIfStatement, UCReturnStatement, UCSwitchStatement, UCWhileStatement
 } from './statements';
 import {
     addHashedSymbol, hasNoKind, Identifier, isStatement, ISymbol, ISymbolContainer, ITypeSymbol,
@@ -1013,17 +1013,15 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitDefaultStatement(ctx: UCGrammar.DefaultStatementContext) {
-        try {
-            const child = ctx.getChild(0)!;
-            console.assert(typeof child !== 'undefined');
-            const stm = child.accept<IStatement>(this);
-            console.assert(typeof stm !== 'undefined');
-            console.assert(isStatement(stm));
-            return stm;
-        } catch (err) {
-            console.error('(Internal error) at default statement', getDebugInfo(ctx), err);
-            return new UCEmptyStatement(rangeFromCtx(ctx));
+        const child = ctx.getChild(0);
+        const expr = child?.accept(this);
+        if (expr) {
+            const statement = new UCExpressionStatement(rangeFromCtx(ctx));
+            statement.expression = expr;
+            return statement;
         }
+
+        return new UCEmptyStatement(rangeFromCtx(ctx));
     }
 
     visitDefaultValue(ctx: UCGrammar.DefaultValueContext) {
@@ -1089,7 +1087,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         console.assert(typeof child !== 'undefined');
         const stm = child.accept<IStatement>(this);
         console.assert(typeof stm !== 'undefined');
-        console.assert(isStatement(stm));
+        console.assert(isStatement(stm), `Statement is invalid: ${getDebugInfo(ctx)}`);
         return stm;
     }
 
@@ -1117,15 +1115,15 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitContinueStatement(ctx: UCGrammar.ContinueStatementContext): IStatement {
-        return new UCDummyStatement(rangeFromCtx(ctx));
+        return new UCControlStatement(rangeFromCtx(ctx));
     }
 
     visitBreakStatement(ctx: UCGrammar.BreakStatementContext): IStatement {
-        return new UCDummyStatement(rangeFromCtx(ctx));
+        return new UCControlStatement(rangeFromCtx(ctx));
     }
 
     visitStopStatement(ctx: UCGrammar.StopStatementContext): IStatement {
-        return new UCDummyStatement(rangeFromCtx(ctx));
+        return new UCControlStatement(rangeFromCtx(ctx));
     }
 
     visitLabeledStatement(ctx: UCGrammar.LabeledStatementContext): UCLabeledStatement {

@@ -1,10 +1,10 @@
 import { UCDocument } from './document';
 import { IExpression } from './expressions';
 import {
-    UCArchetypeBlockStatement, UCAssertStatement, UCBlock, UCCaseClause, UCDefaultClause,
-    UCDoUntilStatement, UCExpressionStatement, UCForEachStatement, UCForStatement, UCGotoStatement,
-    UCIfStatement, UCLabeledStatement, UCRepIfStatement, UCReturnStatement, UCSwitchStatement,
-    UCWhileStatement
+    IStatement, UCArchetypeBlockStatement, UCAssertStatement, UCBlock, UCCaseClause,
+    UCDefaultClause, UCDoUntilStatement, UCExpressionStatement, UCForEachStatement, UCForStatement,
+    UCGotoStatement, UCIfStatement, UCLabeledStatement, UCRepIfStatement, UCReturnStatement,
+    UCSwitchStatement, UCWhileStatement
 } from './statements';
 import {
     ISymbol, UCArchetypeSymbol, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol,
@@ -39,6 +39,7 @@ export interface SymbolWalker<T> {
 	visitReplicationBlock(symbol: UCReplicationBlock): T | void;
 	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock): T | void;
 	visitArchetypeSymbol(symbol: UCArchetypeSymbol): T | void;
+    visitStatement(stm: IStatement): T | void;
 	visitExpressionStatement(stm: UCExpressionStatement): T | void;
 	visitLabeledStatement(stm: UCLabeledStatement): T | void;
 	visitAssertStatement(stm: UCAssertStatement): T | void;
@@ -233,9 +234,9 @@ export class DefaultSymbolWalker<T = undefined> implements SymbolWalker<T> {
         }
 	}
 
-	visitExpression(expr: IExpression) {
-		return;
-	}
+    visitStatement(stm: IStatement): void | T {
+        return;
+    }
 
 	visitExpressionStatement(stm: UCExpressionStatement) {
 		stm.expression?.accept(this);
@@ -309,4 +310,8 @@ export class DefaultSymbolWalker<T = undefined> implements SymbolWalker<T> {
     visitArchetypeBlockStatement(stm: UCArchetypeBlockStatement) {
         stm.archetypeSymbol.accept(this);
     }
+
+    visitExpression(expr: IExpression) {
+		return;
+	}
 }
