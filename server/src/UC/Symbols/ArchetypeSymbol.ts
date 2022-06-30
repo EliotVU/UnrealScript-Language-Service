@@ -1,26 +1,24 @@
-import { SymbolKind } from 'vscode-languageserver-types';
+
 
 import { UCDocument } from '../document';
 import { Name } from '../name';
 import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    addHashedSymbol, ModifierFlags, ObjectsTable, UCFieldSymbol, UCStructSymbol, UCTypeFlags
+    isStruct, ModifierFlags, UCFieldSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
 } from './';
+import { addHashedSymbol, ObjectsTable } from './Package';
 
 /**
  * Represents an instanced Archetype found within a defaultproperties block e.g. "begin object class=classID name=objectName".
  */
 export class UCArchetypeSymbol extends UCStructSymbol {
+    override kind = UCSymbolKind.Archetype;
     declare outer: UCStructSymbol;
     override modifiers = ModifierFlags.ReadOnly;
 
-    override getKind(): SymbolKind {
-        return SymbolKind.Constructor;
-    }
-
-    override getTypeFlags() {
-        return UCTypeFlags.Archetype;
+    override getTypeKind() {
+        return UCTypeKind.Object;
     }
 
     override getType() {
@@ -39,7 +37,7 @@ export class UCArchetypeSymbol extends UCStructSymbol {
         return text.filter(s => s).join(' ');
     }
 
-    override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: SymbolKind) {
+    override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind) {
         const symbol = this.super?.findSuperSymbol<T>(id, kind);
         return symbol;
     }
@@ -47,8 +45,8 @@ export class UCArchetypeSymbol extends UCStructSymbol {
     override index(document: UCDocument, context: UCStructSymbol) {
         super.index(document, context);
         // Lookup the inherited archetype, if it exists.
-        if (!this.extendsType && !this.super && context.outer instanceof UCStructSymbol) {
-            const inheritedArchetype = ObjectsTable.getSymbol<UCArchetypeSymbol>(this.id.name);
+        if (!this.extendsType && !this.super && isStruct(context.outer)) {
+            const inheritedArchetype = ObjectsTable.getSymbol<UCArchetypeSymbol>(this.id.name, UCSymbolKind.Archetype);
             this.super = inheritedArchetype;
         }
 

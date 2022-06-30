@@ -13,29 +13,28 @@ import { StaticNameType, StaticObjectType } from './TypeSymbol';
 export const CORE_PACKAGE = new UCPackage(NAME_CORE);
 addHashedSymbol(CORE_PACKAGE);
 
-export const NativeObject = new UCClassSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE });
-NativeObject.modifiers |= ModifierFlags.Native | ModifierFlags.Abstract;
-NativeObject.extendsType = StaticObjectType;
-NativeObject.outer = CORE_PACKAGE;
+export const IntrinsicObject = new UCClassSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE });
+IntrinsicObject.modifiers |= ModifierFlags.Native | ModifierFlags.Abstract;
+IntrinsicObject.outer = CORE_PACKAGE;
 
 export const Object_OuterProperty = new UCPropertySymbol({ name: NAME_OUTER, range: DEFAULT_RANGE });
 Object_OuterProperty.modifiers |= ModifierFlags.Native;
 Object_OuterProperty.type = StaticObjectType;
-Object_OuterProperty.outer = NativeObject;
+Object_OuterProperty.outer = IntrinsicObject;
 
 export const Object_NameProperty = new UCPropertySymbol({ name: NAME_NAME, range: DEFAULT_RANGE });
 Object_NameProperty.modifiers |= ModifierFlags.Native;
 Object_NameProperty.type = StaticNameType;
-Object_NameProperty.outer = NativeObject;
+Object_NameProperty.outer = IntrinsicObject;
 
 export const Object_ClassProperty = new UCPropertySymbol({ name: NAME_CLASS, range: DEFAULT_RANGE });
 Object_ClassProperty.modifiers |= ModifierFlags.Native;
 Object_ClassProperty.type = StaticObjectType;
-Object_ClassProperty.outer = NativeObject;
+Object_ClassProperty.outer = IntrinsicObject;
 
 export const IntrinsicField = new UCClassSymbol({ name: NAME_FIELD, range: DEFAULT_RANGE });
 IntrinsicField.modifiers |= ModifierFlags.Intrinsic;
-IntrinsicField.extendsType = StaticObjectType;
+IntrinsicField.super = IntrinsicObject;
 IntrinsicField.outer = CORE_PACKAGE;
 
 export const IntrinsicConst = new UCClassSymbol({ name: NAME_CONST, range: DEFAULT_RANGE });
@@ -50,7 +49,7 @@ IntrinsicEnum.outer = CORE_PACKAGE;
 
 export const IntrinsicProperty = new UCClassSymbol({ name: NAME_PROPERTY, range: DEFAULT_RANGE });
 IntrinsicProperty.modifiers |= ModifierFlags.Intrinsic;
-IntrinsicProperty.extendsType = StaticObjectType;
+IntrinsicProperty.super = IntrinsicObject;
 IntrinsicProperty.outer = CORE_PACKAGE;
 
 export const IntrinsicObjectProperty = new UCClassSymbol({ name: NAME_OBJECTPROPERTY, range: DEFAULT_RANGE });
@@ -159,17 +158,17 @@ IntrinsicClass.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicClass.super = IntrinsicState;
 IntrinsicClass.outer = CORE_PACKAGE;
 
-export const NativeInterface = new UCClassSymbol({ name: NAME_INTERFACE, range: DEFAULT_RANGE });
-NativeInterface.modifiers |= ModifierFlags.Native;
-NativeInterface.extendsType = StaticObjectType;
-NativeInterface.outer = CORE_PACKAGE;
+export const IntrinsicInterface = new UCClassSymbol({ name: NAME_INTERFACE, range: DEFAULT_RANGE });
+IntrinsicInterface.modifiers |= ModifierFlags.Native;
+IntrinsicInterface.super = IntrinsicObject;
+IntrinsicInterface.outer = CORE_PACKAGE;
 
 export const IntrinsicPackage = new UCClassSymbol({ name: NAME_PACKAGE, range: DEFAULT_RANGE });
 IntrinsicPackage.modifiers |= ModifierFlags.Intrinsic;
-IntrinsicPackage.extendsType = StaticObjectType;
+IntrinsicPackage.super = IntrinsicObject;
 IntrinsicPackage.outer = CORE_PACKAGE;
 
-// addHashedSymbol(NativeObject);
+// addHashedSymbol(IntrinsicObject);
 /*----*/addHashedSymbol(IntrinsicField);
 /*--------*/addHashedSymbol(IntrinsicConst);
 /*--------*/addHashedSymbol(IntrinsicEnum);
@@ -195,5 +194,5 @@ IntrinsicPackage.outer = CORE_PACKAGE;
 /*------------*/addHashedSymbol(IntrinsicScriptStruct);
 /*------------*/addHashedSymbol(IntrinsicState);
 /*----------------*/addHashedSymbol(IntrinsicClass);
-/*----*/// addHashedSymbol(NativeInterface);
+/*----*/// addHashedSymbol(IntrinsicInterface);
 /*----*/addHashedSymbol(IntrinsicPackage);

@@ -1,19 +1,11 @@
-import { CompletionItemKind, SymbolKind } from 'vscode-languageserver-types';
+
 
 import { SymbolWalker } from '../symbolWalker';
-import { UCPropertySymbol } from './';
-import { ModifierFlags } from './FieldSymbol';
+import { ModifierFlags, UCPropertySymbol, UCSymbolKind } from './';
 
 export class UCLocalSymbol extends UCPropertySymbol {
+    override kind = UCSymbolKind.Local;
     override modifiers = ModifierFlags.Local;
-
-	override getKind(): SymbolKind {
-		return SymbolKind.Variable;
-	}
-
-	override getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Variable;
-	}
 
 	protected override getTypeKeyword(): string {
 		return 'local';

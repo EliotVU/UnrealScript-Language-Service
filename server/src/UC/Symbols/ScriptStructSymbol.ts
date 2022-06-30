@@ -1,29 +1,20 @@
-import { CompletionItemKind, SymbolKind } from 'vscode-languageserver-types';
-
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ISymbol, UCMethodSymbol, UCPropertySymbol, UCStructSymbol, UCSymbol, UCTypeFlags
+    ContextKind, isFunction, isProperty, ISymbol, ModifierFlags, UCObjectSymbol, UCStructSymbol,
+    UCSymbolKind, UCTypeKind
 } from './';
-import { ModifierFlags } from './FieldSymbol';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
-    static readonly AllowedTypesMask = UCTypeFlags.Const
-        | UCTypeFlags.Struct
-        | UCTypeFlags.Property;
+    static readonly allowedKindsMask = 1 << UCSymbolKind.Const
+        | 1 << UCSymbolKind.ScriptStruct
+        | 1 << UCSymbolKind.Property;
 
+    override kind = UCSymbolKind.ScriptStruct;
     override modifiers = ModifierFlags.ReadOnly;
 
-	override getKind(): SymbolKind {
-		return SymbolKind.Struct;
-	}
-
-	override getTypeFlags() {
-		return UCTypeFlags.Struct;
-	}
-
-	override getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Struct;
+	override getTypeKind() {
+		return UCTypeKind.Struct;
 	}
 
     protected override getTypeKeyword(): string | undefined {
@@ -59,10 +50,10 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return text;
 	}
 
-    override getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: string, type?: UCTypeFlags) {
+    override getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: ContextKind, kinds?: UCSymbolKind) {
 		const symbols: ISymbol[] = [];
 		for (let child = this.children; child; child = child.next) {
-			if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
+			if (typeof kinds !== 'undefined' && ((1 << child.kind) & kinds) === 0) {
 				continue;
 			}
 			if (child.acceptCompletion(document, this)) {
@@ -71,12 +62,12 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		}
 
 		for (let parent = this.super; parent; parent = parent.super) {
-            if ((parent.getTypeFlags() & UCTypeFlags.Struct) === 0) {
+            if (parent.kind !== UCSymbolKind.ScriptStruct) {
                 break;
             }
 
 			for (let child = parent.children; child; child = child.next) {
-				if (typeof type !== 'undefined' && (child.getTypeFlags() & type) === 0) {
+				if (typeof kinds !== 'undefined' && ((1 << child.kind) & kinds) === 0) {
 					continue;
 				}
 				if (child.acceptCompletion(document, this)) {
@@ -87,8 +78,8 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 		return symbols as C[];
 	}
 
-	override acceptCompletion(_document: UCDocument, context: UCSymbol): boolean {
-		return (context instanceof UCPropertySymbol || context instanceof UCMethodSymbol);
+	override acceptCompletion(_document: UCDocument, context: UCObjectSymbol): boolean {
+		return isProperty(context) || isFunction(context);
 	}
 
 	override index(document: UCDocument, _context: UCStructSymbol) {

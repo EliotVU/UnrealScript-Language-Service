@@ -1,12 +1,12 @@
-import { CompletionItemKind, Location, Position, SymbolKind } from 'vscode-languageserver-types';
+import { Location, Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { Name } from '../name';
 import { NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    DEFAULT_RANGE, isMethodSymbol, ISymbol, IWithReference, ModifierFlags, UCFieldSymbol,
-    UCParamSymbol, UCStructSymbol, UCSymbol, UCTypeFlags
+    ContextKind, DEFAULT_RANGE, isFunction, ISymbol, ModifierFlags, UCFieldSymbol, UCObjectSymbol,
+    UCParamSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
 } from './';
 
 export enum MethodFlags {
@@ -26,8 +26,10 @@ export enum MethodFlags {
 }
 
 export class UCMethodSymbol extends UCStructSymbol {
-    static readonly AllowedTypesMask = UCTypeFlags.Const | UCTypeFlags.Property/** params and locals */;
+    static readonly allowedKindsMask = 1 << UCSymbolKind.Const
+        | 1 << UCSymbolKind.Property/** params and locals */;
 
+    override kind = UCSymbolKind.Function;
 	override modifiers = ModifierFlags.ReadOnly;
 
 	public specifiers: MethodFlags = MethodFlags.None;
@@ -51,17 +53,17 @@ export class UCMethodSymbol extends UCStructSymbol {
         return (this.specifiers & MethodFlags.Delegate) !== 0;
     }
 
-	/**
-	 * Returns true if this method is marked as a (binary) operator.
-	 * Beware that this returns false even when the method is a preoperator!
-	 */
-	isOperator(): this is UCBinaryOperatorSymbol {
-		return (this.specifiers & MethodFlags.Operator) !== 0;
+	isOperatorKind(): this is UCBaseOperatorSymbol {
+        return (this.specifiers & MethodFlags.OperatorKind) !== 0;
 	}
 
-	isOperatorKind(): this is UCBaseOperatorSymbol {
-		return (this.specifiers & MethodFlags.OperatorKind) !== 0;
-	}
+    /**
+     * Returns true if this method is marked as a (binary) operator.
+     * Beware that this returns false even when the method is a preoperator!
+     */
+    isBinaryOperator(): this is UCBinaryOperatorSymbol {
+        return (this.specifiers & MethodFlags.Operator) !== 0;
+    }
 
 	isPreOperator(): this is UCPreOperatorSymbol {
 		return (this.specifiers & MethodFlags.PreOperator) !== 0;
@@ -71,20 +73,12 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return (this.specifiers & MethodFlags.PostOperator) !== 0;
 	}
 
-	override getKind(): SymbolKind {
-		return SymbolKind.Function;
-	}
-
-	override getTypeFlags() {
-		return UCTypeFlags.Function;
+	override getTypeKind() {
+		return UCTypeKind.Object;
 	}
 
 	override getType() {
 		return this.returnValue?.getType();
-	}
-
-	override getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Function;
 	}
 
 	override getDocumentation(): string | undefined {
@@ -102,17 +96,17 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return this.returnValue?.getSymbolAtPos(position) ?? super.getContainedSymbolAtPos(position);
 	}
 
-	override getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: string, kind?: UCTypeFlags) {
-		if (context === '.') {
+	override getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: ContextKind, kinds?: UCSymbolKind) {
+		if (context === ContextKind.DOT) {
 			const resolvedType = this.returnValue?.getType()?.getRef();
-			if (resolvedType instanceof UCSymbol) {
-				return resolvedType.getCompletionSymbols<C>(document, context, kind);
+			if (resolvedType instanceof UCObjectSymbol) {
+				return resolvedType.getCompletionSymbols<C>(document, context, kinds);
 			}
 		}
-		return super.getCompletionSymbols<C>(document, context, kind);
+		return super.getCompletionSymbols<C>(document, context, kinds);
 	}
 
-	override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: SymbolKind) {
+	override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind) {
 		return this.getSymbol<T>(id, kind) ?? (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
 	}
 
@@ -127,22 +121,24 @@ export class UCMethodSymbol extends UCStructSymbol {
 				this.returnValue.modifiers |= ModifierFlags.Coerce;
 			}
 		}
-
 		super.index(document, context);
+	}
 
-		if (context.super) {
-			const overriddenMethod = context.super.findSuperSymbol(this.getName());
-			if (overriddenMethod
-                && isMethodSymbol(overriddenMethod)
+    protected override indexSuper(document: UCDocument, context: UCStructSymbol) {
+        if (context.super) {
+			const symbolOverride = context.super.findSuperSymbol(this.getName());
+			if (symbolOverride
+                && isFunction(symbolOverride)
                 // Never override a private method
-                && !overriddenMethod.hasAnyModifierFlags(ModifierFlags.Private)) {
-				document.indexReference(overriddenMethod, {
+                && !symbolOverride.hasAnyModifierFlags(ModifierFlags.Private)) {
+				document.indexReference(symbolOverride, {
 					location: Location.create(document.uri, this.id.range)
 				});
-				this.overriddenMethod = overriddenMethod;
+				this.overriddenMethod = symbolOverride;
+                this.super = symbolOverride;
 			}
 		}
-	}
+    }
 
     protected override getTypeHint(): string | undefined {
         if (this.modifiers & ModifierFlags.Intrinsic) {
@@ -204,63 +200,40 @@ export class UCMethodSymbol extends UCStructSymbol {
  * Pseudo method like Vect, Rot, and Rng
  * For those particular 'methods' we want to pass back the @returnValue as our symbol's type.
  */
-export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference {
-	modifiers = ModifierFlags.ReadOnly | ModifierFlags.Intrinsic;
-    specifiers = MethodFlags.Static | MethodFlags.Final;
+export class UCMethodLikeSymbol extends UCMethodSymbol {
+	override modifiers = ModifierFlags.ReadOnly | ModifierFlags.Intrinsic;
+    override specifiers = MethodFlags.Static | MethodFlags.Final;
 
-	constructor(name: Name, protected kind?: string) {
+	constructor(name: Name) {
 		super({ name, range: DEFAULT_RANGE });
-	}
-
-	getRef<T extends ISymbol>(): T | undefined {
-		return this.returnValue?.getType()?.getRef<T>();
 	}
 }
 
 export class UCEventSymbol extends UCMethodSymbol {
-	getKind(): SymbolKind {
-		return SymbolKind.Event;
-	}
+    override kind = UCSymbolKind.Event;
 
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Event;
-	}
-
-	protected getTypeKeyword(): string {
+	protected override getTypeKeyword(): string {
 		return 'event';
 	}
 }
 
 export class UCDelegateSymbol extends UCMethodSymbol {
-	modifiers = ModifierFlags.None;
+    override kind = UCSymbolKind.Delegate;
+	override modifiers = ModifierFlags.None;
 
-	getKind(): SymbolKind {
-		return SymbolKind.Function;
+    override getTypeKind() {
+		return UCTypeKind.Delegate;
 	}
 
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Function;
-	}
-
-    getTypeFlags() {
-		return UCTypeFlags.Function | UCTypeFlags.Delegate;
-	}
-
-	protected getTypeKeyword(): string {
+	protected override getTypeKeyword(): string {
 		return 'delegate';
 	}
 }
 
 export abstract class UCBaseOperatorSymbol extends UCMethodSymbol {
-	getKind(): SymbolKind {
-		return SymbolKind.Operator;
-	}
+    override kind = UCSymbolKind.Operator;
 
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Operator;
-	}
-
-	acceptCompletion(document: UCDocument, context: ISymbol): boolean {
+	override acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
 		// TODO: Perhaps only list operators with a custom Identifier? i.e. "Dot" and "Cross".
 		return false;
 	}
@@ -269,19 +242,19 @@ export abstract class UCBaseOperatorSymbol extends UCMethodSymbol {
 export class UCBinaryOperatorSymbol extends UCBaseOperatorSymbol {
 	precedence?: number;
 
-	protected getTypeKeyword(): string {
+	protected override getTypeKeyword(): string {
 		return `operator(${this.precedence})`;
 	}
 }
 
 export class UCPreOperatorSymbol extends UCBaseOperatorSymbol {
-	protected getTypeKeyword(): string {
+	protected override getTypeKeyword(): string {
 		return 'preoperator';
 	}
 }
 
 export class UCPostOperatorSymbol extends UCBaseOperatorSymbol {
-	protected getTypeKeyword(): string {
+	protected override getTypeKeyword(): string {
 		return 'postoperator';
 	}
 }
@@ -293,7 +266,7 @@ export function areMethodsCompatibleWith(a: UCMethodSymbol, b: UCMethodSymbol): 
     }
 
     if (a.returnValue && b.returnValue) {
-        if (a.returnValue.getType()?.getTypeFlags() !== b.returnValue.getType()?.getTypeFlags()) {
+        if (a.returnValue.getType()?.getTypeKind() !== b.returnValue.getType()?.getTypeKind()) {
             return false;
         }
     }
@@ -304,7 +277,7 @@ export function areMethodsCompatibleWith(a: UCMethodSymbol, b: UCMethodSymbol): 
         }
 
         for (let i = 0; i < a.params.length; ++i) {
-            if (a.params[i].getType()?.getTypeFlags() === b.params[i].getType()?.getTypeFlags()) {
+            if (a.params[i].getType()?.getTypeKind() === b.params[i].getType()?.getTypeKind()) {
                 continue;
             }
             return false;

@@ -1,17 +1,20 @@
-import { CompletionItemKind, Position, Range, SymbolKind } from 'vscode-languageserver-types';
+import { Position, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { config, UCGeneration } from '../indexer';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ISymbol, ITypeSymbol, ModifierFlags, UCEnumMemberSymbol, UCFieldSymbol, UCStructSymbol,
-    UCSymbol, UCTypeFlags
+    ContextKind, ISymbol, ITypeSymbol, ModifierFlags, UCFieldSymbol, UCObjectSymbol, UCStructSymbol
 } from './';
-import { isConstSymbol, isEnumSymbol, UCArrayTypeSymbol } from './TypeSymbol';
+import {
+    isConstSymbol, isEnumSymbol, isEnumTagSymbol, UCArrayTypeSymbol, UCSymbolKind, UCTypeKind
+} from './TypeSymbol';
 
 export class UCPropertySymbol extends UCFieldSymbol {
+    override kind = UCSymbolKind.Property;
+
     // The type if specified, i.e. "var Object Outer;" Object here is represented by @type, including the resolved symbol.
-    public type?: ITypeSymbol;
+    public type: ITypeSymbol;
 
     // The array dimension if specified, undefined if @arrayDimRef is truthy.
     public arrayDim?: number;
@@ -21,7 +24,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
     public arrayDimRange?: Range;
 
     isDynamicArray(): this is { type: UCArrayTypeSymbol } {
-        return (this.type?.getTypeFlags() === UCTypeFlags.Array);
+        return (this.type?.getTypeKind() === UCTypeKind.Array);
     }
 
     /**
@@ -43,7 +46,7 @@ export class UCPropertySymbol extends UCFieldSymbol {
                 if (isEnumSymbol(symbol)) {
                     return symbol.maxValue;
                 }
-                if (symbol instanceof UCEnumMemberSymbol) {
+                if (isEnumTagSymbol(symbol)) {
                     return symbol.value;
                 }
             }
@@ -51,20 +54,12 @@ export class UCPropertySymbol extends UCFieldSymbol {
         return this.arrayDim;
     }
 
-    override getKind(): SymbolKind {
-        return SymbolKind.Property;
-    }
-
-    override getTypeFlags() {
-        return UCTypeFlags.Property;
+    override getTypeKind() {
+        return UCTypeKind.Object;
     }
 
     override getType() {
         return this.type;
-    }
-
-    override getCompletionItemKind(): CompletionItemKind {
-        return CompletionItemKind.Property;
     }
 
     protected override getTypeKeyword() {
@@ -109,16 +104,16 @@ export class UCPropertySymbol extends UCFieldSymbol {
         return this.type?.getSymbolAtPos(position) ?? this.arrayDimRef?.getSymbolAtPos(position);
     }
 
-    override getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: string, kind?: UCTypeFlags): C[] {
-        if (context === '.') {
+    override getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: ContextKind, kinds?: UCSymbolKind): C[] {
+        if (context === ContextKind.DOT) {
             const resolvedType = this.type?.getRef();
-            if (resolvedType instanceof UCSymbol) {
-                return resolvedType.getCompletionSymbols<C>(document, context, kind);
+            if (resolvedType instanceof UCObjectSymbol) {
+                return resolvedType.getCompletionSymbols<C>(document, context, kinds);
             }
         }
         // TODO: Filter by type only.
         else if (document.class) {
-            return document.class.getCompletionSymbols<C>(document, context, kind);
+            return document.class.getCompletionSymbols<C>(document, context, kinds);
         }
         return [];
     }

@@ -1,22 +1,36 @@
 import { Token } from 'antlr4ts';
-import {
-    CompletionItemKind, Position, Range, SymbolInformation, SymbolKind
-} from 'vscode-languageserver-types';
+import { Position, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { intersectsWithRange } from '../helpers';
 import { Name } from '../name';
+import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
-import { getSymbolPathHash, Identifier, ISymbol, UCStructSymbol, UCTypeFlags } from './';
+import {
+    getSymbolPathHash, Identifier, ISymbol, IWithIndex, IWithInnerSymbols, UCStructSymbol,
+    UCSymbolKind, UCTypeKind
+} from './';
+import { ContextInfo } from './ISymbol';
 
 export const DEFAULT_POSITION = Position.create(0, 0);
 export const DEFAULT_RANGE = Range.create(DEFAULT_POSITION, DEFAULT_POSITION);
+export const DEFAULT_IDENTIFIER: Identifier = {
+    name: NAME_NONE,
+    range: DEFAULT_RANGE
+} ;
+
+export const enum ContextKind {
+    None,
+    DOT,
+}
 
 /**
  * A symbol built from an AST context.
  */
-export abstract class UCSymbol implements ISymbol {
-	public outer?: ISymbol;
+export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWithIndex {
+    readonly kind: UCSymbolKind = UCSymbolKind.None;
+
+	public outer?: UCObjectSymbol;
 	public description?: Token[];
 
     // TODO: Clarify id
@@ -48,21 +62,13 @@ export abstract class UCSymbol implements ISymbol {
 		return names.join('.');
 	}
 
-	getKind(): SymbolKind {
-		return SymbolKind.Field;
-	}
-
-	getTypeFlags() {
-		return UCTypeFlags.Error;
+	getTypeKind() {
+		return UCTypeKind.Error;
 	}
 
 	/** Returns a tooltip for this symbol, usually mirroring the written code, but minimalized and formatted. */
 	getTooltip(): string {
 		return this.getPath();
-	}
-
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Text;
 	}
 
 	getSymbolAtPos(position: Position): ISymbol | undefined {
@@ -74,7 +80,7 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	// TODO: Refactor ISymbol to CompletionItem.
-	getCompletionSymbols<C extends ISymbol>(_document: UCDocument, _context: string, _kind?: UCTypeFlags): C[] {
+	getCompletionSymbols<C extends ISymbol>(_document: UCDocument, _context: ContextKind, _kinds?: UCSymbolKind): C[] {
 		return [];
 	}
 
@@ -82,24 +88,12 @@ export abstract class UCSymbol implements ISymbol {
 		return true;
 	}
 
-	index(_document: UCDocument, _context: UCStructSymbol) {
+	index(_document: UCDocument, _context: UCStructSymbol, _info?: ContextInfo) {
         //
     }
 
-	getUri(): string {
-		return this.outer instanceof UCSymbol && this.outer.getUri() || '';
-	}
-
 	getDocumentation(): string | undefined {
 		return this.description?.map(t => t.text!).join('\n');
-	}
-
-	toSymbolInfo(): SymbolInformation {
-		return SymbolInformation.create(
-			this.getName().text, this.getKind(),
-			this.getRange(), undefined,
-			this.outer?.getName().text
-		);
 	}
 
 	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
@@ -108,5 +102,11 @@ export abstract class UCSymbol implements ISymbol {
 
     toString(): string {
         return this.getPath();
+    }
+}
+
+export class UCEmptySymbol extends UCObjectSymbol {
+    accept<Result>(visitor: SymbolWalker<Result>): void | Result {
+        return;
     }
 }

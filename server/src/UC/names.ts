@@ -61,3 +61,5 @@ export const NAME_OUTER = toName('Outer');
 
 export const NAME_RETURNVALUE = toName('ReturnValue');
 export const NAME_SPAWN = toName('Spawn');
+
+export const NAME_TYPE = toName('Type');

@@ -1,24 +1,15 @@
-import { CompletionItemKind, SymbolKind } from 'vscode-languageserver-types';
-
 import { SymbolWalker } from '../symbolWalker';
-import { ModifierFlags, UCFieldSymbol, UCTypeFlags } from './';
+import { ModifierFlags, UCFieldSymbol, UCSymbolKind, UCTypeKind } from './';
 
 export class UCEnumMemberSymbol extends UCFieldSymbol {
+    override kind = UCSymbolKind.EnumTag;
 	override modifiers = ModifierFlags.ReadOnly;
 
 	// Unrealscript only supports (automatic) byte values.
 	public value: number;
 
-	override getKind(): SymbolKind {
-		return SymbolKind.EnumMember;
-	}
-
-	override getTypeFlags() {
-		return UCTypeFlags.Byte;
-	}
-
-	override getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.EnumMember;
+	override getTypeKind() {
+		return UCTypeKind.Byte;
 	}
 
     protected override getTypeHint(): string {

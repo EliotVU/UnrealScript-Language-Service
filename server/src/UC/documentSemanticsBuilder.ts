@@ -12,8 +12,8 @@ import {
 } from './expressions';
 import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from './statements';
 import {
-    EnumValueTypeFlag, Identifier, isFieldSymbol, isMethodSymbol, isParamSymbol, MethodFlags,
-    ModifierFlags, UCObjectTypeSymbol, UCSymbol, UCTypeFlags
+    Identifier, isField, isFunction, ISymbol, MethodFlags, ModifierFlags, UCObjectTypeSymbol,
+    UCSymbolKind, UCTypeKind
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
@@ -26,10 +26,12 @@ export const TokenTypes = [
     SemanticTokenTypes.enumMember,
     SemanticTokenTypes.function,
     SemanticTokenTypes.parameter,
+    SemanticTokenTypes.variable,
     SemanticTokenTypes.property,
     SemanticTokenTypes.keyword,
     SemanticTokenTypes.string,
     SemanticTokenTypes.operator,
+    SemanticTokenTypes.event,
 ];
 
 export const TokenModifiers = [
@@ -50,10 +52,12 @@ export const TokenTypesMap = {
     [SemanticTokenTypes.enumMember]: 5,
     [SemanticTokenTypes.function]: 6,
     [SemanticTokenTypes.parameter]: 7,
-    [SemanticTokenTypes.property]: 8,
-    [SemanticTokenTypes.keyword]: 9,
-    [SemanticTokenTypes.string]: 10,
-    [SemanticTokenTypes.operator]: 11,
+    [SemanticTokenTypes.variable]: 8,
+    [SemanticTokenTypes.property]: 9,
+    [SemanticTokenTypes.keyword]: 10,
+    [SemanticTokenTypes.string]: 11,
+    [SemanticTokenTypes.operator]: 12,
+    [SemanticTokenTypes.event]: 13,
 };
 
 export const TokenModifiersMap = {
@@ -65,20 +69,27 @@ export const TokenModifiersMap = {
     [SemanticTokenModifiers.defaultLibrary]: 5,
 };
 
-export const TypeToTokenTypeIndexMap = {
-    [UCTypeFlags.Class]: TokenTypesMap[SemanticTokenTypes.class],
-    [UCTypeFlags.Interface]: TokenTypesMap[SemanticTokenTypes.interface],
-    [UCTypeFlags.Package]: TokenTypesMap[SemanticTokenTypes.namespace],
-    [UCTypeFlags.Struct]: TokenTypesMap[SemanticTokenTypes.struct],
-    [UCTypeFlags.Enum]: TokenTypesMap[SemanticTokenTypes.enum],
-    [EnumValueTypeFlag]: TokenTypesMap[SemanticTokenTypes.enumMember],
-    [UCTypeFlags.Function]: TokenTypesMap[SemanticTokenTypes.function],
-    [UCTypeFlags.Function | UCTypeFlags.Delegate]: TokenTypesMap[SemanticTokenTypes.function],
-    [UCTypeFlags.Property]: TokenTypesMap[SemanticTokenTypes.property],
-    [UCTypeFlags.Const]: TokenTypesMap[SemanticTokenTypes.property],
-    [UCTypeFlags.String]: TokenTypesMap[SemanticTokenTypes.string],
+export const SymbolToTokenTypeIndexMap = {
+    [UCSymbolKind.Class]: TokenTypesMap[SemanticTokenTypes.class],
+    [UCSymbolKind.Interface]: TokenTypesMap[SemanticTokenTypes.interface],
+    [UCSymbolKind.Package]: TokenTypesMap[SemanticTokenTypes.namespace],
+    [UCSymbolKind.ScriptStruct]: TokenTypesMap[SemanticTokenTypes.struct],
+    [UCSymbolKind.Enum]: TokenTypesMap[SemanticTokenTypes.enum],
+    [UCSymbolKind.EnumTag]: TokenTypesMap[SemanticTokenTypes.enumMember],
+    [UCSymbolKind.Function]: TokenTypesMap[SemanticTokenTypes.function],
+    [UCSymbolKind.Event]: TokenTypesMap[SemanticTokenTypes.event],
+    [UCSymbolKind.Delegate]: TokenTypesMap[SemanticTokenTypes.function],
+    [UCSymbolKind.Operator]: TokenTypesMap[SemanticTokenTypes.operator],
+    [UCSymbolKind.Property]: TokenTypesMap[SemanticTokenTypes.property],
+    [UCSymbolKind.Parameter]: TokenTypesMap[SemanticTokenTypes.parameter],
+    [UCSymbolKind.Local]: TokenTypesMap[SemanticTokenTypes.variable],
+    [UCSymbolKind.Const]: TokenTypesMap[SemanticTokenTypes.property],
     // TODO: Custom type for archetypes?
-    [UCTypeFlags.Archetype]: TokenTypesMap[SemanticTokenTypes.property],
+    [UCSymbolKind.Archetype]: TokenTypesMap[SemanticTokenTypes.property],
+};
+
+export const TypeToTokenTypeIndexMap = {
+    [UCTypeKind.String]: TokenTypesMap[SemanticTokenTypes.string],
 };
 
 export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
@@ -113,51 +124,39 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         );
     }
 
-    private pushSymbol(symbol: UCSymbol, id: Identifier): void {
-        const typeFlags = symbol.getTypeFlags();
-        if ((typeFlags & UCTypeFlags.Object) !== 0) {
-            let type: number | undefined;
-            if (isParamSymbol(symbol)) {
-                type = TokenTypesMap[SemanticTokenTypes.parameter];
-            } else {
-                type = TypeToTokenTypeIndexMap[typeFlags];
-            }
-
-            if (typeof type !== 'undefined') {
-                let modifiers = 0;
-                if (isFieldSymbol(symbol)) {
-                    if (symbol.modifiers & ModifierFlags.ReadOnly) {
-                        modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.readonly];
-                    }
-                    if (symbol.modifiers & ModifierFlags.Intrinsic) {
-                        modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.defaultLibrary];
-                    }
-
-                    if (isMethodSymbol(symbol)) {
-                        if (symbol.specifiers & MethodFlags.Static) {
-                            modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.static];
-                        }
-
-                        if (symbol.modifiers & ModifierFlags.Keyword) {
-                            type = TokenTypesMap[SemanticTokenTypes.keyword];
-                        } else if (symbol.specifiers & MethodFlags.OperatorKind) {
-                            type = TokenTypesMap[SemanticTokenTypes.operator];
-                        }
-                    }
-                }
-                this.pushIdentifier(id, type, modifiers);
-            }
-        } else if ((typeFlags & EnumValueTypeFlag) !== 0) {
-            // EnumMember
+    private pushSymbol(symbol: ISymbol, id: Identifier): void {
+        if (symbol.getTypeKind() === UCTypeKind.Name) {
             this.pushIdentifier(id,
-                TypeToTokenTypeIndexMap[EnumValueTypeFlag],
-                1 << TokenModifiersMap[SemanticTokenModifiers.readonly]
-            );
-        } else if ((typeFlags & UCTypeFlags.Name) !== 0) {
-            this.pushIdentifier(id,
-                TypeToTokenTypeIndexMap[UCTypeFlags.String],
+                TypeToTokenTypeIndexMap[UCTypeKind.String],
                 1 << TokenModifiersMap[SemanticTokenModifiers.static]
             );
+            return;
+        }
+
+        let type: number | undefined = (SymbolToTokenTypeIndexMap as any)[symbol.kind];
+        if (typeof type !== 'undefined') {
+            let modifiers = 0;
+            if (isField(symbol)) {
+                if (symbol.modifiers & ModifierFlags.ReadOnly) {
+                    modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.readonly];
+                }
+                if (symbol.modifiers & ModifierFlags.Intrinsic) {
+                    modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.defaultLibrary];
+                }
+
+                if (isFunction(symbol)) {
+                    if (symbol.specifiers & MethodFlags.Static) {
+                        modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.static];
+                    }
+
+                    if (symbol.modifiers & ModifierFlags.Keyword) {
+                        type = TokenTypesMap[SemanticTokenTypes.keyword];
+                    } else if (symbol.specifiers & MethodFlags.OperatorKind) {
+                        type = TokenTypesMap[SemanticTokenTypes.operator];
+                    }
+                }
+            }
+            this.pushIdentifier(id, type, modifiers);
         }
     }
 
@@ -167,15 +166,16 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
     }
 
     visitBlock(symbol: UCBlock) {
-        for (const statement of symbol.statements)
+        for (const statement of symbol.statements) {
             if (statement) {
                 statement.accept(this);
             }
+        }
     }
 
     visitObjectType(symbol: UCObjectTypeSymbol) {
-        const symbolRef = symbol.getRef<UCSymbol>();
-        if (typeof symbolRef !== 'undefined') {
+        const symbolRef = symbol.getRef();
+        if (symbolRef) {
             this.pushSymbol(symbolRef, symbol.id);
         }
         super.visitObjectType(symbol);
@@ -185,9 +185,9 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         // super.visitGotoStatement(stm);
         if (stm.expression) {
             const type = stm.expression.getType();
-            if (type && type.getTypeFlags() & UCTypeFlags.Name) {
+            if (type && type.getTypeKind() === UCTypeKind.Name) {
                 this.pushRange(type.id.range,
-                    TypeToTokenTypeIndexMap[UCTypeFlags.String],
+                    TypeToTokenTypeIndexMap[UCTypeKind.String],
                     1 << TokenModifiersMap[SemanticTokenModifiers.readonly]
                 );
             }
@@ -199,7 +199,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         super.visitLabeledStatement(stm);
         if (stm.label) {
             this.pushRange(stm.label.range,
-                TypeToTokenTypeIndexMap[UCTypeFlags.String],
+                TypeToTokenTypeIndexMap[UCTypeKind.String],
                 1 << TokenModifiersMap[SemanticTokenModifiers.readonly]
             );
         }
@@ -209,7 +209,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         super.visitRepIfStatement(stm);
         if (stm.symbolRefs)
             for (const repSymbolRef of stm.symbolRefs) {
-                const symbolRef = repSymbolRef.getRef<UCSymbol>();
+                const symbolRef = repSymbolRef.getRef();
                 if (symbolRef) {
                     this.pushSymbol(symbolRef, repSymbolRef.id);
                 }
@@ -245,8 +245,8 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         } else if (expr instanceof UCDefaultMemberCallExpression) {
             expr.propertyMember.accept(this);
             expr.operationMember.accept(this);
-            const symbolRef = expr.operationMember.getRef<UCSymbol>();
-            if (typeof symbolRef !== 'undefined') {
+            const symbolRef = expr.operationMember.getRef();
+            if (symbolRef) {
                 this.pushSymbol(symbolRef, expr.operationMember.id);
             }
             expr.arguments?.forEach(arg => arg.accept(this));

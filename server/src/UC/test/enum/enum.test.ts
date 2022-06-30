@@ -9,7 +9,8 @@ import { toName } from '../../name';
 import { NAME_ENUMCOUNT } from '../../names';
 import { UCExpressionStatement, UCSwitchStatement } from '../../statements';
 import {
-    IntrinsicEnum, UCDefaultPropertiesBlock, UCEnumMemberSymbol, UCMethodSymbol, UCPropertySymbol
+    IntrinsicEnum, UCDefaultPropertiesBlock, UCEnumMemberSymbol, UCMethodSymbol, UCPropertySymbol,
+    UCSymbolKind
 } from '../../Symbols';
 import { usingDocuments } from '../utils/utils';
 
@@ -85,7 +86,7 @@ describe('Enum', () => {
         });
 
         it('Usage in DefaultProperties', () => {
-            const symbol = documentClass.getSymbol<UCDefaultPropertiesBlock>(toName('Default'));
+            const symbol = documentClass.getSymbol<UCDefaultPropertiesBlock>(toName('Default'), UCSymbolKind.DefaultPropertiesBlock);
             expect(symbol, 'symbol').to.not.be.undefined;
             expect(symbol.block, 'symbol block').to.not.be.undefined;
             for (const stm of symbol.block.statements) {

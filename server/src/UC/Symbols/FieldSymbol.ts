@@ -1,9 +1,9 @@
-import { Location, Position, Range } from 'vscode-languageserver-types';
+import { Position, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
-import { Identifier, ISymbol, ITypeSymbol, UCStructSymbol, UCSymbol } from './';
-import { SymbolReference } from './ISymbol';
+import { indexDeclarationReference } from '../indexer';
+import { Identifier, ISymbol, ITypeSymbol, UCObjectSymbol, UCStructSymbol } from './';
 
 export enum ModifierFlags {
 	None 				= 0x0000,
@@ -41,8 +41,8 @@ export enum ModifierFlags {
     Keyword             = 1 << 19,
 }
 
-export abstract class UCFieldSymbol extends UCSymbol {
-    declare outer: ISymbol;
+export abstract class UCFieldSymbol extends UCObjectSymbol {
+    declare outer: UCObjectSymbol;
 
 	public modifiers: ModifierFlags = ModifierFlags.None;
 	public next?: UCFieldSymbol = undefined;
@@ -109,15 +109,7 @@ export abstract class UCFieldSymbol extends UCSymbol {
 	}
 
 	override index(document: UCDocument, _context: UCStructSymbol) {
-		this.indexDeclaration(document);
-	}
-
-	private indexDeclaration(document: UCDocument) {
-		const ref: SymbolReference = {
-			location: Location.create(document.uri, this.id.range),
-			inAssignment: true
-		};
-		document.indexReference(this, ref);
+		indexDeclarationReference(this, document);
 	}
 
 	public buildModifiers(modifiers = this.modifiers): string[] {

@@ -1,13 +1,13 @@
-import { SymbolKind } from 'vscode-languageserver-types';
+
 
 import { getDocumentById, indexDocument } from '../indexer';
 import { Name } from '../name';
 import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    DEFAULT_RANGE, ISymbol, ISymbolContainer, UCClassSymbol, UCFieldSymbol, UCStructSymbol, UCSymbol
+    DEFAULT_RANGE, ISymbol, ISymbolContainer, UCClassSymbol, UCFieldSymbol, UCObjectSymbol
 } from './';
-import { UCTypeFlags } from './TypeSymbol';
+import { isStruct, UCSymbolKind, UCTypeKind } from './TypeSymbol';
 
 export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 	protected symbols = new Map<number, T>();
@@ -20,9 +20,9 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 		return this.symbols.values() as IterableIterator<C>;
 	}
 
-    *getTypes<C extends T>(type: UCTypeFlags): Generator<C, C[]> {
+    *getKinds<C extends T>(kinds: UCSymbolKind): Generator<C, C[]> {
         for (const symbol of this.symbols.values()) {
-            if ((symbol.getTypeFlags() & type) === 0) {
+            if (((1 << symbol.kind) & kinds) === 0) {
                 continue;
             }
             yield symbol as C;
@@ -40,7 +40,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
             if (other === symbol) {
                 return key;
             }
-			if (other.getKind() !== symbol.getKind()) {
+			if (other.kind !== symbol.kind) {
 				symbol.nextInHash = other;
 			}
 		}
@@ -59,7 +59,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 			return;
 		}
 
-		if (other.getKind() === symbol.getKind()) {
+		if (other.kind === symbol.kind) {
 			this.symbols.delete(key);
 			if (other.nextInHash) {
 				this.addKey(key, other.nextInHash as T);
@@ -67,7 +67,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 			}
 		} else {
 			for (let next = other; next; next = next.nextInHash as T) {
-				if (next.nextInHash && next.nextInHash.getKind() === symbol.getKind()) {
+				if (next.nextInHash && next.nextInHash.kind === symbol.kind) {
 					next.nextInHash = symbol.nextInHash;
 					break;
 				}
@@ -75,16 +75,24 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 		}
 	}
 
-	getSymbol<C extends T>(key: Name | number, type?: UCTypeFlags, outer?: ISymbol): C | undefined {
+	getSymbol<C extends T>(key: Name | number, kind?: UCSymbolKind, outer?: ISymbol): C | undefined {
 		const symbol = this.symbols.get(typeof(key) === 'number' ? key : key.hash);
-		if (!type) {
-			return symbol as C;
+		if (typeof kind === 'undefined') {
+			return symbol as C | undefined;
 		}
-		for (let next = symbol; next; next = next.nextInHash as T) {
-			if ((next.getTypeFlags() & type) === type && (next.outer === outer || !outer)) {
-				return next as C;
-			}
-		}
+        if (typeof outer === 'undefined') {
+            for (let next = symbol; next; next = next.nextInHash as T) {
+                if (next.kind === kind) {
+                    return next as C;
+                }
+            }
+        } else {
+            for (let next = symbol; next; next = next.nextInHash as T) {
+                if (next.kind === kind && next.outer === outer) {
+                    return next as C;
+                }
+            }
+        }
 		return undefined;
 	}
 
@@ -92,7 +100,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 		// naive implementation, what if two classes have an identical named struct?
 		const removeObjects = (child?: UCFieldSymbol) => {
 			for (; child; child = child.next) {
-				if (child instanceof UCStructSymbol) {
+				if (isStruct(child)) {
 					if (child.children) {
 						removeObjects(child.children);
 					}
@@ -102,7 +110,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 		};
 
 		for (const [key, symbol] of this.symbols) {
-			if (symbol instanceof UCStructSymbol) {
+			if (isStruct(symbol)) {
 				removeObjects(symbol.children);
 				this.removeKey(key, symbol);
 			}
@@ -110,17 +118,15 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 	}
 }
 
-export class UCPackage extends UCSymbol {
+export class UCPackage extends UCObjectSymbol {
+    override kind = UCSymbolKind.Package;
+
 	constructor(name: Name) {
 		super({ name, range: DEFAULT_RANGE });
 	}
 
-	getKind(): SymbolKind {
-		return SymbolKind.Package;
-	}
-
-	getTypeFlags() {
-		return UCTypeFlags.Package;
+	getTypeKind() {
+		return UCTypeKind.Object;
 	}
 
 	getTooltip(): string {
@@ -137,8 +143,8 @@ export const TRANSIENT_PACKAGE = new UCPackage(NAME_NONE);
 /**
  * A symbols table of kinds such as UPackage, UClass, UStruct, and UEnums.
  */
-export const ObjectsTable = new SymbolsTable<UCSymbol>();
-export const OuterObjectsTable = new SymbolsTable<UCSymbol>();
+export const ObjectsTable = new SymbolsTable<UCObjectSymbol>();
+export const OuterObjectsTable = new SymbolsTable<UCObjectSymbol>();
 
 export function getSymbolHash(symbol: ISymbol) {
 	return symbol.id.name.hash;
@@ -156,7 +162,7 @@ export function getSymbolPathHash(symbol: ISymbol): number {
     return hash;
 }
 
-export function addHashedSymbol(symbol: UCSymbol) {
+export function addHashedSymbol(symbol: UCObjectSymbol) {
 	const key = getSymbolHash(symbol);
 	ObjectsTable.addKey(key, symbol);
 	if (symbol.outer) {
@@ -165,7 +171,7 @@ export function addHashedSymbol(symbol: UCSymbol) {
     return key;
 }
 
-export function removeHashedSymbol(symbol: UCSymbol) {
+export function removeHashedSymbol(symbol: UCObjectSymbol) {
 	const key = getSymbolHash(symbol);
 	ObjectsTable.removeKey(key, symbol);
 	if (symbol.outer) {
@@ -185,9 +191,9 @@ export function findOrIndexClassSymbol(id: Name): UCClassSymbol | undefined {
 	return undefined;
 }
 
-export function tryFindSymbolInPackage<T extends UCSymbol>(id: Name, pkg: UCPackage, type?: UCTypeFlags): ISymbol | undefined {
+export function tryFindSymbolInPackage<T extends UCObjectSymbol>(id: Name, pkg: UCPackage, kind?: UCSymbolKind): ISymbol | undefined {
 	const key = getSymbolOuterHash(id.hash, getSymbolHash(pkg));
-	const symbol = OuterObjectsTable.getSymbol<T>(key, type, pkg);
+	const symbol = OuterObjectsTable.getSymbol<T>(key, kind, pkg);
 	if (!symbol) {
 		// Package may have a class that hasn't been indexed yet.
 		const classSymbol = findOrIndexClassSymbol(id);
@@ -201,7 +207,7 @@ export function tryFindSymbolInPackage<T extends UCSymbol>(id: Name, pkg: UCPack
 	return undefined;
 }
 
-export function tryFindClassSymbol(id: Name): UCClassSymbol | undefined {
-	const symbol = ObjectsTable.getSymbol<UCClassSymbol>(id.hash, UCTypeFlags.Class) ?? findOrIndexClassSymbol(id);
+export function tryFindClassSymbol(id: Name, kind: UCSymbolKind = UCSymbolKind.Class): UCClassSymbol | undefined {
+	const symbol = ObjectsTable.getSymbol<UCClassSymbol>(id.hash, kind) ?? findOrIndexClassSymbol(id);
 	return symbol;
 }

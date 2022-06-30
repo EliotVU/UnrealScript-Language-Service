@@ -1,21 +1,14 @@
-import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
+import { Position } from 'vscode-languageserver-types';
 
 import { IExpression } from '../expressions';
 import { SymbolWalker } from '../symbolWalker';
-import { ModifierFlags, UCPropertySymbol } from './';
+import { ModifierFlags, UCPropertySymbol, UCSymbolKind } from './';
 
 export class UCParamSymbol extends UCPropertySymbol {
+    override kind = UCSymbolKind.Parameter;
 	override modifiers: ModifierFlags = ModifierFlags.Param;
 
 	public defaultExpression?: IExpression;
-
-	override getKind(): SymbolKind {
-		return SymbolKind.Variable;
-	}
-
-	override getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Variable;
-	}
 
 	getTextForSignature(): string {
 		const text: Array<string | undefined> = [];

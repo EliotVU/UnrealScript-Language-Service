@@ -3,8 +3,10 @@ import { Hover, Position, Range } from 'vscode-languageserver';
 
 import { UCLexer } from './antlr/generated/UCLexer';
 import { UCDocument } from './document';
-import { getDocumentByURI } from './indexer';
-import { isFieldSymbol, ISymbol, supportsRef, UCSymbol } from './Symbols';
+import { getDocumentById, getDocumentByURI } from './indexer';
+import {
+    getOuter, isField, ISymbol, supportsRef, UCClassSymbol, UCObjectSymbol, UCSymbolKind
+} from './Symbols';
 
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 
@@ -115,7 +117,7 @@ export function getDocumentSymbol(document: UCDocument, position: Position): ISy
 export function getDocumentContext(document: UCDocument, position: Position): ISymbol | undefined {
     const symbols = document.getSymbols();
     for (const symbol of symbols) {
-        if (isFieldSymbol(symbol)) {
+        if (isField(symbol)) {
             const child = symbol.getCompletionContext(position);
             if (child) {
                 return child;
@@ -128,13 +130,17 @@ export function getDocumentContext(document: UCDocument, position: Position): IS
 export async function getSymbolTooltip(uri: string, position: Position): Promise<Hover | undefined> {
     const document = getDocumentByURI(uri);
     const ref = document && getDocumentSymbol(document, position);
-    if (ref && ref instanceof UCSymbol) {
-        const tooltipText = ref.getTooltip();
-        if (!tooltipText) {
-            return undefined;
-        }
-        const contents = [{ language: 'unrealscript', value: tooltipText }];
+    if (!ref) {
+        return undefined;
+    }
 
+    const tooltipText = ref.getTooltip();
+    if (!tooltipText) {
+        return undefined;
+    }
+
+    const contents = [{ language: 'unrealscript', value: tooltipText }];
+    if (ref instanceof UCObjectSymbol) {
         const documentation = ref.getDocumentation();
         if (documentation) {
             contents.push({ language: 'unrealscript', value: documentation });
@@ -155,18 +161,23 @@ export function getSymbolDefinition(uri: string, position: Position): ISymbol | 
     }
 
     const symbolRef = supportsRef(symbol)
-        ? symbol.getRef<UCSymbol>()
-        : undefined;
-
-    if (symbolRef instanceof UCSymbol) {
-        return symbolRef;
-    }
-    return symbol;
+        ? symbol.getRef()
+        : symbol;
+    return symbolRef;
 }
 
 export function getSymbol(uri: string, position: Position): ISymbol | undefined {
     const document = getDocumentByURI(uri);
     return document && getDocumentSymbol(document, position);
+}
+
+export function getSymbolDocument(symbol: ISymbol): UCDocument | undefined {
+    const documentClass = symbol && (symbol.kind === UCSymbolKind.Class
+        ? (symbol as UCClassSymbol)
+        : getOuter<UCClassSymbol>(symbol, UCSymbolKind.Class));
+
+    const document = documentClass && getDocumentById(documentClass.id.name);
+    return document;
 }
 
 export function getIntersectingContext(context: ParserRuleContext, position: Position): ParserRuleContext | undefined {
