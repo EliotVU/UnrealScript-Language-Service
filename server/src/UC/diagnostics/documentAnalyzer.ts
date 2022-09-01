@@ -22,8 +22,8 @@ import {
     isStateSymbol, isTypeSymbol, ITypeSymbol, MethodFlags, ModifierFlags, quoteTypeFlags,
     resolveType, StaticBoolType, StaticDelegateType, StaticIntType, StaticNameType, typesMatch,
     UCArchetypeSymbol, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol, UCDelegateSymbol,
-    UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCInterfaceSymbol, UCMethodSymbol,
-    UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
+    UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCInterfaceSymbol, UCMatchFlags,
+    UCMethodSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
     UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
 } from '../Symbols';
 import { DefaultSymbolWalker } from '../symbolWalker';
@@ -817,7 +817,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                         : undefined;
                     const argumentType = firstArgument?.getType();
                     if (argumentType) {
-                        const canPerformConversion = typesMatch(symbol, argumentType, true);
+                        const canPerformConversion = typesMatch(symbol, argumentType, UCMatchFlags.Coerce);
                         if (!canPerformConversion) {
                             this.diagnostics.add({
                                 range: expr.getRange(),
@@ -941,6 +941,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                 return;
             }
 
+            let matchFlags: UCMatchFlags = UCMatchFlags.None;
+            if (expr instanceof UCDefaultAssignmentExpression) {
+                matchFlags |= UCMatchFlags.T3D;
+            }
+
             if (isMethodSymbol(letSymbol)) {
                 this.diagnostics.add({
                     range: expr.left.getRange(),
@@ -950,7 +955,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                     }
                 });
             } else if (letSymbol.hasAnyModifierFlags(ModifierFlags.ReadOnly)) {
-                if (expr instanceof UCDefaultAssignmentExpression) {
+                if (matchFlags & UCMatchFlags.T3D) {
                     // TODO:
                 } else {
                     this.diagnostics.add({
@@ -976,7 +981,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                 ((letSymbol.modifiers & ModifierFlags.Native) !== 0
                     || ((letSymbol.modifiers & ModifierFlags.Transient) !== 0
                         && config.generation !== UCGeneration.UC3)
-                ) && expr instanceof UCDefaultAssignmentExpression
+                ) && (matchFlags & UCMatchFlags.T3D)
             ) {
                 const modifiers = letSymbol
                     .buildModifiers(letSymbol.modifiers & (ModifierFlags.Native | ModifierFlags.Transient))
@@ -1012,7 +1017,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                                 });
                             }
                         }
-                    } else if (!typesMatch(valueType, letType)) {
+                    } else if (!typesMatch(valueType, letType, matchFlags)) {
                         this.diagnostics.add({
                             range: expr.right.getRange(),
                             message: createTypeCannotBeAssignedToMessage(letType.getTypeKind(), valueTypeKind),
@@ -1194,7 +1199,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                         }
                     }
 
-                    if (!typesMatch(argType, paramType, param.hasAnyModifierFlags(ModifierFlags.Coerce))) {
+                    if (!typesMatch(argType, paramType, UCMatchFlags.Coerce * Number(param.hasAnyModifierFlags(ModifierFlags.Coerce)))) {
                         this.diagnostics.add({
                             range: arg.getRange(),
                             message: diagnosticMessages.ARGUMENT_IS_INCOMPATIBLE,

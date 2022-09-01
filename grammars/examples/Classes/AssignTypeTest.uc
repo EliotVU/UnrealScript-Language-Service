@@ -100,6 +100,8 @@ defaultproperties
     nameVar=NameAsString
     nameVar=NAME_CONSTANT
     nameVar=none
+    nameVar=true
+    nameVar=false
 
     // WARNING
     nativeVar=0xFF

@@ -514,10 +514,12 @@ export function quoteTypeFlags(kind: UCTypeKind): string {
 
 /** No conversion allowed */
 const N = 0x00;
-/** Conersion is allowed */
+/** Conversion is allowed */
 const Y = 0x01;
 /** Can be converted implicitally */
 const A = 0x02;
+/** Auto-coerced in a defaultproperties context */
+const D = 0x04;
 
 /**
  * e.g.
@@ -539,7 +541,7 @@ const TypeConversionFlagsTable: Readonly<{ [key: number]: number[] }> = [
 /* Bool     */[N,       N,      Y,      Y,      N,      Y,      Y,      Y,      N,          Y,          N,      N,      Y,      Y,      Y,      N,      N,      N],
 /* Float    */[N,       N,      Y | A,  Y | A,  Y,      N,      N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
 /* Object   */[N,       Y | A,  N,      N,      N,      N,      N,      N,      N,          A,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Name     */[N,       Y | A,  N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
+/* Name     */[N,       Y | A,  N,      N,      N | D,  N,      N,      N,      N,          N,          N,      N,      N,      N,      Y | D,  N,      N,      N],
 /* Delegate */[N,       Y | A,  N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
 /* Interface*/[N,       Y | A,  N,      N,      N,      N,      Y | A,  N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
 /* Range    */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
@@ -589,10 +591,18 @@ export function getConversionCost(input: ITypeSymbol, dest: ITypeSymbol): number
     return -1;
 }
 
+export const enum UCMatchFlags {
+    None = 0,
+    Coerce = 1 << 0,
+    // We have to presume different rules for assignments within a DefaultProperties block.
+    // e.g. A boolean type can be assigned to a name as it interpreted as an identifier.
+    T3D = 1 << 1,
+}
+
 /**
  * (dest) SomeObject = (src) none;
  */
-export function typesMatch(input: ITypeSymbol, dest: ITypeSymbol, coerce = false): boolean {
+export function typesMatch(input: ITypeSymbol, dest: ITypeSymbol, matchFlags: UCMatchFlags = UCMatchFlags.None): boolean {
     // Ignore types with no reference (Error)
     let inputKind = input.getTypeKind();
     if (inputKind === UCTypeKind.Error) {
@@ -633,9 +643,13 @@ export function typesMatch(input: ITypeSymbol, dest: ITypeSymbol, coerce = false
         return false;
     }
 
+    if ((c & D) != 0 && (matchFlags & UCMatchFlags.T3D) != 0) {
+        return true;
+    }
+
     // TODO: Class hierarchy
     // TODO: Struct (vector, rotator, range) conversions
-    return (c & A) !== 0 || (coerce && (c & Y) !== 0);
+    return (c & A) !== 0 || ((matchFlags & UCMatchFlags.Coerce) != 0 && (c & Y) !== 0);
 }
 
 /** Resolves a type to its base type if set. e.g. "Class<Actor>" would be resolved to "Actor". */
