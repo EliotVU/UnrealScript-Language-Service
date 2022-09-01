@@ -138,7 +138,7 @@ export async function getSymbolTooltip(uri: string, position: Position): Promise
         ? symbol.getRef()
         : symbol;
 
-    const tooltipText = symbolRef!.getTooltip();
+    const tooltipText = symbolRef?.getTooltip();
     if (!tooltipText) {
         return undefined;
     }
