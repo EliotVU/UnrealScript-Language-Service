@@ -2,7 +2,7 @@ import * as glob from 'glob';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
 import { BehaviorSubject, firstValueFrom, interval, Subject, Subscription } from 'rxjs';
-import { debounce, delay, filter, switchMapTo, tap } from 'rxjs/operators';
+import { debounce, delay, filter, switchMap, tap } from 'rxjs/operators';
 import * as url from 'url';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import {
@@ -107,9 +107,9 @@ let isIndexReadySub: Subscription;
 let documentsSub: Subscription;
 
 connection.onShutdown(() => {
-    lastIndexedDocumentsSub.unsubscribe();
-    isIndexReadySub.unsubscribe();
-    documentsSub.unsubscribe();
+    lastIndexedDocumentsSub?.unsubscribe();
+    isIndexReadySub?.unsubscribe();
+    documentsSub?.unsubscribe();
 });
 
 connection.onInitialize((params: InitializeParams) => {
@@ -151,7 +151,7 @@ connection.onInitialize((params: InitializeParams) => {
                 resolveProvider: true
             },
             signatureHelpProvider: {
-                triggerCharacters: ['(', ',', '<']
+                triggerCharacters: ['(', ',']
             },
             definitionProvider: true,
             documentSymbolProvider: true,
@@ -203,14 +203,14 @@ connection.onInitialized(() => {
                         diagnostics
                     });
                 } catch (error) {
-                    connection.console.error(`Analyzation of document '${document.uri}' threw '${error}'`);
+                    connection.console.error(`Analysis of document '${document.uri}' threw '${error}'`);
                 }
             }
         });
 
     isIndexReadySub = isIndexReady$
         .pipe(
-            switchMapTo(pendingTextDocuments$),
+            switchMap(() => pendingTextDocuments$),
             debounce(() => interval(50))
         )
         .subscribe({
@@ -233,7 +233,7 @@ connection.onInitialized(() => {
                 }
             },
             error: err => {
-                connection.console.error(`Index queu error: '${err}'`);
+                connection.console.error(`Index queue error: '${err}'`);
             }
         });
 
@@ -250,7 +250,7 @@ connection.onInitialized(() => {
                     documents[i].invalidate();
                 }
             }),
-            switchMapTo(documents$),
+            switchMap(() => documents$),
             filter(documents => documents.length > 0)
         )
         .subscribe((async (documents) => {

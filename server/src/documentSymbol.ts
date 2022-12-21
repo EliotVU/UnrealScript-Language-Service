@@ -24,11 +24,11 @@ const SymbolKindMap = new Map<UCSymbolKind, SymbolKind>([
     [UCSymbolKind.DefaultPropertiesBlock, SymbolKind.Constructor],
 ]);
 
-function toSymbolInfo(symbol: UCObjectSymbol): SymbolInformation {
+function toSymbolInfo(symbol: UCObjectSymbol, uri: string): SymbolInformation {
     const kind = SymbolKindMap.get(symbol.kind) ?? SymbolKind.Null;
     return SymbolInformation.create(
         symbol.getName().text, kind,
-        symbol.getRange(), undefined,
+        symbol.getRange(), uri,
         symbol.outer?.getName().text
     );
 }
@@ -41,10 +41,10 @@ export async function getSymbols(uri: string): Promise<SymbolInformation[] | und
 
     const symbols = document.getSymbols();
     const contextSymbols: SymbolInformation[] = symbols
-        .map(s => toSymbolInfo(s));
+        .map(s => toSymbolInfo(s, uri));
     const buildSymbolsList = (container: UCStructSymbol) => {
         for (let child = container.children; child; child = child.next) {
-            contextSymbols.push(toSymbolInfo(child));
+            contextSymbols.push(toSymbolInfo(child, uri));
             if (isStruct(child)) {
                 buildSymbolsList(child);
             }
