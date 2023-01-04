@@ -41,7 +41,15 @@ export const TokenModifiers = [
     SemanticTokenModifiers.static,
     SemanticTokenModifiers.deprecated,
     SemanticTokenModifiers.defaultLibrary,
+    TokenModifiersExtended.intrinsic,
+    TokenModifiersExtended.native
 ];
+
+const enum TokenModifiersExtended
+{
+    intrinsic = "intrinsic",
+    native = "native",
+}
 
 export const TokenTypesMap = {
     [SemanticTokenTypes.class]: 0,
@@ -67,6 +75,8 @@ export const TokenModifiersMap = {
     [SemanticTokenModifiers.static]: 3,
     [SemanticTokenModifiers.deprecated]: 4,
     [SemanticTokenModifiers.defaultLibrary]: 5,
+    [TokenModifiersExtended.intrinsic]: 6,
+    [TokenModifiersExtended.native]: 7,
 };
 
 export const SymbolToTokenTypeIndexMap = {

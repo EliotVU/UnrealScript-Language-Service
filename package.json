@@ -225,6 +225,16 @@
                     ".uci"
                 ],
                 "configuration": "./language-configuration.json"
+            },
+            {
+                "id": "ini",
+                "extensions": [
+                    ".upkg",
+                    ".ucproject"
+                ],
+                "filenamePatterns": [
+                    "[w]+"
+                ]
             }
         ],
         "grammars": [
@@ -249,6 +259,29 @@
                         "description": ""
                     }
                 ]
+            }
+        ],
+        "semanticTokenModifiers": [
+            {
+                "id": "intrinsic",
+                "description": "Annotates a symbol that is implemented intrinsically"
+            },
+            {
+                "id": "native",
+                "description": "Annotates a symbol that is implemented natively"
+            }
+        ],
+        "semanticTokenScopes": [
+            {
+                "language": "unrealscript",
+                "scopes": {
+                    "intrinsic": [
+                        "keyword.constant.uc"
+                    ],
+                    "native": [
+                        "keyword.constant.uc"
+                    ]
+                }
             }
         ]
     }
