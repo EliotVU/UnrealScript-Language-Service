@@ -1,45 +1,54 @@
 {
-	"version": "0.2.0",
-	"configurations": [
-		{
-			"type": "antlr-debug",
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceRoot}"
+            ],
+            "name": "Launch Client",
+            "outFiles": [
+                "${workspaceRoot}/out/extension.js",
+            ],
+            "sourceMaps": true,
+            "autoAttachChildProcesses": true,
+            "preLaunchTask": {
+                "type": "npm",
+                "script": "watch"
+            },
             "request": "launch",
-            "name": "Antlr UC Macro",
-			"input": "grammars/examples/macro.uci",
-			"grammar": "grammars/UCPreprocessorParser.g4",
-			"startRule": "macroProgram",
-			"debugServer": 6020,
-			"trace": true,
-			"visualParseTree": true
+            "type": "extensionHost",
         },
-		{
-			"type": "extensionHost",
-			"request": "launch",
-			"name": "Launch Extension",
-			"runtimeExecutable": "${execPath}",
-			"args": ["--extensionDevelopmentPath=${workspaceRoot}"],
-			"sourceMaps": true,
-			"outFiles": ["${workspaceRoot}/out/extension.js"],
-            "stopOnEntry": false,
-            "preLaunchTask": "npm: watch"
-		},
-		{
-			"type": "node",
-			"request": "attach",
-			"name": "Attach to Server",
-			"port": 6010,
-			"sourceMaps": true,
+        {
+            "port": 6010,
+            "name": "Attach to Server",
+            "outFiles": [
+                "${workspaceRoot}/out/server.js"
+            ],
+            "sourceMaps": true,
             "restart": true,
-			"outFiles": ["${workspaceRoot}/out/server.js"]
-		}
-	],
-	"compounds": [
-		{
-			"name": "Client + Server",
-			"configurations": [
-				"Launch Extension",
-				"Attach to Server"
-			]
-		}
-	]
+            "request": "attach",
+            "type": "node",
+        },
+        {
+            "debugServer": 6020,
+            "name": "Antlr UC Macro",
+            "input": "grammars/examples/macro.uci",
+            "grammar": "grammars/UCPreprocessorParser.g4",
+            "startRule": "macroProgram",
+            "trace": true,
+            "visualParseTree": true,
+            "request": "launch",
+            "type": "antlr-debug",
+        },
+    ],
+    "compounds": [
+        {
+            "name": "Client + Server",
+            "configurations": [
+                "Launch Extension",
+                "Attach to Server"
+            ]
+        }
+    ]
 }

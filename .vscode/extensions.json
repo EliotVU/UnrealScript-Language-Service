@@ -3,6 +3,7 @@
         "redhat.vscode-yaml",
         "mike-lischke.vscode-antlr4",
         "eliotvu.uc",
-        "pedro-w.tmlanguage"
+        "pedro-w.tmlanguage",
+        "amodio.tsl-problem-matcher"
     ]
 }

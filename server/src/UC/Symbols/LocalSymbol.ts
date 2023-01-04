@@ -1,5 +1,3 @@
-
-
 import { SymbolWalker } from '../symbolWalker';
 import { ModifierFlags, UCPropertySymbol, UCSymbolKind } from './';
 

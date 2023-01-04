@@ -21,7 +21,12 @@ const config = {
                 test: /\.ts$/,
                 exclude: /node_modules/,
                 loader: 'ts-loader',
-                options: { configFile: 'tsconfig.build.json' }
+                options: { 
+                    configFile: 'tsconfig.build.json',
+                    compilerOptions: {
+                        // module: 'es6'
+                    }
+                }
             }
         ]
     }

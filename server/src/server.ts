@@ -1,5 +1,4 @@
 import * as glob from 'glob';
-import * as path from 'path';
 import { performance } from 'perf_hooks';
 import { BehaviorSubject, firstValueFrom, interval, Subject, Subscription } from 'rxjs';
 import { debounce, delay, filter, switchMap, tap } from 'rxjs/operators';
@@ -69,10 +68,16 @@ function getWorkspaceFiles(folders: WorkspaceFolder[]): string[] {
     folders
         .map(folder => {
             const folderFSPath = URI.parse(folder.uri).fsPath;
-            const pattern = path.join(folderFSPath, UCFileGlobPattern);
-            return glob.sync(pattern, { realpath: true });
+            connection.console.info(`Scanning using pattern '${UCFileGlobPattern}'`);
+            return glob.sync(UCFileGlobPattern, {
+                root: folderFSPath,
+                realpath: true,
+                nosort: true,
+                nocase: true
+            });
         })
         .forEach(files => {
+            connection.console.info(`Found '${files.length}' matching files`);
             flattenedFiles.push(...files);
         });
 
@@ -100,7 +105,8 @@ async function awaitDocumentDelivery(uri: string): Promise<UCDocument | undefine
     });
 }
 
-export const connection = createConnection(ProposedFeatures.all);
+const connection = createConnection(ProposedFeatures.all);
+connection.listen();
 
 let lastIndexedDocumentsSub: Subscription;
 let isIndexReadySub: Subscription;
@@ -130,6 +136,15 @@ connection.onInitialize((params: InitializeParams) => {
             }
         }]
     };
+
+    const folders = params.workspaceFolders;
+    if (folders) {
+        const files = getWorkspaceFiles(folders);
+        if (files) {
+            const documents = createDocuments(files);
+            documents$.next(documents);
+        }
+    }
 
     return {
         capabilities: {
@@ -172,12 +187,13 @@ connection.onInitialize((params: InitializeParams) => {
                 ]
             },
             semanticTokensProvider: {
+                documentSelector: null,
                 full: true,
                 range: false,
                 legend: {
                     tokenTypes: TokenTypes,
                     tokenModifiers: TokenModifiers
-                }
+                },
             }
         }
     };
@@ -305,18 +321,6 @@ connection.onInitialized(() => {
     }
 
     if (hasWorkspaceFolderCapability) {
-        connection.workspace
-            .getWorkspaceFolders()
-            .then((folders) => {
-                if (folders) {
-                    const files = getWorkspaceFiles(folders);
-                    if (files) {
-                        const documents = createDocuments(files);
-                        documents$.next(documents);
-                    }
-                }
-            });
-
         connection.workspace.onDidChangeWorkspaceFolders((event) => {
             if (event.added) {
                 const files = getWorkspaceFiles(event.added);
@@ -586,7 +590,7 @@ connection.onPrepareRename(async (e) => {
         if (isClass(symbolRef)) {
             throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename a class!');
         }
-        if (symbolRef.modifiers & ModifierFlags.Intrinsic)  {
+        if (symbolRef.modifiers & ModifierFlags.Intrinsic) {
             throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
         }
     } else {

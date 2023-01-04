@@ -1,23 +1,23 @@
 {
-	"name": "client",
-	"displayName": "UnrealScript",
-	"description": "VSCode part for the UnrealScript language server",
-	"author": "Eliot van Uytfanghe",
-	"publisher": "EliotVU",
-	"license": "MIT",
-	"version": "0.0.1",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/EliotVU/UnrealScript-Language-Service"
-	},
-	"engines": {
-		"vscode": "^1.74.0"
-	},
-	"dependencies": {
-		"vscode-languageclient": "8.0.2"
-	},
-	"devDependencies": {
-		"@types/vscode": "^1.74.0",
-		"vscode-test": "1.6.1"
-	}
+    "name": "client",
+    "displayName": "UnrealScript",
+    "description": "VSCode part for the UnrealScript language server",
+    "author": "Eliot van Uytfanghe",
+    "publisher": "EliotVU",
+    "license": "MIT",
+    "version": "0.0.1",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/EliotVU/UnrealScript-Language-Service"
+    },
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "dependencies": {
+        "vscode-languageclient": "8.0.2"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.74.0",
+        "@vscode/test-electron": "^2.2.1"
+    }
 }

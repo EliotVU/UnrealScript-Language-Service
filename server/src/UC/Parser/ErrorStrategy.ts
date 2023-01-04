@@ -4,9 +4,11 @@ import { UCParser } from '../antlr/generated/UCParser';
 
 export class UCErrorStrategy extends DefaultErrorStrategy {
     reportError(recognizer: Parser, e: RecognitionException) {
+        if (!recognizer.context) {
+            return super.reportError(recognizer, e);
+        }
         if (typeof e.expectedTokens === 'undefined') {
-            super.reportError(recognizer, e);
-            return;
+            return super.reportError(recognizer, e);
         }
 
         if (e.expectedTokens.contains(UCParser.SEMICOLON)) {

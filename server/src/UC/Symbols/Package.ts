@@ -1,5 +1,3 @@
-
-
 import { getDocumentById, indexDocument } from '../indexer';
 import { Name } from '../name';
 import { NAME_NONE } from '../names';

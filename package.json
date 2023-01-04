@@ -57,8 +57,8 @@
         "webpack-cli": "^5.0.1"
     },
     "scripts": {
-        "vscode:prepublish": "cd client && npm run update-vscode && cd .. && npm run build",
-        "build": "npx gulp buildSyntax && npm run compile:grammar && npm run compile:preprocessor && npm run clean && npx webpack --mode production --config ./webpack.config.js",
+        "vscode:prepublish": "npm run build",
+        "build": "npx gulp buildGrammar && npm run compile:grammar && npm run compile:preprocessor && npm run clean && npx webpack --mode production --config ./webpack.config.js",
         "compile": "npx webpack --mode development --config ./webpack.config.js",
         "compile:grammar": "npx antlr4ts -visitor -no-listener grammars/UCLexer.g4 -o server/src/UC/antlr/generated && npx antlr4ts -visitor -no-listener grammars/UCParser.g4 -o server/src/UC/antlr/generated",
         "compile:preprocessor": "npx antlr4ts -visitor -no-listener grammars/UCPreprocessorParser.g4 -o server/src/UC/antlr/generated",
@@ -70,7 +70,7 @@
     },
     "activationEvents": [
         "onLanguage:unrealscript",
-        "workspaceContains:**/*.upkg"
+        "workspaceContains:**/*.upkg,**/*.ucproject"
     ],
     "main": "out/extension.js",
     "extensionKind": [

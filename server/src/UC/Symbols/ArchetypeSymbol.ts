@@ -1,5 +1,3 @@
-
-
 import { UCDocument } from '../document';
 import { Name } from '../name';
 import { NAME_NONE } from '../names';
