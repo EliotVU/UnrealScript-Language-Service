@@ -216,10 +216,37 @@ export class UCCallExpression extends UCExpression {
     }
 
     index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
-        // Note: Intentionally passing a clean info object.
-        this.expression.index(document, context, {
-            hasArguments: this.expression instanceof UCMemberExpression
-        });
+        /**
+         * The compiler has a hacky implementation for casts/function calls.
+         * 
+         * It will first check if the name could be a reference to a class.
+         * If it's a match, then the first argument is compiled, 
+         * if the argument is not an Object type or hit another argument, then it assumes it's a function call.
+         */
+        if (this.arguments?.length == 1 && this.expression instanceof UCMemberExpression) {
+            const member = this.expression;
+            const name = member.id.name;
+
+            // Casting to a int, byte, bool? etc...
+            // TODO: Handle this in the parser.
+            const primitiveType = CastTypeSymbolMap.get(name);
+            if (primitiveType) {
+                member.type = primitiveType;
+                return;
+            }
+
+            // Casting to a Class, Struct, or Enum?
+            // TODO: Check first argument type, because if it's not a valid object, a function call must be assumed
+            const structSymbol = tryFindClassSymbol(name) ?? ObjectsTable.getSymbol(name);
+            if (structSymbol) {
+                const type = new UCObjectTypeSymbol(member.id);
+                type.setRef(structSymbol, document);
+                member.type = type;
+                return;
+            }
+        } else {
+            this.expression.index(document, context);
+        }
 
         const type = this.expression.getType();
         const symbol = type?.getRef();
@@ -512,34 +539,12 @@ export class UCMemberExpression extends UCExpression {
     }
 
     getContainedSymbolAtPos(_position: Position) {
-        // To return static types, but! We are not storing the ranges for primitive casts anyway...
-        // if (this.typeRef instanceof UCPredefinedTypeSymbol) {
-        // 	return this.typeRef;
-        // }
         // Only return if we have a RESOLVED reference.
         return this.type?.getRef() && this.type;
     }
 
     index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         const id = this.id.name;
-
-        if (info?.hasArguments) {
-            // Casting to a int, byte, bool? etc...
-            const primitiveType = CastTypeSymbolMap.get(id);
-            if (primitiveType) {
-                this.type = primitiveType;
-                return;
-            }
-
-            // Casting to a Class, Struct, or Enum?
-            const structSymbol = tryFindClassSymbol(id) ?? ObjectsTable.getSymbol(id);
-            if (structSymbol) {
-                const type = new UCObjectTypeSymbol(this.id);
-                type.setRef(structSymbol, document);
-                this.type = type;
-                return;
-            }
-        }
 
         const contextTypeKind = info?.contextType?.getTypeKind();
         if (contextTypeKind === UCTypeKind.Name) {
@@ -556,7 +561,7 @@ export class UCMemberExpression extends UCExpression {
         // We treat both scenarios as a byte.
         let member = isStruct(context) && context.findSuperSymbol(id);
         if (!member) {
-            // Look for an context-less enum tag reference, e.g. (myLocalByte === ET_EnumTag)
+            // Look for a context-less enum tag reference, e.g. (myLocalByte === ET_EnumTag)
             const doCheckForEnumTag = !config.checkTypes || (
                 contextTypeKind === UCTypeKind.Byte ||
                 contextTypeKind === UCTypeKind.Int
