@@ -40,6 +40,9 @@ export enum ModifierFlags {
     Generated           = 1 << 18,
     Keyword             = 1 << 19,
     NoDeclaration       = 1 << 20,
+
+    // TODO: Track this modifier for various fields
+    Deprecated          = 1 << 21,
 }
 
 export abstract class UCFieldSymbol extends UCObjectSymbol {

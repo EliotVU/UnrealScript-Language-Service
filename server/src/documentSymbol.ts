@@ -1,9 +1,11 @@
-import { SymbolInformation, SymbolKind } from 'vscode-languageserver';
+import { DocumentSymbol, DocumentUri, SymbolKind } from 'vscode-languageserver';
 
+import { getSymbolDetail } from './documentSymbolDetailBuilder';
+import { getSymbolTags } from './documentSymbolTagsBuilder';
 import { getDocumentByURI } from './UC/indexer';
-import { isStruct, UCObjectSymbol, UCStructSymbol, UCSymbolKind } from './UC/Symbols';
+import { isClass, isStruct, UCObjectSymbol, UCStructSymbol, UCSymbolKind } from './UC/Symbols';
 
-const SymbolKindMap = new Map<UCSymbolKind, SymbolKind>([
+export const SymbolKindMap = new Map<UCSymbolKind, SymbolKind>([
     [UCSymbolKind.Package, SymbolKind.Package],
     [UCSymbolKind.Archetype, SymbolKind.Object],
     [UCSymbolKind.ScriptStruct, SymbolKind.Struct],
@@ -23,38 +25,54 @@ const SymbolKindMap = new Map<UCSymbolKind, SymbolKind>([
     [UCSymbolKind.ReplicationBlock, SymbolKind.Constructor],
     [UCSymbolKind.DefaultPropertiesBlock, SymbolKind.Constructor],
 ]);
-
-function toSymbolInfo(symbol: UCObjectSymbol, uri: string): SymbolInformation {
-    const kind = SymbolKindMap.get(symbol.kind) ?? SymbolKind.Null;
-    return SymbolInformation.create(
-        symbol.getName().text, kind,
-        symbol.getRange(), uri,
-        symbol.outer?.getName().text
-    );
-}
-
-export async function getSymbols(uri: string): Promise<SymbolInformation[] | undefined> {
+ 
+export function getDocumentSymbols(uri: DocumentUri): DocumentSymbol[] | undefined {
     const document = getDocumentByURI(uri);
     if (!document) {
         return undefined;
     }
 
-    const symbols = document.getSymbols();
-    const contextSymbols: SymbolInformation[] = symbols
-        .map(s => toSymbolInfo(s, uri));
-    const buildSymbolsList = (container: UCStructSymbol) => {
-        for (let child = container.children; child; child = child.next) {
-            contextSymbols.push(toSymbolInfo(child, uri));
-            if (isStruct(child)) {
-                buildSymbolsList(child);
-            }
-        }
-    };
+    const documentSymbols: DocumentSymbol[] = [];
 
-    for (const symbol of symbols) {
-        if (isStruct(symbol)) {
-            buildSymbolsList(symbol);
+    // Little hack, lend a hand and push all the class's children to the top.
+    const symbols = document.getSymbols();
+    for (let symbol of symbols) {
+        if (isClass(symbol)) {
+            for (let child = symbol.children; child != null; child = child.next) {
+                documentSymbols.unshift(toDocumentSymbol(child));
+            }
+            documentSymbols.unshift(toDocumentSymbol(symbol));
+            continue;
+        }
+
+        documentSymbols.push(toDocumentSymbol(symbol));
+    }
+
+    return documentSymbols;
+
+    function buildDocumentSymbols(container: UCStructSymbol, symbols: DocumentSymbol[]) {
+        for (let child = container.children; child; child = child.next) {
+            symbols.unshift(toDocumentSymbol(child));
         }
     }
-    return contextSymbols;
+
+    function toDocumentSymbol(symbol: UCObjectSymbol): DocumentSymbol {
+        let children: DocumentSymbol[] | undefined;
+        if (isStruct(symbol) && !isClass(symbol)) {
+            children = [];
+            buildDocumentSymbols(symbol, children);
+        }
+
+        const documentSymbol: DocumentSymbol = {
+            name: symbol.id.name.text,
+            detail: getSymbolDetail(symbol),
+            kind: SymbolKindMap.get(symbol.kind) ?? SymbolKind.Null,
+            tags: getSymbolTags(symbol),
+            range: symbol.getRange(),
+            selectionRange: symbol.id.range,
+            children,
+        };
+        return documentSymbol;
+    }
 }
+

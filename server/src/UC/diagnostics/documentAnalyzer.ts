@@ -1,3 +1,4 @@
+import { toName } from '../name';
 import { DiagnosticSeverity, Range } from 'vscode-languageserver';
 
 import { UCDocument } from '../document';
@@ -9,7 +10,7 @@ import {
     UCMetaClassExpression, UCNameOfExpression, UCObjectLiteral, UCParenthesizedExpression,
     UCPropertyAccessExpression, UCSizeOfLiteral, UCSuperExpression
 } from '../expressions';
-import { config, UCGeneration } from '../indexer';
+import { config, getDocumentById, UCGeneration } from '../indexer';
 import { NAME_ENUMCOUNT, NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
 import {
     UCAssertStatement, UCBlock, UCCaseClause, UCDoUntilStatement, UCExpressionStatement,
@@ -30,8 +31,9 @@ import { DefaultSymbolWalker } from '../symbolWalker';
 import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
 import * as diagnosticMessages from './diagnosticMessages.json';
 
-// TODO: Check if a UField is obscures another UField
+const OBJECT_DOCUMENT_ID = toName('Object');
 
+// TODO: Check if a UField is obscuring another UField
 export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection | undefined> {
     private scopes: UCStructSymbol[] = [];
     private context?: UCStructSymbol;
@@ -44,6 +46,16 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
 
     constructor(private document: UCDocument) {
         super();
+
+        if (document.class && !getDocumentById(OBJECT_DOCUMENT_ID)) {
+            this.diagnostics.add({
+                range: document.class.getRange(),
+                message: {
+                    text: "Missing '/Core/Classes/Object.uc' directory. Please include the missing UnrealScript SDK classes in your workspace!",
+                    severity: DiagnosticSeverity.Warning
+                }
+            });
+        }
     }
 
     private pushScope(context?: UCStructSymbol) {

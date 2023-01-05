@@ -5,43 +5,83 @@ import { debounce, delay, filter, switchMap, tap } from 'rxjs/operators';
 import * as url from 'url';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import {
-    CodeActionKind, CompletionTriggerKind, createConnection, ErrorCodes,
-    FileOperationRegistrationOptions, InitializeParams, Location, Position, ProposedFeatures, Range,
-    ResponseError, TextDocuments, TextDocumentSyncKind, TextEdit, WorkspaceChange, WorkspaceEdit,
-    WorkspaceFolder
+    CodeActionKind,
+    CompletionTriggerKind,
+    createConnection,
+    ErrorCodes,
+    FileOperationRegistrationOptions,
+    InitializeParams,
+    Location,
+    Position,
+    ProposedFeatures,
+    Range,
+    ResponseError,
+    TextDocuments,
+    TextDocumentSyncKind,
+    TextEdit,
+    WorkspaceChange,
+    WorkspaceEdit,
+    WorkspaceFolder,
 } from 'vscode-languageserver/node';
 import { URI } from 'vscode-uri';
 
 import { buildCodeActions } from './codeActions';
 import {
-    DefaultIgnoredTokensSet, getCompletableSymbolItems, getFullCompletionItem, getSignatureHelp,
-    setIgnoredTokensSet
+    DefaultIgnoredTokensSet,
+    getCompletableSymbolItems,
+    getFullCompletionItem,
+    getSignatureHelp,
+    setIgnoredTokensSet,
 } from './completion';
 import { getDiagnostics } from './diagnostics';
 import { getHighlights } from './documentHighlight';
-import { getSymbols } from './documentSymbol';
+import { getDocumentSymbols } from './documentSymbol';
 import { getReferences } from './references';
 import { buildSemanticTokens } from './semantics';
 import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
 import { UCLexer } from './UC/antlr/generated/UCLexer';
 import { DocumentParseData, UCDocument } from './UC/document';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
+import { getSymbol, getSymbolDefinition, getSymbolDocument, getSymbolTooltip, VALID_ID_REGEXP } from './UC/helpers';
 import {
-    getSymbol, getSymbolDefinition, getSymbolDocument, getSymbolTooltip, VALID_ID_REGEXP
-} from './UC/helpers';
-import {
-    applyMacroSymbols, clearMacroSymbols, config, createDocumentByPath, createPackage, documentsMap,
-    getDocumentById, getDocumentByURI, getIndexedReferences, getPackageByDir,
-    IntrinsicSymbolItemMap, lastIndexedDocuments$, queueIndexDocument, removeDocumentByPath,
-    UCGeneration, UELicensee
+    applyMacroSymbols,
+    clearMacroSymbols,
+    config,
+    createDocumentByPath,
+    createPackage,
+    documentsMap,
+    getDocumentById,
+    getDocumentByURI,
+    getIndexedReferences,
+    getPackageByDir,
+    IntrinsicSymbolItemMap,
+    lastIndexedDocuments$,
+    queueIndexDocument,
+    removeDocumentByPath,
+    UCGeneration,
+    UELicensee,
 } from './UC/indexer';
 import { toName } from './UC/name';
 import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
 import {
-    addHashedSymbol, DEFAULT_RANGE, IntrinsicArray, isClass as isClass, isField, ISymbol,
-    ModifierFlags, ObjectsTable, supportsRef, UCClassSymbol, UCMethodSymbol, UCObjectSymbol,
-    UCObjectTypeSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
+    addHashedSymbol,
+    DEFAULT_RANGE,
+    IntrinsicArray,
+    isClass as isClass,
+    isField,
+    ISymbol,
+    ModifierFlags,
+    ObjectsTable,
+    supportsRef,
+    UCClassSymbol,
+    UCMethodSymbol,
+    UCObjectSymbol,
+    UCObjectTypeSymbol,
+    UCStructSymbol,
+    UCSymbolKind,
+    UCTypeKind,
 } from './UC/Symbols';
+import { getWorkspaceSymbols } from './workspaceSymbol';
 
 /**
  * Emits true when the workspace is prepared and ready for indexing.
@@ -170,6 +210,7 @@ connection.onInitialize((params: InitializeParams) => {
             },
             definitionProvider: true,
             documentSymbolProvider: true,
+            workspaceSymbolProvider: true,
             documentHighlightProvider: true,
             referencesProvider: true,
             renameProvider: {
@@ -554,7 +595,13 @@ connection.onDefinition(async (e) => {
 });
 
 connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
-connection.onDocumentSymbol((e) => getSymbols(e.textDocument.uri));
+connection.onDocumentSymbol((e) => {
+    return getDocumentSymbols(e.textDocument.uri);
+});
+connection.onWorkspaceSymbol((e) => {
+    return getWorkspaceSymbols(e.query);
+});
+
 connection.onDocumentHighlight((e) => getHighlights(e.textDocument.uri, e.position));
 connection.onCompletion((e) => {
     if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
@@ -654,5 +701,3 @@ connection.onExecuteCommand(e => {
         }
     }
 });
-
-connection.listen();
