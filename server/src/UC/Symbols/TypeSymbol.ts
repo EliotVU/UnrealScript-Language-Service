@@ -536,9 +536,9 @@ const TypeConversionFlagsTable: Readonly<{ [key: number]: number[] }> = [
 /* To       */
 /* Error    */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
 /* None     */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Byte     */[N,       N,      N,      Y,      Y,      Y,      N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
-/* Int      */[N,       N,      Y | A,  N,      Y,      Y,      N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
-/* Bool     */[N,       N,      Y,      Y,      N,      Y,      Y,      Y,      N,          Y,          N,      N,      Y,      Y,      Y,      N,      N,      N],
+/* Byte     */[N,       N,      N,      Y | A,  Y,      Y | A,  N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
+/* Int      */[N,       N,      Y | A,  N,      Y,      Y | A,  N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
+/* Bool     */[N,       N,      Y,      Y | D,  N,      Y,      Y,      Y,      N,          Y,          N,      N,      Y,      Y,      Y,      N,      N,      N],
 /* Float    */[N,       N,      Y | A,  Y | A,  Y,      N,      N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
 /* Object   */[N,       Y | A,  N,      N,      N,      N,      N,      N,      N,          A,          N,      N,      N,      N,      N,      N,      N,      N],
 /* Name     */[N,       Y | A,  N,      N,      N | D,  N,      N,      N,      N,          N,          N,      N,      N,      N,      Y | D,  N,      N,      N],
@@ -551,7 +551,7 @@ const TypeConversionFlagsTable: Readonly<{ [key: number]: number[] }> = [
 /* String   */[N,       N,      Y,      Y,      Y,      Y,      Y,      Y,      Y,          Y,          N,      N,      Y,      Y,      N,      N,      N,      N],
 /* Map      */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
 /* Array    */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Pointer  */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
+/* Pointer  */[N,       N,      N,      N | D,  N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
 ];
 /** @formatter:on */
 
