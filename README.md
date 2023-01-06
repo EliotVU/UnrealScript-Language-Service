@@ -5,7 +5,7 @@
 [![Gitter](https://img.shields.io/gitter/room/unrealscript/Language-Service?color=9cf)](https://gitter.im/unrealscript/Language-Service)
 [![Give something back!](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/eliotvu)
 
-![GIF](demo.gif)
+![GIF](docs/media/demo.gif)
 
 ## Features
 
