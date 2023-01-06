@@ -1054,8 +1054,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             case UCGrammar.UCParser.INTEGER_LITERAL: {
                 // Need to coerce float to int (to conform to the compiler)
                 const rawValue = Number.parseInt(ctx.text);
-                const expression = new ((rawValue >= 0 && rawValue <= 255) ? UCByteLiteral : UCIntLiteral)(range);
-                expression.value = rawValue;
+                const expression = new UCIntLiteral(range);
+                (expression as UCIntLiteral).value = rawValue;
                 return expression;
             }
         }
@@ -1693,8 +1693,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
             case UCGrammar.UCParser.INTEGER_LITERAL: {
                 const rawValue = Number.parseInt(ctx.text);
-                expression = new ((rawValue >= 0 && rawValue <= 255) ? UCByteLiteral : UCIntLiteral)(range);
-                (expression as UCByteLiteral & UCIntLiteral).value = rawValue;
+                expression = new UCIntLiteral(range);
+                (expression as UCIntLiteral).value = rawValue;
                 break;
             }
 
