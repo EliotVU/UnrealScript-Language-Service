@@ -7,6 +7,14 @@
         ],
         "description": "Class Definition"
     },
+    "Interface Definition": {
+        "prefix": "interface",
+        "isFileTemplate": true,
+        "body": [
+            "interface $TM_FILENAME_BASE extends ${2:Interface}$0;",
+        ],
+        "description": "Interface Definition"
+    },
     "Const Declaration": {
         "prefix": "const",
         "body": [
@@ -207,6 +215,16 @@
             "}"
         ],
         "description": "DefaultProperties Block"
+    },
+    "StructDefaultProperties Block": {
+        "prefix": "structdefaultproperties",
+        "body": [
+            "structdefaultproperties",
+            "{",
+            "\t$TM_SELECTED_TEXT$0",
+            "}"
+        ],
+        "description": "StructDefaultProperties Block"
     },
     "Object Construction": {
         "prefix": "begin object",
