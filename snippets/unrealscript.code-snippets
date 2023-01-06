@@ -3,8 +3,7 @@
         "prefix": "class",
         "isFileTemplate": true,
         "body": [
-            "class ${1:Name} extends ${2:Object}",
-            "\t${3:modifiers};",
+            "class $TM_FILENAME_BASE extends ${2:Object}$0;",
         ],
         "description": "Class Definition"
     },
