@@ -32,9 +32,6 @@ So far the extension has implemented support for the following features:
 * You can also manually watch for changes by executing the following in a commandline: npm run watch
 * You are now free to make modifications, if compiled successfully, go to your "Extension Host Development" instance and press CTRL+R+R to restart the instance.
 
-## Can I contribute?
+## Contribution
 
-* Yes! See "How to Build"
-* You can open a "Pull Request", for this you need to own a fork of this repository.
-* Proceed to describe your changes and your intentions behind these changes.
-* Any of the following would be greatly appreciated! Such as new linting rules, bug fixes, custom UnrealScript support, new code actions, among new possible features that we don't have yet, such as formatting.
+Yes! For more information regarding contribution, please check the [Contributing Guidelines](.github/CONTRIBUTING.md).
