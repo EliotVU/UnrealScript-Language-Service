@@ -1,11 +1,11 @@
 # UnrealScript
 
-[![Marketplace Version](https://vsmarketplacebadge.apphb.com/version/EliotVU.uc.svg "Current Release")](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
+[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 [![Deploy Extension](https://github.com/EliotVU/UnrealScript-Language-Service/actions/workflows/main.yml/badge.svg)](https://github.com/EliotVU/UnrealScript-Language-Service/actions/workflows/main.yml)
-[![Gitter](https://badges.gitter.im/unrealscript/Language-Service.svg)](https://gitter.im/unrealscript/Language-Service?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Gitter](https://img.shields.io/gitter/room/unrealscript/Language-Service?color=9cf)](https://gitter.im/unrealscript/Language-Service)
 [![Give something back!](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/eliotvu)
 
-<img src="https://raw.githubusercontent.com/EliotVU/UnrealScript-Language-Service/master/demo.gif">
+![GIF](demo.gif)
 
 ## Features
 
@@ -28,7 +28,7 @@ So far the extension has implemented support for the following features:
 * Fork and/or clone this repository.
 * Open the folder where your cloned repository resides, in Visual Studio Code (Open folder).
 * Make sure that you have the latest NodeJS and NPM installed!
-* Go to "Run and Debug" or CTRL+Shift+D and select "Launch Extension", or press F5 for short, this should build(and watch) the project and proceed to launch another VSCode window (so called "Extension Host Development") with this repository's extension enabled.
+* Go to "Run and Debug" or CTRL+Shift+D and select "Launch Extension", or press F5 for short, this should build (and watch) the project and proceed to launch another VSCode window (so called "Extension Host Development") with this repository's extension enabled.
 * You can also manually watch for changes by executing the following in a commandline: npm run watch
 * You are now free to make modifications, if compiled successfully, go to your "Extension Host Development" instance and press CTRL+R+R to restart the instance.
 
