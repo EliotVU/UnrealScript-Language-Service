@@ -2,14 +2,23 @@
 
 ## Next
 
-- Implemented LSP Semantic-Tokens (References to a class will now be highlighted as such even where the tmLanguage cannot determine the identifier's type)
+- Implemented [LSP Semantic-Tokens #137](https://github.com/EliotVU/UnrealScript-Language-Service/issues/137) (References to a class will now be highlighted as such even where the tmLanguage cannot determine the identifier's type)
   - ![image](https://user-images.githubusercontent.com/808593/211020346-38724ace-2fbe-4d92-b68c-69640ded824f.png)
 
-- Implemented LSP Workspace Symbols
+- Implemented [LSP Workspace Symbols #148](https://github.com/EliotVU/UnrealScript-Language-Service/issues/148)
   - ![image](./media/workspaceSymbols.png)
 
-- Added [UnrealScript snippets](https://github.com/EliotVU/UnrealScript-Language-Service/issues/149)
+- Added [UnrealScript snippets #149](https://github.com/EliotVU/UnrealScript-Language-Service/issues/149)
 
+- Typing, major improvements have been made to the type-checking system, there are almost no false-positive errors anymore!
+- Archetypes, overall better support for "begin object" constructions
+
+- Quality of Life
+  - Overall improvements have been made to UnrealScript parsing
+  - Overall improvements to UnrealScript syntax highlighting
+  - Fixed [(DefaultProperties) Issue with structs written on multiple lines](https://github.com/EliotVU/UnrealScript-Language-Service/issues/138)
+  - Fixed an issue where a Function call in a member context ```Outer.SomeIdentifier(...)``` could mismatch a Class's name
+  - Partially fixed an issue (in some cases) where a Function/Class invocation could be mistaken for one another
 
 ## 0.5.0
 
