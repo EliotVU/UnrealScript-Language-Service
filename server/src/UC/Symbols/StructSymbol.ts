@@ -186,22 +186,32 @@ export function findOverloadedOperator<T extends UCBaseOperatorSymbol>(
     id: Name,
     predicate: (symbol: T) => boolean
 ): T | undefined {
-	let scope: UCStructSymbol | undefined = isFunction(context)
+    let scope: UCStructSymbol | undefined = isFunction(context)
         ? context.outer as UCStructSymbol
         : context;
 
-	for (; scope; scope = isStateSymbol(scope)
+    // FIXME: SLOW, we need to cache a state of operators
+    const operators: T[] = [];
+    for (; scope; scope = isStateSymbol(scope)
         ? scope.outer as UCStructSymbol
         : scope.super) {
-		for (let child = scope.operators; child; child = child.next) {
+        for (let child = scope.operators; child; child = child.next) {
             if (!isOperator(child)) {
                 continue;
             }
 
-			if (child.id.name === id && predicate(child as T)) {
-                return child as T;
-			}
-		}
-	}
-	return undefined;
+            if (child.id.name === id) {
+                operators.push(child as T);
+            }
+        }
+    }
+
+    // It is crucial to overload in the reverse order.
+    for (let i = operators.length - 1; i >= 0; --i) {
+        if (predicate(operators[i])) {
+            return operators[i];
+        }
+    }
+
+    return undefined;
 }
