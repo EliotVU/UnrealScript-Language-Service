@@ -283,6 +283,12 @@
                     ]
                 }
             }
+        ],
+        "snippets": [
+            {
+                "language": "unrealscript",
+                "path": "./snippets/unrealscript.code-snippets"
+            }
         ]
     }
 }
