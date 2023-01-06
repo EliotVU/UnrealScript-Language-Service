@@ -232,19 +232,24 @@ export class UCCallExpression extends UCExpression {
             const primitiveType = CastTypeSymbolMap.get(name);
             if (primitiveType) {
                 member.type = primitiveType;
-                return;
+            } else {
+                // Casting to a Class, Struct, or Enum?
+                // TODO: Check first argument type, because if it's not a valid object, a function call must be assumed
+                const structSymbol = tryFindClassSymbol(name) ?? ObjectsTable.getSymbol(name);
+                if (structSymbol) {
+                    const type = new UCObjectTypeSymbol(member.id);
+                    type.setRef(structSymbol, document);
+                    member.type = type;
+                } else { // Maybe a function
+                    const funcSymbol = isStruct(context) && context.findSuperSymbol<UCMethodSymbol>(name);
+                    if (funcSymbol) {
+                        const type = new UCObjectTypeSymbol(member.id);
+                        type.setRef(funcSymbol, document);
+                        member.type = type;
+                    }
+                }
             }
-
-            // Casting to a Class, Struct, or Enum?
-            // TODO: Check first argument type, because if it's not a valid object, a function call must be assumed
-            const structSymbol = tryFindClassSymbol(name) ?? ObjectsTable.getSymbol(name);
-            if (structSymbol) {
-                const type = new UCObjectTypeSymbol(member.id);
-                type.setRef(structSymbol, document);
-                member.type = type;
-                return;
-            }
-        } else {
+        } else { // default binding
             this.expression.index(document, context);
         }
 
