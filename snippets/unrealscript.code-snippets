@@ -54,7 +54,7 @@
         "body": [
             "replication",
             "{",
-            "\treliable if (${1:condition)",
+            "\treliable if (${1:condition})",
             "\t\t$0;",
             "}"
         ],
@@ -109,6 +109,13 @@
         ],
         "description": "Private Function Definition"
     },
+    "Local Declaration": {
+        "prefix": "local",
+        "body": [
+            "local ${2:type} ${1:name};",
+        ],
+        "description": "Local Declaration"
+    },
     "For Loop": {
         "prefix": "for",
         "body": [
@@ -153,13 +160,6 @@
         ],
         "description": "If-Else Statement"
     },
-    "New Statement": {
-        "prefix": "new",
-        "body": [
-            "${1:name} = new (${3:arguments}) class'${2:type}' $0"
-        ],
-        "description": "New Statement"
-    },
     "Switch Statement": {
         "prefix": "switch",
         "body": [
@@ -194,6 +194,13 @@
             "} until (${1:condition});"
         ],
         "description": "Do-Until Statement"
+    },
+    "New Expression": {
+        "prefix": "new",
+        "body": [
+            "new (${2:outer}, ${3:name}, ${4:flags}) ${1:class} ${5:template}"
+        ],
+        "description": "New Expression"
     },
     "State Declaration": {
         "prefix": "state",
