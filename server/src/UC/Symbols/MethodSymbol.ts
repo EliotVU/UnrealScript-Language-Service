@@ -154,6 +154,10 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return 'function';
 	}
 
+    public buildTypeKeyword(): string {
+        return this.getTypeKeyword();
+    }
+
 	override getTooltip(): string {
 		const text: Array<string | undefined> = [];
 
@@ -185,7 +189,7 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return text;
 	}
 
-	protected buildParameters(): string {
+	public buildParameters(): string {
 		return this.params
 			? `(${this.params.map(f => f.getTextForSignature()).join(', ')})`
 			: '()';

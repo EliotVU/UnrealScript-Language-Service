@@ -24,6 +24,7 @@ export class UCClassSymbol extends UCStructSymbol {
         | 1 << UCSymbolKind.Function;
 
     declare outer: UCPackage;
+    declare super?: UCClassSymbol;
 
     override kind = UCSymbolKind.Class;
     override modifiers = ModifierFlags.ReadOnly;

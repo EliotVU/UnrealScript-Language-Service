@@ -11,13 +11,14 @@ import {
     UCDefaultPropertiesBlock, UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCFieldSymbol,
     UCInterfaceSymbol, UCLocalSymbol, UCMapTypeSymbol, UCMethodSymbol, UCObjectTypeSymbol,
     UCPackage, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock,
-    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol
+    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeSymbol
 } from './Symbols';
 
 export interface SymbolWalker<T> {
     visit(symbol: ISymbol): T | void;
     visitDocument(document: UCDocument): T | void;
     visitPackage(symbol: UCPackage): T | void;
+    visitType(symbol: UCTypeSymbol): T | void;
     visitQualifiedType(symbol: UCQualifiedTypeSymbol): T | void;
     visitObjectType(symbol: UCObjectTypeSymbol): T | void;
     visitMapType(symbol: UCMapTypeSymbol): T | void;
@@ -66,6 +67,9 @@ export abstract class DumbSymbolWalker<T> implements SymbolWalker<T> {
         return;
     }
     visitPackage(symbol: UCPackage): void | T {
+        return;
+    }
+    visitType(symbol: UCTypeSymbol): void | T {
         return;
     }
     visitQualifiedType(symbol: UCQualifiedTypeSymbol): void | T {
@@ -197,6 +201,10 @@ export abstract class DefaultSymbolWalker<T = undefined> implements SymbolWalker
     }
 
     visitPackage(symbol: UCPackage) {
+        return;
+    }
+
+    visitType(symbol: UCTypeSymbol): void | T {
         return;
     }
 

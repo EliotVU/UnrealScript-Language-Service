@@ -149,7 +149,7 @@ export class UCTypeSymbol implements ITypeSymbol {
     }
 
     accept<Result>(visitor: SymbolWalker<Result>): void | Result {
-        return visitor.visit(this);
+        return visitor.visitType(this);
     }
 }
 

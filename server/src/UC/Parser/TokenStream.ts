@@ -9,11 +9,13 @@ const DEFAULT_INPUT = UCInputStream.fromString('');
 export class UCTokenStream extends CommonTokenStream {
 	readonly evaluatedTokens = new Map<number, WritableToken[]>();
 
-	initMacroTree(macroTree: MacroProgramContext, errListener: ANTLRErrorListener<number>) {
+	initMacroTree(macroTree: MacroProgramContext, errListener?: ANTLRErrorListener<number>) {
 		const smNodes = macroTree.macroStatement();
 		if (smNodes) {
 			const rawLexer = new UCLexer(DEFAULT_INPUT);
-			rawLexer.removeErrorListeners(); rawLexer.addErrorListener(errListener);
+            if (errListener) {
+                rawLexer.removeErrorListeners(); rawLexer.addErrorListener(errListener);
+            }
 
 			for (const smNode of smNodes) {
 				const macroCtx = smNode.macro();

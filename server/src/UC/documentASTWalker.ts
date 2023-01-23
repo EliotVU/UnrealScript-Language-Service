@@ -20,6 +20,7 @@ import {
     UCPreOperatorExpression, UCPropertyAccessExpression, UCPropertyClassAccessExpression,
     UCRngLiteral, UCRotLiteral, UCSizeOfLiteral, UCStringLiteral, UCSuperExpression, UCVectLiteral
 } from './expressions';
+import { getCtxDebugInfo } from './Parser/Parser.utils';
 import { rangeFromBound, rangeFromBounds, rangeFromCtx } from './helpers';
 import { config, setEnumMember, UCGeneration } from './indexer';
 import { toName } from './name';
@@ -43,13 +44,6 @@ import {
     UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock, UCScriptStructSymbol,
     UCStateSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind, UCTypeSymbol
 } from './Symbols';
-
-function getDebugInfo(ctx?: ParserRuleContext): string {
-    if (typeof ctx === 'undefined') {
-        return '';
-    }
-    return `(${ctx.start.line}:${ctx.start.charPositionInLine}) "${ctx.text}"`;
-}
 
 function createIdentifier(ctx: ParserRuleContext) {
     const identifier: Identifier = {
@@ -90,12 +84,12 @@ function createBlock(
         try {
             const statement: IStatement | undefined = nodes[i].accept(visitor);
             if (statement && hasNoKind(statement)) {
-                console.warn('Caught a corrupted statement', getDebugInfo(nodes[i]));
+                console.warn('Caught a corrupted statement', getCtxDebugInfo(nodes[i]));
                 continue;
             }
             block.statements[i] = statement;
         } catch (err) {
-            console.error(`(internal transformation error)`, getDebugInfo(nodes[i]));
+            console.error(`(internal transformation error)`, getCtxDebugInfo(nodes[i]));
         }
     }
     return block;
@@ -441,7 +435,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     visitDependsOnModifier(ctx: UCGrammar.DependsOnModifierContext) {
         const symbol = this.scope<UCClassSymbol>();
-        const modifierArgumentNodes = ctx.identifierArguments();
+        const modifierArgumentNodes = ctx.identifierArguments?.();
         if (modifierArgumentNodes) {
             symbol.dependsOnTypes = modifierArgumentNodes
                 .identifier()
@@ -455,7 +449,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     visitImplementsModifier(ctx: UCGrammar.ImplementsModifierContext) {
         const symbol = this.scope<UCClassSymbol>();
-        const modifierArgumentNodes = ctx.qualifiedIdentifierArguments();
+        const modifierArgumentNodes = ctx.qualifiedIdentifierArguments?.();
         if (modifierArgumentNodes) {
             symbol.implementsTypes = modifierArgumentNodes
                 .qualifiedIdentifier()
@@ -597,7 +591,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitFunctionDecl(ctx: UCGrammar.FunctionDeclContext) {
-        const nameNode: UCGrammar.FunctionNameContext | undefined = ctx.functionName();
+        const nameNode: UCGrammar.FunctionNameContext | undefined = ctx.tryGetRuleContext(0, UCGrammar.FunctionNameContext);
 
         let modifiers: ModifierFlags = 0;
         let specifiers: MethodFlags = MethodFlags.None;
@@ -719,10 +713,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                     bodyNode.accept(this);
                 }
             } catch (err) {
-                console.error(`Encountered an error while constructing the body for function '${symbol.getPath()}'`, err, getDebugInfo(ctx));
+                console.error(`Encountered an error while constructing the body for function '${symbol.getPath()}'`, err, getCtxDebugInfo(ctx));
             }
         } catch (err) {
-            console.error(`Encountered an error while constructing function '${symbol.getPath()}'`, err, getDebugInfo(ctx));
+            console.error(`Encountered an error while constructing function '${symbol.getPath()}'`, err, getCtxDebugInfo(ctx));
         } finally {
             this.pop();
         }
@@ -1104,7 +1098,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         console.assert(typeof child !== 'undefined');
         const stm = child.accept<IStatement>(this);
         console.assert(typeof stm !== 'undefined');
-        console.assert(isStatement(stm), `Statement is invalid: ${getDebugInfo(ctx)}`);
+        console.assert(isStatement(stm), `Statement is invalid: ${getCtxDebugInfo(ctx)}`);
         return stm;
     }
 
