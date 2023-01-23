@@ -18,4 +18,5 @@
         "Intrinsics",
         "Vect"
     ],
+    "typescriptHero.imports.organizeOnSave": true,
 }
