@@ -6,14 +6,14 @@ import { UCDocument } from './document';
 import {
     IExpression, UCArrayCountExpression, UCBaseOperatorExpression, UCBinaryOperatorExpression,
     UCCallExpression, UCConditionalExpression, UCDefaultMemberCallExpression,
-    UCDefaultStructLiteral, UCElementAccessExpression, UCMemberExpression, UCMetaClassExpression,
+    UCDefaultStructLiteral, UCElementAccessExpression, UCIdentifierLiteralExpression, UCMemberExpression, UCMetaClassExpression,
     UCNameOfExpression, UCObjectLiteral, UCParenthesizedExpression, UCPredefinedAccessExpression,
     UCPropertyAccessExpression, UCSizeOfLiteral, UCSuperExpression
 } from './expressions';
 import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from './statements';
 import {
     Identifier, isField, isFunction, ISymbol, MethodFlags, ModifierFlags, UCObjectTypeSymbol,
-    UCSymbolKind, UCTypeKind
+    UCSymbolKind, UCTypeKind, UCTypeSymbol
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
@@ -45,8 +45,7 @@ export const TokenModifiers = [
     TokenModifiersExtended.native
 ];
 
-const enum TokenModifiersExtended
-{
+const enum TokenModifiersExtended {
     intrinsic = "intrinsic",
     native = "native",
 }
@@ -87,7 +86,7 @@ export const SymbolToTokenTypeIndexMap = {
     [UCSymbolKind.Enum]: TokenTypesMap[SemanticTokenTypes.enum],
     [UCSymbolKind.EnumTag]: TokenTypesMap[SemanticTokenTypes.enumMember],
     [UCSymbolKind.Function]: TokenTypesMap[SemanticTokenTypes.function],
-    [UCSymbolKind.Event]: TokenTypesMap[SemanticTokenTypes.event],
+    [UCSymbolKind.Event]: TokenTypesMap[SemanticTokenTypes.function/* event */],
     [UCSymbolKind.Delegate]: TokenTypesMap[SemanticTokenTypes.function],
     [UCSymbolKind.Operator]: TokenTypesMap[SemanticTokenTypes.operator],
     [UCSymbolKind.Property]: TokenTypesMap[SemanticTokenTypes.property],
@@ -135,14 +134,6 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
     }
 
     private pushSymbol(symbol: ISymbol, id: Identifier): void {
-        if (symbol.getTypeKind() === UCTypeKind.Name) {
-            this.pushIdentifier(id,
-                TypeToTokenTypeIndexMap[UCTypeKind.String],
-                1 << TokenModifiersMap[SemanticTokenModifiers.static]
-            );
-            return;
-        }
-
         let type: number | undefined = (SymbolToTokenTypeIndexMap as any)[symbol.kind];
         if (typeof type !== 'undefined') {
             let modifiers = 0;
@@ -262,6 +253,15 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
             expr.arguments?.forEach(arg => arg.accept(this));
         } else if (expr instanceof UCMemberExpression) {
             expr.type?.accept(this);
+            if (expr.type && expr instanceof UCIdentifierLiteralExpression) {
+                if (expr.type.getTypeKind() === UCTypeKind.Name) {
+                    this.pushRange(expr.getRange(),
+                        TypeToTokenTypeIndexMap[UCTypeKind.String],
+                        1 << TokenModifiersMap[SemanticTokenModifiers.static]
+                    );
+                    return;
+                }
+            }
         } else if (expr instanceof UCPredefinedAccessExpression) {
             // Disabled for now, it doesn't look that pretty when namespace tokens are colored like a class type.
             // if (expr.id.name !== NAME_SELF) {
