@@ -633,6 +633,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 case UCGrammar.UCParser.KW_DELEGATE:
                     specifiers |= MethodFlags.Delegate;
                     break;
+                case UCGrammar.UCParser.KW_ITERATOR:
+                    specifiers |= MethodFlags.Iterator;
+                    break;
                 case UCGrammar.UCParser.KW_EVENT:
                     specifiers |= MethodFlags.Event;
                     break;

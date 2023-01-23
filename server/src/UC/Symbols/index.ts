@@ -20,4 +20,5 @@ export * from './ArchetypeSymbol';
 export * from './DefaultPropertiesBlock';
 export * from './ReplicationBlock';
 export * from './IntrinsicSymbols';
+export * from './IntrinsicArrayIterator';
 export * from './ArrayOperations';

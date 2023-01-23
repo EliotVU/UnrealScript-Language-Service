@@ -10,19 +10,24 @@ import {
 } from './';
 
 export enum MethodFlags {
-	None 			= 0x0000,
+    None = 0x0000,
 
-	Function 		= 1 << 0,
-	Operator 		= 1 << 1,
-	PreOperator 	= 1 << 2,
-	PostOperator 	= 1 << 3,
-	Event 			= 1 << 4,
-	Delegate 		= 1 << 5,
-	Static 			= 1 << 6,
-	Final 			= 1 << 7,
+    Function = 1 << 0,
+    Operator = 1 << 1,
+    PreOperator = 1 << 2,
+    PostOperator = 1 << 3,
+    Event = 1 << 4,
+    Delegate = 1 << 5,
+    Iterator = 1 << 6,
 
-	OperatorKind 	= Operator | PreOperator | PostOperator,
-	HasKind			= Function | OperatorKind | Event | Delegate
+    // Implies Final
+    Static = 1 << 7,
+    Final = 1 << 8,
+
+    OperatorKind = Operator | PreOperator | PostOperator,
+    HasKind = Function | OperatorKind | Event | Delegate,
+
+    NonOverridable = Final || PreOperator,
 }
 
 export class UCMethodSymbol extends UCStructSymbol {

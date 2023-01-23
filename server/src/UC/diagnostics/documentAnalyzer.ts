@@ -18,12 +18,12 @@ import {
     UCReturnStatement, UCSwitchStatement, UCWhileStatement
 } from '../statements';
 import {
-    areMethodsCompatibleWith, Array_LengthProperty, ClassModifierFlags, ContextInfo, IntrinsicClass,
+    areMethodsCompatibleWith, ArrayIterator, Array_LengthProperty, ClassModifierFlags, ContextInfo, IntrinsicClass,
     IntrinsicEnum, isClass, isDelegateSymbol, isEnumSymbol, isField, isFunction, isMethodSymbol,
     isStateSymbol, isTypeSymbol, ITypeSymbol, MethodFlags, ModifierFlags, quoteTypeFlags,
-    resolveType, StaticBoolType, StaticDelegateType, StaticIntType, StaticNameType, typesMatch,
+    resolveType, StaticBoolType, StaticDelegateType, StaticIntType, StaticMetaType, StaticNameType, typesMatch,
     UCArchetypeSymbol, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol, UCDelegateSymbol,
-    UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCInterfaceSymbol, UCMatchFlags,
+    UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCFieldSymbol, UCInterfaceSymbol, UCMatchFlags,
     UCMethodSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
     UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
 } from '../Symbols';
@@ -744,6 +744,69 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
     visitForEachStatement(stm: UCForEachStatement) {
         super.visitForEachStatement(stm);
         this.verifyStatementExpression(stm);
+
+        if (stm.expression) {
+            if (!(stm.expression instanceof UCCallExpression)) {
+                this.diagnostics.add({
+                    range: stm.expression.getRange(),
+                    message: {
+                        text: `Expression does not evaluate to an iteratable.`,
+                        severity: DiagnosticSeverity.Error
+                    }
+                });
+                return;
+            } else if (!stm.expression.arguments) {
+                this.diagnostics.add({
+                    range: stm.expression.getRange(),
+                    message: {
+                        text: `Missing iterator arguments.`,
+                        severity: DiagnosticSeverity.Error
+                    }
+                });
+                return;
+            }
+
+            const symbol = stm.expression?.getMemberSymbol();
+            if (symbol) {
+                // Cannot iterate on the return result of a function expression.
+                if (isFunction(symbol)) {
+                    if ((symbol.specifiers & MethodFlags.Iterator) == 0) {
+                        this.diagnostics.add({
+                            range: stm.expression.getRange(),
+                            message: {
+                                text: `Function is not an iterator.`,
+                                severity: DiagnosticSeverity.Error
+                            }
+                        });
+                    }
+                } else if (config.checkTypes) {
+                    if (config.generation != UCGeneration.UC3) {
+                        this.diagnostics.add({
+                            range: stm.expression.getRange(),
+                            message: {
+                                text: `Type '${quoteTypeFlags(stm.expression.getType()!.getTypeKind())}' cannot be iterated. Expected an iterator function.`,
+                                severity: DiagnosticSeverity.Error
+                            }
+                        });
+                        return;
+                    }
+
+                    if (stm.expression.getType()?.getTypeKind() != UCTypeKind.Array) {
+                        this.diagnostics.add({
+                            range: stm.expression.getRange(),
+                            message: {
+                                text: `Type '${quoteTypeFlags(stm.expression.getType()!.getTypeKind())}' cannot be iterated. Expected an iterator function or dynamic array.`,
+                                severity: DiagnosticSeverity.Error
+                            }
+                        });
+                    } else {
+                        // check intrinsic arguments
+                        const arrayInnerType = ((symbol as UCFieldSymbol).getType() as UCArrayTypeSymbol).baseType;
+                        this.checkArguments(ArrayIterator, stm.expression, arrayInnerType);
+                    }
+                }
+            }
+        }
     }
 
     visitCaseClause(stm: UCCaseClause) {
@@ -1169,6 +1232,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                 continue;
             }
 
+            // TODO: Push an error when passing literals to out parameters.
             if (param.hasAnyModifierFlags(ModifierFlags.Out)) {
                 const argSymbol = arg.getMemberSymbol();
                 // if (!argSymbol) {
@@ -1192,7 +1256,8 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
             }
 
             if (config.checkTypes) {
-                const paramType = param.getType() ?? inferredType;
+                const paramType = (param.getType() !== StaticMetaType ? param.getType() : undefined) ?? inferredType
+
                 // We'll play nice by not pushing any errors if the method's param has no found or defined type,
                 // -- the 'type not found' error will suffice.
                 if (paramType) {
