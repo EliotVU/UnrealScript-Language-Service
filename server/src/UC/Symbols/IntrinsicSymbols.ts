@@ -1,12 +1,22 @@
 import { toName } from '../name';
 import { NAME_ARRAY, NAME_RETURNVALUE } from '../names';
 import {
-    DEFAULT_RANGE, ModifierFlags, UCMethodLikeSymbol, UCMethodSymbol, UCParamSymbol,
-    UCPropertySymbol, UCStructSymbol
+    DEFAULT_RANGE,
+    ModifierFlags,
+    UCMethodLikeSymbol,
+    UCMethodSymbol,
+    UCParamSymbol,
+    UCPropertySymbol,
+    UCStructSymbol,
 } from './';
 import {
-    StaticDelegateType, StaticFloatType, StaticIntType, StaticNameType, StaticRangeType,
-    StaticRotatorType, StaticVectorType
+    StaticDelegateType,
+    StaticFloatType,
+    StaticIntType,
+    StaticNameType,
+    StaticRangeType,
+    StaticRotatorType,
+    StaticVectorType,
 } from './TypeSymbol';
 
 export * from './CoreSymbols';
@@ -93,7 +103,7 @@ Array_SortFunction.addSymbol(PredicateParam);
 Array_SortFunction.params = [PredicateParam];
 IntrinsicArray.addSymbol(Array_SortFunction);
 
-export const ReturnValueIdentifier = { name: NAME_RETURNVALUE, range: DEFAULT_RANGE };
+const ReturnValueIdentifier = { name: NAME_RETURNVALUE, range: DEFAULT_RANGE };
 
 const VectorReturnValue = new UCParamSymbol(ReturnValueIdentifier);
 VectorReturnValue.type = StaticVectorType;

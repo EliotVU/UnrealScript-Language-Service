@@ -58,6 +58,7 @@ import {
     NAME_MAP,
     NAME_NONE,
     NAME_REPLICATION,
+    NAME_RETURNVALUE,
     NAME_STRUCTDEFAULTPROPERTIES,
 } from './names';
 import { getCtxDebugInfo } from './Parser/Parser.utils';
@@ -92,7 +93,6 @@ import {
     ITypeSymbol,
     MethodFlags,
     ModifierFlags,
-    ReturnValueIdentifier,
     UCArchetypeSymbol,
     UCArrayTypeSymbol,
     UCBinaryOperatorSymbol,
@@ -755,7 +755,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         // nameNode may be undefined if the end-user is in process of writing a new function.
         const identifier: Identifier = nameNode
             ? createIdentifier(nameNode)
-            : { name: NAME_NONE, range };
+            : { name: NAME_NONE, range: rangeFromBound(ctx.start) };
         const symbol = new type(identifier, range);
         symbol.specifiers |= specifiers;
         symbol.modifiers |= modifiers;
@@ -767,14 +767,20 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         this.push(symbol);
         try {
             if (ctx._returnParam) {
-                let paramModifiers: ModifierFlags = ModifierFlags.ReturnParam | ModifierFlags.Out;
+                let paramModifiers: ModifierFlags = ModifierFlags.ReturnParam 
+                    | ModifierFlags.Out
+                    | ModifierFlags.Generated;
                 const modifierNode = ctx._returnParam.returnTypeModifier();
                 if (modifierNode?.start.type === UCGrammar.UCParser.KW_COERCE) {
                     paramModifiers |= ModifierFlags.Coerce;
                 }
 
                 const typeSymbol = this.visitTypeDecl(ctx._returnParam.typeDecl());
-                const returnValue = new UCParamSymbol(ReturnValueIdentifier, rangeFromBounds(ctx.start, ctx.stop));
+                const returnValueId: Identifier = {
+                    name: NAME_RETURNVALUE,
+                    range: typeSymbol.getRange()
+                };
+                const returnValue = new UCParamSymbol(returnValueId);
                 returnValue.type = typeSymbol;
                 returnValue.modifiers |= paramModifiers;
 
@@ -923,7 +929,17 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             }
         }
 
-        const typeSymbol = declTypeNode && this.visitTypeDecl(declTypeNode.typeDecl());
+        let typeSymbol: ITypeSymbol;
+        const typeDeclCtx = declTypeNode?.tryGetRuleContext(0, UCGrammar.TypeDeclContext);
+        // Bad grammar, fallback to an error if the parsed rule is invalid.
+        if (typeof typeDeclCtx === 'undefined') {
+            typeSymbol = new UCTypeSymbol(UCTypeKind.Error, rangeFromCtx(declTypeNode));
+            this.document.nodes.push(new ErrorDiagnostic(rangeFromCtx(declTypeNode), "Mismatched type input."));
+
+        } else {
+            typeSymbol = this.visitTypeDecl(typeDeclCtx);
+        }
+
         const varNodes = ctx.variable();
         if (varNodes) for (const varNode of varNodes) {
             const symbol: UCPropertySymbol = varNode.accept(this);

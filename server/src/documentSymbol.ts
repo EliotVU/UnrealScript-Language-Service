@@ -3,7 +3,7 @@ import { DocumentSymbol, DocumentUri, SymbolKind } from 'vscode-languageserver';
 import { getSymbolDetail } from './documentSymbolDetailBuilder';
 import { getSymbolTags } from './documentSymbolTagsBuilder';
 import { getDocumentByURI } from './UC/indexer';
-import { isClass, isStruct, UCObjectSymbol, UCStructSymbol, UCSymbolKind } from './UC/Symbols';
+import { hasModifiers, isClass, isStruct, ModifierFlags, UCObjectSymbol, UCStructSymbol, UCSymbolKind } from './UC/Symbols';
 
 export const SymbolKindMap = new Map<UCSymbolKind, SymbolKind>([
     [UCSymbolKind.Package, SymbolKind.Package],
@@ -25,7 +25,15 @@ export const SymbolKindMap = new Map<UCSymbolKind, SymbolKind>([
     [UCSymbolKind.ReplicationBlock, SymbolKind.Constructor],
     [UCSymbolKind.DefaultPropertiesBlock, SymbolKind.Constructor],
 ]);
- 
+
+export function isDocumentSymbol(symbol: UCObjectSymbol) {
+    // Exclude generated symbols
+    if (hasModifiers(symbol) && (symbol.modifiers & ModifierFlags.Generated) != 0) {
+        return false;
+    }
+    return true;
+}
+
 export function getDocumentSymbols(uri: DocumentUri): DocumentSymbol[] | undefined {
     const document = getDocumentByURI(uri);
     if (!document) {
@@ -37,39 +45,45 @@ export function getDocumentSymbols(uri: DocumentUri): DocumentSymbol[] | undefin
     // Little hack, lend a hand and push all the class's children to the top.
     const symbols = document.getSymbols();
     for (let symbol of symbols) {
-        if (isClass(symbol)) {
-            for (let child = symbol.children; child != null; child = child.next) {
-                documentSymbols.unshift(toDocumentSymbol(child));
+        if (isDocumentSymbol(symbol)) {
+            const documentSymbol = toDocumentSymbol(symbol);
+            documentSymbols.push(documentSymbol);
+            // Special case for UnrealScript's weird class declaration. 
+            // The range of a class does not encapsulate its children, so we'll insert these independently.
+            if (isClass(symbol) && documentSymbol.children) {
+                documentSymbols.push(...documentSymbol.children);
+                delete documentSymbol.children;
             }
-            documentSymbols.unshift(toDocumentSymbol(symbol));
-            continue;
         }
-
-        documentSymbols.push(toDocumentSymbol(symbol));
     }
 
     return documentSymbols;
 
     function buildDocumentSymbols(container: UCStructSymbol, symbols: DocumentSymbol[]) {
         for (let child = container.children; child; child = child.next) {
-            symbols.unshift(toDocumentSymbol(child));
+            if (isDocumentSymbol(child)) {
+                symbols.push(toDocumentSymbol(child));
+            }
         }
     }
 
     function toDocumentSymbol(symbol: UCObjectSymbol): DocumentSymbol {
         let children: DocumentSymbol[] | undefined;
-        if (isStruct(symbol) && !isClass(symbol)) {
+        if (isStruct(symbol)) {
             children = [];
             buildDocumentSymbols(symbol, children);
         }
+
+        const symbolRange = symbol.getRange();
+        const selectionRange = symbol.id.range;
 
         const documentSymbol: DocumentSymbol = {
             name: symbol.id.name.text,
             detail: getSymbolDetail(symbol),
             kind: SymbolKindMap.get(symbol.kind) ?? SymbolKind.Null,
             tags: getSymbolTags(symbol),
-            range: symbol.getRange(),
-            selectionRange: symbol.id.range,
+            range: symbolRange,
+            selectionRange: selectionRange,
             children,
         };
         return documentSymbol;

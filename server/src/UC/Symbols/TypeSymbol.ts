@@ -695,6 +695,10 @@ export function hasDefinedBaseType(type: ITypeSymbol & { baseType?: ITypeSymbol 
     return typeof type.baseType !== 'undefined';
 }
 
+export function hasModifiers(symbol: (ISymbol & { modifiers?: ModifierFlags })): symbol is ISymbol & { modifiers: ModifierFlags } {
+    return typeof symbol.modifiers !== 'undefined';
+}
+
 export function isSymbol(symbol: ISymbol): symbol is ISymbol {
     return typeof symbol.kind !== 'undefined';
 }
