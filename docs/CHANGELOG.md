@@ -1,6 +1,6 @@
 # UnrealScript Language Service
 
-## Next
+## 0.6.0
 
 - Implemented [LSP Semantic-Tokens #137](https://github.com/EliotVU/UnrealScript-Language-Service/issues/137) (References to a class will now be highlighted as such even where the tmLanguage cannot determine the identifier's type)
   - ![image](https://user-images.githubusercontent.com/808593/211020346-38724ace-2fbe-4d92-b68c-69640ded824f.png)

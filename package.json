@@ -2,7 +2,7 @@
     "name": "uc",
     "description": "UnrealScript Language support",
     "displayName": "UnrealScript",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "author": {
         "name": "Eliot van Uytfanghe",
         "url": "https://EliotVU.com"
@@ -37,17 +37,17 @@
         "syntaxes": "file:syntaxes"
     },
     "devDependencies": {
-        "@tsconfig/recommended": "^1.0.1",
-        "@types/node": "^18.11.16",
-        "@typescript-eslint/eslint-plugin": "^5.46.1",
-        "@typescript-eslint/parser": "^5.46.1",
+        "@tsconfig/recommended": "^1.0.2",
+        "@types/node": "^18.11.18",
+        "@typescript-eslint/eslint-plugin": "^5.49.0",
+        "@typescript-eslint/parser": "^5.49.0",
         "antlr4ts-cli": "0.5.0-alpha.4",
         "copy-webpack-plugin": "^11.0.0",
-        "eslint": "^8.29.0",
+        "eslint": "^8.32.0",
         "gulp": "^4.0.2",
         "js-yaml": "^4.1.0",
         "merge-options": "^3.0.4",
-        "rimraf": "^3.0.2",
+        "rimraf": "^4.1.2",
         "ts-loader": "^9.4.2",
         "ts-node": "^10.9.1",
         "tsconfig-paths-webpack-plugin": "^4.0.0",
