@@ -1,19 +1,44 @@
 import {
-    Range, SemanticTokenModifiers, SemanticTokens, SemanticTokensBuilder, SemanticTokenTypes
+    Range,
+    SemanticTokenModifiers,
+    SemanticTokens,
+    SemanticTokensBuilder,
+    SemanticTokenTypes,
 } from 'vscode-languageserver/node';
 
 import { UCDocument } from './document';
 import {
-    IExpression, UCArrayCountExpression, UCBaseOperatorExpression, UCBinaryOperatorExpression,
-    UCCallExpression, UCConditionalExpression, UCDefaultMemberCallExpression,
-    UCDefaultStructLiteral, UCElementAccessExpression, UCIdentifierLiteralExpression, UCMemberExpression, UCMetaClassExpression,
-    UCNameOfExpression, UCObjectLiteral, UCParenthesizedExpression, UCPredefinedAccessExpression,
-    UCPropertyAccessExpression, UCSizeOfLiteral, UCSuperExpression
+    IExpression,
+    UCArrayCountExpression,
+    UCBaseOperatorExpression,
+    UCBinaryOperatorExpression,
+    UCCallExpression,
+    UCConditionalExpression,
+    UCDefaultMemberCallExpression,
+    UCDefaultStructLiteral,
+    UCElementAccessExpression,
+    UCIdentifierLiteralExpression,
+    UCMemberExpression,
+    UCMetaClassExpression,
+    UCNameOfExpression,
+    UCObjectLiteral,
+    UCParenthesizedExpression,
+    UCPredefinedAccessExpression,
+    UCPropertyAccessExpression,
+    UCSizeOfLiteral,
+    UCSuperExpression,
 } from './expressions';
 import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from './statements';
 import {
-    Identifier, isField, isFunction, ISymbol, MethodFlags, ModifierFlags, UCObjectTypeSymbol,
-    UCSymbolKind, UCTypeKind, UCTypeSymbol
+    Identifier,
+    isField,
+    isFunction,
+    ISymbol,
+    MethodFlags,
+    ModifierFlags,
+    UCObjectTypeSymbol,
+    UCSymbolKind,
+    UCTypeKind,
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
@@ -32,7 +57,12 @@ export const TokenTypes = [
     SemanticTokenTypes.string,
     SemanticTokenTypes.operator,
     SemanticTokenTypes.event,
+    TokenTypesExtended.archetype
 ];
+
+const enum TokenTypesExtended {
+    archetype = "archetype",
+}
 
 export const TokenModifiers = [
     SemanticTokenModifiers.declaration,
@@ -42,7 +72,7 @@ export const TokenModifiers = [
     SemanticTokenModifiers.deprecated,
     SemanticTokenModifiers.defaultLibrary,
     TokenModifiersExtended.intrinsic,
-    TokenModifiersExtended.native
+    TokenModifiersExtended.native,
 ];
 
 const enum TokenModifiersExtended {
@@ -65,6 +95,7 @@ export const TokenTypesMap = {
     [SemanticTokenTypes.string]: 11,
     [SemanticTokenTypes.operator]: 12,
     [SemanticTokenTypes.event]: 13,
+    [TokenTypesExtended.archetype]: 14,
 };
 
 export const TokenModifiersMap = {
@@ -93,8 +124,7 @@ export const SymbolToTokenTypeIndexMap = {
     [UCSymbolKind.Parameter]: TokenTypesMap[SemanticTokenTypes.parameter],
     [UCSymbolKind.Local]: TokenTypesMap[SemanticTokenTypes.variable],
     [UCSymbolKind.Const]: TokenTypesMap[SemanticTokenTypes.property],
-    // TODO: Custom type for archetypes?
-    [UCSymbolKind.Archetype]: TokenTypesMap[SemanticTokenTypes.property],
+    [UCSymbolKind.Archetype]: TokenTypesMap[TokenTypesExtended.archetype],
 };
 
 export const TypeToTokenTypeIndexMap = {
@@ -143,8 +173,11 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
                 }
                 if (symbol.modifiers & ModifierFlags.Intrinsic) {
                     modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.defaultLibrary];
+                    modifiers |= 1 << TokenModifiersMap[TokenModifiersExtended.intrinsic];
                 }
-
+                if (symbol.modifiers & ModifierFlags.Native) {
+                    modifiers |= 1 << TokenModifiersMap[TokenModifiersExtended.native];
+                }
                 if (isFunction(symbol)) {
                     if (symbol.specifiers & MethodFlags.Static) {
                         modifiers |= 1 << TokenModifiersMap[SemanticTokenModifiers.static];
