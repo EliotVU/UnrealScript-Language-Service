@@ -1,0 +1,10 @@
+{
+    "name": "unrealscript-tmlanguage",
+    "version": "0.6.0",
+    "description": "",
+    "author": "Eliot van Uytfanghe",
+    "license": "MIT",
+    "devDependencies": {
+        "js-yaml-loader": "^1.2.2"
+    }
+}

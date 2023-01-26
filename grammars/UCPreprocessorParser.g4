@@ -20,7 +20,7 @@ options {
 	filePath: string;
 
 	getSymbolValue(symbolName: string): IMacroSymbol | undefined {
-		return this.currentSymbols.get(symbolName) || UCPreprocessorParser.globalSymbols.get(symbolName);
+		return this.currentSymbols.get(symbolName) ?? UCPreprocessorParser.globalSymbols.get(symbolName);
 	}
 
 	getCurrentState(): boolean {

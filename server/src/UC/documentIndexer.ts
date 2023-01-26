@@ -1,7 +1,8 @@
 import { UCDocument } from './document';
 import {
-    UCClassSymbol, UCDefaultPropertiesBlock, UCMethodSymbol, UCObjectSymbol, UCParamSymbol,
-    UCReplicationBlock, UCStateSymbol, UCStructSymbol
+    ContextInfo, isArchetypeSymbol, isParamSymbol, isStruct, UCClassSymbol,
+    UCDefaultPropertiesBlock, UCEnumSymbol, UCMethodSymbol, UCReplicationBlock,
+    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
@@ -9,63 +10,66 @@ import { DefaultSymbolWalker } from './symbolWalker';
  * Will initiate the indexing of all struct symbols that contain a block.
  * The indexing of a block is handled separately here so that we can resolve recursive dependencies within blocks.
  */
-export class DocumentIndexer extends DefaultSymbolWalker {
-	constructor(private document: UCDocument) {
-		super();
-	}
+export class DocumentIndexer extends DefaultSymbolWalker<undefined> {
+    constructor(private document: UCDocument) {
+        super();
+    }
 
-	visitStructBase(symbol: UCStructSymbol) {
-		for (let child = symbol.children; child; child = child.next) {
-			if (child instanceof UCStructSymbol) {
-				child.accept<any>(this);
-			}
-		}
-		return symbol;
-	}
+    visitStructBase(symbol: UCStructSymbol) {
+        for (let child = symbol.children; child; child = child.next) {
+            if (isStruct(child)) {
+                child.accept(this);
+            }
+        }
+    }
 
-	visitClass(symbol: UCClassSymbol) {
-		return this.visitStructBase(symbol);
-	}
+    visitEnum(_symbol: UCEnumSymbol) { return; }
+	visitScriptStruct(symbol: UCScriptStructSymbol) {
+        this.visitStructBase(symbol);
+    }
 
-	visitState(symbol: UCStateSymbol) {
-		if (symbol.block) {
-			symbol.block.index(this.document, symbol);
-		}
-		return this.visitStructBase(symbol);
-	}
+    visitClass(symbol: UCClassSymbol) {
+        this.visitStructBase(symbol);
+    }
 
-	visitMethod(symbol: UCMethodSymbol) {
-		if (symbol.block) {
-			symbol.block.index(this.document, symbol);
-		}
+    visitState(symbol: UCStateSymbol) {
+        this.visitStructBase(symbol);
 
-		for (let child = symbol.children; child; child = child.next) {
-			// Parameter?
-			if (child instanceof UCParamSymbol && child.defaultExpression) {
-				child.defaultExpression.index(this.document, symbol);
-			}
-		}
-		return symbol;
-	}
+        if (symbol.block) {
+            symbol.block.index(this.document, symbol);
+        }
+    }
 
-	visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
-		if (symbol.block) {
-			symbol.block.index(this.document, symbol);
-		}
-		return this.visitStructBase(symbol);
-	}
+    visitMethod(symbol: UCMethodSymbol) {
+        for (let child = symbol.children; child; child = child.next) {
+            // Parameter?
+            if (child && isParamSymbol(child) && child.defaultExpression) {
+                const type = child.getType();
+                const context: ContextInfo | undefined = {
+                    contextType: type
+                };
+                child.defaultExpression.index(this.document, symbol, context);
+            }
+        }
 
-	visitReplicationBlock(symbol: UCReplicationBlock) {
-		if (symbol.block) {
-			symbol.block.index(this.document, symbol);
-		}
-		return symbol;
-	}
+        if (symbol.block) {
+            symbol.block.index(this.document, symbol);
+        }
+    }
 
-	visitObjectSymbol(symbol: UCObjectSymbol) {
-		if (symbol.block) {
-			symbol.block.index(this.document, symbol.super || symbol);
-		}
-		return this.visitStructBase(symbol);
-	}
+    visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
+        if (symbol.block) {
+            symbol.block.index(this.document, symbol);
+        }
+
+        if (isArchetypeSymbol(symbol.default)) {
+            symbol.default.index(this.document, symbol.default);
+        }
+    }
+
+    visitReplicationBlock(symbol: UCReplicationBlock) {
+        if (symbol.block) {
+            symbol.block.index(this.document, symbol);
+        }
+    }
 }

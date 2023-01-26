@@ -1,15 +1,16 @@
 import { performance } from 'perf_hooks';
 import { Subject } from 'rxjs';
+import { Location } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
 import { EAnalyzeOption, UCLanguageServerSettings } from '../settings';
 import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
 import { DocumentParseData, UCDocument } from './document';
 import { DocumentIndexer } from './documentIndexer';
-import { Name, toName } from './names';
+import { Name, toName } from './name';
 import {
-    addHashedSymbol, ISymbolReference, ObjectsTable, TRANSIENT_PACKAGE, UCEnumMemberSymbol,
-    UCPackage, UCTypeFlags
+    addHashedSymbol, ISymbol, ObjectsTable, SymbolReference, TRANSIENT_PACKAGE, UCEnumMemberSymbol,
+    UCPackage, UCSymbolKind
 } from './Symbols';
 
 export const documentsByPathMap = new Map<string, UCDocument>();
@@ -66,7 +67,7 @@ export function applyMacroSymbols(symbols?: { [key: string]: string }) {
     if (symbols) {
         // Apply our custom-macros as global symbols (accessable in any uc file).
         const entries = Object.entries<string>(symbols);
-        for (let [key, value] of entries) {
+        for (const [key, value] of entries) {
             UCPreprocessorParser.globalSymbols.set(key.toLowerCase(), { text: value });
         }
     }
@@ -84,40 +85,38 @@ export function indexDocument(document: UCDocument, text?: string): DocumentPars
         const parseData = document.build(text);
         document.hasBeenIndexed = true;
         const start = performance.now();
-        if (document.class) {
-            try {
-                document.class.index(document, document.class);
-            } catch (err) {
-                console.error(
-                    `An error was thrown while indexing document: "${document.uri}"`,
-                    err
-                );
+        try {
+            if (document.class) {
+                document.getSymbols().forEach(s => s.index(document, document.class!));
             }
+        } catch (err) {
+            console.error(
+                `(symbol index error) in document "${document.uri}"`,
+                err
+            );
         }
         console.info(document.fileName + ': indexing time ' + (performance.now() - start));
         pendingIndexedDocuments.push(document);
         return parseData;
     } catch (err) {
-        console.error(`An error occurred during the indexation of document ${document.uri}`, err);
+        console.error(`(index error) in document ${document.uri}`, err);
     }
 }
 
 // To be initiated after we have indexed all dependencies, so that deep recursive context references can be resolved.
 function postIndexDocument(document: UCDocument) {
-    if (document.class) {
-        try {
-            const indexer = new DocumentIndexer(document);
-            document.class.accept<any>(indexer);
-        } catch (err) {
-            console.error(
-                `An error was thrown while post indexing document: "${document.uri}"`,
-                err
-            );
-        }
+    try {
+        const indexer = new DocumentIndexer(document);
+        indexer.visitDocument(document);
+    } catch (err) {
+        console.error(
+            `(post-index error) in document "${document.uri}"`,
+            err
+        );
     }
 }
 
-export function queuIndexDocument(document: UCDocument, text?: string): DocumentParseData | undefined {
+export function queueIndexDocument(document: UCDocument, text?: string): DocumentParseData | undefined {
     const parseData = indexDocument(document, text);
     if (pendingIndexedDocuments) {
         const startTime = performance.now();
@@ -132,19 +131,19 @@ export function queuIndexDocument(document: UCDocument, text?: string): Document
     return parseData;
 }
 
-function parsePackageNameInDir(dir: string): string {
+function parsePackageNameInDir(dir: string): string | undefined {
     const directories = dir.split(/\\|\//);
     for (let i = directories.length - 1; i >= 0; --i) {
         if (i > 0 && directories[i].toLowerCase() === 'classes') {
             return directories[i - 1];
         }
     }
-    return '';
+    return undefined;
 }
 
 export function getPackageByDir(dir: string): UCPackage {
     const pkgNameStr = parsePackageNameInDir(dir);
-    if (!pkgNameStr) {
+    if (typeof pkgNameStr === 'undefined') {
         return TRANSIENT_PACKAGE;
     }
     return createPackage(pkgNameStr);
@@ -152,7 +151,7 @@ export function getPackageByDir(dir: string): UCPackage {
 
 export function createPackage(pkgNameStr: string): UCPackage {
     const pkgName = toName(pkgNameStr);
-    let pkg = ObjectsTable.getSymbol<UCPackage>(pkgName, UCTypeFlags.Package);
+    let pkg = ObjectsTable.getSymbol<UCPackage>(pkgName, UCSymbolKind.Package);
     if (!pkg) {
         pkg = new UCPackage(pkgName);
         addHashedSymbol(pkg);
@@ -190,18 +189,34 @@ export function getDocumentByURI(uri: string): UCDocument | undefined {
     return document;
 }
 
+/** Returns a mapped document by name (excluding the extension, unless it is a .uci file) */
 export function getDocumentById(id: Name): UCDocument | undefined {
     return documentsMap.get(id.hash);
 }
 
-export const IndexedReferencesMap = new Map<number, Set<ISymbolReference>>();
+export const IndexedReferencesMap = new Map<number, Set<SymbolReference>>();
 export function getIndexedReferences(hash: number) {
     return IndexedReferencesMap.get(hash);
 }
 
+export function indexReference(symbol: ISymbol, document: UCDocument, location: Location): SymbolReference {
+    const ref: SymbolReference = { location };
+    document.indexReference(symbol, ref);
+    return ref;
+}
+
+export function indexDeclarationReference(symbol: ISymbol, document: UCDocument): SymbolReference {
+    const ref: SymbolReference = {
+        location: Location.create(document.uri, symbol.id.range),
+        inAssignment: true
+    };
+    document.indexReference(symbol, ref);
+    return ref;
+}
+
 const EnumMemberMap = new Map<number, UCEnumMemberSymbol>();
-export function getEnumMember(enumName: Name): UCEnumMemberSymbol | undefined {
-    return EnumMemberMap.get(enumName.hash);
+export function getEnumMember(enumMemberName: Name): UCEnumMemberSymbol | undefined {
+    return EnumMemberMap.get(enumMemberName.hash);
 }
 export function setEnumMember(enumMember: UCEnumMemberSymbol) {
     EnumMemberMap.set(enumMember.getName().hash, enumMember);

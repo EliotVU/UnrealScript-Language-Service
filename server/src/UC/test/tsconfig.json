@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+        "strict": false,
+        "strictNullChecks": false,
+        "sourceMap": true
+    },
+    "include": [
+        "**/*.test.ts"
+    ]
+}

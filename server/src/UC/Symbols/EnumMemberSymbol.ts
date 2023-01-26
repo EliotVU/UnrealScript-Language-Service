@@ -1,33 +1,37 @@
-import { CompletionItemKind, SymbolKind } from 'vscode-languageserver-types';
-
 import { SymbolWalker } from '../symbolWalker';
-import { UCFieldSymbol, UCTypeFlags } from './';
+import { ModifierFlags, UCFieldSymbol, UCSymbolKind, UCTypeKind } from './';
 
 export class UCEnumMemberSymbol extends UCFieldSymbol {
+    override kind = UCSymbolKind.EnumTag;
+	override modifiers = ModifierFlags.ReadOnly;
+
 	// Unrealscript only supports (automatic) byte values.
-	public value!: number;
+	public value: number;
 
-	getKind(): SymbolKind {
-		return SymbolKind.EnumMember;
+	override getTypeKind() {
+		return UCTypeKind.Byte;
 	}
 
-	getTypeFlags() {
-		return UCTypeFlags.Byte;
+    protected override getTypeHint(): string {
+        if (this.modifiers & ModifierFlags.Intrinsic) {
+			return '(intrinsic enum tag)';
+		}
+
+        if (this.modifiers & ModifierFlags.Generated) {
+            return '(generated enum tag)';
+        }
+        return '(enum tag)';
+    }
+
+	protected override getTypeKeyword(): string {
+		return this.getTypeHint();
 	}
 
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.EnumMember;
+	override getTooltip(): string {
+        return `${this.getTypeKeyword()} ${this.getPath()} = ${this.value}`;
 	}
 
-	protected getTypeKeyword(): string {
-		return '(enum member)';
-	}
-
-	getTooltip(): string {
-		return `${this.getTypeKeyword()} ${this.getPath()} = ${this.value}`;
-	}
-
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitEnumMember(this);
 	}
 }

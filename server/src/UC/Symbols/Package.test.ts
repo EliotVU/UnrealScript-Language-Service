@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 
-import { toName } from '../names';
-import { DEFAULT_RANGE, UCClassSymbol, UCTypeFlags } from './';
+import { toName } from '../name';
+import { DEFAULT_RANGE, UCClassSymbol, UCSymbolKind } from './';
 import {
     addHashedSymbol, getSymbolHash, ObjectsTable, removeHashedSymbol, UCPackage
 } from './Package';
@@ -34,11 +34,11 @@ describe('Test ObjectsTable\'s state', () => {
 
     it('hash lookup', () => {
         const lookupHash = testName.hash;
-        const classSymbolGet = ObjectsTable.getSymbol<UCClassSymbol>(lookupHash, UCTypeFlags.Class);
+        const classSymbolGet = ObjectsTable.getSymbol<UCClassSymbol>(lookupHash, UCSymbolKind.Class);
         expect(typeof classSymbolGet, 'Is class defined?')
             .to.not.equal('undefined');
 
-        const packageSymbolGet = ObjectsTable.getSymbol<UCPackage>(lookupHash, UCTypeFlags.Package);
+        const packageSymbolGet = ObjectsTable.getSymbol<UCPackage>(lookupHash, UCSymbolKind.Package);
         expect(typeof packageSymbolGet, 'is package defined?')
             .to.not.equal('undefined');
     });

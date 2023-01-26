@@ -1,33 +1,43 @@
-import { Location, Position, SymbolKind } from 'vscode-languageserver-types';
+import { Location, Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { Name } from '../names';
+import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
-import { UCStructSymbol, UCSymbolReference, UCTypeFlags } from './';
+import {
+    ModifierFlags, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
+} from './';
 
 export class UCStateSymbol extends UCStructSymbol {
+    static readonly allowedKindsMask = 1 << UCSymbolKind.Const
+        | 1 << UCSymbolKind.Property
+        | 1 << UCSymbolKind.Function;
+
+    override kind = UCSymbolKind.State;
+    override modifiers = ModifierFlags.ReadOnly;
+
+    declare public extendsType?: UCObjectTypeSymbol;
+
 	public overriddenState?: UCStateSymbol;
-	public ignoreRefs?: UCSymbolReference[];
+	public ignoreRefs?: UCObjectTypeSymbol[];
 
-	getKind(): SymbolKind {
-		return SymbolKind.Namespace;
+	override getTypeKind() {
+		return UCTypeKind.Object;
 	}
 
-	getTypeFlags() {
-		return UCTypeFlags.State;
-	}
+    protected override getTypeHint(): string | undefined {
+		if (this.overriddenState) {
+            return '(override)';
+		}
+    }
 
-	getTypeKeyword(): string {
+	override getTypeKeyword(): string {
 		return 'state';
 	}
 
-	getTooltip(): string {
+	override getTooltip(): string {
 		const text: Array<string | undefined> = [];
 
-		if (this.overriddenState) {
-			text.push('(override)');
-		}
-
+        text.push(this.getTypeHint());
 		const modifiers = this.buildModifiers();
 		text.push(...modifiers);
 
@@ -37,7 +47,18 @@ export class UCStateSymbol extends UCStructSymbol {
 		return text.filter(s => s).join(' ');
 	}
 
-	getContainedSymbolAtPos(position: Position) {
+    override getDocumentation(): string | undefined {
+		const doc = super.getDocumentation();
+		if (doc) {
+			return doc;
+		}
+
+		if (this.overriddenState) {
+			return this.overriddenState.getDocumentation();
+		}
+	}
+
+	override getContainedSymbolAtPos(position: Position) {
 		if (this.ignoreRefs) {
 			const symbol = this.ignoreRefs.find(ref => !!(ref.getSymbolAtPos(position)));
 			if (symbol) {
@@ -47,33 +68,43 @@ export class UCStateSymbol extends UCStructSymbol {
 		return super.getContainedSymbolAtPos(position);
 	}
 
-	findSuperSymbol(id: Name, kind?: SymbolKind) {
-		const symbol = super.findSuperSymbol(id, kind) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id, kind);
+	override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind) {
+		const symbol = super.findSuperSymbol<T>(id, kind) ?? (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
 		return symbol;
 	}
 
-	index(document: UCDocument, context: UCStructSymbol) {
-		// Look for an overridden state, e.g. "state Pickup {}" would override "Pickup" of "Pickup.uc".
-		if (!this.super && context.super) {
-			// TODO: If truthy, should "extends ID" be disallowed? Need to investigate how UMake handles this situation.
-			const overriddenState = context.super.findSuperSymbol(this.getName());
-			if (overriddenState instanceof UCStateSymbol) {
-				document.indexReference(overriddenState, {
-					location: Location.create(document.uri, this.id.range)
-				});
-				this.overriddenState = overriddenState;
-				this.super = overriddenState;
-			}
-		}
+	override index(document: UCDocument, context: UCStructSymbol) {
+        super.index(document, context);
 
-		super.index(document, context);
 		if (this.ignoreRefs) for (const ref of this.ignoreRefs) {
 			const symbol = this.findSuperSymbol(ref.getName());
-			symbol && ref.setReference(symbol, document);
+			symbol && ref.setRef(symbol, document);
 		}
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+    protected override indexSuper(document: UCDocument, context: UCStructSymbol) {
+        if (context.super) {
+            // Look for an overridden state, e.g. "state Pickup {}" would override "Pickup" of "Pickup.uc".
+			const symbolOverride = context.super.findSuperSymbol<UCStateSymbol>(this.getName(), UCSymbolKind.State);
+			if (symbolOverride) {
+				document.indexReference(symbolOverride, {
+					location: Location.create(document.uri, this.id.range)
+				});
+				this.overriddenState = symbolOverride;
+				this.super = symbolOverride;
+			}
+
+            if (this.extendsType && this.extendsType.id.name !== this.id.name) {
+                const symbolSuper = context.findSuperSymbol<UCStateSymbol>(this.extendsType.id.name, UCSymbolKind.State);
+                if (symbolSuper) {
+                    this.extendsType.setRef(symbolSuper, document, this.extendsType.id.range);
+                    this.super ??= symbolSuper;
+                }
+            }
+		}
+    }
+
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitState(this);
 	}
 }

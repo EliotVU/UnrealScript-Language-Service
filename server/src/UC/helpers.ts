@@ -1,20 +1,42 @@
 import { ParserRuleContext, Token, TokenStream } from 'antlr4ts';
-import {
-    CodeAction, DocumentHighlight, DocumentHighlightKind, Hover, Location, Position, Range,
-    SymbolInformation
-} from 'vscode-languageserver';
+import { Hover, Position, Range } from 'vscode-languageserver';
 
 import { UCLexer } from './antlr/generated/UCLexer';
 import { UCDocument } from './document';
-import { DocumentCodeActionsBuilder } from './documentCodeActionsBuilder';
-import { getDocumentByURI, getIndexedReferences } from './indexer';
-import { ISymbol, IWithReference, UCFieldSymbol, UCStructSymbol, UCSymbol } from './Symbols';
+import { getDocumentById, getDocumentByURI } from './indexer';
+import {
+    getOuter, isField, ISymbol, supportsRef, UCClassSymbol, UCObjectSymbol, UCSymbolKind
+} from './Symbols';
 
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
+
+export function rangeAtStopFromBound(token: Token): Range {
+    const length = token.stopIndex - token.startIndex + 1;
+    const line = token.line - 1;
+    const position: Position = {
+        line,
+        character: token.charPositionInLine + length
+    };
+    return {
+        start: position,
+        end: position
+    };
+}
 
 export function rangeFromBound(token: Token): Range {
     const length = token.stopIndex - token.startIndex + 1;
     const line = token.line - 1;
+    if (length === 0) {
+        const position: Position = {
+            line,
+            character: token.charPositionInLine + length
+        };
+
+        return {
+            start: position,
+            end: position
+        };
+    }
     const start: Position = {
         line,
         character: token.charPositionInLine
@@ -80,7 +102,7 @@ export function intersectsWithRange(position: Position, range: Range): boolean {
 
 export function getDocumentSymbol(document: UCDocument, position: Position): ISymbol | undefined {
     const symbols = document.getSymbols();
-    for (let symbol of symbols) {
+    for (const symbol of symbols) {
         const child = symbol.getSymbolAtPos(position);
         if (child) {
             return child;
@@ -94,8 +116,8 @@ export function getDocumentSymbol(document: UCDocument, position: Position): ISy
  **/
 export function getDocumentContext(document: UCDocument, position: Position): ISymbol | undefined {
     const symbols = document.getSymbols();
-    for (let symbol of symbols) {
-        if (symbol instanceof UCFieldSymbol) {
+    for (const symbol of symbols) {
+        if (isField(symbol)) {
             const child = symbol.getCompletionContext(position);
             if (child) {
                 return child;
@@ -107,106 +129,65 @@ export function getDocumentContext(document: UCDocument, position: Position): IS
 
 export async function getSymbolTooltip(uri: string, position: Position): Promise<Hover | undefined> {
     const document = getDocumentByURI(uri);
-    const ref = document && getDocumentSymbol(document, position);
-    if (ref && ref instanceof UCSymbol) {
-        const contents = [{ language: 'unrealscript', value: ref.getTooltip() }];
-
-        const documentation = ref.getDocumentation();
-        if (documentation) {
-            contents.push({ language: 'unrealscript', value: documentation });
-        }
-
-        return {
-            contents,
-            range: ref.id.range
-        };
-    }
-}
-
-export async function getSymbolDefinition(uri: string, position: Position): Promise<ISymbol | undefined> {
-    const document = getDocumentByURI(uri);
-    const ref = document && getDocumentSymbol(document, position) as unknown as IWithReference;
-    if (!ref) {
+    const symbol = document && getDocumentSymbol(document, position);
+    if (!symbol) {
         return undefined;
     }
 
-    const symbol = ref.getRef?.();
-    if (symbol instanceof UCSymbol) {
-        return symbol;
+    const symbolRef = supportsRef(symbol)
+        ? symbol.getRef()
+        : symbol;
+
+    const tooltipText = symbolRef?.getTooltip();
+    if (!tooltipText) {
+        return undefined;
     }
-    return ref;
+
+    const contents = [{ language: 'unrealscript', value: tooltipText }];
+    if (symbol instanceof UCObjectSymbol) {
+        const documentation = symbol.getDocumentation();
+        if (documentation) {
+            contents.push({ language: 'unrealscript', value: documentation });
+        }
+    }
+    return {
+        contents,
+        range: symbol.id.range
+    };
 }
 
-export async function getSymbol(uri: string, position: Position): Promise<ISymbol | undefined> {
+export function getSymbolDefinition(uri: string, position: Position): ISymbol | undefined {
+    const document = getDocumentByURI(uri);
+    const symbol = document && getDocumentSymbol(document, position);
+    if (!symbol) {
+        return undefined;
+    }
+
+    const symbolRef = supportsRef(symbol)
+        ? symbol.getRef()
+        : symbol;
+    return symbolRef;
+}
+
+export function getSymbol(uri: string, position: Position): ISymbol | undefined {
     const document = getDocumentByURI(uri);
     return document && getDocumentSymbol(document, position);
 }
 
-export async function getSymbols(uri: string): Promise<SymbolInformation[] | undefined> {
-    const document = getDocumentByURI(uri);
-    if (!document) {
-        return undefined;
-    }
+export function getSymbolDocument(symbol: ISymbol): UCDocument | undefined {
+    const documentClass = symbol && (symbol.kind === UCSymbolKind.Class
+        ? (symbol as UCClassSymbol)
+        : getOuter<UCClassSymbol>(symbol, UCSymbolKind.Class));
 
-    const contextSymbols: SymbolInformation[] = document.getSymbols().map(s => s.toSymbolInfo());
-    const buildSymbolsList = (container: UCStructSymbol) => {
-        for (let child = container.children; child; child = child.next) {
-            contextSymbols.push(child.toSymbolInfo());
-            if (child instanceof UCStructSymbol) {
-                buildSymbolsList(child as UCStructSymbol);
-            }
-        }
-    };
-
-    for (let symbol of contextSymbols) {
-        if (symbol instanceof UCStructSymbol) {
-            buildSymbolsList(symbol);
-        }
-    }
-    return contextSymbols;
-}
-
-export async function getSymbolReferences(uri: string, position: Position): Promise<Location[] | undefined> {
-    const symbol = await getSymbolDefinition(uri, position);
-    if (!symbol) {
-        return undefined;
-    }
-
-    const references = getIndexedReferences(symbol.getHash());
-    if (!references) {
-        return undefined;
-    }
-    return Array.from(references.values())
-        .map(ref => ref.location);
-}
-
-export async function getSymbolHighlights(uri: string, position: Position): Promise<DocumentHighlight[] | undefined> {
-    const symbol = await getSymbolDefinition(uri, position);
-    if (!symbol) {
-        return undefined;
-    }
-
-    const references = getIndexedReferences(symbol.getHash());
-    if (!references) {
-        return undefined;
-    }
-
-    return Array
-        .from(references.values())
-        .filter(loc => loc.location.uri === uri)
-        .map(ref => DocumentHighlight.create(
-            ref.location.range,
-            ref.inAssignment
-                ? DocumentHighlightKind.Write
-                : DocumentHighlightKind.Read
-        ));
+    const document = documentClass && getDocumentById(documentClass.id.name);
+    return document;
 }
 
 export function getIntersectingContext(context: ParserRuleContext, position: Position): ParserRuleContext | undefined {
     if (!intersectsWith(rangeFromCtx(context), position)) {
         return undefined;
     }
-    if (context.children) for (let child of context.children) {
+    if (context.children) for (const child of context.children) {
         if (child instanceof ParserRuleContext) {
             const ctx = getIntersectingContext(child, position);
             if (ctx) {
@@ -217,18 +198,21 @@ export function getIntersectingContext(context: ParserRuleContext, position: Pos
     return context;
 }
 
-export function getCaretTokenIndexFromStream(stream: TokenStream, position: Position): number {
+export function getCaretTokenFromStream(stream: TokenStream, caret: Position): Token | undefined {
+    // ANTLR lines begin at 1
+    const carretLine = caret.line + 1;
+    const carretColumn = caret.character > 0 ? caret.character - 1 : 0;
     let i = 0;
     let token: Token | undefined = undefined;
     while (i < stream.size && (token = stream.get(i))) {
-        if (position.line === token.line - 1
-            && position.character >= token.charPositionInLine
-            && position.character < token.charPositionInLine + (token.stopIndex - token.startIndex + 1)) {
-            return token.tokenIndex;
+        if (carretLine === token.line
+            && token.charPositionInLine <= carretColumn
+            && token.charPositionInLine + (token.stopIndex - token.startIndex) >= carretColumn) {
+            return token;
         }
         ++i;
     }
-    return 0;
+    return undefined;
 }
 
 export function backtrackFirstToken(stream: TokenStream, startTokenIndex: number): Token | undefined {
@@ -251,10 +235,10 @@ export function backtrackFirstTokenOfType(stream: TokenStream, type: number, sta
     if (startTokenIndex >= stream.size) {
         return undefined;
     }
-    let i = startTokenIndex;
+    let i = startTokenIndex + 1;
     while (--i) {
         const token = stream.get(i);
-        if (token.channel !== UCLexer.DEFAULT_TOKEN_CHANNEL) {
+        if (token.type <= UCLexer.ID) {
             continue;
         }
 
@@ -262,22 +246,6 @@ export function backtrackFirstTokenOfType(stream: TokenStream, type: number, sta
             return undefined;
         }
         return token;
-    }
-    return undefined;
-}
-
-export async function getCodeActions(uri: string, range: Range): Promise<CodeAction[] | undefined> {
-    const document = getDocumentByURI(uri);
-    if (!document) {
-        return undefined;
-    }
-
-    const position = range.start;
-    const symbol = getDocumentSymbol(document, position);
-    if (symbol) {
-        const builder = new DocumentCodeActionsBuilder(document);
-        symbol.accept(builder);
-        return builder.codeActions;
     }
     return undefined;
 }

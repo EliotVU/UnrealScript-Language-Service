@@ -28,7 +28,7 @@ export interface IDiagnosticTemplate {
 	message: IDiagnosticMessage;
 	args?: string[];
 
-	custom?: { [key: string]: any, unnecessary?: {} };
+	custom?: { [key: string]: any };
 }
 
 export class DiagnosticCollection {
@@ -37,6 +37,10 @@ export class DiagnosticCollection {
 	add(template: IDiagnosticTemplate) {
 		this.items.push(template);
 	}
+
+    count(): number {
+        return this.items.length;
+    }
 
 	map(): Diagnostic[] {
 		return this.items.map(template => {

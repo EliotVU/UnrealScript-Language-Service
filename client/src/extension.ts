@@ -8,7 +8,7 @@ let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
 	const serverModule = context.asAbsolutePath(
-		path.join('server', 'out', 'server.js')
+		path.join('out', 'server.js')
 	);
 
 	const memoryOption = '--max-old-space-size=8192';

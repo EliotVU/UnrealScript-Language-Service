@@ -1,24 +1,39 @@
 import { Token } from 'antlr4ts';
-import {
-    CompletionItemKind, Position, Range, SymbolInformation, SymbolKind
-} from 'vscode-languageserver-types';
+import { Position, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { intersectsWithRange } from '../helpers';
-import { Name } from '../names';
+import { Name } from '../name';
+import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
-import { Identifier, ISymbol, UCStructSymbol, UCTypeFlags } from './';
+import {
+    getSymbolPathHash, Identifier, ISymbol, IWithIndex, IWithInnerSymbols, UCStructSymbol,
+    UCSymbolKind, UCTypeKind
+} from './';
+import { ContextInfo } from './ISymbol';
 
 export const DEFAULT_POSITION = Position.create(0, 0);
 export const DEFAULT_RANGE = Range.create(DEFAULT_POSITION, DEFAULT_POSITION);
+export const DEFAULT_IDENTIFIER: Identifier = {
+    name: NAME_NONE,
+    range: DEFAULT_RANGE
+} ;
+
+export const enum ContextKind {
+    None,
+    DOT,
+}
 
 /**
- * A symbol build from a AST context.
+ * A symbol built from an AST context.
  */
-export abstract class UCSymbol implements ISymbol {
-	public outer?: ISymbol;
+export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWithIndex {
+    readonly kind: UCSymbolKind = UCSymbolKind.None;
+
+	public outer?: UCObjectSymbol;
 	public description?: Token[];
 
+    // TODO: Clarify id
 	constructor(public readonly id: Identifier) {
 
 	}
@@ -30,42 +45,30 @@ export abstract class UCSymbol implements ISymbol {
 		return this.id.range;
 	}
 
-	getName(): Name {
+    getName(): Name {
 		return this.id.name;
 	}
 
     // Particular use case to index symbol references by outer.
 	getHash(): number {
-		let hash: number = this.id.name.hash;
-		for (var outer = this.outer; outer; outer = outer.outer) {
-			hash = hash ^ (outer.getName().hash >> 4);
-		}
-		return hash;
+		return getSymbolPathHash(this);
 	}
 
 	getPath(): string {
-        const names: Name[] = [this.getName()];
-		for (var outer = this.outer; outer; outer = outer.outer) {
-            names.unshift(outer.getName());
+        const names: string[] = [this.id.name.text];
+		for (let outer = this.outer; outer; outer = outer.outer) {
+            names.unshift(outer.id.name.text);
 		}
 		return names.join('.');
 	}
 
-	getKind(): SymbolKind {
-		return SymbolKind.Field;
-	}
-
-	getTypeFlags() {
-		return UCTypeFlags.Error;
+	getTypeKind() {
+		return UCTypeKind.Error;
 	}
 
 	/** Returns a tooltip for this symbol, usually mirroring the written code, but minimalized and formatted. */
 	getTooltip(): string {
 		return this.getPath();
-	}
-
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Text;
 	}
 
 	getSymbolAtPos(position: Position): ISymbol | undefined {
@@ -77,7 +80,7 @@ export abstract class UCSymbol implements ISymbol {
 	}
 
 	// TODO: Refactor ISymbol to CompletionItem.
-	getCompletionSymbols<C extends ISymbol>(_document: UCDocument, _context: string, _kind?: UCTypeFlags): C[] {
+	getCompletionSymbols<C extends ISymbol>(_document: UCDocument, _context: ContextKind, _kinds?: UCSymbolKind): C[] {
 		return [];
 	}
 
@@ -85,25 +88,25 @@ export abstract class UCSymbol implements ISymbol {
 		return true;
 	}
 
-	index(_document: UCDocument, _context: UCStructSymbol) {}
-
-	getUri(): string {
-		return this.outer instanceof UCSymbol && this.outer.getUri() || '';
-	}
+	index(_document: UCDocument, _context: UCStructSymbol, _info?: ContextInfo) {
+        //
+    }
 
 	getDocumentation(): string | undefined {
 		return this.description?.map(t => t.text!).join('\n');
 	}
 
-	toSymbolInfo(): SymbolInformation {
-		return SymbolInformation.create(
-			this.getName().toString(), this.getKind(),
-			this.getRange(), undefined,
-			this.outer?.getName().toString()
-		);
-	}
-
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visit(this);
 	}
+
+    toString(): string {
+        return this.getPath();
+    }
+}
+
+export class UCEmptySymbol extends UCObjectSymbol {
+    accept<Result>(visitor: SymbolWalker<Result>): void | Result {
+        return;
+    }
 }

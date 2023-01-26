@@ -1,5 +1,33 @@
+// Try to squeeze in all UnrealScript features here, to both stress test the parser and syntax highlighter.
 class Test extends Core.Object
-	native;
+    abstract
+    export exportstructs
+    noexport noexportheader
+    nativereplication nativeonly
+    deprecated
+    transient nontransient
+    nousercreate notplaceable
+    placeable safereplace
+    hidedropdown
+    editinlinenew noteditinlinenew
+    cacheexempt
+    perobjectconfig perobjectlocalized
+    forcescriptorder(false)
+    forcescriptorder(true)
+    instanced
+    hidecategories(name1, name2) showcategories(name1, name2)
+    autocollapsecategories(name1, name2) dontautocollapsecategories(name1, name2)
+    autoexpandcategories(name1, name2) dontsortcategories(name1, name2)
+    collapsecategories(name1, name2) dontcollapsecategories(name1, name2)
+    dllbind(dllName)
+    inherits(cppClassName1, cppClassName2)
+    dependson(Alpha, Beta)
+    implements(InterfaceTest, examples.InterfaceTest)
+    classgroup(name1, name2)
+    classredirect(previousClass2, previousClass2)
+    config(name)
+	native(name) intrinsic
+    ;
 
 var const int CONST_ARRAY[5];
 
@@ -22,6 +50,9 @@ const CONST_BOOL					= true;
 // Test that 0 is not seen as a "falsy" value.
 const CONST_INT1                    = 0;
 const CONST_INT2                    = 1;
+
+// FIXME: UnrealScript's lexer skips over the trailing .05
+// const CONST_INT3                    = 0.4.05;
 
 // To test enum and constant values usage in defaultproperties.
 const DEFAULT_CONST	= 0;
@@ -54,10 +85,13 @@ struct native transient AStruct {
 		var ASubStruct SubInt;
 	}> InlinedSubArray;
 
-	// var DeepStruct DeepStructRef; // Should not be able to find DeepStruct from here.
+    // Should not be able to find DeepStruct from here.
+	var DeepStruct DeepStructRef;
 
-	// FIXME: Cannot find ASubStruct, this worked in the most recent released version!
 	var array<ASubStruct> SubArray;
+
+    // FIXME: Delegate not found if referenced in a struct context.
+    var delegate<DelegateFunction> StructContainedDelegate;
 
 	var Color AColor;
 	var Guid AGuid;
@@ -90,12 +124,12 @@ var pointer defaultPointer; // struct in UC3+
 
 var int 					defaultIntArray[CONST_NUMBER]; const CONST_ARRAYCOUNT = arraycount(defaultIntArray);
 var array<int> 				defaultIntDynamicArray;
+var array<AStruct>          defaultStructArray;
 
-// TODO: Test how the UC compiler handles delegate names that are ambigues with a class.
+// TODO: Test how the UC compiler handles delegate names that are ambiguous with a class.
 // As it currently stands, the delegate is matched with class "Test" instead of function "Test".
-var delegate<Test> 			defaultDelegate;
+var delegate<DelegateFunction> 	defaultDelegate;
 
-// FIXME: Breaks variable highlighting.
 var map{string, float} 		defaultStringToFloatMap;
 var class<Test> 			defaultClassMeta[4];
 var array<class<Test> > 	defaultArrayOfClasses;
@@ -121,6 +155,8 @@ var private{public} native int NativeInt[2], NativeIntTwo[2]{INT};
 var(Category1, Category2) config(Test) string Description;
 
 var int superVar;
+
+delegate DelegateFunction();
 
 native function string const() const;
 
@@ -176,7 +212,7 @@ function AddObj(Object obj) {
 	return;
 }
 
-delegate byte Test() {
+function byte Test() {
 
 	local int i;
 
@@ -252,7 +288,7 @@ delegate byte Test() {
 
 	objClass = class<Test>(DynamicLoadObject("Path", class'Class'));
 	i = i - -i;
-	i = 2.0 * int(0.1 + float(i)*0.225,0.2,1.0);
+	i = 2.0 * int(0.1 + float(i)*0.225, 0.2, 1.0f);
 
 	// Type resolving tests!
 	inputInt(defaultIntArray[0]);
@@ -306,6 +342,21 @@ function byte TestInvalidCode(){
 
 defaultproperties
 {
+    defaultInt=+004
+
+    // comment-test
+    defaultIntDynamicArray(0)={(
+        // comment-test
+    )}
+
+    // comment-test
+
+    defaultStructArray(0)= {(
+        AColor=(R=255 /* comment-test */),
+        // comment-test
+        AVector=(X=0)
+    )}
+
 	defaultIntDynamicArray(DEFAULT_CONST)=1
 	defaultIntDynamicArray(D_Zero)=1
 	defaultIntDynamicArray(D_One)=1
@@ -327,4 +378,8 @@ defaultproperties
 		superVar=0
 	end object
 	defaultTestRef=Test0
+	defaultTestRef=Test'Test0'
+
+    // Verify that non-spaced comments don't break the highlighter.
+    /**/
 }

@@ -2,6 +2,9 @@
     "recommendations": [
         "redhat.vscode-yaml",
         "mike-lischke.vscode-antlr4",
-        "eliotvu.uc"
+        "eliotvu.uc",
+        "pedro-w.tmlanguage",
+        "amodio.tsl-problem-matcher",
+        "rbbit.typescript-hero"
     ]
 }

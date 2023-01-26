@@ -1,26 +1,18 @@
 {
+    "extends": "@tsconfig/recommended/tsconfig.json",
     "compilerOptions": {
-        "module": "commonjs",
-        "target": "es2019",
+        "target": "esnext",
         "lib": [
-            "es2019"
+            "es2021"
         ],
-        "outDir": "out",
-		"rootDir": "src",
+        "plugins": [
+            {
+                "name": "typescript-eslint-language-service"
+            }
+        ],
         "resolveJsonModule": true,
+        "strictBindCallApply": false,
+        "strictPropertyInitialization": false,
+        "sourceMap": true
     },
-    "include": [
-		"src"
-	],
-    "exclude": [
-        "node_modules"
-    ],
-    "references": [
-        {
-            "path": "./client"
-        },
-        {
-            "path": "./server"
-        }
-    ]
 }

@@ -1,24 +1,40 @@
-import { DefaultErrorStrategy, Parser, RecognitionException } from 'antlr4ts';
+import { DefaultErrorStrategy, Parser, RecognitionException, Token } from 'antlr4ts';
 
 import { UCParser } from '../antlr/generated/UCParser';
 
 export class UCErrorStrategy extends DefaultErrorStrategy {
+    protected singleTokenDeletion(recognizer: Parser): Token | undefined {
+        return undefined;
+    }
+
     reportError(recognizer: Parser, e: RecognitionException) {
+        if (!recognizer.context) {
+            return super.reportError(recognizer, e);
+        }
         if (typeof e.expectedTokens === 'undefined') {
-            super.reportError(recognizer, e);
-            return;
+            return super.reportError(recognizer, e);
         }
 
         if (e.expectedTokens.contains(UCParser.SEMICOLON)) {
             const token = this.constructToken(
                 recognizer.inputStream.tokenSource,
                 UCParser.SEMICOLON, ';',
-                recognizer.currentToken
+                recognizer.currentToken,
             );
 
-            const errorNode = recognizer.createErrorNode(recognizer.context, token);
-            recognizer.context.addErrorNode(errorNode);
-        // } else if (e.expectedTokens.contains(UCParser.OPEN_PARENS)) {
+            const node = recognizer.createTerminalNode(recognizer.context, token);
+            recognizer.context.addChild(node);
+        } else if (e.expectedTokens.contains(UCParser.ASSIGNMENT)) {
+            const token = this.constructToken(
+                recognizer.inputStream.tokenSource,
+                UCParser.ASSIGNMENT, '=',
+                recognizer.currentToken,
+            );
+
+            const node = recognizer.createTerminalNode(recognizer.context, token);
+            recognizer.context.addChild(node);
+        }
+        // else if (e.expectedTokens.contains(UCParser.OPEN_PARENS)) {
         //     const openToken = this.constructToken(
         //         recognizer.inputStream.tokenSource,
         //         UCParser.OPEN_PARENS, '(',
@@ -39,7 +55,6 @@ export class UCErrorStrategy extends DefaultErrorStrategy {
         //         recognizer.currentToken
         //     );
         //     recognizer.context.addErrorNode(recognizer.createErrorNode(recognizer.context, closeToken));
-        }
 
         super.reportError(recognizer, e);
     }

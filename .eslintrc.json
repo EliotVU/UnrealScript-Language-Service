@@ -4,6 +4,10 @@
 		"eslint:recommended",
 		"plugin:@typescript-eslint/recommended"
 	],
+    "env": {
+        "node": true,
+        "es2021": true
+    },
 	"settings": {
         "indent": ["warning", 4]
     },

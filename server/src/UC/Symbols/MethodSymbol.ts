@@ -1,30 +1,43 @@
-import { CompletionItemKind, Location, Position, SymbolKind } from 'vscode-languageserver-types';
+import { Location, Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { Name, NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
+import { Name } from '../name';
+import { NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    DEFAULT_RANGE, ISymbol, IWithReference, ParamModifiers, UCParamSymbol, UCStructSymbol, UCSymbol,
-    UCTypeFlags
+    ContextKind, DEFAULT_RANGE, isFunction, ISymbol, ModifierFlags, UCFieldSymbol, UCObjectSymbol,
+    UCParamSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
 } from './';
 
-export enum MethodSpecifiers {
-	None 			= 0x0000,
-	Function 		= 0x0001,
-	Operator 		= 0x0002,
-	PreOperator 	= 0x0004,
-	PostOperator 	= 0x0008,
-	Event 			= 0x0010,
-	Delegate 		= 0x0020,
-	Static 			= 0x0040,
-	Final 			= 0x0080,
+export enum MethodFlags {
+    None = 0x0000,
 
-	OperatorKind 	= Operator | PreOperator | PostOperator,
-	HasKind			= Function | OperatorKind | Event | Delegate
+    Function = 1 << 0,
+    Operator = 1 << 1,
+    PreOperator = 1 << 2,
+    PostOperator = 1 << 3,
+    Event = 1 << 4,
+    Delegate = 1 << 5,
+    Iterator = 1 << 6,
+
+    // Implies Final
+    Static = 1 << 7,
+    Final = 1 << 8,
+
+    OperatorKind = Operator | PreOperator | PostOperator,
+    HasKind = Function | OperatorKind | Event | Delegate,
+
+    NonOverridable = Final || PreOperator,
 }
 
 export class UCMethodSymbol extends UCStructSymbol {
-	public specifiers: MethodSpecifiers = MethodSpecifiers.None;
+    static readonly allowedKindsMask = 1 << UCSymbolKind.Const
+        | 1 << UCSymbolKind.Property/** params and locals */;
+
+    override kind = UCSymbolKind.Function;
+	override modifiers = ModifierFlags.ReadOnly;
+
+	public specifiers: MethodFlags = MethodFlags.None;
 
 	public returnValue?: UCParamSymbol;
 	public overriddenMethod?: UCMethodSymbol;
@@ -37,51 +50,43 @@ export class UCMethodSymbol extends UCStructSymbol {
 	 */
 	public requiredParamsCount?: number;
 
-	isStatic(): boolean {
-		return (this.specifiers & MethodSpecifiers.Static) !== 0;
-	}
+    hasAnySpecifierFlags(flags: MethodFlags): boolean {
+        return (this.specifiers & flags) !== 0;
+    }
 
-	isFinal(): boolean {
-		return (this.specifiers & MethodSpecifiers.Final) !== 0 || this.isStatic();
-	}
-
-	/**
-	 * Returns true if this method is marked as a (binary) operator.
-	 * Beware that this returns false even when the method is a preoperator!
-	 */
-	isOperator(): this is UCBinaryOperatorSymbol {
-		return (this.specifiers & MethodSpecifiers.Operator) !== 0;
-	}
+    isDelegate(): this is UCDelegateSymbol {
+        return (this.specifiers & MethodFlags.Delegate) !== 0;
+    }
 
 	isOperatorKind(): this is UCBaseOperatorSymbol {
-		return (this.specifiers & MethodSpecifiers.OperatorKind) !== 0;
+        return (this.specifiers & MethodFlags.OperatorKind) !== 0;
 	}
 
+    /**
+     * Returns true if this method is marked as a (binary) operator.
+     * Beware that this returns false even when the method is a preoperator!
+     */
+    isBinaryOperator(): this is UCBinaryOperatorSymbol {
+        return (this.specifiers & MethodFlags.Operator) !== 0;
+    }
+
 	isPreOperator(): this is UCPreOperatorSymbol {
-		return (this.specifiers & MethodSpecifiers.PreOperator) !== 0;
+		return (this.specifiers & MethodFlags.PreOperator) !== 0;
 	}
 
 	isPostOperator(): this is UCPostOperatorSymbol {
-		return (this.specifiers & MethodSpecifiers.PostOperator) !== 0;
+		return (this.specifiers & MethodFlags.PostOperator) !== 0;
 	}
 
-	getKind(): SymbolKind {
-		return SymbolKind.Function;
+	override getTypeKind() {
+		return UCTypeKind.Object;
 	}
 
-	getTypeFlags() {
-		return UCTypeFlags.Function;
-	}
-
-	getType() {
+	override getType() {
 		return this.returnValue?.getType();
 	}
 
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Function;
-	}
-
-	getDocumentation(): string | undefined {
+	override getDocumentation(): string | undefined {
 		const doc = super.getDocumentation();
 		if (doc) {
 			return doc;
@@ -92,25 +97,40 @@ export class UCMethodSymbol extends UCStructSymbol {
 		}
 	}
 
-	getContainedSymbolAtPos(position: Position) {
+	override getContainedSymbolAtPos(position: Position) {
 		return this.returnValue?.getSymbolAtPos(position) ?? super.getContainedSymbolAtPos(position);
 	}
 
-	getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: string, kind?: UCTypeFlags) {
-		if (context === '.') {
+	override getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: ContextKind, kinds?: UCSymbolKind) {
+		if (context === ContextKind.DOT) {
 			const resolvedType = this.returnValue?.getType()?.getRef();
-			if (resolvedType instanceof UCSymbol) {
-				return resolvedType.getCompletionSymbols<C>(document, context, kind);
+			if (resolvedType instanceof UCObjectSymbol) {
+				return resolvedType.getCompletionSymbols<C>(document, context, kinds);
 			}
 		}
-		return super.getCompletionSymbols<C>(document, context, kind);
+
+		const symbols: ISymbol[] = [];
+        for (let child = this.children; child; child = child.next) {
+			if (typeof kinds !== 'undefined' && ((1 << child.kind) & kinds) === 0) {
+				continue;
+			}
+			if (child.acceptCompletion(document, this)) {
+				symbols.push(child);
+			}
+		}
+
+        const outerSymbols = this.outer.getCompletionSymbols<C>(document, context, kinds);
+        if (outerSymbols) {
+            return outerSymbols.concat(symbols as C[]);
+        }
+        return symbols as C[];
 	}
 
-	findSuperSymbol(id: Name, kind?: SymbolKind) {
-		return this.getSymbol(id, kind) || (<UCStructSymbol>(this.outer)).findSuperSymbol(id, kind);
+	override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind) {
+		return this.getSymbol<T>(id, kind) ?? (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
 	}
 
-	index(document: UCDocument, context: UCStructSymbol) {
+	override index(document: UCDocument, context: UCStructSymbol) {
 		if (this.returnValue) {
 			this.returnValue.index(document, context);
 
@@ -118,41 +138,54 @@ export class UCMethodSymbol extends UCStructSymbol {
 			if (this.getName() === NAME_SPAWN
 				&& this.outer?.getName() === NAME_ACTOR
 				&& this.outer.outer?.getName() === NAME_ENGINE) {
-				this.returnValue.paramModifiers |= ParamModifiers.Coerce;
+				this.returnValue.modifiers |= ModifierFlags.Coerce;
 			}
 		}
-
 		super.index(document, context);
+	}
 
-		if (context.super) {
-			const overriddenMethod = context.super.findSuperSymbol(this.getName());
-			if (overriddenMethod instanceof UCMethodSymbol) {
-				document.indexReference(overriddenMethod, {
+    protected override indexSuper(document: UCDocument, context: UCStructSymbol) {
+        if (context.super) {
+			const symbolOverride = context.super.findSuperSymbol(this.getName());
+			if (symbolOverride
+                && isFunction(symbolOverride)
+                // Never override a private method
+                && !symbolOverride.hasAnyModifierFlags(ModifierFlags.Private)) {
+				document.indexReference(symbolOverride, {
 					location: Location.create(document.uri, this.id.range)
 				});
-				this.overriddenMethod = overriddenMethod;
+				this.overriddenMethod = symbolOverride;
+                this.super = symbolOverride;
 			}
 		}
-	}
+    }
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
-		return visitor.visitMethod(this);
-	}
+    protected override getTypeHint(): string | undefined {
+        if (this.modifiers & ModifierFlags.Intrinsic) {
+			return '(intrinsic)';
+		}
 
-	protected getTypeKeyword(): string {
+		if (this.overriddenMethod) {
+            return '(override)';
+		}
+    }
+
+	protected override getTypeKeyword(): string {
 		return 'function';
 	}
 
-	getTooltip(): string {
+    public buildTypeKeyword(): string {
+        return this.getTypeKeyword();
+    }
+
+	override getTooltip(): string {
 		const text: Array<string | undefined> = [];
 
-		if (this.overriddenMethod) {
-			text.push('(override)');
-		}
-
+		text.push(this.getTypeHint());
 		const modifiers = this.buildModifiers();
-		text.push(...modifiers);
-
+        if (modifiers.length > 0) {
+            text.push(modifiers.join(' '));
+        }
 		text.push(this.getTypeKeyword());
 		if (this.returnValue) {
 			text.push(this.returnValue.getTextForReturnValue());
@@ -162,95 +195,69 @@ export class UCMethodSymbol extends UCStructSymbol {
 		return text.filter(s => s).join(' ');
 	}
 
-	protected buildModifiers(): string[] {
-		let text = super.buildModifiers();
+	override buildModifiers(): string[] {
+		const text = super.buildModifiers();
 
-		if (this.isStatic()) {
+        if (this.specifiers & MethodFlags.Final) {
+            text.push('final');
+        }
+
+		if (this.specifiers & MethodFlags.Static) {
 			text.push('static');
-		}
-		// isStatic is implicit final
-		else if (this.isFinal()) {
-			text.push('final');
 		}
 
 		return text;
 	}
 
-	protected buildParameters(): string {
+	public buildParameters(): string {
 		return this.params
 			? `(${this.params.map(f => f.getTextForSignature()).join(', ')})`
 			: '()';
 	}
+
+    override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+		return visitor.visitMethod(this);
+	}
 }
 
-export class UCMethodLikeSymbol extends UCMethodSymbol implements IWithReference {
-	constructor(name: Name, protected kind?: string) {
+/**
+ * Pseudo method like Vect, Rot, and Rng
+ * For those particular 'methods' we want to pass back the @returnValue as our symbol's type.
+ */
+export class UCMethodLikeSymbol extends UCMethodSymbol {
+	override modifiers = ModifierFlags.ReadOnly | ModifierFlags.Intrinsic;
+    override specifiers = MethodFlags.Static | MethodFlags.Final;
+
+	constructor(name: Name) {
 		super({ name, range: DEFAULT_RANGE });
-	}
-
-	isStatic() {
-		return true;
-	}
-
-	isFinal() {
-		return true;
-	}
-
-	isNative() {
-		return true;
-	}
-
-    getTypeFlags() {
-		return UCTypeFlags.Function | UCTypeFlags.Delegate;
-	}
-
-	protected getTypeKeyword(): string {
-		return '(intrinsic)';
-	}
-
-	getRef(): ISymbol | undefined {
-		return this.returnValue?.getType()?.getRef();
 	}
 }
 
 export class UCEventSymbol extends UCMethodSymbol {
-	getKind(): SymbolKind {
-		return SymbolKind.Event;
-	}
+    override kind = UCSymbolKind.Event;
 
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Event;
-	}
-
-	protected getTypeKeyword(): string {
+	protected override getTypeKeyword(): string {
 		return 'event';
 	}
 }
 
 export class UCDelegateSymbol extends UCMethodSymbol {
-	getKind(): SymbolKind {
-		return SymbolKind.Function;
+    override kind = UCSymbolKind.Delegate;
+	override modifiers = ModifierFlags.None;
+
+    override getTypeKind() {
+		return UCTypeKind.Delegate;
 	}
 
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Function;
-	}
-
-	protected getTypeKeyword(): string {
+	protected override getTypeKeyword(): string {
 		return 'delegate';
 	}
 }
 
 export abstract class UCBaseOperatorSymbol extends UCMethodSymbol {
-	getKind(): SymbolKind {
-		return SymbolKind.Operator;
-	}
+    override kind = UCSymbolKind.Operator;
 
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Operator;
-	}
-
-	acceptCompletion(document: UCDocument, context: ISymbol): boolean {
+	override acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
 		// TODO: Perhaps only list operators with a custom Identifier? i.e. "Dot" and "Cross".
 		return false;
 	}
@@ -259,19 +266,46 @@ export abstract class UCBaseOperatorSymbol extends UCMethodSymbol {
 export class UCBinaryOperatorSymbol extends UCBaseOperatorSymbol {
 	precedence?: number;
 
-	protected getTypeKeyword(): string {
+	protected override getTypeKeyword(): string {
 		return `operator(${this.precedence})`;
 	}
 }
 
 export class UCPreOperatorSymbol extends UCBaseOperatorSymbol {
-	protected getTypeKeyword(): string {
+	protected override getTypeKeyword(): string {
 		return 'preoperator';
 	}
 }
 
 export class UCPostOperatorSymbol extends UCBaseOperatorSymbol {
-	protected getTypeKeyword(): string {
+	protected override getTypeKeyword(): string {
 		return 'postoperator';
 	}
+}
+
+export function areMethodsCompatibleWith(a: UCMethodSymbol, b: UCMethodSymbol): boolean {
+    // FIXME: Maybe check by hash instead of a memory-reference
+    if (a === b) {
+        return true;
+    }
+
+    if (a.returnValue && b.returnValue) {
+        if (a.returnValue.getType()?.getTypeKind() !== b.returnValue.getType()?.getTypeKind()) {
+            return false;
+        }
+    }
+
+    if (a.params && b.params) {
+        if (a.params.length !== b.params.length) {
+            return false;
+        }
+
+        for (let i = 0; i < a.params.length; ++i) {
+            if (a.params[i].getType()?.getTypeKind() === b.params[i].getType()?.getTypeKind()) {
+                continue;
+            }
+            return false;
+        }
+    }
+    return typeof a.params === typeof b.params && typeof a.returnValue === typeof b.returnValue;
 }

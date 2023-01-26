@@ -1,55 +1,14 @@
-import { CompletionItemKind, Position, SymbolKind } from 'vscode-languageserver-types';
+import { Position } from 'vscode-languageserver-types';
 
 import { IExpression } from '../expressions';
 import { SymbolWalker } from '../symbolWalker';
-import { UCPropertySymbol } from './';
-
-// "const" is available as a @FieldModifier
-export enum ParamModifiers {
-	None 			= 0x0000,
-	Out 			= 0x0001,
-	Optional		= 0x0002,
-	Init 			= 0x0004, // NOT SUPPORTED
-	Skip			= 0x0008, // NOT SUPPORTED
-	Coerce			= 0x0010,
-	Return			= 0x0020,
-	Ref				= 0x0040, // NOT SUPPORTED
-
-	ReturnParam 	= Out | Return
-}
+import { ModifierFlags, UCPropertySymbol, UCSymbolKind } from './';
 
 export class UCParamSymbol extends UCPropertySymbol {
-	public paramModifiers: ParamModifiers = ParamModifiers.None;
+    override kind = UCSymbolKind.Parameter;
+	override modifiers: ModifierFlags = ModifierFlags.Param;
 
-	defaultExpression?: IExpression;
-
-	isPrivate(): boolean {
-		return true;
-	}
-
-	isOptional(): boolean {
-		return (this.paramModifiers & ParamModifiers.Optional) !== 0;
-	}
-
-	isCoerced(): boolean {
-		return (this.paramModifiers & ParamModifiers.Coerce) !== 0;
-	}
-
-	isOut(): boolean {
-		return (this.paramModifiers & ParamModifiers.Out) !== 0;
-	}
-
-	isRef(): boolean {
-		return (this.paramModifiers & ParamModifiers.Ref) !== 0;
-	}
-
-	getKind(): SymbolKind {
-		return SymbolKind.Variable;
-	}
-
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Variable;
-	}
+	public defaultExpression?: IExpression;
 
 	getTextForSignature(): string {
 		const text: Array<string | undefined> = [];
@@ -59,14 +18,14 @@ export class UCParamSymbol extends UCPropertySymbol {
 		if (this.type) {
 			text.push(this.type.getTypeText());
 		}
-		text.push(this.getName().toString());
+		text.push(this.getName().text);
 
 		return text.filter(s => s).join(' ');
 	}
 
 	getTextForReturnValue(): string {
 		const text: Array<string | undefined> = [];
-		if (this.isCoerced()) {
+		if (this.modifiers & ModifierFlags.Coerce) {
 			text.push('coerce');
 		}
 		if (this.type) {
@@ -75,46 +34,42 @@ export class UCParamSymbol extends UCPropertySymbol {
 		return text.filter(s => s).join(' ');
 	}
 
-	protected getTypeKeyword(): string {
+	protected override getTypeKeyword(): string {
 		return '(parameter)';
 	}
 
-	protected getTooltipId(): string {
-		return this.getName().toString();
+	protected override getTooltipId(): string {
+		return this.getName().text;
 	}
 
-	getContainedSymbolAtPos(position: Position) {
-		const symbol = this.defaultExpression?.getSymbolAtPos(position) || super.getContainedSymbolAtPos(position);
+	override getContainedSymbolAtPos(position: Position) {
+		const symbol = this.defaultExpression?.getSymbolAtPos(position) ?? super.getContainedSymbolAtPos(position);
 		return symbol;
 	}
 
-	protected buildModifiers(): string[] {
-		const text: string[] = [];
+	override buildModifiers(modifiers = this.modifiers): string[] {
+		const text: string[] = super.buildModifiers(modifiers);
 
-		if (this.isOptional()) {
+		if (modifiers & ModifierFlags.Optional) {
 			text.push('optional');
 		}
 
-		if (this.isOut()) {
+		if (modifiers & ModifierFlags.Out) {
 			text.push('out');
 		}
 
-		if (this.isCoerced()) {
+		if (modifiers & ModifierFlags.Coerce) {
 			text.push('coerce');
 		}
 
-		if (this.isConst()) {
-			text.push('const');
-		}
-
-		if (this.isRef()) {
+		if (modifiers & ModifierFlags.Ref) {
 			text.push('ref');
 		}
 
 		return text;
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitParameter(this);
 	}
 }

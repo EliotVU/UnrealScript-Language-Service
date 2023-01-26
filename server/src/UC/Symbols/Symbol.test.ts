@@ -14,14 +14,14 @@ describe('Test Symbol Methods', () => {
     classSymbol.outer = packageSymbol;
 
     const scriptStructSymbol = new UCScriptStructSymbol({ name: NAME_STRUCT, range: DEFAULT_RANGE });
-    classSymbol.addSymbol(scriptStructSymbol)
+    classSymbol.addSymbol(scriptStructSymbol);
 
     it('GetPath() === "Package.Class.Struct"', () => {
         expect(packageSymbol.getPath())
-            .to.equal(NAME_PACKAGE.toString());
+            .to.equal(NAME_PACKAGE.text);
         expect(classSymbol.getPath())
-            .to.equal(`${NAME_PACKAGE.toString()}.${NAME_CLASS.toString()}`);
+            .to.equal(`${NAME_PACKAGE.text}.${NAME_CLASS.text}`);
         expect(scriptStructSymbol.getPath())
-            .to.equal(`${NAME_PACKAGE.toString()}.${NAME_CLASS.toString()}.${NAME_STRUCT.toString()}`);
+            .to.equal(`${NAME_PACKAGE.text}.${NAME_CLASS.text}.${NAME_STRUCT.text}`);
     });
 });

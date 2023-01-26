@@ -5,6 +5,8 @@ function StateIgnore();
 function StateInit();
 
 auto state() StateTest {
+    local int stateProperty;
+
 	ignores StateIgnore;
 
 	function StateInit() {

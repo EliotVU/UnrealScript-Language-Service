@@ -1,39 +1,87 @@
 import * as glob from 'glob';
-import * as path from 'path';
-import { BehaviorSubject, firstValueFrom, from, interval, Subject, Subscription } from 'rxjs';
-import { debounce, delay, filter, switchMapTo, tap } from 'rxjs/operators';
+import { performance } from 'perf_hooks';
+import { BehaviorSubject, firstValueFrom, interval, Subject, Subscription } from 'rxjs';
+import { debounce, delay, filter, switchMap, tap } from 'rxjs/operators';
 import * as url from 'url';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import {
-    CodeActionKind, CompletionTriggerKind, createConnection, ErrorCodes,
-    FileOperationRegistrationOptions, InitializeParams, Location, Position, ProposedFeatures, Range,
-    ResponseError, TextDocuments, TextDocumentSyncKind, TextEdit, WorkspaceChange, WorkspaceEdit,
-    WorkspaceFolder
+    CodeActionKind,
+    CompletionTriggerKind,
+    createConnection,
+    ErrorCodes,
+    FileOperationRegistrationOptions,
+    InitializeParams,
+    Location,
+    Position,
+    ProposedFeatures,
+    Range,
+    ResponseError,
+    TextDocumentSyncKind,
+    TextEdit,
+    WorkspaceChange,
+    WorkspaceEdit,
+    WorkspaceFolder,
 } from 'vscode-languageserver/node';
 import { URI } from 'vscode-uri';
 
+import { ActiveTextDocuments } from './activeTextDocuments';
+import { buildCodeActions } from './codeActions';
 import {
-    DefaultIgnoredTokensSet, getCompletableSymbolItems, getFullCompletionItem, getSignatureHelp,
-    setIgnoredTokensSet
+    DefaultIgnoredTokensSet,
+    getCompletableSymbolItems,
+    getFullCompletionItem,
+    getSignatureHelp,
+    setIgnoredTokensSet,
 } from './completion';
+import { getDiagnostics } from './diagnostics';
+import { getHighlights } from './documentHighlight';
+import { getDocumentSymbols } from './documentSymbol';
+import { getReferences } from './references';
+import { buildSemanticTokens } from './semantics';
 import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
 import { UCLexer } from './UC/antlr/generated/UCLexer';
-import { DocumentParseData, UCDocument } from './UC/document';
+import { UCDocument } from './UC/document';
+import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
+import { getSymbol, getSymbolDefinition, getSymbolDocument, getSymbolTooltip, VALID_ID_REGEXP } from './UC/helpers';
 import {
-    getCodeActions, getSymbolDefinition, getSymbolHighlights, getSymbolReferences, getSymbols,
-    getSymbolTooltip, VALID_ID_REGEXP
-} from './UC/helpers';
-import {
-    applyMacroSymbols, clearMacroSymbols, config, createDocumentByPath, createPackage, documentsMap,
-    getDocumentById, getDocumentByURI, getIndexedReferences, getPackageByDir,
-    IntrinsicSymbolItemMap, lastIndexedDocuments$, queuIndexDocument, removeDocumentByPath,
-    UCGeneration, UELicensee
+    applyMacroSymbols,
+    clearMacroSymbols,
+    config,
+    createDocumentByPath,
+    createPackage,
+    documentsMap,
+    getDocumentById,
+    getDocumentByURI,
+    getIndexedReferences,
+    getPackageByDir,
+    IntrinsicSymbolItemMap,
+    lastIndexedDocuments$,
+    queueIndexDocument,
+    removeDocumentByPath,
+    UCGeneration,
+    UELicensee,
 } from './UC/indexer';
-import { toName } from './UC/names';
+import { toName } from './UC/name';
+import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
 import {
-    addHashedSymbol, DEFAULT_RANGE, NativeArray, ObjectsTable, UCClassSymbol, UCFieldSymbol,
-    UCMethodSymbol, UCObjectTypeSymbol, UCSymbol, UCTypeFlags
+    addHashedSymbol,
+    DEFAULT_RANGE,
+    IntrinsicArray,
+    isClass as isClass,
+    isField,
+    ISymbol,
+    ModifierFlags,
+    ObjectsTable,
+    supportsRef,
+    UCClassSymbol,
+    UCMethodSymbol,
+    UCObjectSymbol,
+    UCObjectTypeSymbol,
+    UCStructSymbol,
+    UCSymbolKind,
+    UCTypeKind,
 } from './UC/Symbols';
+import { getWorkspaceSymbols } from './workspaceSymbol';
 
 /**
  * Emits true when the workspace is prepared and ready for indexing.
@@ -45,12 +93,9 @@ const documents$ = new BehaviorSubject<UCDocument[]>([]);
 /** Emits a document that is pending an update. */
 const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
 
-const textDocuments = new TextDocuments(TextDocument);
-
-let hasConfigurationCapability: boolean = false;
-let hasWorkspaceFolderCapability: boolean = false;
-
-let activeDocumentParseData: DocumentParseData | undefined;
+let hasConfigurationCapability = false;
+let hasWorkspaceFolderCapability = false;
+let hasSemanticTokensCapability = false;
 
 const UCFileGlobPattern = "**/*.{uc,uci}";
 
@@ -59,10 +104,16 @@ function getWorkspaceFiles(folders: WorkspaceFolder[]): string[] {
     folders
         .map(folder => {
             const folderFSPath = URI.parse(folder.uri).fsPath;
-            const pattern = path.join(folderFSPath, UCFileGlobPattern);
-            return glob.sync(pattern, { realpath: true });
+            connection.console.info(`Scanning using pattern '${UCFileGlobPattern}'`);
+            return glob.sync(UCFileGlobPattern, {
+                root: folderFSPath,
+                realpath: true,
+                nosort: true,
+                nocase: true
+            });
         })
         .forEach(files => {
+            connection.console.info(`Found '${files.length}' matching files`);
             flattenedFiles.push(...files);
         });
 
@@ -74,21 +125,33 @@ function createDocuments(files: string[]): UCDocument[] {
 }
 
 function removeDocuments(files: string[]) {
-    for (let filePath of files) {
+    for (const filePath of files) {
         removeDocumentByPath(filePath);
     }
 }
 
-export const connection = createConnection(ProposedFeatures.all);
+async function awaitDocumentDelivery(uri: string): Promise<UCDocument | undefined> {
+    const document = getDocumentByURI(uri);
+    if (document && document.hasBeenIndexed) {
+        return document;
+    }
+
+    return firstValueFrom(lastIndexedDocuments$).then(documents => {
+        return documents.find((d) => d.uri === uri);
+    });
+}
+
+const connection = createConnection(ProposedFeatures.all);
+connection.listen();
 
 let lastIndexedDocumentsSub: Subscription;
 let isIndexReadySub: Subscription;
 let documentsSub: Subscription;
 
 connection.onShutdown(() => {
-    lastIndexedDocumentsSub.unsubscribe();
-    isIndexReadySub.unsubscribe();
-    documentsSub.unsubscribe();
+    lastIndexedDocumentsSub?.unsubscribe();
+    isIndexReadySub?.unsubscribe();
+    documentsSub?.unsubscribe();
 });
 
 connection.onInitialize((params: InitializeParams) => {
@@ -96,6 +159,7 @@ connection.onInitialize((params: InitializeParams) => {
 
     hasConfigurationCapability = !!(capabilities.workspace && !!capabilities.workspace.configuration);
     hasWorkspaceFolderCapability = !!(capabilities.workspace && !!capabilities.workspace.workspaceFolders);
+    hasSemanticTokensCapability = !!(capabilities.textDocument?.semanticTokens);
 
     const fileOperation: FileOperationRegistrationOptions = {
         filters: [{
@@ -108,6 +172,15 @@ connection.onInitialize((params: InitializeParams) => {
             }
         }]
     };
+
+    const folders = params.workspaceFolders;
+    if (folders) {
+        const files = getWorkspaceFiles(folders);
+        if (files) {
+            const documents = createDocuments(files);
+            documents$.next(documents);
+        }
+    }
 
     return {
         capabilities: {
@@ -129,10 +202,11 @@ connection.onInitialize((params: InitializeParams) => {
                 resolveProvider: true
             },
             signatureHelpProvider: {
-                triggerCharacters: ['(', ',', '<']
+                triggerCharacters: ['(', ',']
             },
             definitionProvider: true,
             documentSymbolProvider: true,
+            workspaceSymbolProvider: true,
             documentHighlightProvider: true,
             referencesProvider: true,
             renameProvider: {
@@ -148,6 +222,15 @@ connection.onInitialize((params: InitializeParams) => {
                 commands: [
                     'create.class'
                 ]
+            },
+            semanticTokensProvider: {
+                documentSelector: null,
+                full: true,
+                range: false,
+                legend: {
+                    tokenTypes: TokenTypes,
+                    tokenModifiers: TokenModifiers
+                },
             }
         }
     };
@@ -162,25 +245,25 @@ connection.onInitialized(() => {
         .subscribe(documents => {
             if (config.analyzeDocuments === EAnalyzeOption.OnlyActive) {
                 // Only analyze active documents.
-                documents = documents.filter(document => textDocuments.get(document.uri))
+                documents = documents.filter(document => ActiveTextDocuments.get(document.uri));
             }
 
             for (const document of documents) {
                 try {
-                    const diagnostics = document.analyze();
+                    const diagnostics = getDiagnostics(document);
                     connection.sendDiagnostics({
                         uri: document.uri,
                         diagnostics
                     });
                 } catch (error) {
-                    connection.console.error(`Analyzation of document '${document.uri}' threw '${error}'`);
+                    connection.console.error(`Analysis of document '${document.uri}' threw '${error}'`);
                 }
             }
         });
 
     isIndexReadySub = isIndexReady$
         .pipe(
-            switchMapTo(pendingTextDocuments$),
+            switchMap(() => pendingTextDocuments$),
             debounce(() => interval(50))
         )
         .subscribe({
@@ -196,14 +279,11 @@ connection.onInitialized(() => {
                 }
 
                 if (!document.hasBeenIndexed) {
-                    const parser = queuIndexDocument(document, textDocument.getText());
-                    if (textDocuments.get(textDocument.uri)) {
-                        activeDocumentParseData = parser;
-                    }
+                    queueIndexDocument(document, textDocument.getText());
                 }
             },
             error: err => {
-                connection.console.error(`Index queu error: '${err}'`);
+                connection.console.error(`Index queue error: '${err}'`);
             }
         });
 
@@ -220,34 +300,42 @@ connection.onInitialized(() => {
                     documents[i].invalidate();
                 }
             }),
-            switchMapTo(documents$),
+            switchMap(() => documents$),
             filter(documents => documents.length > 0)
         )
-        .subscribe(((documents) => {
-            // TODO: does not respect multiple globals.uci files
-            const globalUci = getDocumentById(globalsUCIFileName);
-            if (globalUci) {
-                queuIndexDocument(globalUci);
-            }
+        .subscribe((async (documents) => {
+            const indexStartTime = performance.now();
+            const work = await connection.window.createWorkDoneProgress();
+            work.begin('Indexing workspace', 0.0);
+            try {
+                // TODO: does not respect multiple globals.uci files
+                const globalUci = getDocumentById(globalsUCIFileName);
+                if (globalUci) {
+                    queueIndexDocument(globalUci);
+                }
 
-            if (config.indexAllDocuments) {
-                const indexStartTime = Date.now();
-                connection.window.showInformationMessage('Indexing UnrealScript documents!');
+                if (config.indexAllDocuments) {
+                    for (let i = 0; i < documents.length; i++) {
+                        if (documents[i].hasBeenIndexed) {
+                            continue;
+                        }
 
-                documents.forEach(document => {
-                    if (document.hasBeenIndexed) {
-                        return;
+                        work.report(i / documents.length, `${documents[i].fileName} + dependencies`);
+                        queueIndexDocument(documents[i]);
                     }
+                } else {
+                    ActiveTextDocuments
+                        .all()
+                        .forEach(doc => pendingTextDocuments$.next({
+                            textDocument: doc,
+                            isDirty: false
+                        }));
+                }
+            } finally {
+                work.done();
 
-                    queuIndexDocument(document);
-                });
-
-                const time = Date.now() - indexStartTime;
-                connection.window.showInformationMessage('UnrealScript documents have been indexed in ' + new Date(time).getSeconds() + ' seconds!');
-            } else {
-                textDocuments
-                    .all()
-                    .forEach(doc => pendingTextDocuments$.next({ textDocument: doc, isDirty: false }));
+                const time = performance.now() - indexStartTime;
+                connection.console.log('UnrealScript documents have been indexed in ' + (time / 1000) + ' seconds!');
             }
         }));
 
@@ -267,18 +355,6 @@ connection.onInitialized(() => {
     }
 
     if (hasWorkspaceFolderCapability) {
-        connection.workspace
-            .getWorkspaceFolders()
-            .then((folders) => {
-                if (folders) {
-                    const files = getWorkspaceFiles(folders);
-                    if (files) {
-                        const documents = createDocuments(files);
-                        documents$.next(documents);
-                    }
-                }
-            });
-
         connection.workspace.onDidChangeWorkspaceFolders((event) => {
             if (event.added) {
                 const files = getWorkspaceFiles(event.added);
@@ -302,7 +378,7 @@ connection.onInitialized(() => {
             const newFiles = params.files.map(f => url.fileURLToPath(f.uri));
             createDocuments(newFiles)
                 .forEach(document => {
-                    queuIndexDocument(document);
+                    queueIndexDocument(document);
                 });
         });
 
@@ -314,7 +390,7 @@ connection.onInitialized(() => {
             const newFiles = params.files.map(f => url.fileURLToPath(f.newUri));
             createDocuments(newFiles)
                 .forEach(document => {
-                    queuIndexDocument(document);
+                    queueIndexDocument(document);
                 });
         });
 
@@ -327,11 +403,31 @@ connection.onInitialized(() => {
         // TODO: Support non-workspace environments?
     }
 
-    textDocuments.onDidOpen(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: false }));
-    textDocuments.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
+    if (hasSemanticTokensCapability) {
+        connection.languages.semanticTokens.on(e => {
+            const document = getDocumentByURI(e.textDocument.uri);
+            if (!document) {
+                return {
+                    data: []
+                };
+            }
+
+            if (!document.hasBeenIndexed) {
+                return firstValueFrom(lastIndexedDocuments$).then(() => {
+                    return buildSemanticTokens(document);
+                });
+            }
+            return buildSemanticTokens(document);
+        });
+        // TODO: Support range
+        // connection.languages.semanticTokens.onRange(e => getSemanticTokens(e.textDocument.uri));
+    }
+
+    ActiveTextDocuments.onDidOpen(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: false }));
+    ActiveTextDocuments.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
     // We need to re--index the document, incase that the end-user edited a document without saving its changes.
-    textDocuments.onDidClose(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
-    textDocuments.listen(connection);
+    ActiveTextDocuments.onDidClose(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
+    ActiveTextDocuments.listen(connection);
 });
 
 connection.onDidChangeConfiguration((params: { settings: { unrealscript: UCLanguageServerSettings } }) => {
@@ -362,35 +458,81 @@ function clearIntrinsicSymbols() {
 
 function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
     const intSymbols = Object.entries(intrinsicSymbols);
-    for (let [key, value] of intSymbols) {
-        let [pkgNameStr, symbolName] = key.split('.');
-        if (value.type === 'class') {
-            const classSymbolName = toName(symbolName);
-            if (ObjectsTable.getSymbol(classSymbolName, UCTypeFlags.Class)) {
-                continue;
+    for (const [key, value] of intSymbols) {
+        const [pkgNameStr, symbolNameStr] = key.split('.');
+
+        const symbolName = VALID_ID_REGEXP.test(symbolNameStr)
+            ? toName(symbolNameStr) : NAME_NONE;
+
+        if (symbolName === NAME_NONE) {
+            console.error(`Invalid identifier '${symbolNameStr}' in key '${key}'`);
+            continue;
+        }
+
+        const typeName = value.type
+            ? toName(value.type) : NAME_NONE;
+        switch (typeName) {
+            case NAME_CLASS: {
+                if (ObjectsTable.getSymbol(symbolName, UCSymbolKind.Class)) {
+                    continue;
+                }
+
+                const symbol = new UCClassSymbol({ name: symbolName, range: DEFAULT_RANGE });
+                symbol.modifiers |= ModifierFlags.Intrinsic;
+                if (value.extends) {
+                    symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCSymbolKind.Class);
+                }
+                const pkg = createPackage(pkgNameStr);
+                symbol.outer = pkg;
+                addHashedSymbol(symbol);
+                break;
             }
 
-            const pkg = createPackage(pkgNameStr);
-            const symbol = new UCClassSymbol({ name: classSymbolName, range: DEFAULT_RANGE });
-            if (value.extends) {
-                symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCTypeFlags.Class);
+            case NAME_FUNCTION: {
+                if (typeof value.extends !== 'string') {
+                    console.error(`Invalid extends value in key '${key}'`);
+                    continue;
+                }
+                const extendsName = VALID_ID_REGEXP.test(value.extends)
+                    ? toName(value.extends) : NAME_NONE;
+                let superStruct: UCStructSymbol | undefined;
+                switch (extendsName) {
+                    case NAME_ARRAY:
+                        superStruct = IntrinsicArray;
+                        break;
+
+                    default:
+                        // superStruct = superStruct = ObjectsTable.getSymbol<UCStructSymbol>(extendsName.hash);
+                        console.error(`Unsupported extends type '${value.extends}' in key '${key}'`);
+                        break;
+                }
+
+                if (!(superStruct instanceof UCStructSymbol)) {
+                    console.error(`Couldn't find the specified struct of 'extends' '${value.extends}' in key '${key}'`);
+                    continue;
+                }
+
+                const symbol = new UCMethodSymbol({ name: symbolName, range: DEFAULT_RANGE });
+                symbol.modifiers |= ModifierFlags.Intrinsic;
+                superStruct.addSymbol(symbol);
+                break;
             }
-            symbol.outer = pkg;
-            addHashedSymbol(symbol);
-        } else {
-            console.error('Unsupported symbol type!', value.type, 'try \'class\'!');
+
+            default:
+                console.error(`Unsupported intrinsic type '${value.extends}' in key '${key}'`);
+                break;
         }
     }
 
     const randomizeOrderName = toName('RandomizeOrder');
-    let randomizeOrderSymbol = NativeArray.getSymbol(randomizeOrderName);
+    let randomizeOrderSymbol = IntrinsicArray.getSymbol(randomizeOrderName);
     if (randomizeOrderSymbol) {
         if (config.licensee !== UELicensee.XCom) {
-            NativeArray.removeSymbol(randomizeOrderSymbol);
+            IntrinsicArray.removeSymbol(randomizeOrderSymbol);
         }
     } else if (config.licensee === UELicensee.XCom) {
         randomizeOrderSymbol = new UCMethodSymbol({ name: randomizeOrderName, range: DEFAULT_RANGE });
-        NativeArray.addSymbol(randomizeOrderSymbol);
+        IntrinsicArray.addSymbol(randomizeOrderSymbol);
     }
 }
 
@@ -411,8 +553,9 @@ function setupIgnoredTokens(generation: UCGeneration) {
     if (generation === UCGeneration.UC3) {
         ignoredTokensSet.add(UCLexer.KW_CPPSTRUCT);
     } else {
-        // Some custom UE2 builds do have implements
+        // Some custom UE2 builds do have implements and interface
         ignoredTokensSet.add(UCLexer.KW_IMPLEMENTS);
+        ignoredTokensSet.add(UCLexer.KW_INTERFACE);
 
         ignoredTokensSet.add(UCLexer.KW_STRUCTDEFAULTPROPERTIES);
         ignoredTokensSet.add(UCLexer.KW_STRUCTCPPTEXT);
@@ -426,61 +569,76 @@ function setupIgnoredTokens(generation: UCGeneration) {
     setIgnoredTokensSet(ignoredTokensSet);
 }
 
-connection.onDocumentSymbol((e) => getSymbols(e.textDocument.uri));
-connection.onHover((e) => getSymbolTooltip(e.textDocument.uri, e.position));
+connection.onHover(async (e) => {
+    await awaitDocumentDelivery(e.textDocument.uri);
+    return getSymbolTooltip(e.textDocument.uri, e.position);
+});
 
 connection.onDefinition(async (e) => {
-    const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
-    if (symbol instanceof UCSymbol) {
-        const uri = symbol.getUri();
-        // This shouldn't happen, except for non UCSymbol objects.
-        if (!uri) {
-            return undefined;
-        }
-        return Location.create(uri, symbol.id.range);
+    await awaitDocumentDelivery(e.textDocument.uri);
+    const symbol = getSymbolDefinition(e.textDocument.uri, e.position);
+    if (symbol) {
+        const document = getSymbolDocument(symbol);
+        const documentUri = document?.uri;
+        return documentUri
+            ? Location.create(documentUri, symbol.id.range)
+            : undefined;
     }
     return undefined;
 });
 
-connection.onReferences((e) => getSymbolReferences(e.textDocument.uri, e.position));
-connection.onDocumentHighlight((e) => getSymbolHighlights(e.textDocument.uri, e.position));
+connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
+connection.onDocumentSymbol((e) => {
+    return getDocumentSymbols(e.textDocument.uri);
+});
+connection.onWorkspaceSymbol((e) => {
+    return getWorkspaceSymbols(e.query);
+});
+
+connection.onDocumentHighlight((e) => getHighlights(e.textDocument.uri, e.position));
 connection.onCompletion((e) => {
     if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
-        return firstValueFrom(lastIndexedDocuments$).then(documents => {
-            return getCompletableSymbolItems(e.textDocument.uri, activeDocumentParseData, e.position);
+        return firstValueFrom(lastIndexedDocuments$).then(_documents => {
+            return getCompletableSymbolItems(e.textDocument.uri, e.position);
         });
     }
-    return getCompletableSymbolItems(e.textDocument.uri, activeDocumentParseData, e.position);
+    return getCompletableSymbolItems(e.textDocument.uri, e.position);
 });
 connection.onCompletionResolve(getFullCompletionItem);
-connection.onSignatureHelp((e) => getSignatureHelp(e.textDocument.uri, activeDocumentParseData, e.position));
+connection.onSignatureHelp((e) => getSignatureHelp(e.textDocument.uri, e.position));
 
 connection.onPrepareRename(async (e) => {
-    const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
-    if (!symbol) {
+    const symbol = getSymbol(e.textDocument.uri, e.position);
+    if (!symbol || !(symbol instanceof UCObjectSymbol)) {
+        throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
+    }
+
+    const symbolRef: ISymbol | undefined = supportsRef(symbol)
+        ? symbol.getRef<UCObjectSymbol>()
+        : symbol;
+
+    if (!(symbolRef instanceof UCObjectSymbol)) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
 
     // Symbol without a defined type e.g. defaultproperties, replication etc.
-    if (symbol.getTypeFlags() === UCTypeFlags.Error) {
+    if (symbolRef.getTypeKind() === UCTypeKind.Error) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
 
-    if (symbol instanceof UCFieldSymbol) {
-        if (symbol instanceof UCClassSymbol) {
+    if (isField(symbolRef)) {
+        if (isClass(symbolRef)) {
             throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename a class!');
+        }
+        if (symbolRef.modifiers & ModifierFlags.Intrinsic) {
+            throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
         }
     } else {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
 
-    // Intrinsic type?
-    if (symbol.id.range === DEFAULT_RANGE) {
-        throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
-    }
-
     // Disallow symbols with invalid identifiers, such as an operator.
-    if (!VALID_ID_REGEXP.test(symbol.getName().toString())) {
+    if (!VALID_ID_REGEXP.test(symbol.getName().text)) {
         throw new ResponseError(ErrorCodes.InvalidParams, 'You cannot rename this element!');
     }
 
@@ -492,7 +650,7 @@ connection.onRenameRequest(async (e) => {
         throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid identifier!');
     }
 
-    const symbol = await getSymbolDefinition(e.textDocument.uri, e.position);
+    const symbol = getSymbolDefinition(e.textDocument.uri, e.position);
     if (!symbol) {
         return undefined;
     }
@@ -515,12 +673,12 @@ connection.onRenameRequest(async (e) => {
 });
 
 connection.onCodeAction(e => {
-    return getCodeActions(e.textDocument.uri, e.range);
+    return buildCodeActions(e.textDocument.uri, e.range);
 });
 
 connection.onExecuteCommand(e => {
     switch (e.command) {
-        case 'create.class':
+        case 'create.class': {
             const uri = e.arguments![0] as string;
             const className = e.arguments![1] as string;
             const change = new WorkspaceChange();
@@ -533,7 +691,6 @@ connection.onExecuteCommand(e => {
             connection.workspace.applyEdit(change.edit);
             // TODO: Need to refresh the document that invoked this command.
             break;
+        }
     }
 });
-
-connection.listen();

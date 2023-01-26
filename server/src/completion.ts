@@ -1,29 +1,69 @@
 import * as c3 from 'antlr4-c3';
-import {
-    CompletionItem, CompletionItemKind, SignatureHelp, SymbolKind
-} from 'vscode-languageserver';
+import { Parser } from 'antlr4ts';
+import { Token } from 'antlr4ts/Token';
+import { CompletionItem, CompletionItemKind, InsertTextFormat, InsertTextMode, SignatureHelp } from 'vscode-languageserver';
 import { Position } from 'vscode-languageserver-textdocument';
 
+import { ActiveTextDocuments } from './activeTextDocuments';
 import { UCLexer } from './UC/antlr/generated/UCLexer';
-import { UCParser } from './UC/antlr/generated/UCParser';
-import { DocumentParseData } from './UC/document';
+import { ProgramContext, UCParser } from './UC/antlr/generated/UCParser';
+import { UCDocument } from './UC/document';
 import { UCCallExpression } from './UC/expressions';
 import {
-    backtrackFirstToken, backtrackFirstTokenOfType, getCaretTokenIndexFromStream,
-    getDocumentContext, getIntersectingContext, rangeFromBound
+    backtrackFirstToken,
+    backtrackFirstTokenOfType,
+    getCaretTokenFromStream,
+    getDocumentContext,
+    getIntersectingContext,
+    rangeFromBound,
 } from './UC/helpers';
-import { getDocumentByURI } from './UC/indexer';
+import { config, getDocumentByURI, UCGeneration } from './UC/indexer';
+import { toName } from './UC/name';
+import { getTokenDebugInfo } from './UC/Parser/Parser.utils';
 import {
-    Identifier, ISymbol, ObjectsTable, tryFindClassSymbol, UCClassSymbol, UCFieldSymbol,
-    UCMethodSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbol, UCTypeFlags
+    areMethodsCompatibleWith,
+    ContextKind,
+    DefaultArray,
+    Identifier,
+    isClass,
+    isDelegateSymbol,
+    isEnumSymbol,
+    isField,
+    isFunction,
+    isPackage,
+    isStruct,
+    isTypeSymbol,
+    ISymbol,
+    MethodFlags,
+    ModifierFlags,
+    ObjectsTable,
+    resolveType,
+    tryFindClassSymbol,
+    UCClassSymbol,
+    UCConstSymbol,
+    UCDelegateSymbol,
+    UCEnumSymbol,
+    UCFieldSymbol,
+    UCMethodSymbol,
+    UCObjectSymbol,
+    UCObjectTypeSymbol,
+    UCQualifiedTypeSymbol,
+    UCScriptStructSymbol,
+    UCStateSymbol,
+    UCStructSymbol,
+    UCSymbolKind,
+    UCTypeKind,
 } from './UC/Symbols';
 
 const PreferredRulesSet = new Set([
     UCParser.RULE_typeDecl,
+    UCParser.RULE_defaultIdentifierRef,
+    UCParser.RULE_defaultQualifiedIdentifierRef,
     UCParser.RULE_qualifiedIdentifier, UCParser.RULE_identifier,
-    UCParser.RULE_functionName, UCParser.RULE_functionBody,
     UCParser.RULE_codeBlockOptional,
-    UCParser.RULE_defaultPropertiesBlock
+    UCParser.RULE_classPropertyAccessSpecifier,
+    // UCParser.RULE_objectLiteral,
+    // UCParser.RULE_member
 ]);
 
 export const DefaultIgnoredTokensSet = new Set([
@@ -31,45 +71,26 @@ export const DefaultIgnoredTokensSet = new Set([
     UCLexer.ID,
     UCLexer.INTERR,
     UCLexer.SHARP,
-    UCLexer.PLUS,
-    UCLexer.MINUS,
+    UCLexer.PLUS, UCLexer.MINUS,
     UCLexer.DOT,
-    UCLexer.AT,
-    UCLexer.DOLLAR,
-    UCLexer.BANG,
-    UCLexer.AMP,
+    UCLexer.AT, UCLexer.DOLLAR,
+    UCLexer.BANG, UCLexer.AMP,
     UCLexer.BITWISE_OR,
-    UCLexer.STAR,
-    UCLexer.CARET,
-    UCLexer.DIV,
-    UCLexer.MODULUS,
-    UCLexer.TILDE,
-    UCLexer.LT,
-    UCLexer.GT,
-    UCLexer.OR,
-    UCLexer.AND,
-    UCLexer.EQ,
-    UCLexer.NEQ,
-    UCLexer.GEQ,
-    UCLexer.LEQ,
-    UCLexer.IEQ,
-    UCLexer.MEQ,
-    UCLexer.INCR,
-    UCLexer.DECR,
+    UCLexer.STAR, UCLexer.CARET, UCLexer.DIV,
+    UCLexer.MODULUS, UCLexer.TILDE,
+    UCLexer.LT, UCLexer.GT,
+    UCLexer.OR, UCLexer.AND,
+    UCLexer.EQ, UCLexer.NEQ,
+    UCLexer.GEQ, UCLexer.LEQ,
+    UCLexer.IEQ, UCLexer.MEQ,
+    UCLexer.INCR, UCLexer.DECR,
     UCLexer.EXP,
-    UCLexer.RSHIFT,
-    UCLexer.LSHIFT,
-    UCLexer.SHIFT,
+    UCLexer.RSHIFT, UCLexer.LSHIFT, UCLexer.SHIFT,
     UCLexer.ASSIGNMENT,
-    UCLexer.ASSIGNMENT_INCR,
-    UCLexer.ASSIGNMENT_DECR,
-    UCLexer.ASSIGNMENT_AT,
-    UCLexer.ASSIGNMENT_DOLLAR,
-    UCLexer.ASSIGNMENT_AND,
-    UCLexer.ASSIGNMENT_OR,
-    UCLexer.ASSIGNMENT_STAR,
-    UCLexer.ASSIGNMENT_CARET,
-    UCLexer.ASSIGNMENT_DIV,
+    UCLexer.ASSIGNMENT_INCR, UCLexer.ASSIGNMENT_DECR,
+    UCLexer.ASSIGNMENT_AT, UCLexer.ASSIGNMENT_DOLLAR,
+    UCLexer.ASSIGNMENT_AND, UCLexer.ASSIGNMENT_OR,
+    UCLexer.ASSIGNMENT_STAR, UCLexer.ASSIGNMENT_CARET, UCLexer.ASSIGNMENT_DIV,
     UCLexer.OPEN_PARENS, UCLexer.CLOSE_PARENS,
     UCLexer.OPEN_BRACKET, UCLexer.CLOSE_BRACKET,
     UCLexer.OPEN_BRACE, UCLexer.CLOSE_BRACE,
@@ -83,9 +104,29 @@ export function setIgnoredTokensSet(newSet: Set<number>) {
     currentIgnoredTokensSet = newSet;
 }
 
-const packageOnlyFlags: UCTypeFlags = UCTypeFlags.Package & ~UCTypeFlags.Object;
+const TypeDeclSymbolTypes = 1 << UCSymbolKind.Enum
+    | 1 << UCSymbolKind.ScriptStruct
+    | 1 << UCSymbolKind.Class
+    | 1 << UCSymbolKind.Interface;
+// For qualified classes "Package.Class"
+// | 1 << UCSymbolKind.Package;
 
-export async function getSignatureHelp(uri: string, data: DocumentParseData | undefined, position: Position): Promise<SignatureHelp | undefined> {
+// ClassType.Identifier
+const ClassTypeContextSymbolTypes = 1 << UCSymbolKind.Enum
+    | 1 << UCSymbolKind.ScriptStruct;
+
+// PackageType.Identifier
+const PackageTypeContextSymbolTypes = 1 << UCSymbolKind.Class
+    | 1 << UCSymbolKind.Interface;
+
+const TypeDeclContextSymbolTypes = 1 << UCSymbolKind.Class
+    | 1 << UCSymbolKind.Interface;
+
+// TODO: Also ScriptStruct such as Vector and Rotator
+const GlobalCastTypes = 1 << UCSymbolKind.Class
+    | 1 << UCSymbolKind.Interface;
+
+export async function getSignatureHelp(uri: string, position: Position): Promise<SignatureHelp | undefined> {
     // const document = getDocumentByURI(uri);
     // if (!document || !data) {
     //     return undefined;
@@ -134,101 +175,461 @@ export async function getSignatureHelp(uri: string, data: DocumentParseData | un
     return undefined;
 }
 
-export async function getCompletableSymbolItems(uri: string, data: DocumentParseData | undefined, position: Position): Promise<CompletionItem[] | undefined> {
+export async function getCompletableSymbolItems(uri: string, position: Position): Promise<CompletionItem[] | undefined> {
+    // Do a fresh parse (but no indexing or transforming, we'll use the cached AST instead).
+    const text = ActiveTextDocuments.get(uri)?.getText();
+    if (typeof text === 'undefined') {
+        return;
+    }
+
     const document = getDocumentByURI(uri);
-    if (!document || !data) {
-        return undefined;
+    if (!document) {
+        return;
+    }
+
+    const data = document.parse(text);
+    if (typeof data.context === 'undefined') {
+        throw new Error('No parse context!');
+    }
+    return buildCompletableSymbolItems(document, position, { context: data.context, parser: data.parser })
+}
+
+function insertTextForFunction(symbol: UCMethodSymbol): string {
+    const text: Array<string | undefined> = [];
+
+    const modifiers = symbol.buildModifiers();
+    if (modifiers.length > 0) {
+        text.push(modifiers.join(' '));
+    }
+    text.push(symbol.buildTypeKeyword());
+    if (symbol.returnValue) {
+        text.push(symbol.returnValue.getTextForReturnValue());
+    }
+    text.push(symbol.getName().text + symbol.buildParameters());
+
+    return text.filter(s => s).join(' ') + "\n{\n\t$0\n}";
+}
+
+function getOverridableFunctions(document: UCDocument, contextSymbol: UCStructSymbol): UCMethodSymbol[] {
+    return contextSymbol
+        .getCompletionSymbols<UCMethodSymbol>(document, ContextKind.None, 1 << UCSymbolKind.Function)
+        .filter(method => {
+            return method.super == null // filter out overridden duplicates
+                && (method.modifiers & ModifierFlags.NonOverridable) == 0
+                && (method.specifiers & MethodFlags.NonOverridable) == 0;
+        });
+}
+
+function getCallableFunctions(document: UCDocument, contextSymbol: UCStructSymbol): UCMethodSymbol[] {
+    return contextSymbol
+        .getCompletionSymbols<UCMethodSymbol>(document, ContextKind.None, 1 << UCSymbolKind.Function)
+        .filter(method => {
+            return method.super == null
+                && ((method.modifiers & ModifierFlags.Private) == 0 || (method.getHash() == contextSymbol.getHash()));
+        });
+}
+
+function insertOverridableFunctions(document: UCDocument, contextSymbol: UCStructSymbol, items: CompletionItem[]) {
+    if (!contextSymbol.super) {
+        return;
+    }
+
+    const symbolItems = getOverridableFunctions(document, contextSymbol.super)
+        .map(method => {
+            const item = symbolToCompletionItem(method);
+            item.insertText = insertTextForFunction(method);
+            item.insertTextFormat = InsertTextFormat.Snippet;
+            item.insertTextMode = InsertTextMode.adjustIndentation;
+            return item;
+        });
+    items.push(...symbolItems);
+}
+
+function insertOverridableStates(document: UCDocument, contextSymbol: UCStructSymbol, symbols: ISymbol[]) {
+    if (!contextSymbol.super) {
+        return;
+    }
+
+    const symbolItems = contextSymbol
+        .super
+        .getCompletionSymbols<UCStateSymbol>(document, ContextKind.None, 1 << UCSymbolKind.State)
+        .filter(method => {
+            return (method.modifiers & ModifierFlags.NonOverridable) == 0;
+        });
+    symbols.push(...symbolItems);
+}
+
+async function buildCompletableSymbolItems(
+    document: UCDocument,
+    position: Position,
+    data: {
+        parser: Parser,
+        context: ProgramContext
+    }): Promise<CompletionItem[] | undefined> {
+    function getContextSymbols(symbol: UCObjectSymbol, kinds: UCSymbolKind): ISymbol[] {
+        const symbolItems = symbol.getCompletionSymbols(document, ContextKind.DOT, kinds);
+        return symbolItems;
     }
 
     const cc = new c3.CodeCompletionCore(data.parser);
+    // cc.showResult = true;
+    // cc.showRuleStack = true;
     // cc.showDebugOutput = true;
+    cc.translateRulesTopDown = false;
     cc.ignoredTokens = currentIgnoredTokensSet;
     cc.preferredRules = PreferredRulesSet;
 
-    if (typeof data.context === 'undefined') {
+    const stream = data.parser.inputStream;
+    let carretToken = getCaretTokenFromStream(stream, position);
+    if (!carretToken) {
+        console.warn(`No carret token at ${position.line}:${position.character}`);
+        // throw new Error(`No carret token at ${position}`);
         return;
     }
+    console.info('completion::carretToken', getTokenDebugInfo(carretToken));
 
-    const context = getIntersectingContext(data.context, position);
-    if (typeof context === 'undefined') {
-        return;
+    let leadingToken = carretToken;
+    while (leadingToken.channel === UCLexer.HIDDEN
+        || leadingToken.channel === UCLexer.COMMENTS_CHANNEL) {
+        leadingToken = stream.get(leadingToken.tokenIndex + 1);
     }
 
-    const caretTokenIndex = getCaretTokenIndexFromStream(data.parser.inputStream, position);
-    const candidates = cc.collectCandidates(caretTokenIndex, context);
+    if (leadingToken.type == UCLexer.OPEN_PARENS
+        || leadingToken.type == UCLexer.OPEN_BRACE
+        || leadingToken.type == UCLexer.OPEN_BRACKET
+        || leadingToken.type == UCLexer.LT
+        || leadingToken.type == UCLexer.COMMA
+        || leadingToken.type == UCLexer.DOT
+        || leadingToken.type == UCLexer.ASSIGNMENT
+        || leadingToken.type == UCLexer.SEMICOLON
+        || leadingToken.type == UCLexer.COLON) {
+        leadingToken = stream.get(leadingToken.tokenIndex + 1);
+    }
+
+    if (!leadingToken) {
+        console.warn(`No leading carret token at ${position.line}:${position.character}`);
+        // throw new Error(`No carret token at ${position}`);
+        return;
+    }
+    console.info('completion::leadingToken', getTokenDebugInfo(leadingToken));
+
+    const candidates = cc.collectCandidates(leadingToken.tokenIndex, data.context);
+    // if (process.env.NODE_ENV === 'development') {
+    //     console.debug('completion::tokens', Array
+    //         .from(candidates.tokens.keys())
+    //         .map(type => data.parser.vocabulary.getLiteralName(type))
+    //         .join("|"));
+    // }
+
+    const ruleContext = getIntersectingContext(data.context, position);
+    if (process.env.NODE_ENV === 'development') {
+        console.debug('completion::ruleContext', ruleContext?.toInfoString(data.parser));
+    }
+
+    /**
+     * Resolves to a symbol that contains the current context. 
+     * For example in a function this will always resolve to the UCMethodSymbol that we are working in.
+     **/
+    const scopeSymbol = getDocumentContext(document, position);
+    console.info('completion::scopeSymbol', scopeSymbol?.getPath());
+
+    /**
+     * Resolves to a symbol that is either at the left of a "." or "=".
+     * Useful for if we want to provide context sensitive completions for when we have an incomplete parser AST.
+     **/
+    let carretContextSymbol: ISymbol | undefined;
+
+    let carretContextToken: Token | undefined;
+    if (isStruct(scopeSymbol)) {
+        if ((carretContextToken = backtrackFirstTokenOfType(stream, UCParser.DOT, carretToken.tokenIndex))
+            && (carretContextToken = backtrackFirstToken(stream, carretContextToken.tokenIndex))) {
+            // FIXME: Hacky and assuming for this to only return a typeSymbol in the particular circumstances of this context.
+            UCCallExpression.hack_getTypeIfNoSymbol = true;
+            carretContextSymbol = scopeSymbol.block?.getContainedSymbolAtPos(rangeFromBound(carretContextToken).start);
+            UCCallExpression.hack_getTypeIfNoSymbol = false;
+        } else if ((carretContextToken = backtrackFirstTokenOfType(stream, UCParser.ASSIGNMENT, carretToken.tokenIndex))
+            && (carretContextToken = backtrackFirstToken(stream, carretContextToken.tokenIndex))) {
+            UCCallExpression.hack_getTypeIfNoSymbol = true;
+            carretContextSymbol = scopeSymbol.getContainedSymbolAtPos(rangeFromBound(carretContextToken).start);
+            UCCallExpression.hack_getTypeIfNoSymbol = false;
+        }
+    }
+    console.info('completion::carretContextToken', getTokenDebugInfo(carretContextToken));
+    console.info('completion::carretContextSymbol', carretContextSymbol?.getName());
 
     const items: CompletionItem[] = [];
     const symbols: ISymbol[] = [];
+    let globalTypes: UCSymbolKind = UCSymbolKind.None;
+    let shouldIncludeTokenKeywords: boolean = true;
 
-    const contextSymbol = getDocumentContext(document, position);
-    // console.log('completionItem::contextSymbol', contextSymbol?.getPath());
+    if (candidates.rules.has(UCParser.RULE_member) || ruleContext?.ruleIndex == UCParser.RULE_program) {
+        if (isStruct(scopeSymbol)) {
+            insertOverridableFunctions(document, scopeSymbol, items);
+            insertOverridableStates(document, scopeSymbol, symbols);
+        }
+    }
 
-    let globalTypes: UCTypeFlags = UCTypeFlags.Error;
-    for (let [type, candiateRule] of candidates.rules) {
-        // console.log('completionItem::type', data.parser.ruleNames[type]);
+    for (const [rule, candiateRule] of candidates.rules) {
+        console.info('completion::candidates.rules::rule', data.parser.ruleNames[rule]);
 
-        const stateType = candiateRule.ruleList.length
+        const contextRule = candiateRule.ruleList.length
             ? candiateRule.ruleList[candiateRule.ruleList.length - 1]
             : undefined;
 
-        // console.log('completionItem::stateType', candiateRule.ruleList.map(t => t && data.parser.ruleNames[t]).join('.'));
+        function isWithin(rule: number): boolean {
+            return candiateRule.ruleList.indexOf(rule) !== -1;
+        }
 
-        // Speculative approach...
-        switch (type) {
-            case UCParser.RULE_identifier: {
-                let contexToken = backtrackFirstTokenOfType(data.parser.inputStream, UCParser.DOT, caretTokenIndex);
-                if (contexToken) {
-                    contexToken = backtrackFirstToken(data.parser.inputStream, contexToken.tokenIndex);
+        console.info('completion::candidates.rules::contextRule', candiateRule.ruleList
+            .map(t => t && data.parser.ruleNames[t])
+            .join('.'));
+
+        switch (contextRule) {
+            case UCParser.RULE_functionReturnParam: {
+                // Recommend return types, already handled by checking for rule:typeDecl
+                break;
+            }
+
+            case UCParser.RULE_functionName: {
+                if (isStruct(scopeSymbol)) {
+                    const symbolItems = getOverridableFunctions(document, scopeSymbol);
+                    symbols.push(...symbolItems);
                 }
-                if (contexToken && contextSymbol instanceof UCStructSymbol) {
-                    // FIXME: Hacky and assuming for this to only return a typeSymbol in the particular circumstances of this context.
-                    UCCallExpression.hack_getTypeIfNoSymbol = true;
-                    const resolvedTypeSymbol = contextSymbol.block?.getContainedSymbolAtPos(rangeFromBound(contexToken).start);
-                    UCCallExpression.hack_getTypeIfNoSymbol = false;
+                break;
+            }
 
-                    // Only object types are allowed
-                    if (resolvedTypeSymbol instanceof UCObjectTypeSymbol) {
-                        const resolvedReference = resolvedTypeSymbol.getRef();
-                        if (resolvedReference instanceof UCFieldSymbol) {
-                            const symbolItems = resolvedReference
-                                .getCompletionSymbols(
-                                    document, '.',
-                                    ((UCTypeFlags.Property | UCTypeFlags.Function) & ~UCTypeFlags.Object)
-                                );
+            case UCParser.RULE_primaryExpression: {
+                if (carretContextToken) {
+                    break;
+                }
+                // casting
+                globalTypes |= GlobalCastTypes;
+            }
+        }
 
-                            symbols.push(...symbolItems);
-
-                            // A little hack to remove false positive keywords when possible
-                            if (!(resolvedReference instanceof UCClassSymbol)) {
-                                candidates.tokens.delete(UCParser.KW_DEFAULT);
-                                candidates.tokens.delete(UCParser.KW_STATIC);
-                                candidates.tokens.delete(UCParser.KW_CONST);
-                            }
-                        }
+        if (isStruct(scopeSymbol)) {
+            // placeholder
+            if (isWithin(UCParser.RULE_functionBody)) {
+                switch (rule) {
+                    case UCParser.RULE_identifier: {
                         break;
                     }
                 }
+            }
 
-                if (contextSymbol instanceof UCStructSymbol && contextSymbol.block) {
-                    const symbolItems = contextSymbol
-                        .getCompletionSymbols(
-                            document, '',
-                            ((
-                                UCTypeFlags.Property
-                                | UCTypeFlags.Function
-                                | UCTypeFlags.Enum
-                                | UCTypeFlags.Class
-                                | UCTypeFlags.Const
-                            ) & ~UCTypeFlags.Object)
-                        );
-                    symbols.push(...symbolItems);
+            if (isWithin(UCParser.RULE_statement)) {
+                switch (rule) {
+                    case UCParser.RULE_identifier: {
+                        if (carretContextToken) {
+                            // Only object types are allowed
+                            if (carretContextSymbol instanceof UCObjectTypeSymbol) {
+                                const resolvedReference = carretContextSymbol.getRef();
+                                if (isField(resolvedReference)) {
+                                    const symbolItems = getContextSymbols(
+                                        resolvedReference,
+                                        1 << UCSymbolKind.Property
+                                        | 1 << UCSymbolKind.Function
+                                        | 1 << UCSymbolKind.Event
+                                        | 1 << UCSymbolKind.Delegate)
+                                        .filter(symbol => {
+                                            if (isFunction(symbol)) {
+                                                // Don't include the overriding methods
+                                                return symbol.super == null
+                                                    && ((symbol.modifiers & ModifierFlags.Private) == 0
+                                                        || (symbol.outer == scopeSymbol.outer));
+                                            }
+                                            return true;
+                                        });
+
+                                    symbols.push(...symbolItems);
+
+                                    // A little hack to remove false positive keywords when possible
+                                    if (!(isClass(resolvedReference))) {
+                                        candidates.tokens.delete(UCParser.KW_DEFAULT);
+                                        candidates.tokens.delete(UCParser.KW_STATIC);
+                                        candidates.tokens.delete(UCParser.KW_CONST);
+                                    } else if (config.generation != UCGeneration.UC3) {
+                                        candidates.tokens.delete(UCParser.KW_CONST);
+                                    }
+                                }
+                                break;
+                            }
+                        }
+
+                        const symbolItems = scopeSymbol
+                            .getCompletionSymbols(
+                                document,
+                                ContextKind.None,
+                                1 << UCSymbolKind.Parameter
+                                | 1 << UCSymbolKind.Local
+                                | 1 << UCSymbolKind.Property
+                                | 1 << UCSymbolKind.Function
+                                | 1 << UCSymbolKind.Event
+                                | 1 << UCSymbolKind.Delegate
+                                | 1 << UCSymbolKind.Enum
+                                | 1 << UCSymbolKind.Class
+                                | 1 << UCSymbolKind.Const
+                            ).filter(symbol => {
+                                if (isFunction(symbol)) {
+                                    // Don't include the overriding methods
+                                    return symbol.super == null
+                                        && ((symbol.modifiers & ModifierFlags.Private) == 0
+                                            || (symbol.outer == scopeSymbol.outer));
+                                }
+                                return true;
+                            });
+                        symbols.push(...symbolItems);
+
+                        break;
+                    }
                 }
+            }
 
-                switch (stateType) {
+            if (isWithin(UCParser.RULE_defaultMemberCallExpression)) {
+                switch (rule) {
+                    case UCParser.RULE_identifier: {
+                        // We can assign to properties and delegates here.
+                        let kinds: UCSymbolKind = 1 << UCSymbolKind.Property
+                            | 1 << UCSymbolKind.Delegate;
+
+                        // Provide completions for array operations such Empty, e.g. as MyArray.Empty()
+                        let scopeContextSymbol = scopeSymbol;
+                        if (carretContextSymbol && isTypeSymbol(carretContextSymbol)) {
+                            const letSymbol = carretContextSymbol.getRef<UCFieldSymbol>();
+                            if (!letSymbol) break;
+
+                            const letType = letSymbol?.getType();
+                            if (letType == undefined) break;
+
+                            const typeKind = letType.getTypeKind();
+                            switch (typeKind) {
+                                case UCTypeKind.Array:
+                                    scopeContextSymbol = DefaultArray;
+                                    kinds = 1 << UCSymbolKind.Function;
+                                    break;
+                            }
+                        }
+
+                        const symbolItems = scopeContextSymbol
+                            .getCompletionSymbols(
+                                document,
+                                ContextKind.None,
+                                kinds
+                            );
+                        symbols.push(...symbolItems);
+                        break;
+                    }
+                }
+            }
+            else if (isWithin(UCParser.RULE_defaultValue)) {
+                let shouldIncludeConstants: Boolean = true;
+                switch (rule) {
+                    case UCParser.RULE_defaultIdentifierRef: {
+                        if (carretContextSymbol && isTypeSymbol(carretContextSymbol)) {
+                            const letSymbol = carretContextSymbol.getRef<UCFieldSymbol>();
+                            if (!letSymbol) break;
+
+                            const letType = (isDelegateSymbol(letSymbol)
+                                ? carretContextSymbol
+                                : letSymbol?.getType());
+                            if (letType == undefined) break;
+
+                            const typeKind = letType.getTypeKind();
+                            switch (typeKind) {
+                                case UCTypeKind.Object:
+                                    globalTypes |= 1 << UCSymbolKind.Class
+                                        | 1 << UCSymbolKind.Interface
+                                        | 1 << UCSymbolKind.Archetype
+                                        | 1 << UCSymbolKind.Package;
+                                    break;
+
+                                case UCTypeKind.Bool:
+                                    candidates.tokens.delete(UCParser.NONE_LITERAL);
+                                    items.push(
+                                        { label: 'false', kind: CompletionItemKind.Keyword },
+                                        { label: 'true', kind: CompletionItemKind.Keyword }
+                                    );
+                                    break;
+
+                                case UCTypeKind.Float:
+                                case UCTypeKind.Int:
+                                case UCTypeKind.String:
+                                case UCTypeKind.Array:
+                                    // TODO: Figure out the extent of 'None' in a T3D context.
+                                    candidates.tokens.delete(UCParser.NONE_LITERAL);
+                                    break;
+
+                                case UCTypeKind.Name:
+                                    // Suggest names of objects maybe?
+                                    shouldIncludeConstants = false;
+                                    break;
+
+                                case UCTypeKind.Byte: {
+                                    candidates.tokens.delete(UCParser.NONE_LITERAL);
+
+                                    const enumSymbol = resolveType(letType).getRef<UCEnumSymbol>();
+                                    if (enumSymbol && isEnumSymbol(enumSymbol)) {
+                                        symbols.push(enumSymbol); // context suggestion
+
+                                        // TODO: Filter the .EnumCount tag or autocomplete the context?
+                                        const symbolItems = enumSymbol
+                                            .getCompletionSymbols<UCConstSymbol>(
+                                                document,
+                                                ContextKind.None,
+                                                1 << UCSymbolKind.EnumTag
+                                            );
+                                        symbols.push(...symbolItems);
+                                    }
+                                    break;
+                                }
+
+                                case UCTypeKind.Delegate: {
+                                    const delegateSource = resolveType(letType).getRef<UCDelegateSymbol>();
+                                    const symbolItems = buildCompatibleDelegateTargets(scopeSymbol, delegateSource);
+                                    symbols.push(...symbolItems);
+                                    break;
+                                }
+
+                                case UCTypeKind.Struct: {
+                                    const structSymbol = resolveType(letType).getRef<UCScriptStructSymbol>()!;
+                                    const properties = structSymbol
+                                        .getCompletionSymbols(
+                                            document,
+                                            ContextKind.None,
+                                            1 << UCSymbolKind.Property
+                                        )
+                                        .reverse();
+
+                                    let i = 0;
+                                    const expressions = properties.map(symbol => `${symbol.getName().text}=$${++i}`);
+                                    const structLiteralText: string = `(${expressions.join(',')})`;
+                                    const snippet: CompletionItem = buildSnippetSymbol(structLiteralText);
+                                    items.push(snippet);
+                                    break;
+                                }
+
+                                default:
+                                    break;
+                            }
+
+                            if (shouldIncludeConstants) {
+                                const symbolItems = buildConstsOfType(scopeSymbol, typeKind);
+                                symbols.push(...symbolItems);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Speculative approach...
+        switch (rule) {
+            case UCParser.RULE_identifier: {
+                switch (contextRule) {
                     case undefined:
                     case UCParser.RULE_classDecl: {
                         items.push({
-                            label: document.name.toString(),
+                            label: document.name.text,
                             kind: CompletionItemKind.Class
                         });
                         break;
@@ -236,30 +637,38 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
 
                     case UCParser.RULE_identifierArguments: {
                         const typeItems = Array
-                            .from(ObjectsTable.getAll<UCClassSymbol>())
-                            .filter(symbol => (symbol.getTypeFlags() & (UCTypeFlags.Class | UCTypeFlags.IsInterface)) === UCTypeFlags.Class);
+                            .from(ObjectsTable.getKinds<UCClassSymbol>(1 << UCSymbolKind.Class))
+                            .filter((classSymbol) => {
+                                // TODO: Compare by hash instead of instance
+                                // -- because a class could theoretically still reference an old copy.
+
+                                // Exclude the dependency and inherited classes
+                                for (let parent = (scopeSymbol as UCClassSymbol | undefined); parent; parent = parent.super) {
+                                    if (parent == classSymbol) {
+                                        return false;
+                                    }
+                                }
+
+                                // Exclude classes that inherit the declared class
+                                for (let parent = classSymbol.super; parent; parent = parent.super) {
+                                    if (parent == scopeSymbol) {
+                                        return false;
+                                    }
+                                }
+                                return true;
+                            });
 
                         symbols.push(...typeItems);
                         break;
                     }
 
-                    case UCParser.RULE_typeDecl: {
-                        globalTypes |= ((UCTypeFlags.Enum | UCTypeFlags.Struct | UCTypeFlags.Class) & ~UCTypeFlags.Object);
-                        break;
-                    }
-
-                    case UCParser.RULE_classType: {
-                        globalTypes |= ((UCTypeFlags.Class) & ~UCTypeFlags.Object);
-                        break;
-                    }
-
                     case UCParser.RULE_delegateType: {
-                        globalTypes |= (UCTypeFlags.Class & ~UCTypeFlags.Object);
-                        if (contextSymbol instanceof UCStructSymbol) {
-                            const symbolItems = contextSymbol
+                        globalTypes |= 1 << UCSymbolKind.Class;
+                        if (isStruct(scopeSymbol)) {
+                            const symbolItems = scopeSymbol
                                 .getCompletionSymbols(
-                                    document, '',
-                                    UCTypeFlags.Delegate
+                                    document, ContextKind.None,
+                                    1 << UCSymbolKind.Delegate
                                 );
                             symbols.push(...symbolItems);
                         }
@@ -271,21 +680,21 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
 
             // TODO: suggest top-level contained symbols (e.g. Actor.ENetMode)
             case UCParser.RULE_qualifiedIdentifier: {
-                switch (stateType) {
+                switch (contextRule) {
                     case UCParser.RULE_qualifiedIdentifierArguments: {
-                        globalTypes |= UCTypeFlags.IsInterface | (packageOnlyFlags);
+                        globalTypes |= 1 << UCSymbolKind.Interface | 1 << UCSymbolKind.Package;
                         break;
                     }
 
                     case UCParser.RULE_extendsClause: {
-                        switch (contextSymbol?.getKind()) {
-                            case SymbolKind.Class: {
-                                globalTypes |= (UCTypeFlags.Class & ~UCTypeFlags.Object) | (packageOnlyFlags);
+                        switch (scopeSymbol?.kind) {
+                            case UCSymbolKind.Class: {
+                                globalTypes |= 1 << UCSymbolKind.Class | 1 << UCSymbolKind.Package;
                                 break;
                             }
 
-                            case SymbolKind.Struct: {
-                                globalTypes |= ((UCTypeFlags.Struct | UCTypeFlags.Class) & ~UCTypeFlags.Object) | (packageOnlyFlags);
+                            case UCSymbolKind.ScriptStruct: {
+                                globalTypes |= 1 << UCSymbolKind.ScriptStruct | 1 << UCSymbolKind.Class | 1 << UCSymbolKind.Package;
                                 break;
                             }
                         }
@@ -293,12 +702,12 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
                     }
 
                     case UCParser.RULE_delegateType: {
-                        globalTypes |= (UCTypeFlags.Class & ~UCTypeFlags.Object);
-                        if (contextSymbol instanceof UCStructSymbol) {
-                            const symbolItems = contextSymbol
+                        globalTypes |= 1 << UCSymbolKind.Class;
+                        if (isStruct(scopeSymbol)) {
+                            const symbolItems = scopeSymbol
                                 .getCompletionSymbols(
-                                    document, '',
-                                    UCTypeFlags.Delegate
+                                    document, ContextKind.None,
+                                    1 << UCSymbolKind.Delegate
                                 );
                             symbols.push(...symbolItems);
                         }
@@ -306,7 +715,7 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
                     }
 
                     case UCParser.RULE_typeDecl: {
-                        globalTypes |= ((UCTypeFlags.Enum | UCTypeFlags.Struct) & ~UCTypeFlags.Object);
+                        globalTypes |= 1 << UCSymbolKind.Enum | 1 << UCSymbolKind.ScriptStruct;
                         break;
                     }
                 }
@@ -314,16 +723,53 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
             }
 
             case UCParser.RULE_typeDecl: {
-                if (stateType === UCParser.RULE_varType) {
-                    globalTypes |= ((UCTypeFlags.Enum | UCTypeFlags.Struct | UCTypeFlags.Class) & ~UCTypeFlags.Object);
+                let contextSymbol: ISymbol | undefined;
+                if (carretContextSymbol) {
+                    if (UCQualifiedTypeSymbol.is(carretContextSymbol)) {
+                        contextSymbol = carretContextSymbol.left?.getRef();
+                    } else if (isTypeSymbol(carretContextSymbol)) {
+                        contextSymbol = carretContextSymbol.getRef();
+                    }
+                } else if (carretContextToken) {
+                    shouldIncludeTokenKeywords = false;
+
+                    const id = toName(carretContextToken.text as string);
+                    // Only look for a class in a context of "ClassType.Type"
+                    contextSymbol = ObjectsTable.getSymbol<UCClassSymbol>(id, UCSymbolKind.Class);
+                } else {
+                    globalTypes |= TypeDeclSymbolTypes;
+                }
+
+                if (contextSymbol) {
+                    if (isPackage(contextSymbol)) {
+                        for (let symbol of ObjectsTable.getKinds(PackageTypeContextSymbolTypes)) {
+                            if (symbol.outer !== contextSymbol) {
+                                continue;
+                            }
+                            symbols.push(symbol);
+                        }
+                    } else if (isClass(contextSymbol)) {
+                        const symbolItems = contextSymbol.getCompletionSymbols(
+                            document,
+                            ContextKind.None,
+                            ClassTypeContextSymbolTypes);
+                        symbols.push(...symbolItems);
+                    }
+                }
+                break;
+            }
+
+            case UCParser.RULE_functionDecl: {
+                if (isStruct(scopeSymbol)) {
+                    const symbolItems = getOverridableFunctions(document, scopeSymbol);
+                    symbols.push(...symbolItems);
                 }
                 break;
             }
 
             case UCParser.RULE_functionName: {
-                if (contextSymbol instanceof UCMethodSymbol) {
-                    const symbolItems = contextSymbol
-                        .getCompletionSymbols(document, '', (UCTypeFlags.Function & ~UCTypeFlags.Object));
+                if (isStruct(scopeSymbol)) {
+                    const symbolItems = getOverridableFunctions(document, scopeSymbol);
                     symbols.push(...symbolItems);
                 }
                 break;
@@ -331,71 +777,149 @@ export async function getCompletableSymbolItems(uri: string, data: DocumentParse
 
             case UCParser.RULE_functionBody:
             case UCParser.RULE_codeBlockOptional: {
-                if (contextSymbol instanceof UCStructSymbol) {
-                    globalTypes |= ((UCTypeFlags.Enum | UCTypeFlags.Class) & ~UCTypeFlags.Object);
-                    const symbolItems = contextSymbol
-                        .getCompletionSymbols(document, '',
-                            ((
-                                UCTypeFlags.Property
-                                | UCTypeFlags.Function
-                                | UCTypeFlags.Const
-                            ) & ~UCTypeFlags.Object));
+                if (isStruct(scopeSymbol)) {
+                    globalTypes |= 1 << UCSymbolKind.Enum | 1 << UCSymbolKind.Class;
+                    const symbolItems = scopeSymbol
+                        .getCompletionSymbols(
+                            document,
+                            ContextKind.None,
+                            1 << UCSymbolKind.Parameter
+                            | 1 << UCSymbolKind.Local
+                            | 1 << UCSymbolKind.Property
+                            | 1 << UCSymbolKind.Function
+                            | 1 << UCSymbolKind.Delegate
+                            | 1 << UCSymbolKind.Event
+                            | 1 << UCSymbolKind.Const
+                        )
+                        .filter(symbol => {
+                            if (isFunction(symbol)) {
+                                // Don't include the overriding methods
+                                return symbol.super == null
+                                    && ((symbol.modifiers & ModifierFlags.Private) == 0
+                                        || (symbol.outer == scopeSymbol.outer));
+                            }
+                            return true;
+                        });
                     symbols.push(...symbolItems);
                 }
                 break;
             }
 
-            case UCParser.RULE_defaultPropertiesBlock: {
-                if (contextSymbol instanceof UCStructSymbol) {
-                    const symbolItems = contextSymbol
-                        .getCompletionSymbols(document, '',
-                            ((
-                                UCTypeFlags.Property
-                                | UCTypeFlags.Delegate
-                            ) & ~UCTypeFlags.Object));
-                    symbols.push(...symbolItems);
-                }
+            case UCParser.RULE_objectLiteral: {
+                globalTypes |= 1 << UCSymbolKind.Class;
+                break;
             }
         }
     }
 
-    if (globalTypes !== UCTypeFlags.Error) {
+    if (globalTypes !== UCSymbolKind.None) {
         const typeItems = Array
-            .from(ObjectsTable.getTypes(globalTypes))
+            .from(ObjectsTable.getKinds(globalTypes))
             .map(symbol => symbolToCompletionItem(symbol));
 
         items.push(...typeItems);
     }
 
-    for (let [type, tokens] of candidates.tokens) {
-        const name = data.parser.vocabulary.getLiteralName(type);
-        if (typeof name === 'undefined') {
-            continue;
-        }
+    if (shouldIncludeTokenKeywords) {
+        for (const [type, tokens] of candidates.tokens) {
+            const name = data.parser.vocabulary.getLiteralName(type);
+            if (typeof name === 'undefined') {
+                continue;
+            }
 
-        // Assume that the name is single quoted.
-        const tokenName = name.substring(1, name.length - 1);
-        items.push({
-            label: tokenName,
-            kind: CompletionItemKind.Keyword
-        });
+            // Assume that the name is single quoted.
+            const tokenName = name.substring(1, name.length - 1);
+            items.push({
+                label: tokenName,
+                kind: CompletionItemKind.Keyword
+            });
+        }
     }
 
     return items.concat(symbols.map(symbol => symbolToCompletionItem(symbol)));
-}
 
-function symbolToCompletionItem(symbol: ISymbol): CompletionItem {
-    if (symbol instanceof UCSymbol) {
+    function buildSnippetSymbol(insertText: string): CompletionItem {
         return {
-            label: symbol.getName().toString(),
-            kind: symbol.getCompletionItemKind(),
-            detail: symbol.getTooltip(),
-            data: symbol.id
+            label: '(...)',
+            kind: CompletionItemKind.Snippet,
+            preselect: true,
+            insertText: insertText,
+            insertTextFormat: InsertTextFormat.Snippet,
+            insertTextMode: InsertTextMode.adjustIndentation
         };
     }
 
+    function buildConstsOfType(scopeSymbol: UCStructSymbol, typeKind: UCTypeKind) {
+        return scopeSymbol
+            .getCompletionSymbols<UCConstSymbol>(
+                document,
+                ContextKind.None,
+                1 << UCSymbolKind.Const
+            )
+            .filter(symbol => {
+                const type = symbol.getType();
+                if (type && type.getTypeKind() != typeKind) {
+                    return false;
+                }
+                // Filter invalid types
+                return true;
+            });
+    }
+
+    function buildCompatibleDelegateTargets(scope: UCStructSymbol, delegateSource: UCDelegateSymbol | undefined) {
+        return scope
+            .getCompletionSymbols<UCMethodSymbol>(
+                document,
+                ContextKind.None,
+                1 << UCSymbolKind.Function
+                | 1 << UCSymbolKind.Event
+            )
+            .filter(symbol => {
+                // Exclude methods that are overriding a parent's method.
+                if (symbol.super) {
+                    return false;
+                }
+                // Exclude private functions that don't belong to the current scope.
+                if (((symbol.modifiers & ModifierFlags.Private) != 0
+                    && (symbol.outer != scope.outer))) {
+                    return false;
+                }
+                if (!delegateSource || areMethodsCompatibleWith(symbol, delegateSource)) {
+                    return true;
+                }
+                return false;
+            });
+    }
+}
+
+const CompletionItemKindMap = new Map<UCSymbolKind, CompletionItemKind>([
+    [UCSymbolKind.Package, CompletionItemKind.Module],
+    [UCSymbolKind.Archetype, CompletionItemKind.Reference],
+    [UCSymbolKind.ScriptStruct, CompletionItemKind.Struct],
+    [UCSymbolKind.State, CompletionItemKind.Reference],
+    [UCSymbolKind.Class, CompletionItemKind.Class],
+    [UCSymbolKind.Interface, CompletionItemKind.Interface],
+    [UCSymbolKind.Const, CompletionItemKind.Constant],
+    [UCSymbolKind.Enum, CompletionItemKind.Enum],
+    [UCSymbolKind.EnumTag, CompletionItemKind.EnumMember],
+    [UCSymbolKind.Property, CompletionItemKind.Property],
+    [UCSymbolKind.Parameter, CompletionItemKind.Variable],
+    [UCSymbolKind.Local, CompletionItemKind.Variable],
+    [UCSymbolKind.Function, CompletionItemKind.Function],
+    [UCSymbolKind.Event, CompletionItemKind.Event],
+    [UCSymbolKind.Delegate, CompletionItemKind.Event],
+    [UCSymbolKind.Operator, CompletionItemKind.Operator],
+    [UCSymbolKind.ReplicationBlock, CompletionItemKind.Reference],
+    [UCSymbolKind.DefaultPropertiesBlock, CompletionItemKind.Reference],
+]);
+
+function symbolToCompletionItem(symbol: ISymbol): CompletionItem {
+    const kind = CompletionItemKindMap.get(symbol.kind) ?? CompletionItemKind.Text;
     return {
-        label: symbol.getName().toString()
+        label: symbol.id.name.text,
+        kind: kind,
+        detail: symbol.getTooltip(),
+        data: symbol.id
     };
 }
 

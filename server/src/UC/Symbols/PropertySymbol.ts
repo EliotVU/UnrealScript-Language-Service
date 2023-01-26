@@ -1,134 +1,131 @@
-import { CompletionItemKind, Position, Range, SymbolKind } from 'vscode-languageserver-types';
+import { Position, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
 import { config, UCGeneration } from '../indexer';
-import { NAME_ENUMCOUNT } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ISymbol, ITypeSymbol, UCConstSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCFieldSymbol,
-    UCStructSymbol, UCSymbol, UCTypeFlags
+    ContextKind, ISymbol, ITypeSymbol, ModifierFlags, UCFieldSymbol, UCObjectSymbol, UCStructSymbol
 } from './';
-import { FieldModifiers } from './FieldSymbol';
-import { resolveType } from './TypeSymbol';
+import {
+    isConstSymbol, isEnumSymbol, isEnumTagSymbol, UCArrayTypeSymbol, UCSymbolKind, UCTypeKind
+} from './TypeSymbol';
 
 export class UCPropertySymbol extends UCFieldSymbol {
-	// The type if specified, i.e. "var Object Outer;" Object here is represented by @type, including the resolved symbol.
-	public type?: ITypeSymbol;
+    override kind = UCSymbolKind.Property;
 
-	// The array dimension if specified, undefined if @arrayDimRef is truthy.
-	public arrayDim?: number;
+    // The type if specified, i.e. "var Object Outer;" Object here is represented by @type, including the resolved symbol.
+    public type: ITypeSymbol;
 
-	// Array dimension is statically based on a declared symbol, such as a const or enum member.
-	public arrayDimRef?: ITypeSymbol;
-	public arrayDimRange?: Range;
+    // The array dimension if specified, undefined if @arrayDimRef is truthy.
+    public arrayDim?: number;
 
-	/**
-	 * Returns true if this property is declared as a static array type (false if it's is dynamic!).
-	 * Note that this property will be seen as a static array even if the @arrayDim value is invalid.
-	 */
-	isFixedArray(): boolean {
-		return (this.modifiers & FieldModifiers.WithDimension) === FieldModifiers.WithDimension;
-	}
+    // Array dimension is statically based on a declared symbol, such as a const or enum member.
+    public arrayDimRef?: ITypeSymbol;
+    public arrayDimRange?: Range;
 
-	isDynamicArray(): boolean {
-		return (this.type?.getTypeFlags() === UCTypeFlags.Array);
-	}
+    isDynamicArray(): this is { type: UCArrayTypeSymbol } {
+        return (this.type?.getTypeKind() === UCTypeKind.Array);
+    }
 
-	/**
-	 * Resolves and returns static array's size.
-	 * Returns undefined if unresolved.
-	 */
-	getArrayDimSize(): number | undefined {
-		if (this.arrayDimRef) {
-			const symbol = this.arrayDimRef.getRef();
-			if (symbol) {
-				if (symbol instanceof UCConstSymbol) {
-					return symbol.getComputedValue();
-				}
+    /**
+     * Resolves and returns static array's size.
+     * Returns undefined if unresolved.
+     */
+    getArrayDimSize(): number | undefined {
+        if (this.arrayDimRef) {
+            const symbol = this.arrayDimRef.getRef();
+            if (!symbol) {
+                return undefined;
+            }
 
-				if (config.generation === UCGeneration.UC3) {
-					if (symbol instanceof UCEnumSymbol) {
-						return (<UCEnumMemberSymbol>symbol.getSymbol(NAME_ENUMCOUNT)).value;
-					}
-					if (symbol instanceof UCEnumMemberSymbol) {
-						return symbol.value;
-					}
-				}
-			}
-			return undefined;
-		}
-		return this.arrayDim;
-	}
+            if (isConstSymbol(symbol)) {
+                return symbol.getComputedValue();
+            }
 
-	getKind(): SymbolKind {
-		return SymbolKind.Property;
-	}
+            if (config.generation === UCGeneration.UC3) {
+                if (isEnumSymbol(symbol)) {
+                    return symbol.maxValue;
+                }
+                if (isEnumTagSymbol(symbol)) {
+                    return symbol.value;
+                }
+            }
+        }
+        return this.arrayDim;
+    }
 
-	getTypeFlags() {
-		return UCTypeFlags.Property;
-	}
+    override getTypeKind() {
+        return UCTypeKind.Object;
+    }
 
-	getType() {
-		return resolveType(this.type);
-	}
+    override getType() {
+        return this.type;
+    }
 
-	getCompletionItemKind(): CompletionItemKind {
-		return CompletionItemKind.Property;
-	}
+    protected override getTypeKeyword() {
+        return 'var';
+    }
 
-	protected getTypeKeyword() {
-		return 'var';
-	}
+    protected getTooltipId() {
+        return this.getPath();
+    }
 
-	protected getTooltipId() {
-		return this.getPath();
-	}
+    override buildModifiers(modifiers = this.modifiers): string[] {
+        const text = super.buildModifiers(modifiers);
 
-	getTooltip() {
-		const text: Array<string | undefined> = [];
+        if (modifiers & ModifierFlags.ReadOnly) {
+            text.push('const');
+        }
 
-		text.push(this.getTypeKeyword());
+        return text;
+    }
 
-		const modifiers = this.buildModifiers();
-		text.push(...modifiers);
+    override getTooltip() {
+        const text: Array<string | undefined> = [];
 
-		text.push(this.type!.getTypeText());
-		text.push(this.getTooltipId());
+        text.push(this.getTypeHint());
+        text.push(this.getTypeKeyword());
 
-		if (this.isFixedArray()) {
-			const arrayDim = this.getArrayDimSize() ?? '';
-			text.push(text.pop() + `[${arrayDim}]`);
-		}
+        const modifiers = this.buildModifiers();
+        text.push(...modifiers);
 
-		return text.filter(s => s).join(' ');
-	}
+        text.push(this.type!.getTypeText());
+        text.push(this.getTooltipId());
 
-	getContainedSymbolAtPos(position: Position) {
-		return this.type?.getSymbolAtPos(position) || this.arrayDimRef?.getSymbolAtPos(position);
-	}
+        if (this.isFixedArray()) {
+            const arrayDim = this.getArrayDimSize() ?? '';
+            text.push(text.pop() + `[${arrayDim}]`);
+        }
 
-	getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: string, kind?: UCTypeFlags): C[] {
-		if (context === '.') {
-			const resolvedType = this.type?.getRef();
-			if (resolvedType instanceof UCSymbol) {
-				return resolvedType.getCompletionSymbols<C>(document, context, kind);
-			}
-		}
-		// TODO: Filter by type only.
-		else if (document.class) {
-			return document.class.getCompletionSymbols<C>(document, context, kind);
-		}
-		return [];
-	}
+        return text.filter(s => s).join(' ');
+    }
 
-	public index(document: UCDocument, context: UCStructSymbol) {
-		super.index(document, context);
+    override getContainedSymbolAtPos(position: Position) {
+        return this.type?.getSymbolAtPos(position) ?? this.arrayDimRef?.getSymbolAtPos(position);
+    }
 
-		this.type?.index(document, context);
-		this.arrayDimRef?.index(document, context);
-	}
+    override getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: ContextKind, kinds?: UCSymbolKind): C[] {
+        if (context === ContextKind.DOT) {
+            const resolvedType = this.type?.getRef();
+            if (resolvedType instanceof UCObjectSymbol) {
+                return resolvedType.getCompletionSymbols<C>(document, context, kinds);
+            }
+        }
+        // TODO: Filter by type only.
+        else if (document.class) {
+            return document.class.getCompletionSymbols<C>(document, context, kinds);
+        }
+        return [];
+    }
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result {
-		return visitor.visitProperty(this);
-	}
+    override index(document: UCDocument, context: UCStructSymbol) {
+        super.index(document, context);
+
+        this.type?.index(document, context);
+        this.arrayDimRef?.index(document, context);
+    }
+
+    override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitProperty(this);
+    }
 }

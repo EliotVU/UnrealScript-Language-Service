@@ -2,7 +2,7 @@
     "name": "uc",
     "description": "UnrealScript Language support",
     "displayName": "UnrealScript",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "author": {
         "name": "Eliot van Uytfanghe",
         "url": "https://EliotVU.com"
@@ -14,7 +14,6 @@
         "url": "https://github.com/EliotVU/UnrealScript-Language-Service"
     },
     "license": "MIT",
-    "enableProposedApi": true,
     "capabilities": {
         "virtualWorkspaces": {
             "supported": false
@@ -30,47 +29,58 @@
         "IntelliSense"
     ],
     "engines": {
-        "vscode": "^1.57.0"
+        "vscode": "^1.74.0"
     },
     "icon": "Icon.png",
     "dependencies": {
-        "antlr4ts": "0.5.0-alpha.4"
+        "antlr4ts": "0.5.0-alpha.4",
+        "syntaxes": "file:syntaxes"
     },
     "devDependencies": {
-        "@types/node": "^16.11.6",
-        "@typescript-eslint/parser": "^5.3.0",
+        "@tsconfig/recommended": "^1.0.2",
+        "@types/node": "^18.11.18",
+        "@typescript-eslint/eslint-plugin": "^5.49.0",
+        "@typescript-eslint/parser": "^5.49.0",
         "antlr4ts-cli": "0.5.0-alpha.4",
-        "eslint": "^8.2.0",
+        "copy-webpack-plugin": "^11.0.0",
+        "eslint": "^8.32.0",
         "gulp": "^4.0.2",
         "js-yaml": "^4.1.0",
         "merge-options": "^3.0.4",
-        "rimraf": "^3.0.2",
-        "ts-loader": "^9.2.6",
-        "tslint": "^6.1.3",
-        "typescript": "^4.4.4",
-        "typescript-eslint-language-service": "^4.1.5",
-        "webpack": "^5.62.1",
-        "webpack-cli": "^4.9.1"
+        "rimraf": "^4.1.2",
+        "ts-loader": "^9.4.2",
+        "ts-node": "^10.9.1",
+        "tsconfig-paths-webpack-plugin": "^4.0.0",
+        "typescript": "^4.9.4",
+        "typescript-eslint-language-service": "^5.0.0",
+        "webpack": "^5.75.0",
+        "webpack-cli": "^5.0.1"
     },
     "scripts": {
-        "vscode:prepublish": "cd client && npm run update-vscode && cd .. && npm run build",
-        "build": "npx gulp buildSyntax && npm run compile:grammar && npm run compile:preprocessor && npm run clean && npx webpack --mode production --config ./client/webpack.config.js && npx webpack --mode production --config ./server/webpack.config.js",
-        "compile": "tsc -b",
+        "vscode:prepublish": "npm run build",
+        "build": "npx gulp buildGrammar && npm run compile:grammar && npm run compile:preprocessor && npm run clean && npx webpack --mode production --config ./webpack.config.js",
+        "compile": "npx webpack --mode development --config ./webpack.config.js",
         "compile:grammar": "npx antlr4ts -visitor -no-listener grammars/UCLexer.g4 -o server/src/UC/antlr/generated && npx antlr4ts -visitor -no-listener grammars/UCParser.g4 -o server/src/UC/antlr/generated",
         "compile:preprocessor": "npx antlr4ts -visitor -no-listener grammars/UCPreprocessorParser.g4 -o server/src/UC/antlr/generated",
-        "watch": "start gulp & tsc -b -w",
-        "clean": "rimraf client/out && rimraf server/out",
+        "watch": "(set NODE_ENV=development) & start gulp & npx webpack --mode development --config ./webpack.config.js --watch",
+        "clean": "rimraf out",
         "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
-        "test": "cd server && npm test"
+        "test": "cd server && npm test",
+        "test-live": "cd server && npm run test-live"
     },
     "activationEvents": [
         "onLanguage:unrealscript",
-        "workspaceContains:**/*.upkg"
+        "workspaceContains:**/*.upkg,**/*.ucproject"
     ],
-    "main": "client/out/extension.js",
+    "main": "out/extension.js",
     "extensionKind": [
         "workspace"
     ],
+    "configurationDefaults": {
+        "[unrealscript]": {
+            "editor.semanticHighlighting.enabled": true
+        }
+    },
     "contributes": {
         "configuration": {
             "type": "object",
@@ -96,7 +106,7 @@
                         "3"
                     ],
                     "default": "3",
-                    "description": "The UnrealScript generation your project is working withh.."
+                    "description": "The UnrealScript generation your project is working with.."
                 },
                 "unrealscript.licensee": {
                     "scope": "resource",
@@ -215,13 +225,23 @@
                     ".uci"
                 ],
                 "configuration": "./language-configuration.json"
+            },
+            {
+                "id": "ini",
+                "extensions": [
+                    ".upkg",
+                    ".ucproject"
+                ],
+                "filenamePatterns": [
+                    "[w]+"
+                ]
             }
         ],
         "grammars": [
             {
                 "language": "unrealscript",
                 "scopeName": "source.uc",
-                "path": "./syntaxes/UnrealScript.tmLanguage.json",
+                "path": "./out/UnrealScript.tmLanguage.json",
                 "embeddedLanguages": {
                     "meta.embedded.block.cpp.uc": "cpp"
                 }
@@ -239,6 +259,51 @@
                         "description": ""
                     }
                 ]
+            }
+        ],
+        "semanticTokenModifiers": [
+            {
+                "id": "intrinsic",
+                "description": "Annotates a symbol that is implemented intrinsically"
+            },
+            {
+                "id": "native",
+                "description": "Annotates a symbol that is implemented natively"
+            }
+        ],
+        "semanticTokenTypes": [
+            {
+                "id": "archetype",
+                "superType": "type",
+                "description": "Annotates a symbol that is an instantiated object"
+            }
+        ],
+        "semanticTokenScopes": [
+            {
+                "language": "unrealscript",
+                "scopes": {
+                    "intrinsic": [
+                        "support.other.uc"
+                    ],
+                    "native": [
+                        "keyword.constant.uc"
+                    ],
+                    "archetype": [
+                        "variable.other.constant.uc"
+                    ]
+                }
+            }
+        ],
+        "semanticTokenColors": {
+            "archetype:unrealscript": "#885524",
+            "*.native:unrealscript": {
+                "background": "#552424"
+            }
+        },
+        "snippets": [
+            {
+                "language": "unrealscript",
+                "path": "./snippets/unrealscript.code-snippets"
             }
         ]
     }
