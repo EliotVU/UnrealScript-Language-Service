@@ -36,6 +36,8 @@ var name nameVar;
 var native int nativeVar;
 var transient int transientVar;
 
+var bool boolVar;
+var byte byteVar;
 var float floatVar;
 var int intVar;
 var Class objectVar;
@@ -77,6 +79,7 @@ function int AssignTest() {
 
     // FIXME: Type error
     getName(enum'EEnum', enumVar);
+    boolVar = byteVar;
 }
 
 function name getName(Object obj, byte index);
@@ -84,6 +87,9 @@ function name getName(Object obj, byte index);
 defaultproperties
 {
     enumVar=E_NONE
+
+    boolVar=1
+    boolVar=true
 
     // TODO: Not yet indexed
     vectorVar=(x=0)

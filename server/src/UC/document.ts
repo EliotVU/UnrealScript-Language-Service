@@ -73,6 +73,60 @@ export class UCDocument {
         this.scope.addSymbol(symbol);
     }
 
+    public parse(text: string): DocumentParseData {
+        console.log('parsing document ' + this.fileName);
+
+        const inputStream = UCInputStream.fromString(text);
+        const lexer = new UCLexer(inputStream);
+        lexer.removeErrorListeners();
+        const tokens = new UCTokenStream(lexer);
+
+        if (config.generation === UCGeneration.UC3) {
+            const startPreprocressing = performance.now();
+            const macroParser = createPreprocessor(this, lexer);
+            lexer.reset();
+            if (macroParser) {
+                try {
+                    const macroTree = preprocessDocument(this, macroParser);
+                    if (macroTree) {
+                        tokens.initMacroTree(macroTree);
+                    }
+                } catch (err) {
+                    console.error(err);
+                } finally {
+                    console.info(this.fileName + ': preprocessing time ' + (performance.now() - startPreprocressing));
+                }
+            }
+        }
+
+        tokens.fill();
+
+        let context: ProgramContext | undefined;
+        const parser = new UCParser(tokens);
+        try {
+            parser.interpreter.setPredictionMode(PredictionMode.SLL);
+            parser.errorHandler = ERROR_STRATEGY;
+            parser.removeErrorListeners();
+            context = parser.program();
+        } catch (err) {
+            console.debug('PredictionMode SLL has failed, rolling back to LL.');
+            try {
+                parser.reset();
+                parser.interpreter.setPredictionMode(PredictionMode.LL);
+                parser.errorHandler = ERROR_STRATEGY;
+                parser.removeErrorListeners();
+                context = parser.program();
+            } catch (err) {
+                console.error(
+                    `An error was thrown while parsing document: "${this.uri}"`,
+                    err
+                );
+            }
+        }
+        tokens.release(tokens.mark());
+        return { context, parser };
+    }
+
     public build(text: string = this.readText()): DocumentParseData {
         console.log('building document ' + this.fileName);
 

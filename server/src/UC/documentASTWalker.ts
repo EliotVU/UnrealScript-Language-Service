@@ -10,39 +10,119 @@ import { UCPreprocessorParserVisitor } from './antlr/generated/UCPreprocessorPar
 import { ErrorDiagnostic } from './diagnostics/diagnostic';
 import { UCDocument } from './document';
 import {
-    IExpression, UCArrayCountExpression, UCAssignmentOperatorExpression, UCBinaryOperatorExpression,
-    UCBoolLiteral, UCByteLiteral, UCCallExpression, UCConditionalExpression,
-    UCDefaultAssignmentExpression, UCDefaultElementAccessExpression, UCDefaultMemberCallExpression,
-    UCDefaultStructLiteral, UCElementAccessExpression, UCEmptyArgument, UCFloatLiteral,
-    UCIdentifierLiteralExpression, UCIntLiteral, UCMemberExpression, UCMetaClassExpression,
-    UCNameLiteral, UCNameOfExpression, UCNewExpression, UCNoneLiteral, UCObjectLiteral,
-    UCParenthesizedExpression, UCPostOperatorExpression, UCPredefinedAccessExpression,
-    UCPreOperatorExpression, UCPropertyAccessExpression, UCPropertyClassAccessExpression,
-    UCRngLiteral, UCRotLiteral, UCSizeOfLiteral, UCStringLiteral, UCSuperExpression, UCVectLiteral
+    IExpression,
+    UCArrayCountExpression,
+    UCAssignmentOperatorExpression,
+    UCBinaryOperatorExpression,
+    UCBoolLiteral,
+    UCCallExpression,
+    UCConditionalExpression,
+    UCDefaultAssignmentExpression,
+    UCDefaultElementAccessExpression,
+    UCDefaultMemberCallExpression,
+    UCDefaultStructLiteral,
+    UCElementAccessExpression,
+    UCEmptyArgument,
+    UCFloatLiteral,
+    UCIdentifierLiteralExpression,
+    UCIntLiteral,
+    UCMemberExpression,
+    UCMetaClassExpression,
+    UCNameLiteral,
+    UCNameOfExpression,
+    UCNewExpression,
+    UCNoneLiteral,
+    UCObjectLiteral,
+    UCParenthesizedExpression,
+    UCPostOperatorExpression,
+    UCPredefinedAccessExpression,
+    UCPreOperatorExpression,
+    UCPropertyAccessExpression,
+    UCPropertyClassAccessExpression,
+    UCRngLiteral,
+    UCRotLiteral,
+    UCSizeOfLiteral,
+    UCStringLiteral,
+    UCSuperExpression,
+    UCVectLiteral,
 } from './expressions';
-import { getCtxDebugInfo } from './Parser/Parser.utils';
 import { rangeFromBound, rangeFromBounds, rangeFromCtx } from './helpers';
 import { config, setEnumMember, UCGeneration } from './indexer';
 import { toName } from './name';
 import {
-    NAME_ARRAY, NAME_CLASS, NAME_DEFAULTPROPERTIES, NAME_DELEGATE, NAME_ENUMCOUNT, NAME_MAP,
-    NAME_NONE, NAME_REPLICATION, NAME_STRUCTDEFAULTPROPERTIES
+    NAME_ARRAY,
+    NAME_CLASS,
+    NAME_DEFAULTPROPERTIES,
+    NAME_DELEGATE,
+    NAME_ENUMCOUNT,
+    NAME_MAP,
+    NAME_NONE,
+    NAME_REPLICATION,
+    NAME_STRUCTDEFAULTPROPERTIES,
 } from './names';
+import { getCtxDebugInfo } from './Parser/Parser.utils';
 import {
-    IStatement, UCArchetypeBlockStatement, UCAssertStatement, UCBlock, UCCaseClause,
-    UCControlStatement, UCDefaultClause, UCDoUntilStatement, UCEmptyStatement,
-    UCExpressionStatement, UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement,
-    UCLabeledStatement, UCRepIfStatement, UCReturnStatement, UCSwitchStatement, UCWhileStatement
+    IStatement,
+    UCArchetypeBlockStatement,
+    UCAssertStatement,
+    UCBlock,
+    UCCaseClause,
+    UCControlStatement,
+    UCDefaultClause,
+    UCDoUntilStatement,
+    UCEmptyStatement,
+    UCExpressionStatement,
+    UCForEachStatement,
+    UCForStatement,
+    UCGotoStatement,
+    UCIfStatement,
+    UCLabeledStatement,
+    UCRepIfStatement,
+    UCReturnStatement,
+    UCSwitchStatement,
+    UCWhileStatement,
 } from './statements';
 import {
-    addHashedSymbol, hasNoKind, Identifier, isStatement, ISymbol, ISymbolContainer, ITypeSymbol,
-    MethodFlags, ModifierFlags, ReturnValueIdentifier, UCArchetypeSymbol, UCArrayTypeSymbol,
-    UCBinaryOperatorSymbol, UCClassSymbol, UCConstSymbol, UCDefaultPropertiesBlock,
-    UCDelegateSymbol, UCDelegateTypeSymbol, UCEmptySymbol, UCEnumMemberSymbol, UCEnumSymbol,
-    UCEventSymbol, UCInterfaceSymbol, UCLocalSymbol, UCMapTypeSymbol, UCMethodSymbol,
-    UCObjectSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPostOperatorSymbol, UCPreOperatorSymbol,
-    UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock, UCScriptStructSymbol,
-    UCStateSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind, UCTypeSymbol
+    addHashedSymbol,
+    hasNoKind,
+    Identifier,
+    isStatement,
+    ISymbol,
+    ISymbolContainer,
+    ITypeSymbol,
+    MethodFlags,
+    ModifierFlags,
+    ReturnValueIdentifier,
+    UCArchetypeSymbol,
+    UCArrayTypeSymbol,
+    UCBinaryOperatorSymbol,
+    UCClassSymbol,
+    UCConstSymbol,
+    UCDefaultPropertiesBlock,
+    UCDelegateSymbol,
+    UCDelegateTypeSymbol,
+    UCEmptySymbol,
+    UCEnumMemberSymbol,
+    UCEnumSymbol,
+    UCEventSymbol,
+    UCInterfaceSymbol,
+    UCLocalSymbol,
+    UCMapTypeSymbol,
+    UCMethodSymbol,
+    UCObjectSymbol,
+    UCObjectTypeSymbol,
+    UCParamSymbol,
+    UCPostOperatorSymbol,
+    UCPreOperatorSymbol,
+    UCPropertySymbol,
+    UCQualifiedTypeSymbol,
+    UCReplicationBlock,
+    UCScriptStructSymbol,
+    UCStateSymbol,
+    UCStructSymbol,
+    UCSymbolKind,
+    UCTypeKind,
+    UCTypeSymbol,
 } from './Symbols';
 
 function createIdentifier(ctx: ParserRuleContext) {
@@ -940,12 +1020,13 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         this.declare(symbol, ctx);
         this.push(symbol);
         try {
+            let defaultObject: UCArchetypeSymbol | undefined;
             if (config.generation === UCGeneration.UC3) {
                 const defaultId: Identifier = {
                     name: toName(`Default__${this.document.name.text}`),
                     range: identifier.range
                 };
-                const defaultObject = new UCArchetypeSymbol(defaultId, range);
+                defaultObject = new UCArchetypeSymbol(defaultId, range);
                 defaultObject.modifiers |= ModifierFlags.Generated;
                 defaultObject.outer = this.document.classPackage;
                 defaultObject.super = this.document.class;
@@ -955,6 +1036,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 symbol.default = this.document.class!;
             }
             symbol.block = createBlock(this, ctx.defaultStatement());
+            if (defaultObject) {
+                defaultObject.block = symbol.block;
+            }
         } finally {
             this.pop();
         }

@@ -79,7 +79,8 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 	}
 
 	override acceptCompletion(_document: UCDocument, context: UCObjectSymbol): boolean {
-		return isProperty(context) || isFunction(context);
+        return true;
+		// return isProperty(context) || isFunction(context);
 	}
 
 	override index(document: UCDocument, _context: UCStructSymbol) {

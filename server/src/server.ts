@@ -16,7 +16,6 @@ import {
     ProposedFeatures,
     Range,
     ResponseError,
-    TextDocuments,
     TextDocumentSyncKind,
     TextEdit,
     WorkspaceChange,
@@ -25,6 +24,7 @@ import {
 } from 'vscode-languageserver/node';
 import { URI } from 'vscode-uri';
 
+import { ActiveTextDocuments } from './activeTextDocuments';
 import { buildCodeActions } from './codeActions';
 import {
     DefaultIgnoredTokensSet,
@@ -40,7 +40,7 @@ import { getReferences } from './references';
 import { buildSemanticTokens } from './semantics';
 import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
 import { UCLexer } from './UC/antlr/generated/UCLexer';
-import { DocumentParseData, UCDocument } from './UC/document';
+import { UCDocument } from './UC/document';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
 import { getSymbol, getSymbolDefinition, getSymbolDocument, getSymbolTooltip, VALID_ID_REGEXP } from './UC/helpers';
 import {
@@ -93,13 +93,9 @@ const documents$ = new BehaviorSubject<UCDocument[]>([]);
 /** Emits a document that is pending an update. */
 const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
 
-const textDocuments = new TextDocuments(TextDocument);
-
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasSemanticTokensCapability = false;
-
-let activeDocumentParseData: DocumentParseData | undefined;
 
 const UCFileGlobPattern = "**/*.{uc,uci}";
 
@@ -249,7 +245,7 @@ connection.onInitialized(() => {
         .subscribe(documents => {
             if (config.analyzeDocuments === EAnalyzeOption.OnlyActive) {
                 // Only analyze active documents.
-                documents = documents.filter(document => textDocuments.get(document.uri));
+                documents = documents.filter(document => ActiveTextDocuments.get(document.uri));
             }
 
             for (const document of documents) {
@@ -283,10 +279,7 @@ connection.onInitialized(() => {
                 }
 
                 if (!document.hasBeenIndexed) {
-                    const parser = queueIndexDocument(document, textDocument.getText());
-                    if (textDocuments.get(textDocument.uri)) {
-                        activeDocumentParseData = parser;
-                    }
+                    queueIndexDocument(document, textDocument.getText());
                 }
             },
             error: err => {
@@ -331,7 +324,7 @@ connection.onInitialized(() => {
                         queueIndexDocument(documents[i]);
                     }
                 } else {
-                    textDocuments
+                    ActiveTextDocuments
                         .all()
                         .forEach(doc => pendingTextDocuments$.next({
                             textDocument: doc,
@@ -430,11 +423,11 @@ connection.onInitialized(() => {
         // connection.languages.semanticTokens.onRange(e => getSemanticTokens(e.textDocument.uri));
     }
 
-    textDocuments.onDidOpen(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: false }));
-    textDocuments.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
+    ActiveTextDocuments.onDidOpen(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: false }));
+    ActiveTextDocuments.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
     // We need to re--index the document, incase that the end-user edited a document without saving its changes.
-    textDocuments.onDidClose(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
-    textDocuments.listen(connection);
+    ActiveTextDocuments.onDidClose(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
+    ActiveTextDocuments.listen(connection);
 });
 
 connection.onDidChangeConfiguration((params: { settings: { unrealscript: UCLanguageServerSettings } }) => {
@@ -606,13 +599,13 @@ connection.onDocumentHighlight((e) => getHighlights(e.textDocument.uri, e.positi
 connection.onCompletion((e) => {
     if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
         return firstValueFrom(lastIndexedDocuments$).then(_documents => {
-            return getCompletableSymbolItems(e.textDocument.uri, activeDocumentParseData, e.position);
+            return getCompletableSymbolItems(e.textDocument.uri, e.position);
         });
     }
-    return getCompletableSymbolItems(e.textDocument.uri, activeDocumentParseData, e.position);
+    return getCompletableSymbolItems(e.textDocument.uri, e.position);
 });
 connection.onCompletionResolve(getFullCompletionItem);
-connection.onSignatureHelp((e) => getSignatureHelp(e.textDocument.uri, activeDocumentParseData, e.position));
+connection.onSignatureHelp((e) => getSignatureHelp(e.textDocument.uri, e.position));
 
 connection.onPrepareRename(async (e) => {
     const symbol = getSymbol(e.textDocument.uri, e.position);

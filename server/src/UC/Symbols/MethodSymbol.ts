@@ -108,7 +108,22 @@ export class UCMethodSymbol extends UCStructSymbol {
 				return resolvedType.getCompletionSymbols<C>(document, context, kinds);
 			}
 		}
-		return super.getCompletionSymbols<C>(document, context, kinds);
+
+		const symbols: ISymbol[] = [];
+        for (let child = this.children; child; child = child.next) {
+			if (typeof kinds !== 'undefined' && ((1 << child.kind) & kinds) === 0) {
+				continue;
+			}
+			if (child.acceptCompletion(document, this)) {
+				symbols.push(child);
+			}
+		}
+
+        const outerSymbols = this.outer.getCompletionSymbols<C>(document, context, kinds);
+        if (outerSymbols) {
+            return outerSymbols.concat(symbols as C[]);
+        }
+        return symbols as C[];
 	}
 
 	override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind) {

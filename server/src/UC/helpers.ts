@@ -198,18 +198,21 @@ export function getIntersectingContext(context: ParserRuleContext, position: Pos
     return context;
 }
 
-export function getCaretTokenIndexFromStream(stream: TokenStream, position: Position): number {
+export function getCaretTokenFromStream(stream: TokenStream, caret: Position): Token | undefined {
+    // ANTLR lines begin at 1
+    const carretLine = caret.line + 1;
+    const carretColumn = caret.character > 0 ? caret.character - 1 : 0;
     let i = 0;
     let token: Token | undefined = undefined;
     while (i < stream.size && (token = stream.get(i))) {
-        if (position.line === token.line - 1
-            && position.character >= token.charPositionInLine
-            && position.character < token.charPositionInLine + (token.stopIndex - token.startIndex + 1)) {
-            return token.tokenIndex;
+        if (carretLine === token.line
+            && token.charPositionInLine <= carretColumn
+            && token.charPositionInLine + (token.stopIndex - token.startIndex) >= carretColumn) {
+            return token;
         }
         ++i;
     }
-    return 0;
+    return undefined;
 }
 
 export function backtrackFirstToken(stream: TokenStream, startTokenIndex: number): Token | undefined {
@@ -232,10 +235,10 @@ export function backtrackFirstTokenOfType(stream: TokenStream, type: number, sta
     if (startTokenIndex >= stream.size) {
         return undefined;
     }
-    let i = startTokenIndex;
+    let i = startTokenIndex + 1;
     while (--i) {
         const token = stream.get(i);
-        if (token.channel !== UCLexer.DEFAULT_TOKEN_CHANNEL) {
+        if (token.type <= UCLexer.ID) {
             continue;
         }
 

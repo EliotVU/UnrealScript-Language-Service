@@ -43,6 +43,9 @@ export enum ModifierFlags {
 
     // TODO: Track this modifier for various fields
     Deprecated          = 1 << 21,
+
+    // A private method can however be re-defined!
+    NonOverridable      = Private | Intrinsic, 
 }
 
 export abstract class UCFieldSymbol extends UCObjectSymbol {

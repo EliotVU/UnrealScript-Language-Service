@@ -1,8 +1,12 @@
-import { DefaultErrorStrategy, Parser, RecognitionException } from 'antlr4ts';
+import { DefaultErrorStrategy, Parser, RecognitionException, Token } from 'antlr4ts';
 
 import { UCParser } from '../antlr/generated/UCParser';
 
 export class UCErrorStrategy extends DefaultErrorStrategy {
+    protected singleTokenDeletion(recognizer: Parser): Token | undefined {
+        return undefined;
+    }
+
     reportError(recognizer: Parser, e: RecognitionException) {
         if (!recognizer.context) {
             return super.reportError(recognizer, e);

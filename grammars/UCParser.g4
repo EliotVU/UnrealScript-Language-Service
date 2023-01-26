@@ -16,6 +16,11 @@ options {
         } while (token.type !== UCParser.NEWLINE && token.type !== UCParser.EOF)
         this._input.seek(i);
     }
+
+    isNewLine(i = this._input.index): boolean {
+        const token = this._input.get(i);
+        return token.type === UCParser.NEWLINE;
+    }
 }
 
 // Class modifier keywords have been commented out, because we are not using them for parsing.
@@ -997,7 +1002,7 @@ defaultStatement
 	// -- the UC compiler just skips any character till it hits a newline character.
 	| SEMICOLON
 
-    // | . { this.skipLine(); }
+    // | ~(BITWISE_OR | SEMICOLON)
 	;
 
 defaultExpression

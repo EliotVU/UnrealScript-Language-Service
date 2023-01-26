@@ -6,18 +6,52 @@ import { intersectsWith, intersectsWithRange } from '../helpers';
 import { indexReference } from '../indexer';
 import { Name } from '../name';
 import {
-    NAME_ARRAY, NAME_BOOL, NAME_BUTTON, NAME_BYTE, NAME_DELEGATE, NAME_FLOAT, NAME_INT, NAME_MAP,
-    NAME_NAME, NAME_NONE, NAME_OBJECT, NAME_POINTER, NAME_RANGE, NAME_ROTATOR, NAME_STRING,
-    NAME_TYPE, NAME_VECTOR
+    NAME_ARRAY,
+    NAME_BOOL,
+    NAME_BUTTON,
+    NAME_BYTE,
+    NAME_DELEGATE,
+    NAME_FLOAT,
+    NAME_INT,
+    NAME_MAP,
+    NAME_NAME,
+    NAME_NONE,
+    NAME_OBJECT,
+    NAME_POINTER,
+    NAME_RANGE,
+    NAME_ROTATOR,
+    NAME_STRING,
+    NAME_TYPE,
+    NAME_VECTOR,
 } from '../names';
 import { IStatement } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    DEFAULT_IDENTIFIER, DEFAULT_RANGE, Identifier, IntrinsicArray, ISymbol, IWithIndex,
-    IWithInnerSymbols, IWithReference, ModifierFlags, ObjectsTable, SymbolReference,
-    UCArchetypeSymbol, UCBaseOperatorSymbol, UCClassSymbol, UCConstSymbol, UCEnumMemberSymbol,
-    UCEnumSymbol, UCEventSymbol, UCFieldSymbol, UCMethodSymbol, UCParamSymbol, UCPropertySymbol,
-    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol
+    DEFAULT_IDENTIFIER,
+    DEFAULT_RANGE,
+    Identifier,
+    IntrinsicArray,
+    ISymbol,
+    IWithIndex,
+    IWithInnerSymbols,
+    IWithReference,
+    ModifierFlags,
+    ObjectsTable,
+    SymbolReference,
+    UCArchetypeSymbol,
+    UCBaseOperatorSymbol,
+    UCClassSymbol,
+    UCConstSymbol,
+    UCEnumMemberSymbol,
+    UCEnumSymbol,
+    UCEventSymbol,
+    UCFieldSymbol,
+    UCMethodSymbol,
+    UCParamSymbol,
+    UCPropertySymbol,
+    UCScriptStructSymbol,
+    UCStateSymbol,
+    UCStructSymbol,
 } from './';
 import { ContextInfo, INode } from './ISymbol';
 import { UCDelegateSymbol } from './MethodSymbol';
@@ -717,7 +751,7 @@ export function isMethodSymbol(symbol: ISymbol): symbol is UCMethodSymbol {
     return symbol.kind === UCSymbolKind.Function;
 }
 
-export function isDelegateSymbol(symbol: ISymbol): symbol is UCMethodSymbol {
+export function isDelegateSymbol(symbol: ISymbol): symbol is UCDelegateSymbol {
     return symbol.kind === UCSymbolKind.Delegate;
 }
 
