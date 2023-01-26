@@ -154,7 +154,7 @@ repository:
       - name: constant.numeric.hex.uc
         match: 0(?:x|X)[0-9a-fA-F]+
 
-    # Matches one of (.0ก.0f|0.fก0.0)
+    # Matches one of (.0ยก.0f|0.fยก0.0)
       - name: constant.numeric.decimal.uc
         match: '[0-9]*\.(?:(?:f|F)|[0-9]+(?:f|F))'
 
@@ -477,10 +477,10 @@ repository:
             name: storage.modifier.uc
 
           # modifiers with params
-          - match: \b((?i)hidecategories|showcategories|autocollapsecategories|dontautocollapsecategories|autoexpandcategories|dontsortcategories|collapsecategories|dontcollapsecategories)\b
+          - match: \b((?i)hidecategories|showcategories|autocollapsecategories|dontautocollapsecategories|autoexpandcategories|dontsortcategories|collapsecategories|dontcollapsecategories|classgroup)\b
             name: storage.modifier.uc
 
-          - begin: \b((?i)dllbind|inherits|dependson|implements|classgroup|classredirect)\b
+          - begin: \b((?i)dllbind|inherits|dependson|implements|classredirect)\b
             beginCaptures:
               '1':
                 name: storage.modifier.uc
