@@ -12,6 +12,7 @@
 
 - Typing, major improvements have been made to the type-checking system, there are almost no false-positive errors anymore!
 - Archetypes, overall better support for "begin object" constructions
+- Better and more responsive auto-completion suggestions
 
 - Quality of Life
   - Overall improvements have been made to UnrealScript parsing
@@ -19,6 +20,8 @@
   - Fixed [(DefaultProperties) Issue with structs written on multiple lines](https://github.com/EliotVU/UnrealScript-Language-Service/issues/138)
   - Fixed an issue where a Function call in a member context ```Outer.SomeIdentifier(...)``` could mismatch a Class's name
   - Partially fixed an issue (in some cases) where a Function/Class invocation could be mistaken for one another
+  - Fixed LSP/documentSymbol [VSCode's Sticky scroll feature](https://github.com/EliotVU/UnrealScript-Language-Service/issues/148)
+  - Fixed an issue that caused the document transformer to abort when trying to build a property with bad type-grammar (actually usually triggered by use of  macros).
 
 ## 0.5.0
 
