@@ -13,12 +13,10 @@
         "type": "git",
         "url": "https://github.com/EliotVU/UnrealScript-Language-Service"
     },
-    "license": "MIT",
-    "capabilities": {
-        "virtualWorkspaces": {
-            "supported": false
-        }
+    "bugs": {
+        "url": "https://github.com/EliotVU/UnrealScript-Language-Service/issues"
     },
+    "license": "MIT",
     "categories": [
         "Programming Languages",
         "Linters"
@@ -28,10 +26,23 @@
         "UnrealScript",
         "IntelliSense"
     ],
+    "pricing": "Free",
+    "sponsor": {
+        "url": "https://github.com/sponsors/eliotvu"
+    },
+    "icon": "Icon.png",
+    "galleryBanner": {
+        "color": "#1c1a42",
+        "theme": "dark"
+    },
     "engines": {
         "vscode": "^1.74.0"
     },
-    "icon": "Icon.png",
+    "capabilities": {
+        "virtualWorkspaces": {
+            "supported": false
+        }
+    },
     "dependencies": {
         "antlr4ts": "0.5.0-alpha.4",
         "syntaxes": "file:syntaxes"
