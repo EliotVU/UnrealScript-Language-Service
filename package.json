@@ -271,19 +271,35 @@
                 "description": "Annotates a symbol that is implemented natively"
             }
         ],
+        "semanticTokenTypes": [
+            {
+                "id": "archetype",
+                "superType": "type",
+                "description": "Annotates a symbol that is an instantiated object"
+            }
+        ],
         "semanticTokenScopes": [
             {
                 "language": "unrealscript",
                 "scopes": {
                     "intrinsic": [
-                        "keyword.constant.uc"
+                        "support.other.uc"
                     ],
                     "native": [
                         "keyword.constant.uc"
+                    ],
+                    "archetype": [
+                        "variable.other.constant.uc"
                     ]
                 }
             }
         ],
+        "semanticTokenColors": {
+            "archetype:unrealscript": "#885524",
+            "*.native:unrealscript": {
+                "background": "#552424"
+            }
+        },
         "snippets": [
             {
                 "language": "unrealscript",
