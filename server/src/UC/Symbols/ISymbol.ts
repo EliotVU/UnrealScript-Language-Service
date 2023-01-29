@@ -102,3 +102,13 @@ export function getOuter<T extends ISymbol = ISymbol>(symbol: ISymbol, kind: UCS
 export function hasNoKind(symbol: { kind: UCNodeKind }): boolean {
     return typeof symbol.kind === 'undefined';
 }
+
+export function getDebugSymbolInfo(symbol?: ISymbol): string {
+    if (typeof symbol === 'undefined') {
+        return 'null';
+    }
+
+    const range = symbol.getRange();
+    const path = symbol.getName().text;
+    return `(${range.start.line + 1}:${range.start.character} - ${range.end.line + 1}:${range.end.character}) [${path}]`;
+}
