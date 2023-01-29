@@ -2,6 +2,10 @@ lexer grammar UCLexer;
 
 channels { MACRO, COMMENTS_CHANNEL }
 
+@lexer::header {
+    // TODO: Create a map of keyword tokens?
+}
+
 @lexer::members {
 	parensLevel: number = 0;
 	braceLevel: number = 0;

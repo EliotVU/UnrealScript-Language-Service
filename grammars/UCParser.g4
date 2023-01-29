@@ -21,16 +21,16 @@ options {
         const token = this._input.get(i);
         return token.type === UCParser.NEWLINE;
     }
+
+    isKeywordToken(token: Token): boolean {
+        return token.type >= UCParser.KW_DEFAULT && token.type < UCParser.ID;
+    }
 }
 
 // Class modifier keywords have been commented out, because we are not using them for parsing.
 identifier
     : ID
-    | keyword
-    ;
-
-keyword
-	: 'default'
+    | { this.isKeywordToken(this.currentToken) }? ('default'
 	| 'self'
 	| 'super'
 	| 'global'
@@ -202,8 +202,8 @@ keyword
 	| 'rng'
     | 'arraycount'
     | 'enumcount'
-    | 'sizeof'
-	;
+    | 'sizeof')
+    ;
 
 // Parses the following possiblities.
 // Package.Class
@@ -594,6 +594,7 @@ structCppText
 	;
 
 // UnrealScriptBug: Anything WHATSOEVER can be written after this closing brace as long as it's on the same line!
+// Skips a C++ block of text: "{ ... | { ... }* }
 exportBlockText
 	: OPEN_BRACE (~(OPEN_BRACE | CLOSE_BRACE)+ | exportBlockText)* CLOSE_BRACE
 	;
