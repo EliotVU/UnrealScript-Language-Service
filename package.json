@@ -148,7 +148,7 @@
                 "unrealscript.checkTypes": {
                     "scope": "window",
                     "type": "boolean",
-                    "description": "Checks and reports if an expression's type is a valid one. e.g. assignments and passed arguments.",
+                    "description": "(Experimental) Checks and reports if an expression's type is a valid one. e.g. assignments and passed arguments. Recommended for laboratory mice.",
                     "default": false
                 },
                 "unrealscript.macroSymbols": {
