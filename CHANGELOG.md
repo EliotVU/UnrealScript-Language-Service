@@ -1,12 +1,12 @@
 # UnrealScript Language Service
 
-## 0.6.0
+## 0.6.0 (Jan 26, 2023)
 
 - Implemented [LSP Semantic-Tokens #137](https://github.com/EliotVU/UnrealScript-Language-Service/issues/137) (References to a class will now be highlighted as such even where the tmLanguage cannot determine the identifier's type)
   - ![image](https://user-images.githubusercontent.com/808593/211020346-38724ace-2fbe-4d92-b68c-69640ded824f.png)
 
 - Implemented [LSP Workspace Symbols #148](https://github.com/EliotVU/UnrealScript-Language-Service/issues/148)
-  - ![image](./media/workspaceSymbols.png)
+  - ![image](./docs/media/workspaceSymbols.png)
 
 - Added [UnrealScript snippets #149](https://github.com/EliotVU/UnrealScript-Language-Service/issues/149)
 
@@ -23,7 +23,7 @@
   - Fixed LSP/documentSymbol [VSCode's Sticky scroll feature](https://github.com/EliotVU/UnrealScript-Language-Service/issues/148)
   - Fixed an issue that caused the document transformer to abort when trying to build a property with bad type-grammar (actually usually triggered by use of  macros).
 
-## 0.5.0
+## 0.5.0 (Nov 8, 2021)
 
 - Autocomplete and IntelliSense
   - Has been displaced with the help of a third-party library [c3](https://github.com/mike-lischke/antlr4-c3)

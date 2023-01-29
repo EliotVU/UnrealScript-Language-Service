@@ -2,7 +2,7 @@
     "name": "uc",
     "description": "UnrealScript Language support",
     "displayName": "UnrealScript",
-    "version": "0.6.0",
+    "version": "0.6.1",
     "author": {
         "name": "Eliot van Uytfanghe",
         "url": "https://EliotVU.com"
@@ -13,12 +13,10 @@
         "type": "git",
         "url": "https://github.com/EliotVU/UnrealScript-Language-Service"
     },
-    "license": "MIT",
-    "capabilities": {
-        "virtualWorkspaces": {
-            "supported": false
-        }
+    "bugs": {
+        "url": "https://github.com/EliotVU/UnrealScript-Language-Service/issues"
     },
+    "license": "MIT",
     "categories": [
         "Programming Languages",
         "Linters"
@@ -28,10 +26,23 @@
         "UnrealScript",
         "IntelliSense"
     ],
+    "pricing": "Free",
+    "sponsor": {
+        "url": "https://github.com/sponsors/eliotvu"
+    },
+    "icon": "Icon.png",
+    "galleryBanner": {
+        "color": "#1c1a42",
+        "theme": "dark"
+    },
     "engines": {
         "vscode": "^1.74.0"
     },
-    "icon": "Icon.png",
+    "capabilities": {
+        "virtualWorkspaces": {
+            "supported": false
+        }
+    },
     "dependencies": {
         "antlr4ts": "0.5.0-alpha.4",
         "syntaxes": "file:syntaxes"
@@ -137,7 +148,7 @@
                 "unrealscript.checkTypes": {
                     "scope": "window",
                     "type": "boolean",
-                    "description": "Checks and reports if an expression's type is a valid one. e.g. assignments and passed arguments.",
+                    "description": "(Experimental) Checks and reports if an expression's type is a valid one. e.g. assignments and passed arguments. Recommended for laboratory mice.",
                     "default": false
                 },
                 "unrealscript.macroSymbols": {
@@ -210,6 +221,24 @@
                             "extends": "Object"
                         }
                     }
+                },
+                "unrealscript.indexPackageExtensions": {
+                    "scope": "resource",
+                    "type": "array",
+                    "description": "A list of package (uc,upk) extensions to index.",
+                    "default": [
+                        "u",
+                        "upk"
+                    ]
+                },
+                "unrealscript.indexDocumentExtensions": {
+                    "scope": "resource",
+                    "type": "array",
+                    "description": "A list of document (uc) extensions to index.",
+                    "default": [
+                        "uc",
+                        "uci"
+                    ]
                 }
             }
         },
