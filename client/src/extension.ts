@@ -1,8 +1,6 @@
 import * as path from 'path';
 import { ExtensionContext, workspace } from 'vscode';
-import {
-    LanguageClient, LanguageClientOptions, ServerOptions, TransportKind
-} from 'vscode-languageclient/node';
+import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from 'vscode-languageclient/node';
 
 let client: LanguageClient;
 
@@ -34,7 +32,11 @@ export function activate(context: ExtensionContext) {
 		documentSelector: [{ scheme: 'file', language: 'unrealscript' }],
 		synchronize: {
             configurationSection: 'unrealscript',
-			fileEvents: workspace.createFileSystemWatcher('**/*.{uc,uci}')
+			fileEvents: [
+                workspace.createFileSystemWatcher('**/*.{uc,uci}'),
+                // Let's not watch for upk changes, just u files because those are expected to change often.
+                workspace.createFileSystemWatcher('**/*.{u}')
+            ]
 		},
         diagnosticCollectionName: 'UnrealScript',
 		outputChannelName: 'UnrealScript',

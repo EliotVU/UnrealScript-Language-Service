@@ -9,4 +9,6 @@ export enum EAnalyzeOption {
 export type UCLanguageServerSettings = UCLanguageSettings & {
     analyzeDocuments?: EAnalyzeOption;
     indexAllDocuments?: boolean;
+    indexPackageExtensions?: string[];
+    indexDocumentExtensions?: string[];
 }

@@ -221,6 +221,24 @@
                             "extends": "Object"
                         }
                     }
+                },
+                "unrealscript.indexPackageExtensions": {
+                    "scope": "resource",
+                    "type": "array",
+                    "description": "A list of package (uc,upk) extensions to index.",
+                    "default": [
+                        "u",
+                        "upk"
+                    ]
+                },
+                "unrealscript.indexDocumentExtensions": {
+                    "scope": "resource",
+                    "type": "array",
+                    "description": "A list of document (uc) extensions to index.",
+                    "default": [
+                        "uc",
+                        "uci"
+                    ]
                 }
             }
         },

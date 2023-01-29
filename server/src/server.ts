@@ -1,4 +1,6 @@
+import * as fs from 'fs';
 import * as glob from 'glob';
+import * as path from 'path';
 import { performance } from 'perf_hooks';
 import { BehaviorSubject, firstValueFrom, interval, Subject, Subscription } from 'rxjs';
 import { debounce, delay, filter, switchMap, tap } from 'rxjs/operators';
@@ -77,10 +79,12 @@ import {
     UCMethodSymbol,
     UCObjectSymbol,
     UCObjectTypeSymbol,
+    UCPackage,
     UCStructSymbol,
     UCSymbolKind,
     UCTypeKind,
 } from './UC/Symbols';
+import { UnrealPackage } from './UPK/UnrealPackage';
 import { getWorkspaceSymbols } from './workspaceSymbol';
 
 /**
@@ -88,7 +92,7 @@ import { getWorkspaceSymbols } from './workspaceSymbol';
  * If false, the workspace is expected to be invalidated and re-indexed.
  **/
 const isIndexReady$ = new Subject<boolean>();
-const documents$ = new BehaviorSubject<UCDocument[]>([]);
+const documentsToIndex$ = new BehaviorSubject<UCDocument[]>([]);
 
 /** Emits a document that is pending an update. */
 const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
@@ -97,36 +101,107 @@ let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasSemanticTokensCapability = false;
 
-const UCFileGlobPattern = "**/*.{uc,uci}";
+let documentFileGlobPattern = "**/*.{uc,uci}";
+let packageFileGlobPattern = "**/*.{u,upk}";
 
-function getWorkspaceFiles(folders: WorkspaceFolder[]): string[] {
-    const flattenedFiles: string[] = [];
-    folders
-        .map(folder => {
-            const folderFSPath = URI.parse(folder.uri).fsPath;
-            connection.console.info(`Scanning using pattern '${UCFileGlobPattern}'`);
-            return glob.sync(UCFileGlobPattern, {
-                root: folderFSPath,
-                realpath: true,
-                nosort: true,
-                nocase: true
-            });
-        })
-        .forEach(files => {
-            connection.console.info(`Found '${files.length}' matching files`);
-            flattenedFiles.push(...files);
-        });
-
-    return flattenedFiles;
+// FIXME: Use glob pattern, and make the extension configurable.
+function isDocumentFileName(fileName: string): boolean {
+    // Implied because we only receive one of the two.
+    return !isPackageFileName(fileName);
 }
 
-function createDocuments(files: string[]): UCDocument[] {
-    return files.map(filePath => createDocumentByPath(filePath, getPackageByDir(filePath)));
+function isPackageFileName(fileName: string): boolean {
+    return fileName.endsWith('.u');
 }
 
-function removeDocuments(files: string[]) {
+function getFiles(fsPath: string, pattern: string): string[] {
+    return glob.sync(pattern, {
+        root: fsPath,
+        realpath: true,
+        nosort: true,
+        nocase: true
+    });
+}
+
+type WorkspaceFiles = {
+    documentFiles: string[];
+    packageFiles: string[];
+};
+
+function getWorkspaceFiles(folders: WorkspaceFolder[], reason: string): WorkspaceFiles {
+    const documentFiles: string[] = [];
+    const packageFiles: string[] = [];
+
+    for (let folder of folders) {
+        const folderFSPath = URI.parse(folder.uri).fsPath;
+        connection.console.info(`Scanning folder '${folderFSPath}' using pattern '${packageFileGlobPattern}', '${documentFileGlobPattern}'`);
+        documentFiles.push(...getFiles(folderFSPath, documentFileGlobPattern));
+        packageFiles.push(...getFiles(folderFSPath, packageFileGlobPattern));
+    }
+    connection.console.info(`(${reason}) Found '${documentFiles.length}' document files`);
+    connection.console.info(`(${reason}) Found '${packageFiles.length}' package files`);
+    return { documentFiles, packageFiles };
+}
+
+function registerDocument(filePath: string): UCDocument {
+    return createDocumentByPath(filePath, getPackageByDir(filePath));
+}
+
+function registerDocuments(files: string[]): UCDocument[] {
+    return files.map(registerDocument);
+}
+
+function unregisterDocuments(files: string[]) {
     for (const filePath of files) {
         removeDocumentByPath(filePath);
+    }
+}
+
+function createPackageStream(filePath: string) {
+    const stream = fs.createReadStream(filePath, undefined);
+    return stream;
+}
+
+function createPackageFromPath(filePath: string): UCPackage {
+    const ext = path.extname(filePath);
+    const fileName = path.basename(filePath, ext);
+    const pkg = createPackage(fileName);
+    return pkg;
+}
+
+async function parsePackageFile(filePath: string): Promise<UnrealPackage> {
+    const rootPackage = createPackageFromPath(filePath);
+    const packageFile = new UnrealPackage(rootPackage);
+
+    // connection.console.info(`Parsing package file '${filePath}'`);
+    // const packageStream = new UnrealPackageStream(createPackageStream(filePath));
+    // try {
+    //     await packageStream.open();
+    //     await deserializePackage(packageFile, packageStream);
+    // } finally {
+    //     packageStream.close();
+    // }
+
+    return packageFile;
+}
+
+function registerWorkspaceFiles(workspace: WorkspaceFiles) {
+    if (workspace.packageFiles) {
+        const packages = workspace.packageFiles
+            .map(parsePackageFile);
+        Promise.all(packages);
+    }
+
+    if (workspace.documentFiles) {
+        const documents = registerDocuments(workspace.documentFiles);
+        // re-queue all old and new documents.
+        documentsToIndex$.next(Array.from(documentsMap.values()).concat(documents));
+    }
+}
+
+function unregisterWorkspaceFiles(workspace: WorkspaceFiles) {
+    if (workspace.documentFiles) {
+        unregisterDocuments(workspace.documentFiles);
     }
 }
 
@@ -161,26 +236,29 @@ connection.onInitialize((params: InitializeParams) => {
     hasWorkspaceFolderCapability = !!(capabilities.workspace && !!capabilities.workspace.workspaceFolders);
     hasSemanticTokensCapability = !!(capabilities.textDocument?.semanticTokens);
 
+    if (!hasConfigurationCapability) {
+        // Using the default settings.
+        initializeConfiguration();
+    }
+
+    if (!hasWorkspaceFolderCapability && params.rootUri) {
+        initializeWorkspace([{
+            uri: params.rootUri,
+            name: 'default'
+        }]);
+    }
+
     const fileOperation: FileOperationRegistrationOptions = {
         filters: [{
             scheme: 'file',
             pattern: {
-                glob: UCFileGlobPattern,
+                glob: documentFileGlobPattern,
                 options: {
                     ignoreCase: true
                 }
             }
         }]
     };
-
-    const folders = params.workspaceFolders;
-    if (folders) {
-        const files = getWorkspaceFiles(folders);
-        if (files) {
-            const documents = createDocuments(files);
-            documents$.next(documents);
-        }
-    }
 
     return {
         capabilities: {
@@ -236,7 +314,7 @@ connection.onInitialize((params: InitializeParams) => {
     };
 });
 
-connection.onInitialized(() => {
+connection.onInitialized((params) => {
     lastIndexedDocumentsSub = lastIndexedDocuments$
         .pipe(
             filter(() => config.analyzeDocuments !== EAnalyzeOption.None),
@@ -295,12 +373,12 @@ connection.onInitialized(() => {
                     return;
                 }
 
-                const documents = documents$.getValue();
+                const documents = documentsToIndex$.getValue();
                 for (let i = 0; i < documents.length; ++i) {
                     documents[i].invalidate();
                 }
             }),
-            switchMap(() => documents$),
+            switchMap(() => documentsToIndex$),
             filter(documents => documents.length > 0)
         )
         .subscribe((async (documents) => {
@@ -345,59 +423,64 @@ connection.onInitialized(() => {
             .then((settings: UCLanguageServerSettings) => {
                 setConfiguration(settings);
                 initializeConfiguration();
+                return connection.workspace.getWorkspaceFolders();
+            })
+            .then((workspaceFolders) => {
+                initializeWorkspace(workspaceFolders);
                 isIndexReady$.next(true);
             });
 
     } else {
-        // Using the default settings.
-        initializeConfiguration();
         isIndexReady$.next(true);
     }
 
     if (hasWorkspaceFolderCapability) {
         connection.workspace.onDidChangeWorkspaceFolders((event) => {
-            if (event.added) {
-                const files = getWorkspaceFiles(event.added);
-                if (files) {
-                    createDocuments(files);
-                    documents$.next(Array.from(documentsMap.values()));
-                }
+            if (event.added.length) {
+                const workspace = getWorkspaceFiles(event.added, 'workspace files added');
+                registerWorkspaceFiles(workspace);
             }
 
             // FIXME: Doesn't clean up any implicit created packages, nor names.
-            if (event.removed) {
-                const files = getWorkspaceFiles(event.removed);
-                if (files) {
-                    removeDocuments(files);
-                    documents$.next(Array.from(documentsMap.values()));
-                }
+            if (event.removed.length) {
+                const workspace = getWorkspaceFiles(event.removed, 'workspace files removed');
+                unregisterWorkspaceFiles(workspace);
             }
         });
 
         connection.workspace.onDidCreateFiles(params => {
-            const newFiles = params.files.map(f => url.fileURLToPath(f.uri));
-            createDocuments(newFiles)
+            const newFiles = params.files
+                .map(f => url.fileURLToPath(f.uri))
+                .filter(isDocumentFileName);
+            registerDocuments(newFiles)
                 .forEach(document => {
                     queueIndexDocument(document);
                 });
         });
 
         connection.workspace.onDidRenameFiles(params => {
-            const oldFiles = params.files.map(f => url.fileURLToPath(f.oldUri));
+            const oldFiles = params.files
+                .map(f => url.fileURLToPath(f.oldUri))
+                .filter(isDocumentFileName);
             // TODO: Need to trigger a re-index event for all documents that have a dependency on these files.
-            removeDocuments(oldFiles);
+            unregisterDocuments(oldFiles);
 
-            const newFiles = params.files.map(f => url.fileURLToPath(f.newUri));
-            createDocuments(newFiles)
+            const newFiles = params.files
+                .map(f => url.fileURLToPath(f.newUri))
+                .filter(isDocumentFileName);
+            registerDocuments(newFiles)
                 .forEach(document => {
                     queueIndexDocument(document);
                 });
         });
 
         connection.workspace.onDidDeleteFiles(params => {
-            const files = params.files.map(f => url.fileURLToPath(f.uri));
+            const files = params.files
+                .map(f => url.fileURLToPath(f.uri))
+                .filter(isDocumentFileName);
+
             // TODO: Need to trigger a re-index event for all documents that have a dependency on these files.
-            removeDocuments(files);
+            unregisterDocuments(files);
         });
     } else {
         // TODO: Support non-workspace environments?
@@ -450,6 +533,7 @@ function applyConfiguration(settings: UCLanguageServerSettings) {
     applyMacroSymbols(settings.macroSymbols);
     installIntrinsicSymbols(settings.intrinsicSymbols);
     setupIgnoredTokens(settings.generation);
+    setupFilePatterns(settings);
 }
 
 function clearIntrinsicSymbols() {
@@ -567,6 +651,25 @@ function setupIgnoredTokens(generation: UCGeneration) {
         ignoredTokensSet.add(UCLexer.KW_IMMUTABLEWHENCOOKED);
     }
     setIgnoredTokensSet(ignoredTokensSet);
+}
+
+function setupFilePatterns(settings: UCLanguageServerSettings) {
+    const packageFileExtensions = settings.indexPackageExtensions
+        ?.filter(ext => /^\w+$/.test(ext)) // prevent injection
+        ?? ['u', 'upk'];
+    packageFileGlobPattern = `**/*.{${packageFileExtensions.join(',')}}`;
+
+    const documentFileExtensions = settings.indexDocumentExtensions
+        ?.filter(ext => /^\w+$/.test(ext)) // prevent injection
+        ?? ['uc', 'uci'];
+    documentFileGlobPattern = `**/*.{${documentFileExtensions.join(',')}}`;
+}
+
+function initializeWorkspace(folders: WorkspaceFolder[] | null) {
+    if (folders) {
+        const workspace = getWorkspaceFiles(folders, 'initialize');
+        registerWorkspaceFiles(workspace);
+    }
 }
 
 connection.onHover(async (e) => {
