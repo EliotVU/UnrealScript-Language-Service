@@ -3,6 +3,7 @@
 ## Next
 
 - Type ```Pointer``` will no longer be recognized if the language is set to generation 3 (this has been displaced by the Core.Object.Pointer struct).
+- Implemented parser support for string types that have a fixed size e.g. ```String[255]``` (UE1).
 
 ## 0.6.1 (Jan 29, 2023)
 

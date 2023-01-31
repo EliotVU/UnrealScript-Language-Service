@@ -325,6 +325,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     visitTypeDecl(typeDeclNode: UCGrammar.TypeDeclContext): ITypeSymbol {
         const rule = typeDeclNode.getChild(0) as ParserRuleContext;
         switch (rule.ruleIndex) {
+            // TODO: Handle string type's size for analysis
+            case UCGrammar.UCParser.RULE_stringType:
             case UCGrammar.UCParser.RULE_primitiveType: {
                 const tokenType = rule.start.type;
                 const typeKind = TypeKeywordToTypeKindMap[tokenType];
