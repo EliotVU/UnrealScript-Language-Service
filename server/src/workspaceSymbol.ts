@@ -2,12 +2,12 @@ import { SymbolKind, WorkspaceSymbol } from 'vscode-languageserver';
 
 import { isDocumentSymbol, SymbolKindMap } from './documentSymbol';
 import { getSymbolTags } from './documentSymbolTagsBuilder';
-import { getDocuments } from './UC/indexer';
+import { enumerateDocuments } from './UC/indexer';
 import { isParamSymbol, isStruct, UCObjectSymbol } from './UC/Symbols';
 
 export function getWorkspaceSymbols(query: string): WorkspaceSymbol[] | undefined {
     const workspaceSymbols: WorkspaceSymbol[] = [];
-    for (let document of getDocuments()) {
+    for (let document of enumerateDocuments()) {
         for (let symbol of document.enumerateSymbols()) {
             if (isDocumentSymbol(symbol)) {
                 buildWorkSpaceSymbols(symbol);
