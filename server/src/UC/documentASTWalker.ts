@@ -189,7 +189,7 @@ function createTypeFromIdentifiers(identifiers: Identifier[]): UCQualifiedTypeSy
     return undefined;
 }
 
-function createObjectType(ctx: UCGrammar.IdentifierContext, kind?: UCSymbolKind) {
+function createObjectType(ctx: ParserRuleContext, kind?: UCSymbolKind) {
     const id: Identifier = createIdentifier(ctx);
     const type = new UCObjectTypeSymbol(id, id.range, kind);
     return type;
@@ -330,6 +330,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 const typeKind = TypeKeywordToTypeKindMap[tokenType];
                 if (typeof typeKind === 'undefined') {
                     throw new Error(`Unknown type '${UCGrammar.UCParser.VOCABULARY.getDisplayName(tokenType)}' for predefinedType() was encountered!`);
+                }
+
+                // With UE3 the pointer type was displaced by a struct i.e Core.Object.Pointer.
+                if (typeKind == UCTypeKind.Pointer && config.generation == UCGeneration.UC3) {
+                    const type: ITypeSymbol = createObjectType(rule, UCSymbolKind.Field);
+                    return type;
                 }
 
                 const type = new UCTypeSymbol(typeKind, rangeFromBounds(rule.start, rule.stop));

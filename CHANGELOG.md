@@ -1,5 +1,9 @@
 # UnrealScript Language Service
 
+## Next
+
+- Type ```Pointer``` will no longer be recognized if the language is set to generation 3 (this has been displaced by the Core.Object.Pointer struct).
+
 ## 0.6.1 (Jan 29, 2023)
 
 - The service will now register .u/.upk (the extensions are configurable) files as known package symbols, this means such packages will be included in the auto-completion and indexing of references.
