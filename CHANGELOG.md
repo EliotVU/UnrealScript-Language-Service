@@ -1,5 +1,13 @@
 # UnrealScript Language Service
 
+## 0.6.1 (Jan 29, 2023)
+
+- The service will now register .u/.upk (the extensions are configurable) files as known package symbols, this means such packages will be included in the auto-completion and indexing of references.
+  - Note: The contents of the packages are not yet indexed.
+
+- Implemented [Auto-insert when overriding a function](https://github.com/EliotVU/UnrealScript-Language-Service/issues/153)
+- Further improvements have been made to the auto-completion suggestions.
+
 ## 0.6.0 (Jan 26, 2023)
 
 - Implemented [LSP Semantic-Tokens #137](https://github.com/EliotVU/UnrealScript-Language-Service/issues/137) (References to a class will now be highlighted as such even where the tmLanguage cannot determine the identifier's type)
