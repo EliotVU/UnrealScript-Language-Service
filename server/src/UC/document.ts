@@ -164,7 +164,7 @@ export class UCDocument {
         }
 
         const startWalking = performance.now();
-        tokens.fill();
+        // tokenStream.fill();
 
         let context: ProgramContext | undefined;
         const parser = new UCParser(tokenStream);

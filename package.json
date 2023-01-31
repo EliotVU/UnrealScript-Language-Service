@@ -132,6 +132,7 @@
                 "unrealscript.indexAllDocuments": {
                     "scope": "window",
                     "type": "boolean",
+                    "description": "Whether to index all document files found in the workspace.",
                     "default": false
                 },
                 "unrealscript.analyzeDocuments": {

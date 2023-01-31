@@ -1,6 +1,7 @@
 import * as c3 from 'antlr4-c3';
 import { Parser, ParserRuleContext } from 'antlr4ts';
 import { Token } from 'antlr4ts/Token';
+import { UCLanguageServerSettings } from 'settings';
 import { CompletionItem, CompletionItemKind, InsertTextFormat, InsertTextMode, SignatureHelp } from 'vscode-languageserver';
 import { Position } from 'vscode-languageserver-textdocument';
 
@@ -17,7 +18,7 @@ import {
     getIntersectingContext,
     rangeFromBound,
 } from './UC/helpers';
-import { config, getDocumentByURI, UCGeneration } from './UC/indexer';
+import { config, getDocumentByURI, UCGeneration, UELicensee } from './UC/indexer';
 import { toName } from './UC/name';
 import { getCtxDebugInfo, getTokenDebugInfo } from './UC/Parser/Parser.utils';
 import {
@@ -100,10 +101,6 @@ export const DefaultIgnoredTokensSet = new Set([
 ]);
 
 let currentIgnoredTokensSet = DefaultIgnoredTokensSet;
-
-export function setIgnoredTokensSet(newSet: Set<number>) {
-    currentIgnoredTokensSet = newSet;
-}
 
 const TypeDeclSymbolKinds = 1 << UCSymbolKind.Enum
     | 1 << UCSymbolKind.ScriptStruct
@@ -977,4 +974,43 @@ export async function getFullCompletionItem(item: CompletionItem): Promise<Compl
         }
     }
     return item;
+}
+
+/** Updates the ignored tokens set based on the given input's UnrealScript Generation. */
+export function updateIgnoredCompletionTokens(settings: UCLanguageServerSettings): void {
+    const ignoredTokensSet = new Set(DefaultIgnoredTokensSet);
+    if (settings.generation === UCGeneration.UC1) {
+        ignoredTokensSet.add(UCLexer.KW_EXTENDS);
+        ignoredTokensSet.add(UCLexer.KW_NATIVE);
+
+        // TODO: Context aware ignored tokens.
+        // ignoredTokensSet.add(UCLexer.KW_TRANSIENT);
+        ignoredTokensSet.add(UCLexer.KW_LONG);
+    } else {
+        ignoredTokensSet.add(UCLexer.KW_EXPANDS);
+        ignoredTokensSet.add(UCLexer.KW_INTRINSIC);
+    }
+
+    if (settings.generation === UCGeneration.UC3) {
+        ignoredTokensSet.add(UCLexer.KW_CPPSTRUCT);
+    } else {
+        // Some custom UE2 builds do have implements and interface
+        ignoredTokensSet.add(UCLexer.KW_IMPLEMENTS);
+        ignoredTokensSet.add(UCLexer.KW_INTERFACE);
+
+        ignoredTokensSet.add(UCLexer.KW_STRUCTDEFAULTPROPERTIES);
+        ignoredTokensSet.add(UCLexer.KW_STRUCTCPPTEXT);
+
+        ignoredTokensSet.add(UCLexer.KW_ATOMIC);
+        ignoredTokensSet.add(UCLexer.KW_ATOMICWHENCOOKED);
+        ignoredTokensSet.add(UCLexer.KW_STRICTCONFIG);
+        ignoredTokensSet.add(UCLexer.KW_IMMUTABLE);
+        ignoredTokensSet.add(UCLexer.KW_IMMUTABLEWHENCOOKED);
+    }
+
+    if (settings.licensee !== UELicensee.XCom) {
+        ignoredTokensSet.add(UCLexer.KW_REF);
+    }
+
+    currentIgnoredTokensSet = ignoredTokensSet;
 }

@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import * as glob from 'glob';
+import glob from 'glob';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
 import { BehaviorSubject, firstValueFrom, interval, Subject, Subscription } from 'rxjs';
@@ -29,11 +29,10 @@ import { URI } from 'vscode-uri';
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { buildCodeActions } from './codeActions';
 import {
-    DefaultIgnoredTokensSet,
     getCompletableSymbolItems,
     getFullCompletionItem,
     getSignatureHelp,
-    setIgnoredTokensSet,
+    updateIgnoredCompletionTokens,
 } from './completion';
 import { getDiagnostics } from './diagnostics';
 import { getHighlights } from './documentHighlight';
@@ -41,7 +40,6 @@ import { getDocumentSymbols } from './documentSymbol';
 import { getReferences } from './references';
 import { buildSemanticTokens } from './semantics';
 import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
-import { UCLexer } from './UC/antlr/generated/UCLexer';
 import { UCDocument } from './UC/document';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
 import { getSymbol, getSymbolDefinition, getSymbolDocument, getSymbolTooltip, VALID_ID_REGEXP } from './UC/helpers';
@@ -64,7 +62,7 @@ import {
     UELicensee,
 } from './UC/indexer';
 import { toName } from './UC/name';
-import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
+import { NAME_ARRAY, NAME_CLASS, NAME_CORE, NAME_FUNCTION, NAME_NONE } from './UC/names';
 import {
     addHashedSymbol,
     DEFAULT_RANGE,
@@ -101,8 +99,8 @@ let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasSemanticTokensCapability = false;
 
-let documentFileGlobPattern = "**/*.{uc,uci}";
-let packageFileGlobPattern = "**/*.{u,upk}";
+let documentFileGlobPattern = "/**/*.{uc,uci}";
+let packageFileGlobPattern = "/**/*.{u,upk}";
 
 // FIXME: Use glob pattern, and make the extension configurable.
 function isDocumentFileName(fileName: string): boolean {
@@ -114,13 +112,22 @@ function isPackageFileName(fileName: string): boolean {
     return fileName.endsWith('.u');
 }
 
-function getFiles(fsPath: string, pattern: string): string[] {
-    return glob.sync(pattern, {
-        root: fsPath,
-        realpath: true,
-        nosort: true,
-        nocase: true
-    });
+function getFiles(fsPath: string, pattern: string): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+        return glob(pattern, {
+            cwd: fsPath,
+            root: fsPath,
+            realpath: true,
+            nosort: true,
+            nocase: true,
+            nodir: true
+        }, (err, matches) => {
+            if (err) {
+                return reject(err);
+            }
+            resolve(matches);
+        });
+    })
 }
 
 type WorkspaceFiles = {
@@ -128,18 +135,24 @@ type WorkspaceFiles = {
     packageFiles: string[];
 };
 
-function getWorkspaceFiles(folders: WorkspaceFolder[], reason: string): WorkspaceFiles {
-    const documentFiles: string[] = [];
-    const packageFiles: string[] = [];
+async function getWorkspaceFiles(folders: WorkspaceFolder[], reason: string): Promise<WorkspaceFiles> {
+    let documentFiles: string[] = [];
+    let packageFiles: string[] = [];
 
     for (let folder of folders) {
         const folderFSPath = URI.parse(folder.uri).fsPath;
         connection.console.info(`Scanning folder '${folderFSPath}' using pattern '${packageFileGlobPattern}', '${documentFileGlobPattern}'`);
-        documentFiles.push(...getFiles(folderFSPath, documentFileGlobPattern));
-        packageFiles.push(...getFiles(folderFSPath, packageFileGlobPattern));
+        await Promise.all([
+            getFiles(folderFSPath, packageFileGlobPattern).then((matches) => {
+                connection.console.info(`(${reason}) Found '${matches.length}' package files in '${folderFSPath}'`);
+                folders.length == 1 ? (packageFiles = matches) : packageFiles.push(...matches);
+            }),
+            getFiles(folderFSPath, documentFileGlobPattern).then((matches) => {
+                connection.console.info(`(${reason}) Found '${matches.length}' document files in '${folderFSPath}'`);
+                folders.length == 1 ? (documentFiles = matches) : documentFiles.push(...matches);
+            })
+        ]);
     }
-    connection.console.info(`(${reason}) Found '${documentFiles.length}' document files`);
-    connection.console.info(`(${reason}) Found '${packageFiles.length}' package files`);
     return { documentFiles, packageFiles };
 }
 
@@ -205,6 +218,18 @@ function unregisterWorkspaceFiles(workspace: WorkspaceFiles) {
     }
 }
 
+async function registerWorkspace(folders: WorkspaceFolder[] | null): Promise<void> {
+    if (folders) {
+        const getStartTime = performance.now();
+        const workspace = await getWorkspaceFiles(folders, 'initialize');
+        connection.console.log(`Found workspace files in ${(performance.now() - getStartTime) / 1000} seconds!`);
+
+        const registerStartTime = performance.now();
+        registerWorkspaceFiles(workspace);
+        connection.console.log(`Registered workspace files in ${(performance.now() - registerStartTime) / 1000} seconds!`);
+    }
+}
+
 function invalidatePendingDocuments() {
     const documents = pendingDocuments$.getValue();
     for (let i = 0; i < documents.length; ++i) {
@@ -249,12 +274,13 @@ connection.onInitialize((params: InitializeParams) => {
     }
 
     if (!hasWorkspaceFolderCapability && params.rootUri) {
-        initializeWorkspace([{
+        registerWorkspace([{
             uri: params.rootUri,
             name: 'default'
         }]);
     }
 
+    // FIXME: Not affected by the configured documentFileGlobPattern
     const fileOperation: FileOperationRegistrationOptions = {
         filters: [{
             scheme: 'file',
@@ -388,7 +414,11 @@ connection.onInitialized((params) => {
         .subscribe((async (documents) => {
             const indexStartTime = performance.now();
             const work = await connection.window.createWorkDoneProgress();
-            work.begin('Indexing workspace', 0.0);
+            work.begin(
+                'Indexing workspace',
+                0.0,
+                'The workspace documents are being processed.',
+                true);
             try {
                 // TODO: does not respect multiple globals.uci files
                 const globalUci = getDocumentById(globalsUCIFileName);
@@ -400,6 +430,11 @@ connection.onInitialized((params) => {
                     for (let i = 0; i < documents.length; i++) {
                         if (documents[i].hasBeenIndexed) {
                             continue;
+                        }
+
+                        if (work.token.isCancellationRequested) {
+                            connection.console.warn(`The workspace indexing has been cancelled.`)
+                            break;
                         }
 
                         work.report(i / documents.length, `${documents[i].fileName} + dependencies`);
@@ -430,7 +465,9 @@ connection.onInitialized((params) => {
                 return connection.workspace.getWorkspaceFolders();
             })
             .then((workspaceFolders) => {
-                initializeWorkspace(workspaceFolders);
+                return registerWorkspace(workspaceFolders);
+            })
+            .then(() => {
                 isIndexReady$.next(true);
             });
 
@@ -439,15 +476,15 @@ connection.onInitialized((params) => {
     }
 
     if (hasWorkspaceFolderCapability) {
-        connection.workspace.onDidChangeWorkspaceFolders((event) => {
+        connection.workspace.onDidChangeWorkspaceFolders(async (event) => {
             if (event.added.length) {
-                const workspace = getWorkspaceFiles(event.added, 'workspace files added');
+                const workspace = await getWorkspaceFiles(event.added, 'workspace files added');
                 registerWorkspaceFiles(workspace);
             }
 
             // FIXME: Doesn't clean up any implicit created packages, nor names.
             if (event.removed.length) {
-                const workspace = getWorkspaceFiles(event.removed, 'workspace files removed');
+                const workspace = await getWorkspaceFiles(event.removed, 'workspace files removed');
                 unregisterWorkspaceFiles(workspace);
             }
         });
@@ -536,7 +573,7 @@ function initializeConfiguration() {
 function applyConfiguration(settings: UCLanguageServerSettings) {
     applyMacroSymbols(settings.macroSymbols);
     installIntrinsicSymbols(settings.intrinsicSymbols);
-    setupIgnoredTokens(settings.generation);
+    updateIgnoredCompletionTokens(settings);
     setupFilePatterns(settings);
 }
 
@@ -566,7 +603,7 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
                 }
 
                 const symbol = new UCClassSymbol({ name: symbolName, range: DEFAULT_RANGE });
-                symbol.modifiers |= ModifierFlags.Intrinsic;
+                symbol.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Generated;
                 if (value.extends) {
                     symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCSymbolKind.Class);
                 }
@@ -601,7 +638,7 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
                 }
 
                 const symbol = new UCMethodSymbol({ name: symbolName, range: DEFAULT_RANGE });
-                symbol.modifiers |= ModifierFlags.Intrinsic;
+                symbol.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Generated;
                 superStruct.addSymbol(symbol);
                 break;
             }
@@ -620,60 +657,21 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
         }
     } else if (config.licensee === UELicensee.XCom) {
         randomizeOrderSymbol = new UCMethodSymbol({ name: randomizeOrderName, range: DEFAULT_RANGE });
+        randomizeOrderSymbol.modifiers |= ModifierFlags.Intrinsic;
         IntrinsicArray.addSymbol(randomizeOrderSymbol);
     }
-}
-
-function setupIgnoredTokens(generation: UCGeneration) {
-    const ignoredTokensSet = new Set(DefaultIgnoredTokensSet);
-    if (generation === UCGeneration.UC1) {
-        ignoredTokensSet.add(UCLexer.KW_EXTENDS);
-        ignoredTokensSet.add(UCLexer.KW_NATIVE);
-
-        // TODO: Context aware ignored tokens.
-        // ignoredTokensSet.add(UCLexer.KW_TRANSIENT);
-        ignoredTokensSet.add(UCLexer.KW_LONG);
-    } else {
-        ignoredTokensSet.add(UCLexer.KW_EXPANDS);
-        ignoredTokensSet.add(UCLexer.KW_INTRINSIC);
-    }
-
-    if (generation === UCGeneration.UC3) {
-        ignoredTokensSet.add(UCLexer.KW_CPPSTRUCT);
-    } else {
-        // Some custom UE2 builds do have implements and interface
-        ignoredTokensSet.add(UCLexer.KW_IMPLEMENTS);
-        ignoredTokensSet.add(UCLexer.KW_INTERFACE);
-
-        ignoredTokensSet.add(UCLexer.KW_STRUCTDEFAULTPROPERTIES);
-        ignoredTokensSet.add(UCLexer.KW_STRUCTCPPTEXT);
-
-        ignoredTokensSet.add(UCLexer.KW_ATOMIC);
-        ignoredTokensSet.add(UCLexer.KW_ATOMICWHENCOOKED);
-        ignoredTokensSet.add(UCLexer.KW_STRICTCONFIG);
-        ignoredTokensSet.add(UCLexer.KW_IMMUTABLE);
-        ignoredTokensSet.add(UCLexer.KW_IMMUTABLEWHENCOOKED);
-    }
-    setIgnoredTokensSet(ignoredTokensSet);
 }
 
 function setupFilePatterns(settings: UCLanguageServerSettings) {
     const packageFileExtensions = settings.indexPackageExtensions
         ?.filter(ext => /^\w+$/.test(ext)) // prevent injection
         ?? ['u', 'upk'];
-    packageFileGlobPattern = `**/*.{${packageFileExtensions.join(',')}}`;
+    packageFileGlobPattern = `/**/*.{${packageFileExtensions.join(',')}}`;
 
     const documentFileExtensions = settings.indexDocumentExtensions
         ?.filter(ext => /^\w+$/.test(ext)) // prevent injection
         ?? ['uc', 'uci'];
-    documentFileGlobPattern = `**/*.{${documentFileExtensions.join(',')}}`;
-}
-
-function initializeWorkspace(folders: WorkspaceFolder[] | null) {
-    if (folders) {
-        const workspace = getWorkspaceFiles(folders, 'initialize');
-        registerWorkspaceFiles(workspace);
-    }
+    documentFileGlobPattern = `/**/*.{${documentFileExtensions.join(',')}}`;
 }
 
 connection.onHover(async (e) => {
