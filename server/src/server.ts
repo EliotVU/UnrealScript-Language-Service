@@ -51,11 +51,11 @@ import {
     config,
     createDocumentByPath,
     createPackage,
-    documentsMap,
+    createPackageByDir,
+    enumerateDocuments,
     getDocumentById,
     getDocumentByURI,
     getIndexedReferences,
-    getPackageByDir,
     IntrinsicSymbolItemMap,
     lastIndexedDocuments$,
     queueIndexDocument,
@@ -92,7 +92,7 @@ import { getWorkspaceSymbols } from './workspaceSymbol';
  * If false, the workspace is expected to be invalidated and re-indexed.
  **/
 const isIndexReady$ = new Subject<boolean>();
-const documentsToIndex$ = new BehaviorSubject<UCDocument[]>([]);
+const pendingDocuments$ = new BehaviorSubject<UCDocument[]>([]);
 
 /** Emits a document that is pending an update. */
 const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
@@ -144,7 +144,7 @@ function getWorkspaceFiles(folders: WorkspaceFolder[], reason: string): Workspac
 }
 
 function registerDocument(filePath: string): UCDocument {
-    return createDocumentByPath(filePath, getPackageByDir(filePath));
+    return createDocumentByPath(filePath, createPackageByDir(filePath));
 }
 
 function registerDocuments(files: string[]): UCDocument[] {
@@ -195,13 +195,20 @@ function registerWorkspaceFiles(workspace: WorkspaceFiles) {
     if (workspace.documentFiles) {
         const documents = registerDocuments(workspace.documentFiles);
         // re-queue all old and new documents.
-        documentsToIndex$.next(Array.from(documentsMap.values()).concat(documents));
+        pendingDocuments$.next(Array.from(enumerateDocuments()).concat(documents));
     }
 }
 
 function unregisterWorkspaceFiles(workspace: WorkspaceFiles) {
     if (workspace.documentFiles) {
         unregisterDocuments(workspace.documentFiles);
+    }
+}
+
+function invalidatePendingDocuments() {
+    const documents = pendingDocuments$.getValue();
+    for (let i = 0; i < documents.length; ++i) {
+        documents[i].invalidate();
     }
 }
 
@@ -373,12 +380,9 @@ connection.onInitialized((params) => {
                     return;
                 }
 
-                const documents = documentsToIndex$.getValue();
-                for (let i = 0; i < documents.length; ++i) {
-                    documents[i].invalidate();
-                }
+                invalidatePendingDocuments();
             }),
-            switchMap(() => documentsToIndex$),
+            switchMap(() => pendingDocuments$),
             filter(documents => documents.length > 0)
         )
         .subscribe((async (documents) => {

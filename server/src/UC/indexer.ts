@@ -5,21 +5,27 @@ import { URI } from 'vscode-uri';
 
 import { EAnalyzeOption, UCLanguageServerSettings } from '../settings';
 import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
-import { DocumentParseData, UCDocument } from './document';
+import { UCDocument } from './document';
 import { DocumentIndexer } from './documentIndexer';
-import { Name, toName } from './name';
+import { Name, NameHash, toName } from './name';
 import {
-    addHashedSymbol, ISymbol, ObjectsTable, SymbolReference, TRANSIENT_PACKAGE, UCEnumMemberSymbol,
-    UCPackage, UCSymbolKind
+    addHashedSymbol,
+    ISymbol,
+    ObjectsTable,
+    SymbolReference,
+    TRANSIENT_PACKAGE,
+    UCEnumMemberSymbol,
+    UCPackage,
+    UCSymbolKind,
 } from './Symbols';
 
 export const documentsByPathMap = new Map<string, UCDocument>();
-export const documentsMap = new Map<number, UCDocument>();
+export const documentsMap = new Map<NameHash, UCDocument>();
 
 export enum UCGeneration {
-    UC1 = "1",
-    UC2 = "2",
-    UC3 = "3"
+    UC1 = '1',
+    UC2 = '2',
+    UC3 = '3'
 }
 
 export const enum UELicensee {
@@ -50,7 +56,7 @@ export const defaultSettings: UCLanguageServerSettings = {
     analyzeDocuments: EAnalyzeOption.OnlyActive,
     checkTypes: false,
     macroSymbols: {
-        "debug": ""
+        'debug': ''
     },
     intrinsicSymbols: {
 
@@ -80,14 +86,16 @@ export function applyMacroSymbols(symbols?: { [key: string]: string }) {
 export const lastIndexedDocuments$ = new Subject<UCDocument[]>();
 let pendingIndexedDocuments: UCDocument[] = [];
 
-export function indexDocument(document: UCDocument, text?: string): DocumentParseData | undefined {
+export function indexDocument(document: UCDocument, text?: string): void {
     try {
-        const parseData = document.build(text);
+        document.build(text);
         document.hasBeenIndexed = true;
         const start = performance.now();
         try {
             if (document.class) {
-                document.getSymbols().forEach(s => s.index(document, document.class!));
+                for (let symbol of document.enumerateSymbols()) {
+                    symbol.index(document, document.class!)
+                }
             }
         } catch (err) {
             console.error(
@@ -95,9 +103,8 @@ export function indexDocument(document: UCDocument, text?: string): DocumentPars
                 err
             );
         }
-        console.info(document.fileName + ': indexing time ' + (performance.now() - start));
+        console.info(`${document.fileName}: indexing time ${performance.now() - start}`);
         pendingIndexedDocuments.push(document);
-        return parseData;
     } catch (err) {
         console.error(`(index error) in document ${document.uri}`, err);
     }
@@ -116,19 +123,20 @@ function postIndexDocument(document: UCDocument) {
     }
 }
 
-export function queueIndexDocument(document: UCDocument, text?: string): DocumentParseData | undefined {
-    const parseData = indexDocument(document, text);
+export function queueIndexDocument(document: UCDocument, text?: string): void {
+    indexDocument(document, text);
     if (pendingIndexedDocuments) {
         const startTime = performance.now();
         for (const doc of pendingIndexedDocuments) {
             postIndexDocument(doc);
         }
-        console.info(`[${pendingIndexedDocuments.map(doc => doc.fileName).join()}]: post indexing time ${(performance.now() - startTime)}`);
+
+        const dependenciesSequence = pendingIndexedDocuments.map(doc => doc.fileName).join();
+        console.info(`[${dependenciesSequence}]: post indexing time ${(performance.now() - startTime)}`);
 
         lastIndexedDocuments$.next(pendingIndexedDocuments);
         pendingIndexedDocuments = [];
     }
-    return parseData;
 }
 
 function parsePackageNameInDir(dir: string): string | undefined {
@@ -141,7 +149,7 @@ function parsePackageNameInDir(dir: string): string | undefined {
     return undefined;
 }
 
-export function getPackageByDir(dir: string): UCPackage {
+export function createPackageByDir(dir: string): UCPackage {
     const pkgNameStr = parsePackageNameInDir(dir);
     if (typeof pkgNameStr === 'undefined') {
         return TRANSIENT_PACKAGE;
@@ -194,8 +202,12 @@ export function getDocumentById(id: Name): UCDocument | undefined {
     return documentsMap.get(id.hash);
 }
 
-export const IndexedReferencesMap = new Map<number, Set<SymbolReference>>();
-export function getIndexedReferences(hash: number) {
+export function enumerateDocuments(): IterableIterator<UCDocument> {
+    return documentsMap.values();
+}
+
+export const IndexedReferencesMap = new Map<NameHash, Set<SymbolReference>>();
+export function getIndexedReferences(hash: NameHash) {
     return IndexedReferencesMap.get(hash);
 }
 
@@ -214,7 +226,7 @@ export function indexDeclarationReference(symbol: ISymbol, document: UCDocument)
     return ref;
 }
 
-const EnumMemberMap = new Map<number, UCEnumMemberSymbol>();
+const EnumMemberMap = new Map<NameHash, UCEnumMemberSymbol>();
 export function getEnumMember(enumMemberName: Name): UCEnumMemberSymbol | undefined {
     return EnumMemberMap.get(enumMemberName.hash);
 }

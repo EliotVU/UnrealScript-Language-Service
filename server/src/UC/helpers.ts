@@ -4,9 +4,7 @@ import { Hover, Position, Range } from 'vscode-languageserver';
 import { UCLexer } from './antlr/generated/UCLexer';
 import { UCDocument } from './document';
 import { getDocumentById, getDocumentByURI } from './indexer';
-import {
-    getOuter, isField, ISymbol, supportsRef, UCClassSymbol, UCObjectSymbol, UCSymbolKind
-} from './Symbols';
+import { getOuter, isField, ISymbol, supportsRef, UCClassSymbol, UCObjectSymbol, UCSymbolKind } from './Symbols';
 
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 
@@ -101,7 +99,7 @@ export function intersectsWithRange(position: Position, range: Range): boolean {
 }
 
 export function getDocumentSymbol(document: UCDocument, position: Position): ISymbol | undefined {
-    const symbols = document.getSymbols();
+    const symbols = document.enumerateSymbols();
     for (const symbol of symbols) {
         const child = symbol.getSymbolAtPos(position);
         if (child) {
@@ -115,7 +113,7 @@ export function getDocumentSymbol(document: UCDocument, position: Position): ISy
  * Returns the deepest UCStructSymbol that is intersecting with @param position
  **/
 export function getDocumentContext(document: UCDocument, position: Position): ISymbol | undefined {
-    const symbols = document.getSymbols();
+    const symbols = document.enumerateSymbols();
     for (const symbol of symbols) {
         if (isField(symbol)) {
             const child = symbol.getCompletionContext(position);

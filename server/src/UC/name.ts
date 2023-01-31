@@ -1,11 +1,12 @@
 import { crc32_str } from './hash';
 
+export type NameHash = number;
 export type Name = Readonly<{
-    hash: number;
+    hash: NameHash;
     text: string;
 }>;
 
-const namesMap = new Map<number, Name>();
+const namesMap = new Map<NameHash, Name>();
 
 export function toName(text: Readonly<string>): Name {
     const hash = crc32_str(text);

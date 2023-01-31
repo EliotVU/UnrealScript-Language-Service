@@ -681,7 +681,7 @@ async function buildCompletableSymbolItems(
 
                     case UCParser.RULE_identifierArguments: {
                         const typeItems = Array
-                            .from(ObjectsTable.getKinds<UCClassSymbol>(1 << UCSymbolKind.Class))
+                            .from(ObjectsTable.enumerateKinds<UCClassSymbol>(1 << UCSymbolKind.Class))
                             .filter((classSymbol) => {
                                 // TODO: Compare by hash instead of instance
                                 // -- because a class could theoretically still reference an old copy.
@@ -786,7 +786,7 @@ async function buildCompletableSymbolItems(
 
                 if (contextSymbol) {
                     if (isPackage(contextSymbol)) {
-                        for (let symbol of ObjectsTable.getKinds(PackageTypeContextSymbolKinds)) {
+                        for (let symbol of ObjectsTable.enumerateKinds(PackageTypeContextSymbolKinds)) {
                             if (symbol.outer !== contextSymbol) {
                                 continue;
                             }
@@ -858,7 +858,7 @@ async function buildCompletableSymbolItems(
 
     if (globalTypes !== UCSymbolKind.None) {
         const typeItems = Array
-            .from(ObjectsTable.getKinds(globalTypes))
+            .from(ObjectsTable.enumerateKinds(globalTypes))
             .map(symbol => symbolToCompletionItem(symbol));
 
         items.push(...typeItems);

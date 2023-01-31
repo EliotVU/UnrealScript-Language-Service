@@ -189,9 +189,9 @@ export class UCTypeSymbol implements ITypeSymbol {
 
 export class UCObjectTypeSymbol implements ITypeSymbol {
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
-    protected reference?: ISymbol;
+    protected reference?: ISymbol = undefined;
 
-    public baseType?: ITypeSymbol;
+    public baseType?: ITypeSymbol = undefined;
 
     constructor(
         readonly id: Identifier,
@@ -412,7 +412,7 @@ export class UCQualifiedTypeSymbol implements ITypeSymbol {
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
     readonly id: Identifier;
 
-    protected reference?: ISymbol;
+    protected reference?: ISymbol = undefined;
 
     constructor(
         public readonly type: UCObjectTypeSymbol,

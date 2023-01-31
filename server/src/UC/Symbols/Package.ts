@@ -1,24 +1,22 @@
 import { getDocumentById, indexDocument } from '../indexer';
-import { Name } from '../name';
+import { Name, NameHash } from '../name';
 import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
-import {
-    DEFAULT_RANGE, ISymbol, ISymbolContainer, UCClassSymbol, UCFieldSymbol, UCObjectSymbol
-} from './';
+import { DEFAULT_RANGE, ISymbol, ISymbolContainer, UCClassSymbol, UCFieldSymbol, UCObjectSymbol } from './';
 import { isStruct, UCSymbolKind, UCTypeKind } from './TypeSymbol';
 
 export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
-	protected symbols = new Map<number, T>();
+	protected symbols = new Map<NameHash, T>();
 
     count() {
         return this.symbols.size;
     }
 
-	getAll<C extends T>() {
+	enumerateAll<C extends T>(): IterableIterator<C> {
 		return this.symbols.values() as IterableIterator<C>;
 	}
 
-    *getKinds<C extends T>(kinds: UCSymbolKind): Generator<C, C[]> {
+    *enumerateKinds<C extends T>(kinds: UCSymbolKind): Generator<C, C[]> {
         for (const symbol of this.symbols.values()) {
             if (((1 << symbol.kind) & kinds) === 0) {
                 continue;
@@ -28,11 +26,11 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
         return [];
     }
 
-	addSymbol(symbol: T): number {
+	addSymbol(symbol: T): NameHash {
 		return this.addKey(getSymbolHash(symbol), symbol);
 	}
 
-	addKey(key: number, symbol: T) {
+	addKey(key: NameHash, symbol: T) {
 		const other = this.symbols.get(key);
 		if (other) {
             if (other === symbol) {
@@ -51,7 +49,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 		this.removeKey(key, symbol);
 	}
 
-	removeKey(key: number, symbol: T) {
+	removeKey(key: NameHash, symbol: T) {
 		const other = this.symbols.get(key);
 		if (!other) {
 			return;
@@ -73,7 +71,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 		}
 	}
 
-	getSymbol<C extends T>(key: Name | number, kind?: UCSymbolKind, outer?: ISymbol): C | undefined {
+	getSymbol<C extends T>(key: Name | NameHash, kind?: UCSymbolKind, outer?: ISymbol): C | undefined {
 		const symbol = this.symbols.get(typeof(key) === 'number' ? key : key.hash);
 		if (typeof kind === 'undefined') {
 			return symbol as C | undefined;
@@ -148,12 +146,12 @@ export function getSymbolHash(symbol: ISymbol) {
 	return symbol.id.name.hash;
 }
 
-export function getSymbolOuterHash(symbolHash: number, outerHash: number) {
+export function getSymbolOuterHash(symbolHash: NameHash, outerHash: NameHash) {
 	return symbolHash + (outerHash >> 4);
 }
 
-export function getSymbolPathHash(symbol: ISymbol): number {
-    let hash: number = symbol.id.name.hash;
+export function getSymbolPathHash(symbol: ISymbol): NameHash {
+    let hash: NameHash = symbol.id.name.hash;
     for (let outer = symbol.outer; outer; outer = outer.outer) {
         hash = hash ^ (outer.id.name.hash >> 4);
     }

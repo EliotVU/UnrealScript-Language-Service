@@ -43,7 +43,7 @@ export function getDocumentSymbols(uri: DocumentUri): DocumentSymbol[] | undefin
     const documentSymbols: DocumentSymbol[] = [];
 
     // Little hack, lend a hand and push all the class's children to the top.
-    const symbols = document.getSymbols();
+    const symbols = document.enumerateSymbols();
     for (let symbol of symbols) {
         if (isDocumentSymbol(symbol)) {
             const documentSymbol = toDocumentSymbol(symbol);
