@@ -23,6 +23,7 @@ export const documentsByPathMap = new Map<string, UCDocument>();
 export const documentsMap = new Map<NameHash, UCDocument>();
 
 export enum UCGeneration {
+    Auto = 'auto',
     UC1 = '1',
     UC2 = '2',
     UC3 = '3'

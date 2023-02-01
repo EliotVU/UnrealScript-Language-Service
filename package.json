@@ -112,11 +112,12 @@
                     "scope": "resource",
                     "type": "string",
                     "enum": [
+                        "auto",
                         "1",
                         "2",
                         "3"
                     ],
-                    "default": "3",
+                    "default": "auto",
                     "description": "The UnrealScript generation your project is working with.."
                 },
                 "unrealscript.licensee": {

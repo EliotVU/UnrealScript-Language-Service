@@ -405,13 +405,22 @@ connection.onInitialized((params) => {
                 if (value) {
                     return;
                 }
-
                 invalidatePendingDocuments();
             }),
             switchMap(() => pendingDocuments$),
             filter(documents => documents.length > 0)
         )
         .subscribe((async (documents) => {
+            if (config.generation === UCGeneration.Auto) {
+                const newGeneration = tryAutoDetectGeneration();
+                if (newGeneration) {
+                    config.generation = newGeneration;
+                    connection.console.info(`Auto-detected generation ${config.generation}.`)
+                } else {
+                    connection.console.warn(`Auto-detection failed, resorting to UC3.`)
+                }
+            }
+
             const indexStartTime = performance.now();
             const work = await connection.window.createWorkDoneProgress();
             work.begin(
@@ -452,18 +461,12 @@ connection.onInitialized((params) => {
                 work.done();
 
                 const time = performance.now() - indexStartTime;
-                connection.console.log('UnrealScript documents have been indexed in ' + (time / 1000) + ' seconds!');
+                connection.console.log(`UnrealScript documents have been indexed in ${time / 1000} seconds!`);
             }
         }));
 
     if (hasConfigurationCapability) {
-        connection.workspace
-            .getConfiguration('unrealscript')
-            .then((settings: UCLanguageServerSettings) => {
-                setConfiguration(settings);
-                initializeConfiguration();
-                return connection.workspace.getWorkspaceFolders();
-            })
+        connection.workspace.getWorkspaceFolders()
             .then((workspaceFolders) => {
                 return registerWorkspace(workspaceFolders);
             })
@@ -547,6 +550,7 @@ connection.onInitialized((params) => {
         // connection.languages.semanticTokens.onRange(e => getSemanticTokens(e.textDocument.uri));
     }
 
+    // We need to sync the opened document with current state.
     ActiveTextDocuments.onDidOpen(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: false }));
     ActiveTextDocuments.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
     // We need to re--index the document, incase that the end-user edited a document without saving its changes.
@@ -557,6 +561,8 @@ connection.onInitialized((params) => {
 connection.onDidChangeConfiguration((params: { settings: { unrealscript: UCLanguageServerSettings } }) => {
     setConfiguration(params.settings.unrealscript);
     initializeConfiguration();
+
+    connection.console.info(`Re-indexing workspace due configuration changes.`)
     isIndexReady$.next(false);
 });
 
@@ -575,6 +581,45 @@ function applyConfiguration(settings: UCLanguageServerSettings) {
     installIntrinsicSymbols(settings.intrinsicSymbols);
     updateIgnoredCompletionTokens(settings);
     setupFilePatterns(settings);
+}
+
+/** 
+ * Auto-detects the UnrealScript generation.
+ * This test is performed before any parsing/indexing has occurred, although it may also re-occur after a re-index.
+ * The code should assume that no UC symbols do exist other than packages.
+ */
+function tryAutoDetectGeneration(): UCGeneration | undefined {
+    const corePackage = ObjectsTable.getSymbol<UCPackage>(NAME_CORE, UCSymbolKind.Package);
+    if (!corePackage) {
+        connection.console.warn(`Missing package for directory '/Core/Classes/'.`)
+        return;
+    }
+
+    // UE3 has Component.uc we can use to determine the generation.
+    let document = getDocumentById(toName('Component'));
+    if (document?.classPackage === corePackage) {
+        return UCGeneration.UC3;
+    }
+
+    // No Commandlet.uc in older UE1
+    document = getDocumentById(toName('Commandlet'));
+    if (!document) {
+        return UCGeneration.UC1;
+    }
+
+    // Okay we have a Commandlet.uc document (UT99)
+    if (document.classPackage === corePackage) {
+        document = getDocumentById(toName('HelpCommandlet'));
+        if (document?.classPackage === corePackage) {
+            return UCGeneration.UC1;
+        }
+
+        // UE2 / UT2004
+        return UCGeneration.UC2;
+    }
+
+    // Failed auto
+    return undefined;
 }
 
 function clearIntrinsicSymbols() {
