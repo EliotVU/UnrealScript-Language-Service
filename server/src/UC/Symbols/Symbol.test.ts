@@ -1,8 +1,7 @@
 import { expect } from 'chai';
 
 import { NAME_CLASS, NAME_PACKAGE, NAME_STRUCT } from '../names';
-import { DEFAULT_RANGE, UCClassSymbol, UCScriptStructSymbol } from './';
-import { UCPackage } from './Package';
+import { DEFAULT_RANGE, UCClassSymbol, UCPackage, UCScriptStructSymbol } from './';
 
 /**
  * Ensure that the ObjectsTable can properly distinguish a package and a class of the same name.

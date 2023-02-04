@@ -27,9 +27,11 @@ import {
 import { IStatement } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
+    ContextInfo,
     DEFAULT_IDENTIFIER,
     DEFAULT_RANGE,
     Identifier,
+    INode,
     IntrinsicArray,
     ISymbol,
     IWithIndex,
@@ -38,24 +40,25 @@ import {
     ModifierFlags,
     ObjectsTable,
     SymbolReference,
+    tryFindClassSymbol,
+    tryFindSymbolInPackage,
     UCArchetypeSymbol,
     UCBaseOperatorSymbol,
     UCClassSymbol,
     UCConstSymbol,
+    UCDelegateSymbol,
     UCEnumMemberSymbol,
     UCEnumSymbol,
     UCEventSymbol,
     UCFieldSymbol,
     UCMethodSymbol,
+    UCPackage,
     UCParamSymbol,
     UCPropertySymbol,
     UCScriptStructSymbol,
     UCStateSymbol,
     UCStructSymbol,
 } from './';
-import { ContextInfo, INode } from './ISymbol';
-import { UCDelegateSymbol } from './MethodSymbol';
-import { tryFindClassSymbol, tryFindSymbolInPackage, UCPackage } from './Package';
 
 export const enum UCNodeKind {
     Expression,
@@ -84,7 +87,8 @@ export const enum UCSymbolKind {
     Operator,
     ReplicationBlock,
     DefaultPropertiesBlock,
-    Statement
+    Statement,
+    Macro
 }
 
 export enum UCTypeKind {

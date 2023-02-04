@@ -42,7 +42,7 @@ export class DiagnosticCollection {
         return this.items.length;
     }
 
-	map(): Diagnostic[] {
+	toDiagnostic(): Diagnostic[] {
 		return this.items.map(template => {
 			const diagnostic: Diagnostic = {
 				range: template.range,

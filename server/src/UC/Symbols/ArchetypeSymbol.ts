@@ -3,9 +3,15 @@ import { Name } from '../name';
 import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ModifierFlags, UCFieldSymbol, UCObjectSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
+    addHashedSymbol,
+    ModifierFlags,
+    ObjectsTable,
+    UCFieldSymbol,
+    UCObjectSymbol,
+    UCStructSymbol,
+    UCSymbolKind,
+    UCTypeKind,
 } from './';
-import { addHashedSymbol, ObjectsTable } from './Package';
 
 /**
  * Represents an instanced Archetype found within a defaultproperties block e.g. "begin object class=classID name=objectName".

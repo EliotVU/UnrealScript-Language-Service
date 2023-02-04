@@ -20,5 +20,5 @@ export function diagnosticsFromNodes(nodes: IDiagnosticNode[]) {
 export function getDiagnostics(document: UCDocument): Diagnostic[] {
     const documentAnalyzer = new DocumentAnalyzer(document);
     const diagnostics = documentAnalyzer.visitDocument(document);
-    return diagnosticsFromNodes(document.nodes).concat(diagnostics.map());
+    return diagnosticsFromNodes(document.nodes).concat(diagnostics.toDiagnostic());
 }

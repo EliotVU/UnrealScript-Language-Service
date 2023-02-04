@@ -4,41 +4,42 @@ import * as path from 'path';
 import { UCLexer } from './antlr/generated/UCLexer';
 import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
 import { createPreprocessor, preprocessDocument } from './document';
-import { applyMacroSymbols, getDocumentById, queueIndexDocument } from './indexer';
-import { toName } from './name';
+import { applyMacroSymbols, queueIndexDocument } from './indexer';
 import { UCInputStream } from './Parser/InputStream';
-import { usingDocuments } from './test/utils/utils';
+import { assertDocument, usingDocuments } from './test/utils/utils';
 
-const GRAMMARS_RELATIVE_DIR = path.resolve(__dirname, '../../../grammars/examples');
-const MACRO_FILE = 'macro.uci';
+const GRAMMARS_DIR = path.resolve(__dirname, '../../../grammars/test');
 
 describe('Document', () => {
-    usingDocuments(GRAMMARS_RELATIVE_DIR, [MACRO_FILE], () => {
-        const macroDocument = getDocumentById(toName(MACRO_FILE))!;
-        expect(macroDocument).to.not.be.undefined;
+    const GRAMMARS_DOCUMENTNAME = 'Grammar';
+    usingDocuments(GRAMMARS_DIR, [GRAMMARS_DOCUMENTNAME + '.uc'], () => {
+        const grammarDocument = assertDocument(GRAMMARS_DOCUMENTNAME);
 
         // Ensure that the extracted name matches the joined file name.
-        it(`fileName === '${MACRO_FILE}'`, () => {
-            expect(macroDocument.fileName).to.equal(MACRO_FILE);
+        it(`fileName === '${GRAMMARS_DOCUMENTNAME}'`, () => {
+            expect(grammarDocument.fileName).to.equal(GRAMMARS_DOCUMENTNAME);
         });
 
         it('Index', () => {
-            queueIndexDocument(macroDocument);
-            expect(macroDocument.hasBeenIndexed).to.be.true;
+            queueIndexDocument(grammarDocument);
+            expect(grammarDocument.hasBeenIndexed).to.be.true;
         });
 
         it('Diagnostics free?', () => {
-            const diagnoser = new DocumentAnalyzer(macroDocument);
-            const diagnostics = diagnoser.visitDocument(macroDocument);
-            expect(diagnostics.count()).to.be.null;
+            const diagnoser = new DocumentAnalyzer(grammarDocument);
+            const diagnostics = diagnoser.visitDocument(grammarDocument);
+            const msg = diagnostics.toDiagnostic()
+                .map(d => d.message)
+                .join(';');
+            expect(diagnostics.count(), msg).is.equal(0);
         });
     });
 });
 
 describe('Document with macros', () => {
-    usingDocuments(GRAMMARS_RELATIVE_DIR, [MACRO_FILE], () => {
-        const macroDocument = getDocumentById(toName(MACRO_FILE))!;
-        expect(macroDocument).to.not.be.undefined;
+    const MACRO_FILENAME = 'macro.uci';
+    usingDocuments(GRAMMARS_DIR, [MACRO_FILENAME], () => {
+        const macroDocument = assertDocument(MACRO_FILENAME);
 
         const inputStream = UCInputStream.fromString(macroDocument.readText());
         const lexer = new UCLexer(inputStream);

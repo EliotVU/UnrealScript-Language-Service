@@ -1,17 +1,21 @@
 import { expect } from 'chai';
 
 import { toName } from '../name';
-import { DEFAULT_RANGE, UCClassSymbol, UCSymbolKind } from './';
 import {
-    addHashedSymbol, getSymbolHash, ObjectsTable, removeHashedSymbol, UCPackage
-} from './Package';
+    addHashedSymbol,
+    DEFAULT_RANGE,
+    getSymbolHash,
+    ObjectsTable,
+    removeHashedSymbol,
+    UCClassSymbol,
+    UCPackage,
+    UCSymbolKind,
+} from './';
 
 /**
  * Ensure that the ObjectsTable can properly distinguish a package and a class of the same name.
  **/
 describe('Test ObjectsTable\'s state', () => {
-    const defaultCount = ObjectsTable.count();
-
     const testName = toName('SYMBOL_HASH_COLLISION');
     const classSymbol = new UCClassSymbol({ name: testName, range: DEFAULT_RANGE });
     const packageSymbol = new UCPackage(testName);
@@ -22,6 +26,7 @@ describe('Test ObjectsTable\'s state', () => {
     });
 
     it('Adding', () => {
+        const initialCount = ObjectsTable.count();
         const classHash = addHashedSymbol(classSymbol);
         const packageHash = addHashedSymbol(packageSymbol);
         expect(classHash)
@@ -29,7 +34,7 @@ describe('Test ObjectsTable\'s state', () => {
 
         // class and package are expected to be linked and thus count as 1 addition.
         expect(ObjectsTable.count())
-            .to.equal(defaultCount + 1);
+            .to.equal(initialCount + 1);
     });
 
     it('hash lookup', () => {
@@ -44,12 +49,14 @@ describe('Test ObjectsTable\'s state', () => {
     });
 
     it('Removing', () => {
+        const initialCount = ObjectsTable.count();
+
         removeHashedSymbol(classSymbol);
         expect(ObjectsTable.count())
-            .to.equal(defaultCount + 1);
+            .to.equal(initialCount);
 
         removeHashedSymbol(packageSymbol);
         expect(ObjectsTable.count())
-            .to.equal(defaultCount);
+            .to.equal(initialCount - 1);
     });
 });

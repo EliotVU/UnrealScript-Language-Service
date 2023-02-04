@@ -3,8 +3,7 @@ import { Location, Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
-import { UCStructSymbol } from './';
-import { ITypeSymbol, UCNodeKind, UCSymbolKind, UCTypeKind } from './TypeSymbol';
+import { ITypeSymbol, UCNodeKind, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
 
 export type Identifier = Readonly<{
     readonly name: Name;

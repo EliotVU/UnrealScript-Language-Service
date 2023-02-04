@@ -1,5 +1,6 @@
 {
     "typescript.preferences.quoteStyle": "single",
+    "typescriptHero.imports.organizeOnSave": true,
     "antlr4.generation": {
         "language": "TypeScript",
         "outputDir": "grammars"
@@ -7,16 +8,24 @@
     "mochaExplorer.nodePath": null,
     "mochaExplorer.cwd": "server",
     "mochaExplorer.mochaPath": "server/node_modules/mocha",
-    "mochaExplorer.require": "ts-node/register",
-    "mochaExplorer.files": "**/*.test.ts",
+    "mochaExplorer.require": "node_modules/ts-node/register",
+    "mochaExplorer.files": "server/**/*.test.ts",
+    "mochaExplorer.ignore": "server/node_modules/**/*.test.ts",
+    // "mochaExplorer.launcherScript": "node_modules/mocha-explorer-launcher-scripts/vscode-test",
+    "mochaExplorer.autoload": false,
+    "mochaExplorer.esmLoader": false,
+    // "mochaExplorer.ipcRole": "server",
     "mochaExplorer.env": {
         "TS_NODE_COMPILER_OPTIONS": "{\"module\":\"commonjs\",\"strict\":false}",
+        // "VSCODE_VERSION": "insiders",
+        "ELECTRON_RUN_AS_NODE": null
     },
+    "mochaExplorer.globImplementation": "vscode",
+    // "mochaExplorer.logpanel": true,
     "cSpell.words": [
         "antlr",
         "diagnoser",
         "Intrinsics",
         "Vect"
     ],
-    "typescriptHero.imports.organizeOnSave": true,
 }

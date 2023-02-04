@@ -7,10 +7,16 @@ import { Name } from '../name';
 import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    getSymbolPathHash, Identifier, ISymbol, IWithIndex, IWithInnerSymbols, UCStructSymbol,
-    UCSymbolKind, UCTypeKind
+    ContextInfo,
+    getSymbolPathHash,
+    Identifier,
+    ISymbol,
+    IWithIndex,
+    IWithInnerSymbols,
+    UCStructSymbol,
+    UCSymbolKind,
+    UCTypeKind,
 } from './';
-import { ContextInfo } from './ISymbol';
 
 export const DEFAULT_POSITION = Position.create(0, 0);
 export const DEFAULT_RANGE = Range.create(DEFAULT_POSITION, DEFAULT_POSITION);

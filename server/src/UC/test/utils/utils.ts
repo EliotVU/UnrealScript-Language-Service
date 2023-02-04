@@ -1,12 +1,15 @@
+import { expect } from 'chai';
 import * as path from 'path';
 
 import { UCDocument } from '../../document';
-import { createDocumentByPath, removeDocumentByPath } from '../../indexer';
+import { createDocumentByPath, getDocumentById, removeDocumentByPath } from '../../indexer';
+import { toName } from '../../name';
 import { TRANSIENT_PACKAGE } from '../../Symbols';
 
 export function registerDocuments(baseDir: string, fileNames: string[]): UCDocument[] {
     const documents = fileNames.map(p => {
-        return createDocumentByPath(path.join(path.resolve(baseDir), p), TRANSIENT_PACKAGE);
+        const fullPath = path.join(path.resolve(baseDir), p);
+        return createDocumentByPath(fullPath, TRANSIENT_PACKAGE);
     });
 
     return documents;
@@ -14,7 +17,8 @@ export function registerDocuments(baseDir: string, fileNames: string[]): UCDocum
 
 export function unregisterDocuments(baseDir: string, fileNames: string[]): void {
     fileNames.forEach(p => {
-        removeDocumentByPath(path.join(path.resolve(baseDir), p));
+        const fullPath = path.join(path.resolve(baseDir), p);
+        removeDocumentByPath(fullPath);
     });
 }
 
@@ -29,4 +33,10 @@ export function usingDocuments(baseDir: string, fileNames: string[], exec: (docu
     } finally {
         unregisterDocuments(baseDir, fileNames);
     }
+}
+
+export function assertDocument(documentName: string): UCDocument {
+    const document = getDocumentById(toName(documentName))!;
+    expect(document, `Missing '${documentName}' file`).to.not.be.undefined;
+    return document;
 }

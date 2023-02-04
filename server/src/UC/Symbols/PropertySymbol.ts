@@ -4,11 +4,20 @@ import { UCDocument } from '../document';
 import { config, UCGeneration } from '../indexer';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ContextKind, ISymbol, ITypeSymbol, ModifierFlags, UCFieldSymbol, UCObjectSymbol, UCStructSymbol
+    ContextKind,
+    isConstSymbol,
+    isEnumSymbol,
+    isEnumTagSymbol,
+    ISymbol,
+    ITypeSymbol,
+    ModifierFlags,
+    UCArrayTypeSymbol,
+    UCFieldSymbol,
+    UCObjectSymbol,
+    UCStructSymbol,
+    UCSymbolKind,
+    UCTypeKind,
 } from './';
-import {
-    isConstSymbol, isEnumSymbol, isEnumTagSymbol, UCArrayTypeSymbol, UCSymbolKind, UCTypeKind
-} from './TypeSymbol';
 
 export class UCPropertySymbol extends UCFieldSymbol {
     override kind = UCSymbolKind.Property;

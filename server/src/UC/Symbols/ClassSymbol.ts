@@ -5,10 +5,17 @@ import { intersectsWith, intersectsWithRange } from '../helpers';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ISymbol, ITypeSymbol, ModifierFlags, UCFieldSymbol, UCObjectTypeSymbol, UCQualifiedTypeSymbol,
-    UCStructSymbol, UCSymbolKind, UCTypeKind
+    ISymbol,
+    ITypeSymbol,
+    ModifierFlags,
+    UCFieldSymbol,
+    UCObjectTypeSymbol,
+    UCPackage,
+    UCQualifiedTypeSymbol,
+    UCStructSymbol,
+    UCSymbolKind,
+    UCTypeKind,
 } from './';
-import { UCPackage } from './Package';
 
 export enum ClassModifierFlags {
     None,
