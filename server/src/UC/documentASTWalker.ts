@@ -107,6 +107,7 @@ import {
     UCEventSymbol,
     UCInterfaceSymbol,
     UCLocalSymbol,
+    UCMacroSymbol,
     UCMapTypeSymbol,
     UCMethodSymbol,
     UCObjectSymbol,
@@ -309,7 +310,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const macro = ctx._MACRO_SYMBOL;
         const identifier = createIdentifierFromToken(macro);
         // TODO: custom class
-        const symbol = new UCPropertySymbol(identifier);
+        const symbol = new UCMacroSymbol(identifier);
         this.document.addSymbol(symbol);
         return undefined;
     }

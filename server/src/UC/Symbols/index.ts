@@ -18,6 +18,7 @@ export * from './StateSymbol';
 export * from './ArchetypeSymbol';
 export * from './DefaultPropertiesBlock';
 export * from './ReplicationBlock';
+export * from './MacroSymbol';
 export * from './IntrinsicSymbols';
 export * from './IntrinsicArrayIterator';
 export * from './ArrayOperations';
