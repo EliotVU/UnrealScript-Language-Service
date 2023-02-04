@@ -55,6 +55,9 @@ export class UCDocument {
     public readonly name: Name;
     public readonly uri: DocumentUri;
 
+    /** The current indexed TextDocument's version as reported by the client. */
+    public indexedVersion: number = 0;
+
     // TODO: Displace this with a DiagnosticCollection visitor.
     public nodes: IDiagnosticNode[] = [];
 

@@ -1,3 +1,4 @@
+import path from 'path';
 import { performance } from 'perf_hooks';
 import { Subject } from 'rxjs';
 import { Location } from 'vscode-languageserver';
@@ -85,7 +86,7 @@ export function applyMacroSymbols(symbols?: { [key: string]: string }) {
  * This array is filled by the documentLinked$ listener.
  **/
 export const lastIndexedDocuments$ = new Subject<UCDocument[]>();
-let pendingIndexedDocuments: UCDocument[] = [];
+const pendingIndexedDocuments: UCDocument[] = [];
 
 export function indexDocument(document: UCDocument, text?: string): void {
     try {
@@ -95,7 +96,7 @@ export function indexDocument(document: UCDocument, text?: string): void {
         try {
             if (document.class) {
                 for (let symbol of document.enumerateSymbols()) {
-                    symbol.index(document, document.class!)
+                    symbol.index(document, document.class);
                 }
             }
         } catch (err) {
@@ -126,28 +127,40 @@ function postIndexDocument(document: UCDocument) {
 
 export function queueIndexDocument(document: UCDocument, text?: string): void {
     indexDocument(document, text);
-    if (pendingIndexedDocuments) {
-        const startTime = performance.now();
-        for (const doc of pendingIndexedDocuments) {
-            postIndexDocument(doc);
-        }
-
-        const dependenciesSequence = pendingIndexedDocuments.map(doc => doc.fileName).join();
-        console.info(`[${dependenciesSequence}]: post indexing time ${(performance.now() - startTime)}`);
-
-        lastIndexedDocuments$.next(pendingIndexedDocuments);
-        pendingIndexedDocuments = [];
-    }
+    indexPendingDocuments(undefined);
 }
 
-function parsePackageNameInDir(dir: string): string | undefined {
-    const directories = dir.split(/\\|\//);
-    for (let i = directories.length - 1; i >= 0; --i) {
-        if (i > 0 && directories[i].toLowerCase() === 'classes') {
-            return directories[i - 1];
-        }
+export function indexPendingDocuments(abort?: (document: UCDocument) => boolean): void {
+    if (!pendingIndexedDocuments.length) {
+        return;
     }
-    return undefined;
+
+    const startTime = performance.now();
+    for (const document of pendingIndexedDocuments) {
+        if (abort?.(document)) {
+            // Maybe preserve the array's elements?
+            break;
+        }
+        postIndexDocument(document);
+    }
+
+    const dependenciesSequence = pendingIndexedDocuments
+        .map(doc => doc.fileName)
+        .join();
+    console.info(`[${dependenciesSequence}]: post indexing time ${(performance.now() - startTime)}`);
+
+    lastIndexedDocuments$.next(pendingIndexedDocuments);
+    pendingIndexedDocuments.splice(0, pendingIndexedDocuments.length);
+}
+
+export function getPendingDocumentsCount(): number {
+    return pendingIndexedDocuments.length;
+}
+
+const packageNameRegex = RegExp(`\\${path.sep}(\w+)\\${path.sep}classes\\${path.sep}`, 'i');;
+function parsePackageNameInDir(dir: string): string | undefined {
+    const m = dir.match(packageNameRegex);
+    return m != null ? m[1] : undefined;
 }
 
 export function createPackageByDir(dir: string): UCPackage {

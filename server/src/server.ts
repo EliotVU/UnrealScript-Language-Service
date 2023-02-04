@@ -54,6 +54,9 @@ import {
     getDocumentById,
     getDocumentByURI,
     getIndexedReferences,
+    getPendingDocumentsCount,
+    indexDocument,
+    indexPendingDocuments,
     IntrinsicSymbolItemMap,
     lastIndexedDocuments$,
     queueIndexDocument,
@@ -62,9 +65,10 @@ import {
     UELicensee,
 } from './UC/indexer';
 import { toName } from './UC/name';
-import { NAME_ARRAY, NAME_CLASS, NAME_CORE, NAME_FUNCTION, NAME_NONE } from './UC/names';
+import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
 import {
     addHashedSymbol,
+    CORE_PACKAGE,
     DEFAULT_RANGE,
     IntrinsicArray,
     isClass as isClass,
@@ -93,7 +97,10 @@ const isIndexReady$ = new Subject<boolean>();
 const pendingDocuments$ = new BehaviorSubject<UCDocument[]>([]);
 
 /** Emits a document that is pending an update. */
-const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
+const pendingTextDocument$ = new Subject<{
+    textDocument: TextDocument,
+    source: string
+}>();
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
@@ -374,24 +381,57 @@ connection.onInitialized((params) => {
 
     isIndexReadySub = isIndexReady$
         .pipe(
-            switchMap(() => pendingTextDocuments$),
-            debounce(() => interval(50))
+            switchMap(() => pendingTextDocument$),
+            debounce(({ source }) => interval(source === 'change' ? 50 : undefined))
         )
         .subscribe({
-            next: ({ textDocument, isDirty }) => {
+            next: async ({ textDocument, source }) => {
+                if (process.env.NODE_ENV === 'development') {
+                    connection.console.log(`Processing pending document ${textDocument.uri}:${textDocument.version}, source:${source}.`);
+                }
                 const document = getDocumentByURI(textDocument.uri);
                 if (!document) {
                     // Don't index documents that are not part of the workspace.
                     return;
                 }
 
+                const isDirty = textDocument.version !== document.indexedVersion;
                 if (isDirty) {
+                    if (process.env.NODE_ENV === 'development') {
+                        connection.console.log(`Invalidating document ${document.fileName}.`);
+                    }
                     document.invalidate();
                 }
 
-                if (!document.hasBeenIndexed) {
-                    queueIndexDocument(document, textDocument.getText());
+                if (document.hasBeenIndexed) {
+                    if (process.env.NODE_ENV === 'development') {
+                        connection.console.log(`Document ${document.fileName} is already indexed.`)
+                    }
+                    return;
                 }
+
+                const fullText = textDocument.getText();
+                indexDocument(document, fullText);
+
+                const work = await connection.window.createWorkDoneProgress();
+                work.begin(
+                    `Indexing document ${document.fileName}`,
+                    0.0,
+                    undefined,
+                    true);
+
+                let i = 0;
+                const dependenciesCount = getPendingDocumentsCount();
+                indexPendingDocuments((doc => {
+                    if (work.token.isCancellationRequested) {
+                        return true;
+                    }
+                    work.report(i++ / dependenciesCount, `Indexing document ${doc.fileName}`);
+                    return false;
+                }));
+
+                document.indexedVersion = textDocument.version;
+                work.done();
             },
             error: err => {
                 connection.console.error(`Index queue error: '${err}'`);
@@ -452,9 +492,9 @@ connection.onInitialized((params) => {
                 } else {
                     ActiveTextDocuments
                         .all()
-                        .forEach(doc => pendingTextDocuments$.next({
+                        .forEach(doc => pendingTextDocument$.next({
                             textDocument: doc,
-                            isDirty: false
+                            source: 'initialize'
                         }));
                 }
             } finally {
@@ -551,10 +591,19 @@ connection.onInitialized((params) => {
     }
 
     // We need to sync the opened document with current state.
-    ActiveTextDocuments.onDidOpen(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: false }));
-    ActiveTextDocuments.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
+    ActiveTextDocuments.onDidOpen(e => pendingTextDocument$.next({
+        textDocument: e.document,
+        source: 'open'
+    }));
+    ActiveTextDocuments.onDidChangeContent(e => pendingTextDocument$.next({
+        textDocument: e.document,
+        source: 'change'
+    }));
     // We need to re--index the document, incase that the end-user edited a document without saving its changes.
-    ActiveTextDocuments.onDidClose(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
+    ActiveTextDocuments.onDidClose(e => pendingTextDocument$.next({
+        textDocument: e.document,
+        source: 'close'
+    }));
     ActiveTextDocuments.listen(connection);
 });
 
@@ -589,15 +638,9 @@ function applyConfiguration(settings: UCLanguageServerSettings) {
  * The code should assume that no UC symbols do exist other than packages.
  */
 function tryAutoDetectGeneration(): UCGeneration | undefined {
-    const corePackage = ObjectsTable.getSymbol<UCPackage>(NAME_CORE, UCSymbolKind.Package);
-    if (!corePackage) {
-        connection.console.warn(`Missing package for directory '/Core/Classes/'.`)
-        return;
-    }
-
     // UE3 has Component.uc we can use to determine the generation.
     let document = getDocumentById(toName('Component'));
-    if (document?.classPackage === corePackage) {
+    if (document?.classPackage === CORE_PACKAGE) {
         return UCGeneration.UC3;
     }
 
@@ -608,9 +651,9 @@ function tryAutoDetectGeneration(): UCGeneration | undefined {
     }
 
     // Okay we have a Commandlet.uc document (UT99)
-    if (document.classPackage === corePackage) {
+    if (document.classPackage === CORE_PACKAGE) {
         document = getDocumentById(toName('HelpCommandlet'));
-        if (document?.classPackage === corePackage) {
+        if (document?.classPackage === CORE_PACKAGE) {
             return UCGeneration.UC1;
         }
 
