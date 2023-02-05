@@ -157,10 +157,15 @@ export function getPendingDocumentsCount(): number {
     return pendingIndexedDocuments.length;
 }
 
-const packageNameRegex = RegExp(`\\${path.sep}(\w+)\\${path.sep}classes\\${path.sep}`, 'i');;
-function parsePackageNameInDir(dir: string): string | undefined {
-    const m = dir.match(packageNameRegex);
-    return m != null ? m[1] : undefined;
+const sepRegex = RegExp(`\\${path.sep}`);
+export function parsePackageNameInDir(dir: string): string | undefined {
+    const directories = dir.split(sepRegex);
+    for (let i = directories.length - 1; i >= 0; --i) {
+        if (i > 0 && directories[i].toLowerCase() === 'classes') {
+            return directories[i - 1];
+        }
+    }
+    return undefined;
 }
 
 export function createPackageByDir(dir: string): UCPackage {

@@ -12,10 +12,11 @@ describe('Casting', () => {
 
         const documentClass = testDocument.class;
         const targetMethodSymbol = documentClass.getSymbol<UCMethodSymbol>(toName('CastingTest'));
-        expect(targetMethodSymbol)
-            .to.not.be.undefined;
-
+        
         it('Usage in Methods', () => {
+            expect(targetMethodSymbol)
+                .to.not.be.undefined;
+                
             const symbol = documentClass.getSymbol<UCMethodSymbol>(toName('Created'));
             expect(symbol, 'symbol')
                 .to.not.be.undefined;

@@ -9,12 +9,18 @@ export type Name = Readonly<{
 const namesMap = new Map<NameHash, Name>();
 
 export function toName(text: Readonly<string>): Name {
-    const hash = crc32_str(text);
     // console.assert(text.length <= 1024, 'LONG STRING', text); // Max 64 in UE2
-    if (namesMap.has(hash)) {
-        return namesMap.get(hash)!;
+    const hash = crc32_str(text);
+    let name = namesMap.get(hash);
+    if (name !== undefined) {
+        return name;
     }
-    const name: Name = { hash, text };
+
+    name = { hash, text };
     namesMap.set(hash, name);
     return name;
+}
+
+export function clearNames(): void {
+    namesMap.clear();
 }
