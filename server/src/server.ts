@@ -3,9 +3,9 @@ import glob from 'glob';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
 import { BehaviorSubject, firstValueFrom, interval, Subject, Subscription } from 'rxjs';
-import { debounce, delay, filter, switchMap, tap } from 'rxjs/operators';
+import { debounce, delay, filter, map, switchMap, tap, timeout } from 'rxjs/operators';
 import * as url from 'url';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import { DocumentUri, TextDocument } from 'vscode-languageserver-textdocument';
 import {
     CodeActionKind,
     CompletionTriggerKind,
@@ -244,15 +244,25 @@ function invalidatePendingDocuments() {
     }
 }
 
-async function awaitDocumentDelivery(uri: string): Promise<UCDocument | undefined> {
+async function awaitDocumentDelivery(uri: DocumentUri): Promise<UCDocument | undefined> {
     const document = getDocumentByURI(uri);
     if (document && document.hasBeenIndexed) {
         return document;
     }
 
-    return firstValueFrom(lastIndexedDocuments$).then(documents => {
-        return documents.find((d) => d.uri === uri);
-    });
+    return firstValueFrom(lastIndexedDocuments$
+        .pipe(
+            map(docs => {
+                const doc = docs.find((d => d.uri === uri));
+                return doc;
+            }),
+            filter(doc => {
+                return !!doc!;
+            }),
+            timeout({
+                each: 1000 * 60
+            })
+        ));
 }
 
 const connection = createConnection(ProposedFeatures.all);
@@ -781,8 +791,12 @@ connection.onDefinition(async (e) => {
 });
 
 connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
-connection.onDocumentSymbol((e) => {
-    return getDocumentSymbols(e.textDocument.uri);
+connection.onDocumentSymbol(async (e) => {
+    // TODO: Implement a more suitable event that emits as soon as symbols can be build.
+    const document = await awaitDocumentDelivery(e.textDocument.uri);
+    if (document) {
+        return getDocumentSymbols(document);
+    }
 });
 connection.onWorkspaceSymbol((e) => {
     return getWorkspaceSymbols(e.query);
