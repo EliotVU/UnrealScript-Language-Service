@@ -40,6 +40,7 @@ import { getDocumentSymbols } from './documentSymbol';
 import { getReferences } from './references';
 import { buildSemanticTokens } from './semantics';
 import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
+import { CommandIdentifier, CommandsList, InlineChangeCommand } from './UC/commands';
 import { UCDocument } from './UC/document';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
 import { getSymbol, getSymbolDefinition, getSymbolDocument, getSymbolTooltip, VALID_ID_REGEXP } from './UC/helpers';
@@ -347,9 +348,7 @@ connection.onInitialize((params: InitializeParams) => {
                 dataSupport: true
             },
             executeCommandProvider: {
-                commands: [
-                    'create.class'
-                ]
+                commands: CommandsList
             },
             semanticTokensProvider: {
                 documentSelector: null,
@@ -885,8 +884,8 @@ connection.onCodeAction(e => {
 
 connection.onExecuteCommand(e => {
     switch (e.command) {
-        case 'create.class': {
-            const uri = e.arguments![0] as string;
+        case CommandIdentifier.CreateClass: {
+            const uri = e.arguments![0] as DocumentUri;
             const className = e.arguments![1] as string;
             const change = new WorkspaceChange();
             change.createFile(uri, { ignoreIfExists: true });
@@ -897,6 +896,19 @@ connection.onExecuteCommand(e => {
                 });
             connection.workspace.applyEdit(change.edit);
             // TODO: Need to refresh the document that invoked this command.
+            break;
+        }
+
+        case CommandIdentifier.Inline: {
+            const args = e.arguments![0] as InlineChangeCommand;
+
+            const change = new WorkspaceChange();
+            change.getTextEditChange({ uri: args.uri, version: null })
+                .replace(
+                    args.range,
+                    args.newText
+                );
+            connection.workspace.applyEdit(change.edit);
             break;
         }
     }
