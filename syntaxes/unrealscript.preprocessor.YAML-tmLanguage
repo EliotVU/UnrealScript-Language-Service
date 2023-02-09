@@ -1,0 +1,171 @@
+# [PackageDev] target_format: json, ext: tmLanguage
+# Syntax highlighting for the UnrealScript Preprocessor language:
+# https://docs.unrealengine.com/udk/Three/UnrealScriptPreprocessor.html
+---
+name: UnrealScript Preprocessor Syntax Definition (UPP)
+fileTypes: [.uci, .uc]
+scopeName: source.upp
+uuid: 620e5cd2-939d-42b8-9943-4927e876320f
+
+patterns:
+  - include: '#comment'
+  - include: '#preprocessor'
+  - include: '#unrealscript'
+
+repository:
+  comment:
+    patterns:
+      - include: '#blockComment'
+
+      - name: comment.line.double-slash.upp
+        begin: //
+        end: \n
+
+  blockComment:
+    patterns:
+      - name: comment.block.documentation.upp
+        begin: /\*\*(?!/)
+        beginCaptures:
+          '0':
+            name: punctuation.definition.comment.upp
+        patterns:
+          - begin: /\*
+            name: comment.block.upp
+            end: \*/
+        end: \*/
+        endCaptures:
+          '0':
+            name: punctuation.definition.comment.upp
+
+      - name: comment.block.upp
+        begin: /\*
+        beginCaptures:
+          '0':
+            name: punctuation.definition.comment.upp
+        patterns:
+          - begin: /\*
+            name: comment.block.upp
+            end: \*/
+        end: \*/
+        endCaptures:
+          '0':
+            name: punctuation.definition.comment.upp
+
+  preprocessor:
+    name: meta.preprocessor.macro.upp
+    begin: \`
+    beginCaptures:
+      '0':
+        name: punctuation.definition.grave.upp
+    patterns:
+      - begin: \{
+        patterns:
+          - match: \w
+            name: entity.name.function.preprocessor.upp
+        end: \}|\n
+
+      - begin: ((?i)if|elseif|ifdef|ifndef)
+        beginCaptures:
+          '1':
+            name: meta.preprocessor.if.upp
+        patterns:
+          - include: '#preprocessor-invoke'
+        end: (?<=\))\b
+
+      - begin: (?:(?i)(isdefined)|(notdefined))
+        beginCaptures:
+          '1':
+            name: meta.preprocessor.isdefined.upp
+          '2':
+            name: meta.preprocessor.notdefined.upp
+        patterns:
+          - include: '#preprocessor-arguments'
+        end: (?<=\))\b
+
+      - match: ((?i)else)
+        name: meta.preprocessor.else.upp
+
+      - match: ((?i)endif)
+        name: meta.preprocessor.endif.upp
+        
+      - begin: ((?i)define)(?:[\s^\n](\w+))?
+        beginCaptures:
+          '1':
+            name: meta.preprocessor.define.upp
+          '2':
+            name: entity.name.function.preprocessor.upp
+        patterns:
+          - begin: \(
+            patterns:
+              - match: \w+
+                name: entity.name.function.preprocessor.upp
+              - match: \,
+                name: punctuation.comma.upp
+              - match: \#
+                name: invalid.illegal.upp
+            end: \)
+
+        #   - include: '#preprocessor'
+
+          - match: (?:(\\\\)([^\n]*)\r?\n)
+            captures:
+              '1':
+                name: constant.character.escape.line-continuation.upp
+              '2':
+                name: invalid.illegal.upp
+        end: (?<=\n)
+
+      - begin: ((?i)include)
+        beginCaptures:
+          '1':
+            name: meta.preprocessor.include.upp
+        patterns:
+          - include: '#preprocessor-arguments'
+        end: (?<=\n)
+
+      - begin: ((?i)undefine)
+        beginCaptures:
+          '1':
+            name: meta.preprocessor.undefine.upp
+          '2':
+            name: variable.other.upp
+        patterns:
+          - include: '#preprocessor-arguments'
+        end: (?<=\n)
+
+      # Custom macro
+      - match: \w
+        name: entity.name.function.preprocessor.upp
+
+      - include: '#unrealscript'
+      # FIXME: Stopping at \b for now, otherwise in some cases, we may never hit the end marker.
+    end: (?<=\n|\))|\b
+
+  preprocessor-invoke:
+    begin: \(
+    patterns:
+    #   - include: '#preprocessor'
+
+      - match: \w
+        name: entity.name.function.preprocessor.upp
+
+      - match: \,
+        name: punctuation.comma.upp
+    end: \)
+
+  preprocessor-arguments:
+    begin: \(
+    patterns:
+    #   - include: '#preprocessor'
+
+      - match: \w
+        name: entity.name.parameter.preprocessor.upp
+
+      - match: \,
+        name: punctuation.comma.upp
+    end: \)
+
+  unrealscript:
+    name: meta.embedded.block.unrealscript.upp
+    patterns:
+        - include: source.uc

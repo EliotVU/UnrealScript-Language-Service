@@ -253,7 +253,17 @@
                     "unrealscript"
                 ],
                 "extensions": [
-                    ".uc",
+                    ".uc"
+                ],
+                "configuration": "./language-configuration.json"
+            },
+            {
+                "id": "unrealscript-pp",
+                "aliases": [
+                    "UnrealScript Preprocessor",
+                    "unrealscript preprocessor"
+                ],
+                "extensions": [
                     ".uci"
                 ],
                 "configuration": "./language-configuration.json"
@@ -273,9 +283,23 @@
             {
                 "language": "unrealscript",
                 "scopeName": "source.uc",
-                "path": "./out/UnrealScript.tmLanguage.json",
+                "path": "./out/unrealscript.tmLanguage.json",
                 "embeddedLanguages": {
-                    "meta.embedded.block.cpp.uc": "cpp"
+                    "meta.embedded.block.cpp.uc": "cpp",
+                    "meta.embedded.block.upp.uc": "unrealscript-pp"
+                }
+            },
+            {
+                "language": "unrealscript",
+                "scopeName": "source.upp",
+                "path": "./out/unrealscript.preprocessor.tmLanguage.json"
+            },
+            {
+                "language": "unrealscript-pp",
+                "scopeName": "source.upp",
+                "path": "./out/unrealscript.preprocessor.tmLanguage.json",
+                "embeddedLanguages": {
+                    "meta.embedded.block.unrealscript.upp": "unrealscript"
                 }
             }
         ],

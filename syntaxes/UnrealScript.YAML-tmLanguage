@@ -1,4 +1,6 @@
 # [PackageDev] target_format: json, ext: tmLanguage
+# Syntax highlighting for the UnrealScript language:
+# https://docs.unrealengine.com/udk/Three/UnrealScriptHome.html
 ---
 name: UnrealScript Syntax Definition (UC)
 fileTypes: [.uc, .uci]
@@ -16,6 +18,7 @@ repository:
   comment:
     patterns:
       - include: '#blockComment'
+
       - name: comment.line.double-slash.uc
         begin: //
         end: \n
