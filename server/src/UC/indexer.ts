@@ -86,7 +86,7 @@ export function applyMacroSymbols(symbols?: { [key: string]: string }) {
  * This array is filled by the documentLinked$ listener.
  **/
 export const lastIndexedDocuments$ = new Subject<UCDocument[]>();
-const pendingIndexedDocuments: UCDocument[] = [];
+let pendingIndexedDocuments: UCDocument[] = [];
 
 export function indexDocument(document: UCDocument, text?: string): void {
     try {
@@ -150,7 +150,8 @@ export function indexPendingDocuments(abort?: (document: UCDocument) => boolean)
     console.info(`[${dependenciesSequence}]: post indexing time ${(performance.now() - startTime)}`);
 
     lastIndexedDocuments$.next(pendingIndexedDocuments);
-    pendingIndexedDocuments.splice(0, pendingIndexedDocuments.length);
+    // Don't splice in place, it's crucial we preserve the elements for subscription listeners.
+    pendingIndexedDocuments = [];
 }
 
 export function getPendingDocumentsCount(): number {
