@@ -21,16 +21,27 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
         return this.symbols.size;
     }
 
-	enumerateAll<C extends T>(): IterableIterator<C> {
-		return this.symbols.values() as IterableIterator<C>;
-	}
+    *enumerateAll<C extends T>(): Generator<C, C[]> {
+        for (const symbol of this.symbols.values()) {
+            for (let next = symbol.nextInHash; next; next = next.nextInHash as C) {
+                yield next as C;
+            }
+            yield symbol as C;
+        }
+        return [];
+    }
 
     *enumerateKinds<C extends T>(kinds: UCSymbolKind): Generator<C, C[]> {
         for (const symbol of this.symbols.values()) {
-            if (((1 << symbol.kind) & kinds) === 0) {
-                continue;
+            if (((1 << symbol.kind) & kinds) !== 0) {
+                yield symbol as C;
             }
-            yield symbol as C;
+            
+            for (let next = symbol.nextInHash; next; next = next.nextInHash as C) {
+                if (((1 << next.kind) & kinds) !== 0) {
+                    yield next as C;
+                }
+            }
         }
         return [];
     }
@@ -82,6 +93,9 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 
     getSymbol<C extends T>(key: Name | NameHash, kind?: UCSymbolKind, outer?: ISymbol): C | undefined {
         const symbol = this.symbols.get(typeof (key) === 'number' ? key : key.hash);
+        if (symbol === undefined) {
+            return undefined;
+        }
         if (typeof kind === 'undefined') {
             return symbol as C | undefined;
         }
