@@ -107,6 +107,7 @@ import {
     UCEventSymbol,
     UCInterfaceSymbol,
     UCLocalSymbol,
+    UCMacroSymbol,
     UCMapTypeSymbol,
     UCMethodSymbol,
     UCObjectSymbol,
@@ -189,7 +190,7 @@ function createTypeFromIdentifiers(identifiers: Identifier[]): UCQualifiedTypeSy
     return undefined;
 }
 
-function createObjectType(ctx: UCGrammar.IdentifierContext, kind?: UCSymbolKind) {
+function createObjectType(ctx: ParserRuleContext, kind?: UCSymbolKind) {
     const id: Identifier = createIdentifier(ctx);
     const type = new UCObjectTypeSymbol(id, id.range, kind);
     return type;
@@ -309,7 +310,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const macro = ctx._MACRO_SYMBOL;
         const identifier = createIdentifierFromToken(macro);
         // TODO: custom class
-        const symbol = new UCPropertySymbol(identifier);
+        const symbol = new UCMacroSymbol(identifier);
         this.document.addSymbol(symbol);
         return undefined;
     }
@@ -325,11 +326,19 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     visitTypeDecl(typeDeclNode: UCGrammar.TypeDeclContext): ITypeSymbol {
         const rule = typeDeclNode.getChild(0) as ParserRuleContext;
         switch (rule.ruleIndex) {
+            // TODO: Handle string type's size for analysis
+            case UCGrammar.UCParser.RULE_stringType:
             case UCGrammar.UCParser.RULE_primitiveType: {
                 const tokenType = rule.start.type;
                 const typeKind = TypeKeywordToTypeKindMap[tokenType];
                 if (typeof typeKind === 'undefined') {
                     throw new Error(`Unknown type '${UCGrammar.UCParser.VOCABULARY.getDisplayName(tokenType)}' for predefinedType() was encountered!`);
+                }
+
+                // With UE3 the pointer type was displaced by a struct i.e Core.Object.Pointer.
+                if (typeKind == UCTypeKind.Pointer && config.generation == UCGeneration.UC3) {
+                    const type: ITypeSymbol = createObjectType(rule, UCSymbolKind.Field);
+                    return type;
                 }
 
                 const type = new UCTypeSymbol(typeKind, rangeFromBounds(rule.start, rule.stop));
@@ -1194,15 +1203,16 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitStatement(ctx: UCGrammar.StatementContext) {
-        if (ctx.SEMICOLON()) {
-            return new UCEmptyStatement(rangeFromCtx(ctx));
-        }
         const child = ctx.getChild(0)!;
         console.assert(typeof child !== 'undefined');
         const stm = child.accept<IStatement>(this);
         console.assert(typeof stm !== 'undefined');
         console.assert(isStatement(stm), `Statement is invalid: ${getCtxDebugInfo(ctx)}`);
         return stm;
+    }
+
+    visitEmptyStatement(ctx: UCGrammar.EmptyStatementContext) {
+        return new UCEmptyStatement(rangeFromCtx(ctx));
     }
 
     // Directives can occur in a statement or declaration scope.

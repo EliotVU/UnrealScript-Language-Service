@@ -2,9 +2,10 @@ import * as c3 from 'antlr4-c3';
 import { Parser, ParserRuleContext } from 'antlr4ts';
 import { Token } from 'antlr4ts/Token';
 import { CompletionItem, CompletionItemKind, InsertTextFormat, InsertTextMode, SignatureHelp } from 'vscode-languageserver';
-import { Position } from 'vscode-languageserver-textdocument';
+import { DocumentUri, Position } from 'vscode-languageserver-textdocument';
 
 import { ActiveTextDocuments } from './activeTextDocuments';
+import { UCLanguageServerSettings } from './settings';
 import { UCLexer } from './UC/antlr/generated/UCLexer';
 import { ProgramContext, UCParser } from './UC/antlr/generated/UCParser';
 import { UCDocument } from './UC/document';
@@ -17,7 +18,7 @@ import {
     getIntersectingContext,
     rangeFromBound,
 } from './UC/helpers';
-import { config, getDocumentByURI, UCGeneration } from './UC/indexer';
+import { config, getDocumentByURI, UCGeneration, UELicensee } from './UC/indexer';
 import { toName } from './UC/name';
 import { getCtxDebugInfo, getTokenDebugInfo } from './UC/Parser/Parser.utils';
 import {
@@ -101,10 +102,6 @@ export const DefaultIgnoredTokensSet = new Set([
 
 let currentIgnoredTokensSet = DefaultIgnoredTokensSet;
 
-export function setIgnoredTokensSet(newSet: Set<number>) {
-    currentIgnoredTokensSet = newSet;
-}
-
 const TypeDeclSymbolKinds = 1 << UCSymbolKind.Enum
     | 1 << UCSymbolKind.ScriptStruct
     | 1 << UCSymbolKind.Class
@@ -130,7 +127,7 @@ const GlobalCastSymbolKinds = 1 << UCSymbolKind.Class
 const MethodSymbolKinds = 1 << UCSymbolKind.Function
     | 1 << UCSymbolKind.Event;
 
-export async function getSignatureHelp(uri: string, position: Position): Promise<SignatureHelp | undefined> {
+export async function getSignatureHelp(uri: DocumentUri, position: Position): Promise<SignatureHelp | undefined> {
     // const document = getDocumentByURI(uri);
     // if (!document || !data) {
     //     return undefined;
@@ -179,7 +176,7 @@ export async function getSignatureHelp(uri: string, position: Position): Promise
     return undefined;
 }
 
-export async function getCompletableSymbolItems(uri: string, position: Position): Promise<CompletionItem[] | undefined> {
+export async function getCompletableSymbolItems(uri: DocumentUri, position: Position): Promise<CompletionItem[] | undefined> {
     // Do a fresh parse (but no indexing or transforming, we'll use the cached AST instead).
     const text = ActiveTextDocuments.get(uri)?.getText();
     if (typeof text === 'undefined') {
@@ -681,7 +678,7 @@ async function buildCompletableSymbolItems(
 
                     case UCParser.RULE_identifierArguments: {
                         const typeItems = Array
-                            .from(ObjectsTable.getKinds<UCClassSymbol>(1 << UCSymbolKind.Class))
+                            .from(ObjectsTable.enumerateKinds<UCClassSymbol>(1 << UCSymbolKind.Class))
                             .filter((classSymbol) => {
                                 // TODO: Compare by hash instead of instance
                                 // -- because a class could theoretically still reference an old copy.
@@ -786,7 +783,7 @@ async function buildCompletableSymbolItems(
 
                 if (contextSymbol) {
                     if (isPackage(contextSymbol)) {
-                        for (let symbol of ObjectsTable.getKinds(PackageTypeContextSymbolKinds)) {
+                        for (let symbol of ObjectsTable.enumerateKinds(PackageTypeContextSymbolKinds)) {
                             if (symbol.outer !== contextSymbol) {
                                 continue;
                             }
@@ -858,7 +855,7 @@ async function buildCompletableSymbolItems(
 
     if (globalTypes !== UCSymbolKind.None) {
         const typeItems = Array
-            .from(ObjectsTable.getKinds(globalTypes))
+            .from(ObjectsTable.enumerateKinds(globalTypes))
             .map(symbol => symbolToCompletionItem(symbol));
 
         items.push(...typeItems);
@@ -977,4 +974,43 @@ export async function getFullCompletionItem(item: CompletionItem): Promise<Compl
         }
     }
     return item;
+}
+
+/** Updates the ignored tokens set based on the given input's UnrealScript Generation. */
+export function updateIgnoredCompletionTokens(settings: UCLanguageServerSettings): void {
+    const ignoredTokensSet = new Set(DefaultIgnoredTokensSet);
+    if (settings.generation === UCGeneration.UC1) {
+        ignoredTokensSet.add(UCLexer.KW_EXTENDS);
+        ignoredTokensSet.add(UCLexer.KW_NATIVE);
+
+        // TODO: Context aware ignored tokens.
+        // ignoredTokensSet.add(UCLexer.KW_TRANSIENT);
+        ignoredTokensSet.add(UCLexer.KW_LONG);
+    } else {
+        ignoredTokensSet.add(UCLexer.KW_EXPANDS);
+        ignoredTokensSet.add(UCLexer.KW_INTRINSIC);
+    }
+
+    if (settings.generation === UCGeneration.UC3) {
+        ignoredTokensSet.add(UCLexer.KW_CPPSTRUCT);
+    } else {
+        // Some custom UE2 builds do have implements and interface
+        ignoredTokensSet.add(UCLexer.KW_IMPLEMENTS);
+        ignoredTokensSet.add(UCLexer.KW_INTERFACE);
+
+        ignoredTokensSet.add(UCLexer.KW_STRUCTDEFAULTPROPERTIES);
+        ignoredTokensSet.add(UCLexer.KW_STRUCTCPPTEXT);
+
+        ignoredTokensSet.add(UCLexer.KW_ATOMIC);
+        ignoredTokensSet.add(UCLexer.KW_ATOMICWHENCOOKED);
+        ignoredTokensSet.add(UCLexer.KW_STRICTCONFIG);
+        ignoredTokensSet.add(UCLexer.KW_IMMUTABLE);
+        ignoredTokensSet.add(UCLexer.KW_IMMUTABLEWHENCOOKED);
+    }
+
+    if (settings.licensee !== UELicensee.XCom) {
+        ignoredTokensSet.add(UCLexer.KW_REF);
+    }
+
+    currentIgnoredTokensSet = ignoredTokensSet;
 }

@@ -1,8 +1,17 @@
 import { UCDocument } from './document';
 import {
-    ContextInfo, isArchetypeSymbol, isParamSymbol, isStruct, UCClassSymbol,
-    UCDefaultPropertiesBlock, UCEnumSymbol, UCMethodSymbol, UCReplicationBlock,
-    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol
+    ContextInfo,
+    isArchetypeSymbol,
+    isParamSymbol,
+    isStruct,
+    UCClassSymbol,
+    UCDefaultPropertiesBlock,
+    UCEnumSymbol,
+    UCMethodSymbol,
+    UCReplicationBlock,
+    UCScriptStructSymbol,
+    UCStateSymbol,
+    UCStructSymbol,
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
@@ -10,7 +19,7 @@ import { DefaultSymbolWalker } from './symbolWalker';
  * Will initiate the indexing of all struct symbols that contain a block.
  * The indexing of a block is handled separately here so that we can resolve recursive dependencies within blocks.
  */
-export class DocumentIndexer extends DefaultSymbolWalker<undefined> {
+export class DocumentCodeIndexer extends DefaultSymbolWalker<undefined> {
     constructor(private document: UCDocument) {
         super();
     }
@@ -43,7 +52,7 @@ export class DocumentIndexer extends DefaultSymbolWalker<undefined> {
     visitMethod(symbol: UCMethodSymbol) {
         for (let child = symbol.children; child; child = child.next) {
             // Parameter?
-            if (child && isParamSymbol(child) && child.defaultExpression) {
+            if (isParamSymbol(child) && child.defaultExpression) {
                 const type = child.getType();
                 const context: ContextInfo | undefined = {
                     contextType: type

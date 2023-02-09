@@ -12,14 +12,22 @@ import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
 import { IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentASTWalker } from './documentASTWalker';
 import { applyMacroSymbols, config, IndexedReferencesMap, UCGeneration } from './indexer';
-import { Name, toName } from './name';
+import { Name, NameHash, toName } from './name';
 import { UCErrorListener } from './Parser/ErrorListener';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import { UCInputStream } from './Parser/InputStream';
 import { UCTokenStream } from './Parser/TokenStream';
 import {
-    isStruct, ISymbol, removeHashedSymbol, SymbolReference, SymbolsTable, UCClassSymbol,
-    UCObjectSymbol, UCPackage, UCStructSymbol, UCSymbolKind
+    isStruct,
+    ISymbol,
+    removeHashedSymbol,
+    SymbolReference,
+    SymbolsTable,
+    UCClassSymbol,
+    UCObjectSymbol,
+    UCPackage,
+    UCStructSymbol,
+    UCSymbolKind,
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
@@ -47,14 +55,18 @@ export class UCDocument {
     public readonly name: Name;
     public readonly uri: DocumentUri;
 
+    /** The current indexed TextDocument's version as reported by the client. */
+    public indexedVersion: number = 0;
+
     // TODO: Displace this with a DiagnosticCollection visitor.
     public nodes: IDiagnosticNode[] = [];
 
     /** The class or interface header symbol */
-    public class?: UCClassSymbol;
+    public class?: UCClassSymbol = undefined;
+    public hasBeenBuilt = false;
     public hasBeenIndexed = false;
 
-    private readonly indexReferencesMade = new Map<number, Set<SymbolReference>>();
+    private readonly indexReferencesMade = new Map<NameHash, Set<SymbolReference>>();
 
     // List of symbols, including macro declarations.
     private scope = new SymbolsTable<UCObjectSymbol>();
@@ -65,12 +77,16 @@ export class UCDocument {
         this.uri = URI.file(filePath).toString();
     }
 
-    public getSymbols() {
-        return Array.from(this.scope.getAll());
+    public enumerateSymbols() {
+        return this.scope.enumerateAll();
     }
 
-    public addSymbol(symbol: UCObjectSymbol) {
+    public addSymbol(symbol: UCObjectSymbol): void {
         this.scope.addSymbol(symbol);
+    }
+
+    public hasSymbols(): boolean {
+        return this.scope.count() > 0;
     }
 
     public parse(text: string): DocumentParseData {
@@ -99,7 +115,7 @@ export class UCDocument {
             }
         }
 
-        tokens.fill();
+        // tokens.fill();
 
         let context: ProgramContext | undefined;
         const parser = new UCParser(tokens);
@@ -134,8 +150,8 @@ export class UCDocument {
         const lexer = new UCLexer(inputStream);
         const errorListener = new UCErrorListener();
         lexer.removeErrorListeners(); lexer.addErrorListener(errorListener);
-        const tokens = new UCTokenStream(lexer);
-        const walker = new DocumentASTWalker(this, this.scope, tokens);
+        const tokenStream = new UCTokenStream(lexer);
+        const walker = new DocumentASTWalker(this, this.scope, tokenStream);
 
         if (config.generation === UCGeneration.UC3) {
             const startPreprocressing = performance.now();
@@ -145,7 +161,7 @@ export class UCDocument {
                 try {
                     const macroTree = preprocessDocument(this, macroParser, walker);
                     if (macroTree) {
-                        tokens.initMacroTree(macroTree, errorListener);
+                        tokenStream.initMacroTree(macroTree, errorListener);
                     }
                 } catch (err) {
                     console.error(err);
@@ -156,10 +172,10 @@ export class UCDocument {
         }
 
         const startWalking = performance.now();
-        tokens.fill();
+        // tokenStream.fill();
 
         let context: ProgramContext | undefined;
-        const parser = new UCParser(tokens);
+        const parser = new UCParser(tokenStream);
         try {
             parser.interpreter.setPredictionMode(PredictionMode.SLL);
             parser.errorHandler = ERROR_STRATEGY;
@@ -194,7 +210,7 @@ export class UCDocument {
             }
             console.info(this.fileName + ': transforming time ' + (performance.now() - startWalking));
         }
-        tokens.release(tokens.mark());
+        tokenStream.release(tokenStream.mark());
         this.nodes = this.nodes.concat(errorListener.nodes);
         return { context, parser };
     }
@@ -218,6 +234,7 @@ export class UCDocument {
         this.class = undefined;
         this.scope.clear();
         this.nodes = []; // clear
+        this.hasBeenBuilt = false;
         this.hasBeenIndexed = false;
 
         // Clear all the indexed references that we have made.
@@ -245,6 +262,10 @@ export class UCDocument {
         const gRefs = IndexedReferencesMap.get(key) ?? new Set<SymbolReference>();
         gRefs.add(ref);
         IndexedReferencesMap.set(key, gRefs);
+    }
+
+    getReferencesToSymbol(symbol: ISymbol): Set<SymbolReference> | undefined {
+        return this.indexReferencesMade.get(symbol.getHash());
     }
 
     accept<Result>(visitor: SymbolWalker<Result>): Result | void {

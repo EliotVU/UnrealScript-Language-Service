@@ -542,19 +542,13 @@ variableModifier
 	| ('privatewrite' exportBlockText?)
 	;
 
-primitiveType
-	: 'byte'
-	| 'int'
-	| 'float'
-	| 'bool'
-	| 'string'
-	| 'name'
-	| 'pointer'
-	| 'button' // alias for a string with an input modifier
+varType
+	: variableModifier* typeDecl
 	;
 
 typeDecl
 	: primitiveType
+    | stringType
 	| classType
 	| arrayType
 	| delegateType
@@ -564,9 +558,19 @@ typeDecl
 	| qualifiedIdentifier
 	;
 
-varType
-	: variableModifier* typeDecl
+primitiveType
+	: 'byte'
+	| 'int'
+	| 'float'
+	| 'bool'
+	| 'name'
+	| 'pointer'
+	| 'button' // alias for a string with an input modifier
 	;
+
+stringType
+    : 'string' (OPEN_BRACKET INTEGER_LITERAL CLOSE_BRACKET)?
+    ;
 
 // Note: inlinedDeclTypes includes another arrayGeneric!
 arrayType
@@ -738,7 +742,7 @@ codeBlockOptional
 	;
 
 statement
-	: SEMICOLON
+	: emptyStatement
 	| ifStatement
 	| forStatement
 	| foreachStatement
@@ -761,6 +765,8 @@ statement
 	| expressionStatement
 	| directive
 	;
+
+emptyStatement: SEMICOLON;
 
 assignmentStatement: expr=assignmentExpression SEMICOLON;
 expressionStatement: expr=primaryExpression SEMICOLON;

@@ -1,11 +1,11 @@
 import * as fs from 'fs';
-import * as glob from 'glob';
+import glob from 'glob';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
 import { BehaviorSubject, firstValueFrom, interval, Subject, Subscription } from 'rxjs';
-import { debounce, delay, filter, switchMap, tap } from 'rxjs/operators';
+import { debounce, delay, filter, map, switchMap, tap, timeout } from 'rxjs/operators';
 import * as url from 'url';
-import { TextDocument } from 'vscode-languageserver-textdocument';
+import { DocumentUri, TextDocument } from 'vscode-languageserver-textdocument';
 import {
     CodeActionKind,
     CompletionTriggerKind,
@@ -13,7 +13,6 @@ import {
     ErrorCodes,
     FileOperationRegistrationOptions,
     InitializeParams,
-    Location,
     Position,
     ProposedFeatures,
     Range,
@@ -29,35 +28,37 @@ import { URI } from 'vscode-uri';
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { buildCodeActions } from './codeActions';
 import {
-    DefaultIgnoredTokensSet,
     getCompletableSymbolItems,
     getFullCompletionItem,
     getSignatureHelp,
-    setIgnoredTokensSet,
+    updateIgnoredCompletionTokens,
 } from './completion';
-import { getDiagnostics } from './diagnostics';
-import { getHighlights } from './documentHighlight';
+import { getDocumentDiagnostics } from './documentDiagnostics';
+import { getDocumentHighlights } from './documentHighlight';
 import { getDocumentSymbols } from './documentSymbol';
-import { getReferences } from './references';
-import { buildSemanticTokens } from './semantics';
+import { getDocumentSemanticTokens } from './documentTokenSemantics';
+import { getReferences, getSymbolReferences } from './references';
 import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
-import { UCLexer } from './UC/antlr/generated/UCLexer';
+import { CommandIdentifier, CommandsList, InlineChangeCommand } from './UC/commands';
 import { UCDocument } from './UC/document';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
-import { getSymbol, getSymbolDefinition, getSymbolDocument, getSymbolTooltip, VALID_ID_REGEXP } from './UC/helpers';
+import { getDocumentDefinition, getDocumentTooltip, getSymbol, getSymbolDefinition, VALID_ID_REGEXP } from './UC/helpers';
 import {
     applyMacroSymbols,
     clearMacroSymbols,
     config,
     createDocumentByPath,
     createPackage,
-    documentsMap,
+    createPackageByDir,
+    documentBuilt$,
+    documentsCodeIndexed$,
+    enumerateDocuments,
     getDocumentById,
     getDocumentByURI,
-    getIndexedReferences,
-    getPackageByDir,
+    getPendingDocumentsCount,
+    indexDocument,
+    indexPendingDocuments,
     IntrinsicSymbolItemMap,
-    lastIndexedDocuments$,
     queueIndexDocument,
     removeDocumentByPath,
     UCGeneration,
@@ -67,6 +68,7 @@ import { toName } from './UC/name';
 import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
 import {
     addHashedSymbol,
+    CORE_PACKAGE,
     DEFAULT_RANGE,
     IntrinsicArray,
     isClass as isClass,
@@ -92,17 +94,20 @@ import { getWorkspaceSymbols } from './workspaceSymbol';
  * If false, the workspace is expected to be invalidated and re-indexed.
  **/
 const isIndexReady$ = new Subject<boolean>();
-const documentsToIndex$ = new BehaviorSubject<UCDocument[]>([]);
+const pendingDocuments$ = new BehaviorSubject<UCDocument[]>([]);
 
 /** Emits a document that is pending an update. */
-const pendingTextDocuments$ = new Subject<{ textDocument: TextDocument, isDirty: boolean }>();
+const pendingTextDocument$ = new Subject<{
+    textDocument: TextDocument,
+    source: string
+}>();
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasSemanticTokensCapability = false;
 
-let documentFileGlobPattern = "**/*.{uc,uci}";
-let packageFileGlobPattern = "**/*.{u,upk}";
+let documentFileGlobPattern = "/**/*.{uc,uci}";
+let packageFileGlobPattern = "/**/*.{u,upk}";
 
 // FIXME: Use glob pattern, and make the extension configurable.
 function isDocumentFileName(fileName: string): boolean {
@@ -114,13 +119,22 @@ function isPackageFileName(fileName: string): boolean {
     return fileName.endsWith('.u');
 }
 
-function getFiles(fsPath: string, pattern: string): string[] {
-    return glob.sync(pattern, {
-        root: fsPath,
-        realpath: true,
-        nosort: true,
-        nocase: true
-    });
+function getFiles(fsPath: string, pattern: string): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+        return glob(pattern, {
+            cwd: fsPath,
+            root: fsPath,
+            realpath: true,
+            nosort: true,
+            nocase: true,
+            nodir: true
+        }, (err, matches) => {
+            if (err) {
+                return reject(err);
+            }
+            resolve(matches);
+        });
+    })
 }
 
 type WorkspaceFiles = {
@@ -128,23 +142,29 @@ type WorkspaceFiles = {
     packageFiles: string[];
 };
 
-function getWorkspaceFiles(folders: WorkspaceFolder[], reason: string): WorkspaceFiles {
-    const documentFiles: string[] = [];
-    const packageFiles: string[] = [];
+async function getWorkspaceFiles(folders: WorkspaceFolder[], reason: string): Promise<WorkspaceFiles> {
+    let documentFiles: string[] = [];
+    let packageFiles: string[] = [];
 
     for (let folder of folders) {
         const folderFSPath = URI.parse(folder.uri).fsPath;
         connection.console.info(`Scanning folder '${folderFSPath}' using pattern '${packageFileGlobPattern}', '${documentFileGlobPattern}'`);
-        documentFiles.push(...getFiles(folderFSPath, documentFileGlobPattern));
-        packageFiles.push(...getFiles(folderFSPath, packageFileGlobPattern));
+        await Promise.all([
+            getFiles(folderFSPath, packageFileGlobPattern).then((matches) => {
+                connection.console.info(`(${reason}) Found '${matches.length}' package files in '${folderFSPath}'`);
+                folders.length == 1 ? (packageFiles = matches) : packageFiles.push(...matches);
+            }),
+            getFiles(folderFSPath, documentFileGlobPattern).then((matches) => {
+                connection.console.info(`(${reason}) Found '${matches.length}' document files in '${folderFSPath}'`);
+                folders.length == 1 ? (documentFiles = matches) : documentFiles.push(...matches);
+            })
+        ]);
     }
-    connection.console.info(`(${reason}) Found '${documentFiles.length}' document files`);
-    connection.console.info(`(${reason}) Found '${packageFiles.length}' package files`);
     return { documentFiles, packageFiles };
 }
 
 function registerDocument(filePath: string): UCDocument {
-    return createDocumentByPath(filePath, getPackageByDir(filePath));
+    return createDocumentByPath(filePath, createPackageByDir(filePath));
 }
 
 function registerDocuments(files: string[]): UCDocument[] {
@@ -195,7 +215,7 @@ function registerWorkspaceFiles(workspace: WorkspaceFiles) {
     if (workspace.documentFiles) {
         const documents = registerDocuments(workspace.documentFiles);
         // re-queue all old and new documents.
-        documentsToIndex$.next(Array.from(documentsMap.values()).concat(documents));
+        pendingDocuments$.next(Array.from(enumerateDocuments()).concat(documents));
     }
 }
 
@@ -205,16 +225,61 @@ function unregisterWorkspaceFiles(workspace: WorkspaceFiles) {
     }
 }
 
-async function awaitDocumentDelivery(uri: string): Promise<UCDocument | undefined> {
+async function registerWorkspace(folders: WorkspaceFolder[] | null): Promise<void> {
+    if (folders) {
+        const getStartTime = performance.now();
+        const workspace = await getWorkspaceFiles(folders, 'initialize');
+        connection.console.log(`Found workspace files in ${(performance.now() - getStartTime) / 1000} seconds!`);
+
+        const registerStartTime = performance.now();
+        registerWorkspaceFiles(workspace);
+        connection.console.log(`Registered workspace files in ${(performance.now() - registerStartTime) / 1000} seconds!`);
+    }
+}
+
+function invalidatePendingDocuments() {
+    const documents = pendingDocuments$.getValue();
+    for (let i = 0; i < documents.length; ++i) {
+        documents[i].invalidate();
+    }
+}
+
+async function awaitDocumentDelivery(uri: DocumentUri): Promise<UCDocument | undefined> {
     const document = getDocumentByURI(uri);
     if (document && document.hasBeenIndexed) {
         return document;
     }
 
-    return firstValueFrom(lastIndexedDocuments$).then(documents => {
-        return documents.find((d) => d.uri === uri);
-    });
+    return firstValueFrom(documentsCodeIndexed$
+        .pipe(
+            map(docs => {
+                const doc = docs.find((d => d.uri === uri));
+                return doc;
+            }),
+            filter(doc => {
+                return !!doc!;
+            }),
+            timeout({
+                each: 1000 * 60
+            })
+        ));
 }
+
+async function awaitDocumentBuilt(uri: DocumentUri): Promise<UCDocument | undefined> {
+    const document = getDocumentByURI(uri);
+    if (document && document.hasBeenBuilt) {
+        return document;
+    }
+
+    return firstValueFrom(documentBuilt$
+        .pipe(
+            filter(doc => doc.uri === uri),
+            timeout({
+                each: 1000 * 60
+            })
+        ));
+}
+
 
 const connection = createConnection(ProposedFeatures.all);
 connection.listen();
@@ -242,12 +307,13 @@ connection.onInitialize((params: InitializeParams) => {
     }
 
     if (!hasWorkspaceFolderCapability && params.rootUri) {
-        initializeWorkspace([{
+        registerWorkspace([{
             uri: params.rootUri,
             name: 'default'
         }]);
     }
 
+    // FIXME: Not affected by the configured documentFileGlobPattern
     const fileOperation: FileOperationRegistrationOptions = {
         filters: [{
             scheme: 'file',
@@ -297,9 +363,7 @@ connection.onInitialize((params: InitializeParams) => {
                 dataSupport: true
             },
             executeCommandProvider: {
-                commands: [
-                    'create.class'
-                ]
+                commands: CommandsList
             },
             semanticTokensProvider: {
                 documentSelector: null,
@@ -315,7 +379,7 @@ connection.onInitialize((params: InitializeParams) => {
 });
 
 connection.onInitialized((params) => {
-    lastIndexedDocumentsSub = lastIndexedDocuments$
+    lastIndexedDocumentsSub = documentsCodeIndexed$
         .pipe(
             filter(() => config.analyzeDocuments !== EAnalyzeOption.None),
             delay(50),
@@ -328,37 +392,70 @@ connection.onInitialized((params) => {
 
             for (const document of documents) {
                 try {
-                    const diagnostics = getDiagnostics(document);
+                    const diagnostics = getDocumentDiagnostics(document);
                     connection.sendDiagnostics({
                         uri: document.uri,
                         diagnostics
                     });
                 } catch (error) {
-                    connection.console.error(`Analysis of document '${document.uri}' threw '${error}'`);
+                    connection.console.error(`Analysis of document "${document.uri}" threw '${error}'`);
                 }
             }
         });
 
     isIndexReadySub = isIndexReady$
         .pipe(
-            switchMap(() => pendingTextDocuments$),
-            debounce(() => interval(50))
+            switchMap(() => pendingTextDocument$),
+            debounce(({ source }) => interval(source === 'change' ? 50 : undefined))
         )
         .subscribe({
-            next: ({ textDocument, isDirty }) => {
+            next: async ({ textDocument, source }) => {
+                if (process.env.NODE_ENV === 'development') {
+                    connection.console.log(`Processing pending document "${textDocument.uri}":${textDocument.version}, source:${source}.`);
+                }
                 const document = getDocumentByURI(textDocument.uri);
                 if (!document) {
                     // Don't index documents that are not part of the workspace.
                     return;
                 }
 
+                const isDirty = textDocument.version !== document.indexedVersion;
                 if (isDirty) {
+                    if (process.env.NODE_ENV === 'development') {
+                        connection.console.log(`Invalidating document "${document.fileName}".`);
+                    }
                     document.invalidate();
                 }
 
-                if (!document.hasBeenIndexed) {
-                    queueIndexDocument(document, textDocument.getText());
+                if (document.hasBeenIndexed) {
+                    if (process.env.NODE_ENV === 'development') {
+                        connection.console.log(`Document "${document.fileName}" is already indexed.`)
+                    }
+                    return;
                 }
+
+                const work = await connection.window.createWorkDoneProgress();
+                work.begin(
+                    `Indexing document "${document.fileName}"`,
+                    0.0,
+                    undefined,
+                    true);
+
+                const fullText = textDocument.getText();
+                indexDocument(document, fullText);
+
+                let i = 0;
+                const dependenciesCount = getPendingDocumentsCount();
+                indexPendingDocuments((doc => {
+                    if (work.token.isCancellationRequested) {
+                        return true;
+                    }
+                    work.report(i++ / dependenciesCount, `Indexing document "${doc.fileName}"`);
+                    return false;
+                }));
+
+                document.indexedVersion = textDocument.version;
+                work.done();
             },
             error: err => {
                 connection.console.error(`Index queue error: '${err}'`);
@@ -372,61 +469,87 @@ connection.onInitialized((params) => {
                 if (value) {
                     return;
                 }
-
-                const documents = documentsToIndex$.getValue();
-                for (let i = 0; i < documents.length; ++i) {
-                    documents[i].invalidate();
-                }
+                invalidatePendingDocuments();
             }),
-            switchMap(() => documentsToIndex$),
+            switchMap(() => pendingDocuments$),
             filter(documents => documents.length > 0)
         )
         .subscribe((async (documents) => {
+            if (config.generation === UCGeneration.Auto) {
+                const newGeneration = tryAutoDetectGeneration();
+                if (newGeneration) {
+                    config.generation = newGeneration;
+                    connection.console.info(`Auto-detected generation ${config.generation}.`)
+                } else {
+                    connection.console.warn(`Auto-detection failed, resorting to UC3.`)
+                }
+            }
+
             const indexStartTime = performance.now();
             const work = await connection.window.createWorkDoneProgress();
-            work.begin('Indexing workspace', 0.0);
+            work.begin(
+                'Indexing workspace',
+                0.0,
+                'The workspace documents are being processed.',
+                true);
             try {
                 // TODO: does not respect multiple globals.uci files
                 const globalUci = getDocumentById(globalsUCIFileName);
-                if (globalUci) {
+                if (globalUci && !globalUci.hasBeenIndexed) {
                     queueIndexDocument(globalUci);
+                }
+
+                // Weird, even if when we have "zero" active documents, this will array is filled?
+                const activeDocuments = ActiveTextDocuments
+                    .all()
+                    .map(doc => getDocumentByURI(doc.uri))
+                    .filter(Boolean) as UCDocument[];
+
+                for (let i = activeDocuments.length - 1; i >= 0; i--) {
+                    connection.console.log(`Queueing active document "${activeDocuments[i].fileName}".`)
+                    work.report(activeDocuments.length / i - 1.0, `${activeDocuments[i].fileName}`);
+                    // if (documents[i].hasBeenIndexed) {
+                    //     continue;
+                    // }
+
+                    if (work.token.isCancellationRequested) {
+                        connection.console.warn(`The workspace indexing has been cancelled.`)
+                        break;
+                    }
+
+                    activeDocuments[i].invalidate();
+                    queueIndexDocument(activeDocuments[i]);
                 }
 
                 if (config.indexAllDocuments) {
                     for (let i = 0; i < documents.length; i++) {
+                        work.report(i / documents.length, `${documents[i].fileName} + dependencies`);
                         if (documents[i].hasBeenIndexed) {
                             continue;
                         }
 
-                        work.report(i / documents.length, `${documents[i].fileName} + dependencies`);
+                        if (work.token.isCancellationRequested) {
+                            connection.console.warn(`The workspace indexing has been cancelled.`)
+                            break;
+                        }
+
                         queueIndexDocument(documents[i]);
                     }
-                } else {
-                    ActiveTextDocuments
-                        .all()
-                        .forEach(doc => pendingTextDocuments$.next({
-                            textDocument: doc,
-                            isDirty: false
-                        }));
                 }
             } finally {
                 work.done();
 
                 const time = performance.now() - indexStartTime;
-                connection.console.log('UnrealScript documents have been indexed in ' + (time / 1000) + ' seconds!');
+                connection.console.log(`UnrealScript documents have been indexed in ${time / 1000} seconds!`);
             }
         }));
 
     if (hasConfigurationCapability) {
-        connection.workspace
-            .getConfiguration('unrealscript')
-            .then((settings: UCLanguageServerSettings) => {
-                setConfiguration(settings);
-                initializeConfiguration();
-                return connection.workspace.getWorkspaceFolders();
-            })
+        connection.workspace.getWorkspaceFolders()
             .then((workspaceFolders) => {
-                initializeWorkspace(workspaceFolders);
+                return registerWorkspace(workspaceFolders);
+            })
+            .then(() => {
                 isIndexReady$.next(true);
             });
 
@@ -435,15 +558,15 @@ connection.onInitialized((params) => {
     }
 
     if (hasWorkspaceFolderCapability) {
-        connection.workspace.onDidChangeWorkspaceFolders((event) => {
+        connection.workspace.onDidChangeWorkspaceFolders(async (event) => {
             if (event.added.length) {
-                const workspace = getWorkspaceFiles(event.added, 'workspace files added');
+                const workspace = await getWorkspaceFiles(event.added, 'workspace files added');
                 registerWorkspaceFiles(workspace);
             }
 
             // FIXME: Doesn't clean up any implicit created packages, nor names.
             if (event.removed.length) {
-                const workspace = getWorkspaceFiles(event.removed, 'workspace files removed');
+                const workspace = await getWorkspaceFiles(event.removed, 'workspace files removed');
                 unregisterWorkspaceFiles(workspace);
             }
         });
@@ -487,35 +610,42 @@ connection.onInitialized((params) => {
     }
 
     if (hasSemanticTokensCapability) {
-        connection.languages.semanticTokens.on(e => {
-            const document = getDocumentByURI(e.textDocument.uri);
-            if (!document) {
-                return {
-                    data: []
-                };
+        connection.languages.semanticTokens.on(async e => {
+            const document = await awaitDocumentDelivery(e.textDocument.uri);
+            if (document) {
+                return getDocumentSemanticTokens(document);
             }
 
-            if (!document.hasBeenIndexed) {
-                return firstValueFrom(lastIndexedDocuments$).then(() => {
-                    return buildSemanticTokens(document);
-                });
-            }
-            return buildSemanticTokens(document);
+            return {
+                data: []
+            };
         });
         // TODO: Support range
         // connection.languages.semanticTokens.onRange(e => getSemanticTokens(e.textDocument.uri));
     }
 
-    ActiveTextDocuments.onDidOpen(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: false }));
-    ActiveTextDocuments.onDidChangeContent(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
+    // We need to sync the opened document with current state.
+    ActiveTextDocuments.onDidOpen(e => pendingTextDocument$.next({
+        textDocument: e.document,
+        source: 'open'
+    }));
+    ActiveTextDocuments.onDidChangeContent(e => pendingTextDocument$.next({
+        textDocument: e.document,
+        source: 'change'
+    }));
     // We need to re--index the document, incase that the end-user edited a document without saving its changes.
-    ActiveTextDocuments.onDidClose(e => pendingTextDocuments$.next({ textDocument: e.document, isDirty: true }));
+    ActiveTextDocuments.onDidClose(e => pendingTextDocument$.next({
+        textDocument: e.document,
+        source: 'close'
+    }));
     ActiveTextDocuments.listen(connection);
 });
 
 connection.onDidChangeConfiguration((params: { settings: { unrealscript: UCLanguageServerSettings } }) => {
     setConfiguration(params.settings.unrealscript);
     initializeConfiguration();
+
+    connection.console.info(`Re-indexing workspace due configuration changes.`)
     isIndexReady$.next(false);
 });
 
@@ -532,8 +662,41 @@ function initializeConfiguration() {
 function applyConfiguration(settings: UCLanguageServerSettings) {
     applyMacroSymbols(settings.macroSymbols);
     installIntrinsicSymbols(settings.intrinsicSymbols);
-    setupIgnoredTokens(settings.generation);
+    updateIgnoredCompletionTokens(settings);
     setupFilePatterns(settings);
+}
+
+/** 
+ * Auto-detects the UnrealScript generation.
+ * This test is performed before any parsing/indexing has occurred, although it may also re-occur after a re-index.
+ * The code should assume that no UC symbols do exist other than packages.
+ */
+function tryAutoDetectGeneration(): UCGeneration | undefined {
+    // UE3 has Component.uc we can use to determine the generation.
+    let document = getDocumentById(toName('Component'));
+    if (document?.classPackage === CORE_PACKAGE) {
+        return UCGeneration.UC3;
+    }
+
+    // No Commandlet.uc in older UE1
+    document = getDocumentById(toName('Commandlet'));
+    if (!document) {
+        return UCGeneration.UC1;
+    }
+
+    // Okay we have a Commandlet.uc document (UT99)
+    if (document.classPackage === CORE_PACKAGE) {
+        document = getDocumentById(toName('HelpCommandlet'));
+        if (document?.classPackage === CORE_PACKAGE) {
+            return UCGeneration.UC1;
+        }
+
+        // UE2 / UT2004
+        return UCGeneration.UC2;
+    }
+
+    // Failed auto
+    return undefined;
 }
 
 function clearIntrinsicSymbols() {
@@ -562,7 +725,7 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
                 }
 
                 const symbol = new UCClassSymbol({ name: symbolName, range: DEFAULT_RANGE });
-                symbol.modifiers |= ModifierFlags.Intrinsic;
+                symbol.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Generated;
                 if (value.extends) {
                     symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCSymbolKind.Class);
                 }
@@ -597,7 +760,7 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
                 }
 
                 const symbol = new UCMethodSymbol({ name: symbolName, range: DEFAULT_RANGE });
-                symbol.modifiers |= ModifierFlags.Intrinsic;
+                symbol.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Generated;
                 superStruct.addSymbol(symbol);
                 break;
             }
@@ -616,92 +779,52 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
         }
     } else if (config.licensee === UELicensee.XCom) {
         randomizeOrderSymbol = new UCMethodSymbol({ name: randomizeOrderName, range: DEFAULT_RANGE });
+        randomizeOrderSymbol.modifiers |= ModifierFlags.Intrinsic;
         IntrinsicArray.addSymbol(randomizeOrderSymbol);
     }
-}
-
-function setupIgnoredTokens(generation: UCGeneration) {
-    const ignoredTokensSet = new Set(DefaultIgnoredTokensSet);
-    if (generation === UCGeneration.UC1) {
-        ignoredTokensSet.add(UCLexer.KW_EXTENDS);
-        ignoredTokensSet.add(UCLexer.KW_NATIVE);
-
-        // TODO: Context aware ignored tokens.
-        // ignoredTokensSet.add(UCLexer.KW_TRANSIENT);
-        ignoredTokensSet.add(UCLexer.KW_LONG);
-    } else {
-        ignoredTokensSet.add(UCLexer.KW_EXPANDS);
-        ignoredTokensSet.add(UCLexer.KW_INTRINSIC);
-    }
-
-    if (generation === UCGeneration.UC3) {
-        ignoredTokensSet.add(UCLexer.KW_CPPSTRUCT);
-    } else {
-        // Some custom UE2 builds do have implements and interface
-        ignoredTokensSet.add(UCLexer.KW_IMPLEMENTS);
-        ignoredTokensSet.add(UCLexer.KW_INTERFACE);
-
-        ignoredTokensSet.add(UCLexer.KW_STRUCTDEFAULTPROPERTIES);
-        ignoredTokensSet.add(UCLexer.KW_STRUCTCPPTEXT);
-
-        ignoredTokensSet.add(UCLexer.KW_ATOMIC);
-        ignoredTokensSet.add(UCLexer.KW_ATOMICWHENCOOKED);
-        ignoredTokensSet.add(UCLexer.KW_STRICTCONFIG);
-        ignoredTokensSet.add(UCLexer.KW_IMMUTABLE);
-        ignoredTokensSet.add(UCLexer.KW_IMMUTABLEWHENCOOKED);
-    }
-    setIgnoredTokensSet(ignoredTokensSet);
 }
 
 function setupFilePatterns(settings: UCLanguageServerSettings) {
     const packageFileExtensions = settings.indexPackageExtensions
         ?.filter(ext => /^\w+$/.test(ext)) // prevent injection
         ?? ['u', 'upk'];
-    packageFileGlobPattern = `**/*.{${packageFileExtensions.join(',')}}`;
+    packageFileGlobPattern = `/**/*.{${packageFileExtensions.join(',')}}`;
 
     const documentFileExtensions = settings.indexDocumentExtensions
         ?.filter(ext => /^\w+$/.test(ext)) // prevent injection
         ?? ['uc', 'uci'];
-    documentFileGlobPattern = `**/*.{${documentFileExtensions.join(',')}}`;
-}
-
-function initializeWorkspace(folders: WorkspaceFolder[] | null) {
-    if (folders) {
-        const workspace = getWorkspaceFiles(folders, 'initialize');
-        registerWorkspaceFiles(workspace);
-    }
+    documentFileGlobPattern = `/**/*.{${documentFileExtensions.join(',')}}`;
 }
 
 connection.onHover(async (e) => {
-    await awaitDocumentDelivery(e.textDocument.uri);
-    return getSymbolTooltip(e.textDocument.uri, e.position);
+    const document = await awaitDocumentDelivery(e.textDocument.uri);
+    if (document) {
+        return getDocumentTooltip(document, e.position);
+    }
 });
 
 connection.onDefinition(async (e) => {
-    await awaitDocumentDelivery(e.textDocument.uri);
-    const symbol = getSymbolDefinition(e.textDocument.uri, e.position);
-    if (symbol) {
-        const document = getSymbolDocument(symbol);
-        const documentUri = document?.uri;
-        return documentUri
-            ? Location.create(documentUri, symbol.id.range)
-            : undefined;
+    const document = await awaitDocumentDelivery(e.textDocument.uri);
+    if (document) {
+        return getDocumentDefinition(document, e.position);
     }
-    return undefined;
 });
 
 connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
-connection.onDocumentSymbol((e) => {
-    return getDocumentSymbols(e.textDocument.uri);
+connection.onDocumentSymbol(async (e) => {
+    const document = await awaitDocumentBuilt(e.textDocument.uri);
+    if (document) {
+        return getDocumentSymbols(document);
+    }
 });
 connection.onWorkspaceSymbol((e) => {
     return getWorkspaceSymbols(e.query);
 });
 
-connection.onDocumentHighlight((e) => getHighlights(e.textDocument.uri, e.position));
+connection.onDocumentHighlight((e) => getDocumentHighlights(e.textDocument.uri, e.position));
 connection.onCompletion((e) => {
     if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
-        return firstValueFrom(lastIndexedDocuments$).then(_documents => {
+        return firstValueFrom(documentsCodeIndexed$).then(_documents => {
             return getCompletableSymbolItems(e.textDocument.uri, e.position);
         });
     }
@@ -757,17 +880,14 @@ connection.onRenameRequest(async (e) => {
     if (!symbol) {
         return undefined;
     }
-    const references = getIndexedReferences(symbol.getHash());
-    const locations = references && Array
-        .from(references.values())
-        .map(ref => ref.location);
 
-    if (!locations) {
+    const references = getSymbolReferences(symbol)
+    if (!references) {
         return undefined;
     }
 
-    const changes: { [uri: string]: TextEdit[] } = {};
-    locations.forEach(l => {
+    const changes: { [uri: DocumentUri]: TextEdit[] } = {};
+    references.forEach(l => {
         const ranges = changes[l.uri] || (changes[l.uri] = []);
         ranges.push(TextEdit.replace(l.range, e.newName));
     });
@@ -781,8 +901,8 @@ connection.onCodeAction(e => {
 
 connection.onExecuteCommand(e => {
     switch (e.command) {
-        case 'create.class': {
-            const uri = e.arguments![0] as string;
+        case CommandIdentifier.CreateClass: {
+            const uri = e.arguments![0] as DocumentUri;
             const className = e.arguments![1] as string;
             const change = new WorkspaceChange();
             change.createFile(uri, { ignoreIfExists: true });
@@ -793,6 +913,19 @@ connection.onExecuteCommand(e => {
                 });
             connection.workspace.applyEdit(change.edit);
             // TODO: Need to refresh the document that invoked this command.
+            break;
+        }
+
+        case CommandIdentifier.Inline: {
+            const args = e.arguments![0] as InlineChangeCommand;
+
+            const change = new WorkspaceChange();
+            change.getTextEditChange({ uri: args.uri, version: null })
+                .replace(
+                    args.range,
+                    args.newText
+                );
+            connection.workspace.applyEdit(change.edit);
             break;
         }
     }

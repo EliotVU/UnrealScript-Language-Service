@@ -27,9 +27,11 @@ import {
 import { IStatement } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
+    ContextInfo,
     DEFAULT_IDENTIFIER,
     DEFAULT_RANGE,
     Identifier,
+    INode,
     IntrinsicArray,
     ISymbol,
     IWithIndex,
@@ -38,24 +40,25 @@ import {
     ModifierFlags,
     ObjectsTable,
     SymbolReference,
+    tryFindClassSymbol,
+    tryFindSymbolInPackage,
     UCArchetypeSymbol,
     UCBaseOperatorSymbol,
     UCClassSymbol,
     UCConstSymbol,
+    UCDelegateSymbol,
     UCEnumMemberSymbol,
     UCEnumSymbol,
     UCEventSymbol,
     UCFieldSymbol,
     UCMethodSymbol,
+    UCPackage,
     UCParamSymbol,
     UCPropertySymbol,
     UCScriptStructSymbol,
     UCStateSymbol,
     UCStructSymbol,
 } from './';
-import { ContextInfo, INode } from './ISymbol';
-import { UCDelegateSymbol } from './MethodSymbol';
-import { tryFindClassSymbol, tryFindSymbolInPackage, UCPackage } from './Package';
 
 export const enum UCNodeKind {
     Expression,
@@ -84,7 +87,8 @@ export const enum UCSymbolKind {
     Operator,
     ReplicationBlock,
     DefaultPropertiesBlock,
-    Statement
+    Statement,
+    Macro
 }
 
 export enum UCTypeKind {
@@ -189,9 +193,9 @@ export class UCTypeSymbol implements ITypeSymbol {
 
 export class UCObjectTypeSymbol implements ITypeSymbol {
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
-    protected reference?: ISymbol;
+    protected reference?: ISymbol = undefined;
 
-    public baseType?: ITypeSymbol;
+    public baseType?: ITypeSymbol = undefined;
 
     constructor(
         readonly id: Identifier,
@@ -412,7 +416,7 @@ export class UCQualifiedTypeSymbol implements ITypeSymbol {
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
     readonly id: Identifier;
 
-    protected reference?: ISymbol;
+    protected reference?: ISymbol = undefined;
 
     constructor(
         public readonly type: UCObjectTypeSymbol,

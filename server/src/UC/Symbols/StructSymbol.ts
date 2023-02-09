@@ -6,11 +6,20 @@ import { Name } from '../name';
 import { UCBlock } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ContextKind, Identifier, isFunction, isStateSymbol, ISymbol, ISymbolContainer, UCFieldSymbol,
-    UCObjectSymbol, UCSymbolKind
+    ContextKind,
+    Identifier,
+    isFunction,
+    isOperator,
+    isStateSymbol,
+    ISymbol,
+    ISymbolContainer,
+    UCBaseOperatorSymbol,
+    UCFieldSymbol,
+    UCObjectSymbol,
+    UCObjectTypeSymbol,
+    UCQualifiedTypeSymbol,
+    UCSymbolKind,
 } from './';
-import { UCBaseOperatorSymbol } from './MethodSymbol';
-import { isOperator, UCObjectTypeSymbol, UCQualifiedTypeSymbol } from './TypeSymbol';
 
 export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<UCObjectSymbol> {
 	public extendsType?: UCObjectTypeSymbol | UCQualifiedTypeSymbol;

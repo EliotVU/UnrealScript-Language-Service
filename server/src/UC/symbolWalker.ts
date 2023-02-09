@@ -1,17 +1,49 @@
 import { UCDocument } from './document';
 import { IExpression } from './expressions';
 import {
-    IStatement, UCArchetypeBlockStatement, UCAssertStatement, UCBlock, UCCaseClause,
-    UCDefaultClause, UCDoUntilStatement, UCExpressionStatement, UCForEachStatement, UCForStatement,
-    UCGotoStatement, UCIfStatement, UCLabeledStatement, UCRepIfStatement, UCReturnStatement,
-    UCSwitchStatement, UCWhileStatement
+    IStatement,
+    UCArchetypeBlockStatement,
+    UCAssertStatement,
+    UCBlock,
+    UCCaseClause,
+    UCDefaultClause,
+    UCDoUntilStatement,
+    UCExpressionStatement,
+    UCForEachStatement,
+    UCForStatement,
+    UCGotoStatement,
+    UCIfStatement,
+    UCLabeledStatement,
+    UCRepIfStatement,
+    UCReturnStatement,
+    UCSwitchStatement,
+    UCWhileStatement,
 } from './statements';
 import {
-    ISymbol, UCArchetypeSymbol, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol,
-    UCDefaultPropertiesBlock, UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCFieldSymbol,
-    UCInterfaceSymbol, UCLocalSymbol, UCMapTypeSymbol, UCMethodSymbol, UCObjectTypeSymbol,
-    UCPackage, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol, UCReplicationBlock,
-    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCTypeSymbol
+    ISymbol,
+    UCArchetypeSymbol,
+    UCArrayTypeSymbol,
+    UCClassSymbol,
+    UCConstSymbol,
+    UCDefaultPropertiesBlock,
+    UCDelegateTypeSymbol,
+    UCEnumMemberSymbol,
+    UCEnumSymbol,
+    UCFieldSymbol,
+    UCInterfaceSymbol,
+    UCLocalSymbol,
+    UCMapTypeSymbol,
+    UCMethodSymbol,
+    UCObjectTypeSymbol,
+    UCPackage,
+    UCParamSymbol,
+    UCPropertySymbol,
+    UCQualifiedTypeSymbol,
+    UCReplicationBlock,
+    UCScriptStructSymbol,
+    UCStateSymbol,
+    UCStructSymbol,
+    UCTypeSymbol,
 } from './Symbols';
 
 export interface SymbolWalker<T> {
@@ -194,7 +226,7 @@ export abstract class DefaultSymbolWalker<T = undefined> implements SymbolWalker
     }
 
     visitDocument(document: UCDocument) {
-        const symbols = document.getSymbols();
+        const symbols = document.enumerateSymbols();
         for (const symbol of symbols) {
             symbol.accept(this);
         }

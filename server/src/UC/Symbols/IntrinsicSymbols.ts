@@ -3,13 +3,6 @@ import { NAME_ARRAY, NAME_RETURNVALUE } from '../names';
 import {
     DEFAULT_RANGE,
     ModifierFlags,
-    UCMethodLikeSymbol,
-    UCMethodSymbol,
-    UCParamSymbol,
-    UCPropertySymbol,
-    UCStructSymbol,
-} from './';
-import {
     StaticDelegateType,
     StaticFloatType,
     StaticIntType,
@@ -17,7 +10,12 @@ import {
     StaticRangeType,
     StaticRotatorType,
     StaticVectorType,
-} from './TypeSymbol';
+    UCMethodLikeSymbol,
+    UCMethodSymbol,
+    UCParamSymbol,
+    UCPropertySymbol,
+    UCStructSymbol,
+} from './';
 
 export * from './CoreSymbols';
 export * from './EngineSymbols';

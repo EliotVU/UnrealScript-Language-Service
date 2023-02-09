@@ -2,7 +2,7 @@
     "name": "uc",
     "description": "UnrealScript Language support",
     "displayName": "UnrealScript",
-    "version": "0.6.1",
+    "version": "0.6.2",
     "author": {
         "name": "Eliot van Uytfanghe",
         "url": "https://EliotVU.com"
@@ -49,20 +49,21 @@
     },
     "devDependencies": {
         "@tsconfig/recommended": "^1.0.2",
-        "@types/node": "^18.11.18",
-        "@typescript-eslint/eslint-plugin": "^5.49.0",
-        "@typescript-eslint/parser": "^5.49.0",
+        "@types/node": "^18.13.0",
+        "@typescript-eslint/eslint-plugin": "^5.51.0",
+        "@typescript-eslint/parser": "^5.51.0",
         "antlr4ts-cli": "0.5.0-alpha.4",
         "copy-webpack-plugin": "^11.0.0",
-        "eslint": "^8.32.0",
+        "eslint": "^8.33.0",
         "gulp": "^4.0.2",
         "js-yaml": "^4.1.0",
         "merge-options": "^3.0.4",
+        "mocha-explorer-launcher-scripts": "^0.4.0",
         "rimraf": "^4.1.2",
         "ts-loader": "^9.4.2",
         "ts-node": "^10.9.1",
         "tsconfig-paths-webpack-plugin": "^4.0.0",
-        "typescript": "^4.9.4",
+        "typescript": "^4.9.5",
         "typescript-eslint-language-service": "^5.0.0",
         "webpack": "^5.75.0",
         "webpack-cli": "^5.0.1"
@@ -73,7 +74,7 @@
         "compile": "npx webpack --mode development --config ./webpack.config.js",
         "compile:grammar": "npx antlr4ts -visitor -no-listener grammars/UCLexer.g4 -o server/src/UC/antlr/generated && npx antlr4ts -visitor -no-listener grammars/UCParser.g4 -o server/src/UC/antlr/generated",
         "compile:preprocessor": "npx antlr4ts -visitor -no-listener grammars/UCPreprocessorParser.g4 -o server/src/UC/antlr/generated",
-        "watch": "(set NODE_ENV=development) & start gulp & npx webpack --mode development --config ./webpack.config.js --watch",
+        "watch": "(set NODE_ENV=development) & start npx gulp & npx webpack --mode development --config ./webpack.config.js --watch",
         "clean": "rimraf out",
         "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
         "test": "cd server && npm test",
@@ -112,11 +113,12 @@
                     "scope": "resource",
                     "type": "string",
                     "enum": [
+                        "auto",
                         "1",
                         "2",
                         "3"
                     ],
-                    "default": "3",
+                    "default": "auto",
                     "description": "The UnrealScript generation your project is working with.."
                 },
                 "unrealscript.licensee": {
@@ -132,6 +134,7 @@
                 "unrealscript.indexAllDocuments": {
                     "scope": "window",
                     "type": "boolean",
+                    "description": "Whether to index all document files found in the workspace.",
                     "default": false
                 },
                 "unrealscript.analyzeDocuments": {
@@ -250,7 +253,17 @@
                     "unrealscript"
                 ],
                 "extensions": [
-                    ".uc",
+                    ".uc"
+                ],
+                "configuration": "./language-configuration.json"
+            },
+            {
+                "id": "unrealscript-pp",
+                "aliases": [
+                    "UnrealScript Preprocessor",
+                    "unrealscript preprocessor"
+                ],
+                "extensions": [
                     ".uci"
                 ],
                 "configuration": "./language-configuration.json"
@@ -270,9 +283,23 @@
             {
                 "language": "unrealscript",
                 "scopeName": "source.uc",
-                "path": "./out/UnrealScript.tmLanguage.json",
+                "path": "./out/unrealscript.tmLanguage.json",
                 "embeddedLanguages": {
-                    "meta.embedded.block.cpp.uc": "cpp"
+                    "meta.embedded.block.cpp.uc": "cpp",
+                    "meta.embedded.block.upp.uc": "unrealscript-pp"
+                }
+            },
+            {
+                "language": "unrealscript",
+                "scopeName": "source.upp",
+                "path": "./out/unrealscript.preprocessor.tmLanguage.json"
+            },
+            {
+                "language": "unrealscript-pp",
+                "scopeName": "source.upp",
+                "path": "./out/unrealscript.preprocessor.tmLanguage.json",
+                "embeddedLanguages": {
+                    "meta.embedded.block.unrealscript.upp": "unrealscript"
                 }
             }
         ],

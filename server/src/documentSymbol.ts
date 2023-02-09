@@ -1,9 +1,10 @@
-import { DocumentSymbol, DocumentUri, SymbolKind } from 'vscode-languageserver';
+import { DocumentSymbol, SymbolKind } from 'vscode-languageserver';
 
-import { getSymbolDetail } from './documentSymbolDetailBuilder';
-import { getSymbolTags } from './documentSymbolTagsBuilder';
-import { getDocumentByURI } from './UC/indexer';
-import { hasModifiers, isClass, isStruct, ModifierFlags, UCObjectSymbol, UCStructSymbol, UCSymbolKind } from './UC/Symbols';
+import { UCDocument } from './UC/document';
+import { getSymbolDetail } from './UC/documentSymbolDetailBuilder';
+import { getSymbolTags } from './UC/documentSymbolTagsBuilder';
+import { isSymbolDefined } from './UC/helpers';
+import { isClass, isStruct, UCObjectSymbol, UCStructSymbol, UCSymbolKind } from './UC/Symbols';
 
 export const SymbolKindMap = new Map<UCSymbolKind, SymbolKind>([
     [UCSymbolKind.Package, SymbolKind.Package],
@@ -26,26 +27,13 @@ export const SymbolKindMap = new Map<UCSymbolKind, SymbolKind>([
     [UCSymbolKind.DefaultPropertiesBlock, SymbolKind.Constructor],
 ]);
 
-export function isDocumentSymbol(symbol: UCObjectSymbol) {
-    // Exclude generated symbols
-    if (hasModifiers(symbol) && (symbol.modifiers & ModifierFlags.Generated) != 0) {
-        return false;
-    }
-    return true;
-}
-
-export function getDocumentSymbols(uri: DocumentUri): DocumentSymbol[] | undefined {
-    const document = getDocumentByURI(uri);
-    if (!document) {
-        return undefined;
-    }
-
+export function getDocumentSymbols(document: UCDocument): DocumentSymbol[] | undefined {
     const documentSymbols: DocumentSymbol[] = [];
 
     // Little hack, lend a hand and push all the class's children to the top.
-    const symbols = document.getSymbols();
+    const symbols = document.enumerateSymbols();
     for (let symbol of symbols) {
-        if (isDocumentSymbol(symbol)) {
+        if (isSymbolDefined(symbol)) {
             const documentSymbol = toDocumentSymbol(symbol);
             documentSymbols.push(documentSymbol);
             // Special case for UnrealScript's weird class declaration. 
@@ -61,7 +49,7 @@ export function getDocumentSymbols(uri: DocumentUri): DocumentSymbol[] | undefin
 
     function buildDocumentSymbols(container: UCStructSymbol, symbols: DocumentSymbol[]) {
         for (let child = container.children; child; child = child.next) {
-            if (isDocumentSymbol(child)) {
+            if (isSymbolDefined(child)) {
                 symbols.push(toDocumentSymbol(child));
             }
         }
@@ -89,4 +77,3 @@ export function getDocumentSymbols(uri: DocumentUri): DocumentSymbol[] | undefin
         return documentSymbol;
     }
 }
-

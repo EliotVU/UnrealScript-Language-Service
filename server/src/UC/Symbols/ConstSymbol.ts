@@ -27,7 +27,7 @@ export class UCConstSymbol extends UCFieldSymbol {
 		const text = `const ${this.getPath()}`;
         const value = this.getComputedValue();
         if (typeof value === 'number') {
-            return `${text} = ${this.getComputedValue()}`;
+            return `${text} = ${value}`;
         }
 		return text;
 	}
