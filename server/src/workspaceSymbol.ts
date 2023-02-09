@@ -1,7 +1,8 @@
 import { SymbolKind, WorkspaceSymbol } from 'vscode-languageserver';
 
-import { isDocumentSymbol, SymbolKindMap } from './documentSymbol';
-import { getSymbolTags } from './documentSymbolTagsBuilder';
+import { SymbolKindMap } from './documentSymbol';
+import { getSymbolTags } from './UC/documentSymbolTagsBuilder';
+import { isSymbolDefined } from './UC/helpers';
 import { enumerateDocuments } from './UC/indexer';
 import { isParamSymbol, isStruct, UCObjectSymbol } from './UC/Symbols';
 
@@ -9,7 +10,7 @@ export function getWorkspaceSymbols(query: string): WorkspaceSymbol[] | undefine
     const workspaceSymbols: WorkspaceSymbol[] = [];
     for (let document of enumerateDocuments()) {
         for (let symbol of document.enumerateSymbols()) {
-            if (isDocumentSymbol(symbol)) {
+            if (isSymbolDefined(symbol)) {
                 buildWorkSpaceSymbols(symbol);
             }
         }
@@ -21,7 +22,7 @@ export function getWorkspaceSymbols(query: string): WorkspaceSymbol[] | undefine
             workspaceSymbols.push(toWorkspaceSymbol(symbol));
             if (isStruct(symbol)) {
                 for (let child = symbol.children; child != null; child = child.next) {
-                    if (isDocumentSymbol(symbol)) {
+                    if (isSymbolDefined(symbol)) {
                         buildWorkSpaceSymbols(child);
                     }
                 }

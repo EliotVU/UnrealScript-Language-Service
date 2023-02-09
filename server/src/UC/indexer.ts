@@ -2,12 +2,13 @@ import path from 'path';
 import { performance } from 'perf_hooks';
 import { Subject } from 'rxjs';
 import { Location } from 'vscode-languageserver';
+import { DocumentUri } from 'vscode-languageserver-textdocument';
 import { URI } from 'vscode-uri';
 
 import { EAnalyzeOption, UCLanguageServerSettings } from '../settings';
 import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
 import { UCDocument } from './document';
-import { DocumentIndexer } from './documentIndexer';
+import { DocumentCodeIndexer } from './documentCodeIndexer';
 import { Name, NameHash, toName } from './name';
 import {
     addHashedSymbol,
@@ -81,41 +82,56 @@ export function applyMacroSymbols(symbols?: { [key: string]: string }) {
     }
 }
 
-/**
- * Emits an array of documents that have been linked, but are yet to be post-linked.
- * This array is filled by the documentLinked$ listener.
- **/
-export const lastIndexedDocuments$ = new Subject<UCDocument[]>();
 let pendingIndexedDocuments: UCDocument[] = [];
 
+/** Emits a document that has been built. */
+export const documentBuilt$ = new Subject<UCDocument>();
+
+/** Emits a document that has been indexed. */
+export const documentIndexed$ = new Subject<UCDocument>();
+
+/** Emits an array of documents have been post-indexed (code indexing). */
+export const documentsCodeIndexed$ = new Subject<UCDocument[]>();
+
 export function indexDocument(document: UCDocument, text?: string): void {
+    const buildStart = performance.now();
+    let buildTime: number;
     try {
         document.build(text);
-        document.hasBeenIndexed = true;
-        const start = performance.now();
-        try {
-            if (document.class) {
-                for (let symbol of document.enumerateSymbols()) {
-                    symbol.index(document, document.class);
-                }
-            }
-        } catch (err) {
-            console.error(
-                `(symbol index error) in document "${document.uri}"`,
-                err
-            );
-        }
-        console.info(`${document.fileName}: indexing time ${performance.now() - start}`);
-        pendingIndexedDocuments.push(document);
+        document.hasBeenBuilt = true;
+        documentBuilt$.next(document);
     } catch (err) {
-        console.error(`(index error) in document ${document.uri}`, err);
+        console.error(`(build error) in document "${document.uri}"; Indexing has been annulled.`, err);
+        return;
+    } finally {
+        buildTime = performance.now() - buildStart;
+    }
+
+    const indexStart = performance.now();
+    try {
+        // We set this here to prevent any re-triggering within the following indexing process.
+        document.hasBeenIndexed = true;
+        if (document.class) {
+            for (let symbol of document.enumerateSymbols()) {
+                symbol.index(document, document.class);
+            }
+        }
+    } catch (err) {
+        console.error(
+            `(symbol index error) in document "${document.uri}"`,
+            err
+        );
+    } finally {
+        console.info(`${document.fileName}: build time: ${buildTime}; indexing time ${performance.now() - indexStart}`);
+        pendingIndexedDocuments.push(document);
+        documentIndexed$.next(document);
     }
 }
 
 // To be initiated after we have indexed all dependencies, so that deep recursive context references can be resolved.
 function postIndexDocument(document: UCDocument) {
     try {
-        const indexer = new DocumentIndexer(document);
+        const indexer = new DocumentCodeIndexer(document);
         indexer.visitDocument(document);
     } catch (err) {
         console.error(
@@ -149,7 +165,7 @@ export function indexPendingDocuments(abort?: (document: UCDocument) => boolean)
         .join();
     console.info(`[${dependenciesSequence}]: post indexing time ${(performance.now() - startTime)}`);
 
-    lastIndexedDocuments$.next(pendingIndexedDocuments);
+    documentsCodeIndexed$.next(pendingIndexedDocuments);
     // Don't splice in place, it's crucial we preserve the elements for subscription listeners.
     pendingIndexedDocuments = [];
 }
@@ -211,7 +227,7 @@ export function removeDocumentByPath(filePath: string) {
     documentsMap.delete(document.name.hash);
 }
 
-export function getDocumentByURI(uri: string): UCDocument | undefined {
+export function getDocumentByURI(uri: DocumentUri): UCDocument | undefined {
     const filePath = URI.parse(uri).fsPath;
     const document = documentsByPathMap.get(filePath);
     return document;

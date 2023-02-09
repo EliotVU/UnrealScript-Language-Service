@@ -134,7 +134,7 @@ export const TypeToTokenTypeIndexMap = {
 export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
     private semanticTokensBuilder = new SemanticTokensBuilder();
 
-    constructor(private document: UCDocument) {
+    constructor() {
         super();
     }
 

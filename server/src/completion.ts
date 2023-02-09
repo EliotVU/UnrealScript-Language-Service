@@ -1,11 +1,11 @@
 import * as c3 from 'antlr4-c3';
 import { Parser, ParserRuleContext } from 'antlr4ts';
 import { Token } from 'antlr4ts/Token';
-import { UCLanguageServerSettings } from 'settings';
 import { CompletionItem, CompletionItemKind, InsertTextFormat, InsertTextMode, SignatureHelp } from 'vscode-languageserver';
-import { Position } from 'vscode-languageserver-textdocument';
+import { DocumentUri, Position } from 'vscode-languageserver-textdocument';
 
 import { ActiveTextDocuments } from './activeTextDocuments';
+import { UCLanguageServerSettings } from './settings';
 import { UCLexer } from './UC/antlr/generated/UCLexer';
 import { ProgramContext, UCParser } from './UC/antlr/generated/UCParser';
 import { UCDocument } from './UC/document';
@@ -127,7 +127,7 @@ const GlobalCastSymbolKinds = 1 << UCSymbolKind.Class
 const MethodSymbolKinds = 1 << UCSymbolKind.Function
     | 1 << UCSymbolKind.Event;
 
-export async function getSignatureHelp(uri: string, position: Position): Promise<SignatureHelp | undefined> {
+export async function getSignatureHelp(uri: DocumentUri, position: Position): Promise<SignatureHelp | undefined> {
     // const document = getDocumentByURI(uri);
     // if (!document || !data) {
     //     return undefined;
@@ -176,7 +176,7 @@ export async function getSignatureHelp(uri: string, position: Position): Promise
     return undefined;
 }
 
-export async function getCompletableSymbolItems(uri: string, position: Position): Promise<CompletionItem[] | undefined> {
+export async function getCompletableSymbolItems(uri: DocumentUri, position: Position): Promise<CompletionItem[] | undefined> {
     // Do a fresh parse (but no indexing or transforming, we'll use the cached AST instead).
     const text = ActiveTextDocuments.get(uri)?.getText();
     if (typeof text === 'undefined') {

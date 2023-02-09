@@ -1,10 +1,21 @@
 import { ParserRuleContext, Token, TokenStream } from 'antlr4ts';
-import { Hover, Position, Range } from 'vscode-languageserver';
+import { Hover, Location, MarkupKind, Position, Range } from 'vscode-languageserver';
+import { DocumentUri } from 'vscode-languageserver-textdocument';
 
 import { UCLexer } from './antlr/generated/UCLexer';
 import { UCDocument } from './document';
 import { getDocumentById, getDocumentByURI } from './indexer';
-import { getOuter, isField, ISymbol, supportsRef, UCClassSymbol, UCObjectSymbol, UCSymbolKind } from './Symbols';
+import {
+    getOuter,
+    hasModifiers,
+    isField,
+    ISymbol,
+    ModifierFlags,
+    supportsRef,
+    UCClassSymbol,
+    UCObjectSymbol,
+    UCSymbolKind,
+} from './Symbols';
 
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 
@@ -15,6 +26,7 @@ export function rangeAtStopFromBound(token: Token): Range {
         line,
         character: token.charPositionInLine + length
     };
+
     return {
         start: position,
         end: position
@@ -43,6 +55,7 @@ export function rangeFromBound(token: Token): Range {
         line,
         character: token.charPositionInLine + length
     };
+
     return { start, end };
 }
 
@@ -56,6 +69,7 @@ export function rangeFromBounds(startToken: Token, stopToken: Token = startToken
         line: stopToken.line - 1,
         character: stopToken.charPositionInLine + length
     };
+
     return { start, end };
 }
 
@@ -69,6 +83,7 @@ export function rangeFromCtx(ctx: ParserRuleContext): Range {
         line: ctx.stop!.line - 1,
         character: ctx.stop!.charPositionInLine + length
     };
+
     return { start, end };
 }
 
@@ -88,6 +103,7 @@ export function intersectsWith(range: Range, position: Position): boolean {
     if (position.line === range.end.line) {
         return position.character <= range.end.character;
     }
+
     return true;
 }
 
@@ -106,6 +122,7 @@ export function getDocumentSymbol(document: UCDocument, position: Position): ISy
             return child;
         }
     }
+
     return undefined;
 }
 
@@ -122,52 +139,89 @@ export function getDocumentContext(document: UCDocument, position: Position): IS
             }
         }
     }
+
     return undefined;
 }
 
-export async function getSymbolTooltip(uri: string, position: Position): Promise<Hover | undefined> {
-    const document = getDocumentByURI(uri);
-    const symbol = document && getDocumentSymbol(document, position);
+export async function getDocumentTooltip(document: UCDocument, position: Position): Promise<Hover | undefined> {
+    const symbol = getDocumentSymbol(document, position);
     if (!symbol) {
         return undefined;
     }
 
-    const symbolRef = supportsRef(symbol)
-        ? symbol.getRef()
-        : symbol;
-
-    const tooltipText = symbolRef?.getTooltip();
-    if (!tooltipText) {
+    const tooltip = getSymbolTooltip(symbol);
+    if (!tooltip) {
         return undefined;
     }
 
-    const contents = [{ language: 'unrealscript', value: tooltipText }];
-    if (symbol instanceof UCObjectSymbol) {
-        const documentation = symbol.getDocumentation();
-        if (documentation) {
-            contents.push({ language: 'unrealscript', value: documentation });
-        }
-    }
+    const docs = getSymbolDocumentation(symbol);
     return {
-        contents,
+        contents: {
+            kind: MarkupKind.Markdown,
+            value: [
+                `\`\`\`unrealscript`,
+                tooltip,
+                `\`\`\``,
+                docs
+            ].filter(Boolean).join('\n')
+        },
         range: symbol.id.range
     };
 }
 
-export function getSymbolDefinition(uri: string, position: Position): ISymbol | undefined {
-    const document = getDocumentByURI(uri);
-    const symbol = document && getDocumentSymbol(document, position);
+export function getSymbolTooltip(symbol: ISymbol): string | undefined {
+    const symbolRef = resolveSymbolToRef(symbol);
+    const tooltipText = symbolRef?.getTooltip();
+    return tooltipText;
+}
+
+export function getSymbolDocumentation(symbol: ISymbol): string | undefined {
+    if (symbol instanceof UCObjectSymbol) {
+        const documentation = symbol.getDocumentation();
+        return documentation;
+    }
+
+    return undefined;
+}
+
+/** 
+ * Returns a location that represents the definition at a given position within the document. 
+ * 
+ * If a symbol is found at the position, then the symbol's definition location will be returned instead.
+ **/
+export function getDocumentDefinition(document: UCDocument, position: Position): Location | undefined {
+    const symbol = getDocumentSymbol(document, position);
     if (!symbol) {
         return undefined;
     }
 
-    const symbolRef = supportsRef(symbol)
-        ? symbol.getRef()
-        : symbol;
-    return symbolRef;
+    const symbolRef = resolveSymbolToRef(symbol);
+    if (!symbolRef) {
+        return undefined;
+    }
+
+    const externalDocument = getSymbolDocument(symbolRef);
+    return externalDocument?.uri
+        ? Location.create(externalDocument.uri, symbolRef.id.range)
+        : undefined;
 }
 
-export function getSymbol(uri: string, position: Position): ISymbol | undefined {
+export function getSymbolDefinition(uri: DocumentUri, position: Position): ISymbol | undefined {
+    const symbol = getSymbol(uri, position);
+    return symbol && resolveSymbolToRef(symbol);
+}
+
+/** 
+ * Resolves to the symbol's contained reference if the symbol kind supports it.
+ * e.g. A symbol that implements the interface ITypeSymbol.
+ */
+export function resolveSymbolToRef(symbol: ISymbol): ISymbol | undefined {
+    return supportsRef(symbol)
+        ? symbol.getRef()
+        : symbol;
+}
+
+export function getSymbol(uri: DocumentUri, position: Position): ISymbol | undefined {
     const document = getDocumentByURI(uri);
     return document && getDocumentSymbol(document, position);
 }
@@ -185,6 +239,7 @@ export function getIntersectingContext(context: ParserRuleContext, position: Pos
     if (!intersectsWith(rangeFromCtx(context), position)) {
         return undefined;
     }
+
     if (context.children) for (const child of context.children) {
         if (child instanceof ParserRuleContext) {
             const ctx = getIntersectingContext(child, position);
@@ -193,6 +248,7 @@ export function getIntersectingContext(context: ParserRuleContext, position: Pos
             }
         }
     }
+
     return context;
 }
 
@@ -210,6 +266,7 @@ export function getCaretTokenFromStream(stream: TokenStream, caret: Position): T
         }
         ++i;
     }
+
     return undefined;
 }
 
@@ -226,6 +283,7 @@ export function backtrackFirstToken(stream: TokenStream, startTokenIndex: number
         }
         return token;
     }
+
     return undefined;
 }
 
@@ -233,6 +291,7 @@ export function backtrackFirstTokenOfType(stream: TokenStream, type: number, sta
     if (startTokenIndex >= stream.size) {
         return undefined;
     }
+
     let i = startTokenIndex + 1;
     while (--i) {
         const token = stream.get(i);
@@ -243,7 +302,18 @@ export function backtrackFirstTokenOfType(stream: TokenStream, type: number, sta
         if (token.type !== type) {
             return undefined;
         }
+
         return token;
     }
+
     return undefined;
+}
+
+export function isSymbolDefined(symbol: ISymbol): boolean {
+    // Exclude generated symbols
+    if (hasModifiers(symbol) && (symbol.modifiers & ModifierFlags.Generated) != 0) {
+        return false;
+    }
+
+    return true;
 }

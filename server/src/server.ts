@@ -13,7 +13,6 @@ import {
     ErrorCodes,
     FileOperationRegistrationOptions,
     InitializeParams,
-    Location,
     Position,
     ProposedFeatures,
     Range,
@@ -34,16 +33,16 @@ import {
     getSignatureHelp,
     updateIgnoredCompletionTokens,
 } from './completion';
-import { getDiagnostics } from './diagnostics';
-import { getHighlights } from './documentHighlight';
+import { getDocumentDiagnostics } from './documentDiagnostics';
+import { getDocumentHighlights } from './documentHighlight';
 import { getDocumentSymbols } from './documentSymbol';
-import { getReferences } from './references';
-import { buildSemanticTokens } from './semantics';
+import { getDocumentSemanticTokens } from './documentTokenSemantics';
+import { getReferences, getSymbolReferences } from './references';
 import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
 import { CommandIdentifier, CommandsList, InlineChangeCommand } from './UC/commands';
 import { UCDocument } from './UC/document';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
-import { getSymbol, getSymbolDefinition, getSymbolDocument, getSymbolTooltip, VALID_ID_REGEXP } from './UC/helpers';
+import { getDocumentDefinition, getDocumentTooltip, getSymbol, getSymbolDefinition, VALID_ID_REGEXP } from './UC/helpers';
 import {
     applyMacroSymbols,
     clearMacroSymbols,
@@ -51,15 +50,15 @@ import {
     createDocumentByPath,
     createPackage,
     createPackageByDir,
+    documentBuilt$,
+    documentsCodeIndexed$,
     enumerateDocuments,
     getDocumentById,
     getDocumentByURI,
-    getIndexedReferences,
     getPendingDocumentsCount,
     indexDocument,
     indexPendingDocuments,
     IntrinsicSymbolItemMap,
-    lastIndexedDocuments$,
     queueIndexDocument,
     removeDocumentByPath,
     UCGeneration,
@@ -251,7 +250,7 @@ async function awaitDocumentDelivery(uri: DocumentUri): Promise<UCDocument | und
         return document;
     }
 
-    return firstValueFrom(lastIndexedDocuments$
+    return firstValueFrom(documentsCodeIndexed$
         .pipe(
             map(docs => {
                 const doc = docs.find((d => d.uri === uri));
@@ -265,6 +264,22 @@ async function awaitDocumentDelivery(uri: DocumentUri): Promise<UCDocument | und
             })
         ));
 }
+
+async function awaitDocumentBuilt(uri: DocumentUri): Promise<UCDocument | undefined> {
+    const document = getDocumentByURI(uri);
+    if (document && document.hasBeenBuilt) {
+        return document;
+    }
+
+    return firstValueFrom(documentBuilt$
+        .pipe(
+            filter(doc => doc.uri === uri),
+            timeout({
+                each: 1000 * 60
+            })
+        ));
+}
+
 
 const connection = createConnection(ProposedFeatures.all);
 connection.listen();
@@ -364,7 +379,7 @@ connection.onInitialize((params: InitializeParams) => {
 });
 
 connection.onInitialized((params) => {
-    lastIndexedDocumentsSub = lastIndexedDocuments$
+    lastIndexedDocumentsSub = documentsCodeIndexed$
         .pipe(
             filter(() => config.analyzeDocuments !== EAnalyzeOption.None),
             delay(50),
@@ -377,13 +392,13 @@ connection.onInitialized((params) => {
 
             for (const document of documents) {
                 try {
-                    const diagnostics = getDiagnostics(document);
+                    const diagnostics = getDocumentDiagnostics(document);
                     connection.sendDiagnostics({
                         uri: document.uri,
                         diagnostics
                     });
                 } catch (error) {
-                    connection.console.error(`Analysis of document '${document.uri}' threw '${error}'`);
+                    connection.console.error(`Analysis of document "${document.uri}" threw '${error}'`);
                 }
             }
         });
@@ -396,7 +411,7 @@ connection.onInitialized((params) => {
         .subscribe({
             next: async ({ textDocument, source }) => {
                 if (process.env.NODE_ENV === 'development') {
-                    connection.console.log(`Processing pending document ${textDocument.uri}:${textDocument.version}, source:${source}.`);
+                    connection.console.log(`Processing pending document "${textDocument.uri}":${textDocument.version}, source:${source}.`);
                 }
                 const document = getDocumentByURI(textDocument.uri);
                 if (!document) {
@@ -407,27 +422,27 @@ connection.onInitialized((params) => {
                 const isDirty = textDocument.version !== document.indexedVersion;
                 if (isDirty) {
                     if (process.env.NODE_ENV === 'development') {
-                        connection.console.log(`Invalidating document ${document.fileName}.`);
+                        connection.console.log(`Invalidating document "${document.fileName}".`);
                     }
                     document.invalidate();
                 }
 
                 if (document.hasBeenIndexed) {
                     if (process.env.NODE_ENV === 'development') {
-                        connection.console.log(`Document ${document.fileName} is already indexed.`)
+                        connection.console.log(`Document "${document.fileName}" is already indexed.`)
                     }
                     return;
                 }
 
-                const fullText = textDocument.getText();
-                indexDocument(document, fullText);
-
                 const work = await connection.window.createWorkDoneProgress();
                 work.begin(
-                    `Indexing document ${document.fileName}`,
+                    `Indexing document "${document.fileName}"`,
                     0.0,
                     undefined,
                     true);
+
+                const fullText = textDocument.getText();
+                indexDocument(document, fullText);
 
                 let i = 0;
                 const dependenciesCount = getPendingDocumentsCount();
@@ -435,7 +450,7 @@ connection.onInitialized((params) => {
                     if (work.token.isCancellationRequested) {
                         return true;
                     }
-                    work.report(i++ / dependenciesCount, `Indexing document ${doc.fileName}`);
+                    work.report(i++ / dependenciesCount, `Indexing document "${doc.fileName}"`);
                     return false;
                 }));
 
@@ -480,12 +495,35 @@ connection.onInitialized((params) => {
             try {
                 // TODO: does not respect multiple globals.uci files
                 const globalUci = getDocumentById(globalsUCIFileName);
-                if (globalUci) {
+                if (globalUci && !globalUci.hasBeenIndexed) {
                     queueIndexDocument(globalUci);
+                }
+
+                // Weird, even if when we have "zero" active documents, this will array is filled?
+                const activeDocuments = ActiveTextDocuments
+                    .all()
+                    .map(doc => getDocumentByURI(doc.uri))
+                    .filter(Boolean) as UCDocument[];
+
+                for (let i = activeDocuments.length - 1; i >= 0; i--) {
+                    connection.console.log(`Queueing active document "${activeDocuments[i].fileName}".`)
+                    work.report(activeDocuments.length / i - 1.0, `${activeDocuments[i].fileName}`);
+                    // if (documents[i].hasBeenIndexed) {
+                    //     continue;
+                    // }
+
+                    if (work.token.isCancellationRequested) {
+                        connection.console.warn(`The workspace indexing has been cancelled.`)
+                        break;
+                    }
+
+                    activeDocuments[i].invalidate();
+                    queueIndexDocument(activeDocuments[i]);
                 }
 
                 if (config.indexAllDocuments) {
                     for (let i = 0; i < documents.length; i++) {
+                        work.report(i / documents.length, `${documents[i].fileName} + dependencies`);
                         if (documents[i].hasBeenIndexed) {
                             continue;
                         }
@@ -495,16 +533,8 @@ connection.onInitialized((params) => {
                             break;
                         }
 
-                        work.report(i / documents.length, `${documents[i].fileName} + dependencies`);
                         queueIndexDocument(documents[i]);
                     }
-                } else {
-                    ActiveTextDocuments
-                        .all()
-                        .forEach(doc => pendingTextDocument$.next({
-                            textDocument: doc,
-                            source: 'initialize'
-                        }));
                 }
             } finally {
                 work.done();
@@ -580,20 +610,15 @@ connection.onInitialized((params) => {
     }
 
     if (hasSemanticTokensCapability) {
-        connection.languages.semanticTokens.on(e => {
-            const document = getDocumentByURI(e.textDocument.uri);
-            if (!document) {
-                return {
-                    data: []
-                };
+        connection.languages.semanticTokens.on(async e => {
+            const document = await awaitDocumentDelivery(e.textDocument.uri);
+            if (document) {
+                return getDocumentSemanticTokens(document);
             }
 
-            if (!document.hasBeenIndexed) {
-                return firstValueFrom(lastIndexedDocuments$).then(() => {
-                    return buildSemanticTokens(document);
-                });
-            }
-            return buildSemanticTokens(document);
+            return {
+                data: []
+            };
         });
         // TODO: Support range
         // connection.languages.semanticTokens.onRange(e => getSemanticTokens(e.textDocument.uri));
@@ -772,27 +797,22 @@ function setupFilePatterns(settings: UCLanguageServerSettings) {
 }
 
 connection.onHover(async (e) => {
-    await awaitDocumentDelivery(e.textDocument.uri);
-    return getSymbolTooltip(e.textDocument.uri, e.position);
+    const document = await awaitDocumentDelivery(e.textDocument.uri);
+    if (document) {
+        return getDocumentTooltip(document, e.position);
+    }
 });
 
 connection.onDefinition(async (e) => {
-    await awaitDocumentDelivery(e.textDocument.uri);
-    const symbol = getSymbolDefinition(e.textDocument.uri, e.position);
-    if (symbol) {
-        const document = getSymbolDocument(symbol);
-        const documentUri = document?.uri;
-        return documentUri
-            ? Location.create(documentUri, symbol.id.range)
-            : undefined;
+    const document = await awaitDocumentDelivery(e.textDocument.uri);
+    if (document) {
+        return getDocumentDefinition(document, e.position);
     }
-    return undefined;
 });
 
 connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
 connection.onDocumentSymbol(async (e) => {
-    // TODO: Implement a more suitable event that emits as soon as symbols can be build.
-    const document = await awaitDocumentDelivery(e.textDocument.uri);
+    const document = await awaitDocumentBuilt(e.textDocument.uri);
     if (document) {
         return getDocumentSymbols(document);
     }
@@ -801,10 +821,10 @@ connection.onWorkspaceSymbol((e) => {
     return getWorkspaceSymbols(e.query);
 });
 
-connection.onDocumentHighlight((e) => getHighlights(e.textDocument.uri, e.position));
+connection.onDocumentHighlight((e) => getDocumentHighlights(e.textDocument.uri, e.position));
 connection.onCompletion((e) => {
     if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
-        return firstValueFrom(lastIndexedDocuments$).then(_documents => {
+        return firstValueFrom(documentsCodeIndexed$).then(_documents => {
             return getCompletableSymbolItems(e.textDocument.uri, e.position);
         });
     }
@@ -860,17 +880,14 @@ connection.onRenameRequest(async (e) => {
     if (!symbol) {
         return undefined;
     }
-    const references = getIndexedReferences(symbol.getHash());
-    const locations = references && Array
-        .from(references.values())
-        .map(ref => ref.location);
 
-    if (!locations) {
+    const references = getSymbolReferences(symbol)
+    if (!references) {
         return undefined;
     }
 
-    const changes: { [uri: string]: TextEdit[] } = {};
-    locations.forEach(l => {
+    const changes: { [uri: DocumentUri]: TextEdit[] } = {};
+    references.forEach(l => {
         const ranges = changes[l.uri] || (changes[l.uri] = []);
         ranges.push(TextEdit.replace(l.range, e.newName));
     });

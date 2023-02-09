@@ -1,9 +1,7 @@
 import { SymbolTag } from 'vscode-languageserver';
 
-import {
-    ModifierFlags, UCClassSymbol, UCFieldSymbol, UCMethodSymbol, UCObjectSymbol, UCPropertySymbol
-} from './UC/Symbols';
-import { DumbSymbolWalker } from './UC/symbolWalker';
+import { ModifierFlags, UCClassSymbol, UCFieldSymbol, UCMethodSymbol, UCPropertySymbol } from './Symbols';
+import { DumbSymbolWalker } from './symbolWalker';
 
 // Transform field modifiers to their corresponding SymbolTag counter-part.
 function visitField(symbol: UCFieldSymbol): SymbolTag[] | undefined {
@@ -13,7 +11,7 @@ function visitField(symbol: UCFieldSymbol): SymbolTag[] | undefined {
     return undefined;
 }
 
-class SymbolTagsBuilderVisitor extends DumbSymbolWalker<SymbolTag[] | undefined> {
+export class SymbolTagsBuilderVisitor extends DumbSymbolWalker<SymbolTag[] | undefined> {
     override visitClass(symbol: UCClassSymbol) {
         return visitField(symbol);
     }
@@ -25,10 +23,4 @@ class SymbolTagsBuilderVisitor extends DumbSymbolWalker<SymbolTag[] | undefined>
     override visitMethod(symbol: UCMethodSymbol) {
         return visitField(symbol);
     }
-}
-
-const SymbolTagsBuilder = new SymbolTagsBuilderVisitor();
-
-export function getSymbolTags(symbol: UCObjectSymbol): SymbolTag[] | undefined {
-    return symbol.accept(SymbolTagsBuilder) as SymbolTag[] | undefined;
 }

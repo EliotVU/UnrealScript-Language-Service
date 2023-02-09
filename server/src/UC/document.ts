@@ -62,7 +62,8 @@ export class UCDocument {
     public nodes: IDiagnosticNode[] = [];
 
     /** The class or interface header symbol */
-    public class?: UCClassSymbol;
+    public class?: UCClassSymbol = undefined;
+    public hasBeenBuilt = false;
     public hasBeenIndexed = false;
 
     private readonly indexReferencesMade = new Map<NameHash, Set<SymbolReference>>();
@@ -80,8 +81,12 @@ export class UCDocument {
         return this.scope.enumerateAll();
     }
 
-    public addSymbol(symbol: UCObjectSymbol) {
+    public addSymbol(symbol: UCObjectSymbol): void {
         this.scope.addSymbol(symbol);
+    }
+
+    public hasSymbols(): boolean {
+        return this.scope.count() > 0;
     }
 
     public parse(text: string): DocumentParseData {
@@ -110,7 +115,7 @@ export class UCDocument {
             }
         }
 
-        tokens.fill();
+        // tokens.fill();
 
         let context: ProgramContext | undefined;
         const parser = new UCParser(tokens);
@@ -229,6 +234,7 @@ export class UCDocument {
         this.class = undefined;
         this.scope.clear();
         this.nodes = []; // clear
+        this.hasBeenBuilt = false;
         this.hasBeenIndexed = false;
 
         // Clear all the indexed references that we have made.
@@ -256,6 +262,10 @@ export class UCDocument {
         const gRefs = IndexedReferencesMap.get(key) ?? new Set<SymbolReference>();
         gRefs.add(ref);
         IndexedReferencesMap.set(key, gRefs);
+    }
+
+    getReferencesToSymbol(symbol: ISymbol): Set<SymbolReference> | undefined {
+        return this.indexReferencesMade.get(symbol.getHash());
     }
 
     accept<Result>(visitor: SymbolWalker<Result>): Result | void {
