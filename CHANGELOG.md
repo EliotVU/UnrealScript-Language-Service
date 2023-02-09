@@ -1,9 +1,18 @@
 # UnrealScript Language Service
 
-## Next
+## 0.6.2 (Feb 9, 2023)
 
-- Type ```Pointer``` will no longer be recognized if the language is set to generation 3 (this has been displaced by the Core.Object.Pointer struct).
-- Implemented parser support for string types that have a fixed size e.g. ```String[255]``` (UE1).
+- Implemented an option to enable auto-detection of the UnrealScript language generation that's being used by the workspace.
+- Implemented a new code-action to inline a constant's evaluated value.
+
+- Quality of Life
+  - General improvements to how indexing of documents is handled.
+  - Fixed parser support for string types that have a fixed size e.g. ```String[255]``` (UE1).
+  - Fixed type ```Pointer``` will be no longer recognized if the language is set to generation 3 (this has been displaced by the Core.Object.Pointer struct).
+  - Fixed [No symbols found](https://github.com/EliotVU/UnrealScript-Language-Service/issues/157)
+
+- Known Issues:
+  - 
 
 ## 0.6.1 (Jan 29, 2023)
 

@@ -161,8 +161,8 @@ export async function getDocumentTooltip(document: UCDocument, position: Positio
             value: [
                 `\`\`\`unrealscript`,
                 tooltip,
-                `\`\`\``,
-                docs
+                docs,
+                `\`\`\``
             ].filter(Boolean).join('\n')
         },
         range: symbol.id.range
