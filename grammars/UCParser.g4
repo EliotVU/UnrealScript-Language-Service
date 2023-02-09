@@ -742,7 +742,7 @@ codeBlockOptional
 	;
 
 statement
-	: SEMICOLON
+	: emptyStatement
 	| ifStatement
 	| forStatement
 	| foreachStatement
@@ -765,6 +765,8 @@ statement
 	| expressionStatement
 	| directive
 	;
+
+emptyStatement: SEMICOLON;
 
 assignmentStatement: expr=assignmentExpression SEMICOLON;
 expressionStatement: expr=primaryExpression SEMICOLON;

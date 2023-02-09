@@ -1203,15 +1203,16 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitStatement(ctx: UCGrammar.StatementContext) {
-        if (ctx.SEMICOLON()) {
-            return new UCEmptyStatement(rangeFromCtx(ctx));
-        }
         const child = ctx.getChild(0)!;
         console.assert(typeof child !== 'undefined');
         const stm = child.accept<IStatement>(this);
         console.assert(typeof stm !== 'undefined');
         console.assert(isStatement(stm), `Statement is invalid: ${getCtxDebugInfo(ctx)}`);
         return stm;
+    }
+
+    visitEmptyStatement(ctx: UCGrammar.EmptyStatementContext) {
+        return new UCEmptyStatement(rangeFromCtx(ctx));
     }
 
     // Directives can occur in a statement or declaration scope.
