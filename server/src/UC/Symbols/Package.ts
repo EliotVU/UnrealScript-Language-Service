@@ -21,6 +21,10 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
         return this.symbols.size;
     }
 
+    enumerate(): IterableIterator<T> {
+        return this.symbols.values();
+    }
+
     *enumerateAll<C extends T>(): Generator<C, C[]> {
         for (const symbol of this.symbols.values()) {
             for (let next = symbol.nextInHash; next; next = next.nextInHash as C) {
@@ -36,7 +40,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
             if (((1 << symbol.kind) & kinds) !== 0) {
                 yield symbol as C;
             }
-            
+
             for (let next = symbol.nextInHash; next; next = next.nextInHash as C) {
                 if (((1 << next.kind) & kinds) !== 0) {
                     yield next as C;
@@ -229,4 +233,16 @@ export function tryFindSymbolInPackage<T extends UCObjectSymbol>(id: Name, pkg: 
 export function tryFindClassSymbol(id: Name, kind: UCSymbolKind = UCSymbolKind.Class): UCClassSymbol | undefined {
     const symbol = ObjectsTable.getSymbol<UCClassSymbol>(id.hash, kind) ?? findOrIndexClassSymbol(id);
     return symbol;
+}
+
+/** Enumerates all global objects, including the chain linked objects. */
+export function* enumerateObjects(): Generator<UCObjectSymbol, UCObjectSymbol[]> {
+    for (const symbol of ObjectsTable.enumerate()) {
+        for (let next = symbol.nextInHash; next; next = next.nextInHash) {
+            yield next;
+        }
+        yield symbol;
+    }
+
+    return [];
 }

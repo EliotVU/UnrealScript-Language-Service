@@ -78,7 +78,7 @@ export class UCDocument {
     }
 
     public enumerateSymbols() {
-        return this.scope.enumerateAll();
+        return this.scope.enumerate();
     }
 
     public addSymbol(symbol: UCObjectSymbol): void {

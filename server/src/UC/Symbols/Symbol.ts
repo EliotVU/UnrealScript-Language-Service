@@ -35,9 +35,11 @@ export const enum ContextKind {
  */
 export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWithIndex {
     readonly kind: UCSymbolKind = UCSymbolKind.None;
+    
+	public outer?: UCObjectSymbol = undefined;
+    public nextInHash?: UCObjectSymbol | undefined = undefined;
 
-	public outer?: UCObjectSymbol;
-	public description?: Token[];
+	public description?: Token[] = undefined;
 
     // TODO: Clarify id
 	constructor(public readonly id: Identifier) {

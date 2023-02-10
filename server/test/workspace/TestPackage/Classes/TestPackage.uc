@@ -1,0 +1,1 @@
+class TestPackage extends Core.Object;
