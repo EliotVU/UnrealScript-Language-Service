@@ -1,5 +1,8 @@
 # UnrealScript Language Service
 
+## 0.6.3 (Feb 10, 2023)
+- Fixed an issue with skipLine() failing on UnrealScript directives i.e. "#exec obj load ..."
+
 ## 0.6.2 (Feb 9, 2023)
 
 - Implemented an option to enable auto-detection of the UnrealScript language generation that's being used by the workspace.
@@ -10,9 +13,6 @@
   - Fixed parser support for string types that have a fixed size e.g. ```String[255]``` (UE1).
   - Fixed type ```Pointer``` will be no longer recognized if the language is set to generation 3 (this has been displaced by the Core.Object.Pointer struct).
   - Fixed [No symbols found](https://github.com/EliotVU/UnrealScript-Language-Service/issues/157)
-
-- Known Issues:
-  - 
 
 ## 0.6.1 (Jan 29, 2023)
 
