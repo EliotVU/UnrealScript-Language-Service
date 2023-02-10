@@ -13,6 +13,8 @@ options {
         let token;
         do {
             token = this._input.get(i++);
+            // We to consume, incase the stream is not filled yet.
+            this._input.consume();
         } while (token.type !== UCParser.NEWLINE && token.type !== UCParser.EOF)
         this._input.seek(i);
     }

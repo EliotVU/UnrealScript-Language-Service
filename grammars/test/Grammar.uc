@@ -1,5 +1,7 @@
 class Grammar;
 
+#exec obj load package=filepath
+
 const C1 = 0;
 
 enum E1 {
