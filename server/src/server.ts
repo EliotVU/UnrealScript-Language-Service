@@ -134,7 +134,7 @@ function getFiles(fsPath: string, pattern: string): Promise<string[]> {
             }
             resolve(matches);
         });
-    })
+    });
 }
 
 type WorkspaceFiles = {
@@ -146,7 +146,7 @@ async function getWorkspaceFiles(folders: WorkspaceFolder[], reason: string): Pr
     let documentFiles: string[] = [];
     let packageFiles: string[] = [];
 
-    for (let folder of folders) {
+    for (const folder of folders) {
         const folderFSPath = URI.parse(folder.uri).fsPath;
         connection.console.info(`Scanning folder '${folderFSPath}' using pattern '${packageFileGlobPattern}', '${documentFileGlobPattern}'`);
         await Promise.all([
@@ -429,7 +429,7 @@ connection.onInitialized((params) => {
 
                 if (document.hasBeenIndexed) {
                     if (process.env.NODE_ENV === 'development') {
-                        connection.console.log(`Document "${document.fileName}" is already indexed.`)
+                        connection.console.log(`Document "${document.fileName}" is already indexed.`);
                     }
                     return;
                 }
@@ -479,9 +479,9 @@ connection.onInitialized((params) => {
                 const newGeneration = tryAutoDetectGeneration();
                 if (newGeneration) {
                     config.generation = newGeneration;
-                    connection.console.info(`Auto-detected generation ${config.generation}.`)
+                    connection.console.info(`Auto-detected generation ${config.generation}.`);
                 } else {
-                    connection.console.warn(`Auto-detection failed, resorting to UC3.`)
+                    connection.console.warn(`Auto-detection failed, resorting to UC3.`);
                 }
             }
 
@@ -506,14 +506,14 @@ connection.onInitialized((params) => {
                     .filter(Boolean) as UCDocument[];
 
                 for (let i = activeDocuments.length - 1; i >= 0; i--) {
-                    connection.console.log(`Queueing active document "${activeDocuments[i].fileName}".`)
+                    connection.console.log(`Queueing active document "${activeDocuments[i].fileName}".`);
                     work.report(activeDocuments.length / i - 1.0, `${activeDocuments[i].fileName}`);
                     // if (documents[i].hasBeenIndexed) {
                     //     continue;
                     // }
 
                     if (work.token.isCancellationRequested) {
-                        connection.console.warn(`The workspace indexing has been cancelled.`)
+                        connection.console.warn(`The workspace indexing has been cancelled.`);
                         break;
                     }
 
@@ -529,7 +529,7 @@ connection.onInitialized((params) => {
                         }
 
                         if (work.token.isCancellationRequested) {
-                            connection.console.warn(`The workspace indexing has been cancelled.`)
+                            connection.console.warn(`The workspace indexing has been cancelled.`);
                             break;
                         }
 
@@ -645,7 +645,7 @@ connection.onDidChangeConfiguration((params: { settings: { unrealscript: UCLangu
     setConfiguration(params.settings.unrealscript);
     initializeConfiguration();
 
-    connection.console.info(`Re-indexing workspace due configuration changes.`)
+    connection.console.info(`Re-indexing workspace due configuration changes.`);
     isIndexReady$.next(false);
 });
 
@@ -672,8 +672,13 @@ function applyConfiguration(settings: UCLanguageServerSettings) {
  * The code should assume that no UC symbols do exist other than packages.
  */
 function tryAutoDetectGeneration(): UCGeneration | undefined {
+    let document = getDocumentById(toName('Object'));
+    if (!document || document.classPackage !== CORE_PACKAGE) {
+        return undefined;
+    }
+
     // UE3 has Component.uc we can use to determine the generation.
-    let document = getDocumentById(toName('Component'));
+    document = getDocumentById(toName('Component'));
     if (document?.classPackage === CORE_PACKAGE) {
         return UCGeneration.UC3;
     }
@@ -881,7 +886,7 @@ connection.onRenameRequest(async (e) => {
         return undefined;
     }
 
-    const references = getSymbolReferences(symbol)
+    const references = getSymbolReferences(symbol);
     if (!references) {
         return undefined;
     }
