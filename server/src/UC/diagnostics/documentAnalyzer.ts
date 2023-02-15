@@ -386,13 +386,32 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
         super.visitProperty(symbol);
 
-        if (symbol.isFixedArray() && symbol.arrayDimRange) {
+        // Not an user-defined dimension. 
+        if (!symbol.arrayDimRange) {
+            return;
+        }
+
+        if (symbol.isFixedArray()) {
             const arraySize = symbol.getArrayDimSize();
             if (!arraySize) {
+                const dimSymbolRef = symbol.arrayDimRef?.getRef();
+                if (dimSymbolRef && config.generation !== UCGeneration.UC3) {
+                    if (isEnumSymbol(dimSymbolRef) || isEnumTagSymbol(dimSymbolRef)) {
+                        this.diagnostics.add({
+                            range: symbol.arrayDimRange,
+                            message: {
+                                text: `Using an enum or enum tag as an array dimension, is only available as of UC3.`,
+                                severity: DiagnosticSeverity.Error
+                            }
+                        });
+                        return;
+                    }
+                }
+
                 this.diagnostics.add({
                     range: symbol.arrayDimRange,
                     message: {
-                        text: `Bad array size, try refer to a type that can be evaluated to an integer!`,
+                        text: `Bad array size, try refer to a type that can be evaluated to an array dimension!`,
                         severity: DiagnosticSeverity.Error
                     }
                 });
@@ -416,11 +435,19 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
 
             if (baseType) {
                 const arrayType = baseType.getTypeKind();
-                if (arrayType === UCTypeKind.Bool || arrayType === UCTypeKind.Array) {
+                if (arrayType === UCTypeKind.Array) {
                     this.diagnostics.add({
-                        range: baseType.id.range,
+                        range: symbol.arrayDimRange,
                         message: {
-                            text: `Illegal array type '${baseType.id.name.text}'.`,
+                            text: `Illegal array type '${typeKindToDisplayString(arrayType)}'.`,
+                            severity: DiagnosticSeverity.Error
+                        }
+                    });
+                } else if (arrayType === UCTypeKind.Bool && config.generation !== UCGeneration.UC3) {
+                    this.diagnostics.add({
+                        range: symbol.arrayDimRange,
+                        message: {
+                            text: `Illegal array type '${typeKindToDisplayString(arrayType)}', is only available as of UC3.`,
                             severity: DiagnosticSeverity.Error
                         }
                     });
@@ -601,7 +628,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                 this.diagnostics.add({
                     range: symbol.id.range,
                     message: {
-                        text: `'ref' is only available in some versions of UC3 (such as XCom2).`,
+                        text: `'ref' is not allowed, is only available in some versions of UC3 (such as XCom2).`,
                         severity: DiagnosticSeverity.Error
                     },
                 });
@@ -1320,7 +1347,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             }
 
             if (config.checkTypes) {
-                const paramType = (param.getType() !== StaticMetaType ? param.getType() : undefined) ?? inferredType
+                const paramType = (param.getType() !== StaticMetaType ? param.getType() : undefined) ?? inferredType;
 
                 // We'll play nice by not pushing any errors if the method's param has no found or defined type,
                 // -- the 'type not found' error will suffice.
