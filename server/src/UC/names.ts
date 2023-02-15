@@ -1,5 +1,6 @@
 import { toName } from './name';
 
+export const NAME_ERROR = toName('Error');
 export const NAME_NONE = toName('None');
 export const NAME_BYTE = toName('Byte');
 export const NAME_FLOAT = toName('Float');

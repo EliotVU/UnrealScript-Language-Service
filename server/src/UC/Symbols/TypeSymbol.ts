@@ -11,8 +11,11 @@ import {
     NAME_BUTTON,
     NAME_BYTE,
     NAME_DELEGATE,
+    NAME_ENUM,
+    NAME_ERROR,
     NAME_FLOAT,
     NAME_INT,
+    NAME_INTERFACE,
     NAME_MAP,
     NAME_NAME,
     NAME_NONE,
@@ -21,6 +24,7 @@ import {
     NAME_RANGE,
     NAME_ROTATOR,
     NAME_STRING,
+    NAME_STRUCT,
     NAME_TYPE,
     NAME_VECTOR,
 } from '../names';
@@ -91,12 +95,13 @@ export const enum UCSymbolKind {
     Macro
 }
 
-export enum UCTypeKind {
+export const enum UCTypeKind {
     /** An unrecognized type */
     Error,
     None,
-    Byte, // Also true for an enum member.
-    Int, // Also true for a pointer
+    Byte,
+    Enum,
+    Int,
     Bool,
     Float,
     Object,
@@ -118,6 +123,28 @@ export enum UCTypeKind {
     Button
 }
 
+export const TypeKindToName: Readonly<Map<UCTypeKind, Name>> = new Map([
+    [UCTypeKind.Error, NAME_ERROR],
+    [UCTypeKind.None, NAME_NONE],
+    [UCTypeKind.Byte, NAME_BYTE],
+    [UCTypeKind.Enum, NAME_ENUM],
+    [UCTypeKind.Int, NAME_INT],
+    [UCTypeKind.Bool, NAME_BOOL],
+    [UCTypeKind.Float, NAME_FLOAT],
+    [UCTypeKind.Object, NAME_OBJECT],
+    [UCTypeKind.Name, NAME_NAME],
+    [UCTypeKind.Delegate, NAME_DELEGATE],
+    [UCTypeKind.Interface, NAME_INTERFACE],
+    [UCTypeKind.Range, NAME_RANGE],
+    [UCTypeKind.Struct, NAME_STRUCT],
+    [UCTypeKind.Rotator, NAME_ROTATOR],
+    [UCTypeKind.String, NAME_STRING],
+    [UCTypeKind.Map, NAME_MAP],
+    [UCTypeKind.Array, NAME_ARRAY],
+    [UCTypeKind.Pointer, NAME_POINTER],
+    [UCTypeKind.Button, NAME_BUTTON],
+]);
+
 export interface ITypeSymbol extends ISymbol, IWithReference, IWithInnerSymbols, IWithIndex {
     getTypeText(): string;
     getTypeKind(): UCTypeKind;
@@ -137,11 +164,11 @@ export class UCTypeSymbol implements ITypeSymbol {
 
     constructor(
         readonly type: UCTypeKind,
-        readonly range?: Range
+        readonly range: Range = DEFAULT_RANGE
     ) { }
 
     getName(): Name {
-        return TypeKindToName.get(this.type) ?? NAME_NONE;
+        return TypeKindToName.get(this.type)!;
     }
 
     getHash(): number {
@@ -149,7 +176,7 @@ export class UCTypeSymbol implements ITypeSymbol {
     }
 
     getRange(): Range {
-        return this.range ?? DEFAULT_RANGE;
+        return this.range;
     }
 
     getPath(): string {
@@ -496,7 +523,10 @@ export class UCQualifiedTypeSymbol implements ITypeSymbol {
     }
 }
 
+export const StaticErrorType = new UCTypeSymbol(UCTypeKind.Error);
+export const StaticNoneType = new UCTypeSymbol(UCTypeKind.None);
 export const StaticByteType = new UCTypeSymbol(UCTypeKind.Byte);
+export const StaticEnumType = new UCTypeSymbol(UCTypeKind.Enum);
 export const StaticIntType = new UCTypeSymbol(UCTypeKind.Int);
 export const StaticBoolType = new UCTypeSymbol(UCTypeKind.Bool);
 export const StaticFloatType = new UCTypeSymbol(UCTypeKind.Float);
@@ -504,7 +534,6 @@ export const StaticNameType = new UCTypeSymbol(UCTypeKind.Name);
 export const StaticStringType = new UCTypeSymbol(UCTypeKind.String);
 export const StaticPointerType = new UCTypeSymbol(UCTypeKind.Pointer);
 export const StaticButtonType = new UCTypeSymbol(UCTypeKind.Button);
-export const StaticNoneType = new UCTypeSymbol(UCTypeKind.None);
 
 export const StaticObjectType = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 export const StaticArrayType = new UCArrayTypeSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });
@@ -526,30 +555,6 @@ export const CastTypeSymbolMap: Readonly<WeakMap<Name, ITypeSymbol>> = new WeakM
     [NAME_BUTTON, StaticBoolType]
 ]);
 
-export const TypeKindToName: Readonly<Map<UCTypeKind, Name>> = new Map([
-    [UCTypeKind.None, NAME_NONE],
-    [UCTypeKind.Byte, NAME_BYTE],
-    [UCTypeKind.Int, NAME_INT],
-    [UCTypeKind.Bool, NAME_BOOL],
-    [UCTypeKind.Float, NAME_FLOAT],
-    [UCTypeKind.String, NAME_STRING],
-    [UCTypeKind.Name, NAME_NAME],
-    // <= UC2
-    [UCTypeKind.Pointer, NAME_POINTER],
-    // UC2
-    [UCTypeKind.Button, NAME_BUTTON],
-]);
-
-export function quoteTypeFlags(kind: UCTypeKind): string {
-    const type = UCTypeKind[kind];
-    if (process.env.NODE_ENV === 'development') {
-        if (typeof type === 'undefined') {
-            throw new Error(`Unknown type index '${kind}'.`);
-        }
-    }
-    return type.toString();
-}
-
 /** No conversion allowed */
 const N = 0x00;
 /** Conversion is allowed */
@@ -570,56 +575,57 @@ const D = 0x04;
  **/
 /** @formatter:off */
 const TypeConversionFlagsTable: Readonly<{ [key: number]: number[] }> = [
-/* From        Error    None    Byte    Int     Bool    Float   Object  Name    Delegate    Interface   Range   Struct  Vector  Rotator String  Map     Array   Pointer
+/* From        Error    None    Byte    Enum    Int     Bool    Float   Object  Name    Delegate    Interface   Range   Struct  Vector  Rotator String  Map     Array   Pointer
 /* To       */
-/* Error    */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* None     */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Byte     */[N,       N,      N,      Y | A,  Y,      Y | A,  N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
-/* Int      */[N,       N,      Y | A,  N,      Y,      Y | A,  N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
-/* Bool     */[N,       N,      Y,      Y | D,  N,      Y,      Y,      Y,      N,          Y,          N,      N,      Y,      Y,      Y,      N,      N,      N],
-/* Float    */[N,       N,      Y | A,  Y | A,  Y,      N,      N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
-/* Object   */[N,       Y | A,  N,      N,      N,      N,      N,      N,      N,          A,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Name     */[N,       Y | A,  N,      N,      N | D,  N,      N,      N,      N,          N,          N,      N,      N,      N,      Y | D,  N,      N,      N],
-/* Delegate */[N,       Y | A,  N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Interface*/[N,       Y | A,  N,      N,      N,      N,      Y | A,  N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Range    */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Struct   */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Vector   */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      Y,      Y,      N,      N,      N],
-/* Rotator  */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      Y,      N,      Y,      N,      N,      N],
-/* String   */[N,       N,      Y,      Y,      Y,      Y,      Y,      Y,      Y,          Y,          N,      N,      Y,      Y,      N,      N,      N,      N],
-/* Map      */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Array    */[N,       N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Pointer  */[N,       N,      N,      N | D,  N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
+/* Error    */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
+/* None     */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
+/* Byte     */[N,       N,      N,      Y | A,  Y | A,  Y,      Y | A,  N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
+/* Enum     */[N,       N,      Y | A,  N,      Y | A,  N,      N,      Y | A,  N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
+/* Int      */[N,       N,      Y | A,  Y | A,  N,      Y,      Y | A,  N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
+/* Bool     */[N,       N,      Y,      N,      Y | D,  N,      Y,      Y,      Y,      N,          Y,          N,      N,      Y,      Y,      Y,      N,      N,      N],
+/* Float    */[N,       N,      Y | A,  N,      Y | A,  Y,      N,      N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
+/* Object   */[N,       Y | A,  N,      Y | A,  N,      N,      N,      N,      N,      N,          A,          N,      N,      N,      N,      N,      N,      N,      N],
+/* Name     */[N,       Y | A,  N,      N,      N,      N | D,  N,      N,      N,      N,          N,          N,      N,      N,      N,      Y | D,  N,      N,      N],
+/* Delegate */[N,       Y | A,  N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
+/* Interface*/[N,       Y | A,  N,      N,      N,      N,      N,      Y | A,  N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
+/* Range    */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
+/* Struct   */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
+/* Vector   */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      Y,      Y,      N,      N,      N],
+/* Rotator  */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      Y,      N,      Y,      N,      N,      N],
+/* String   */[N,       N,      Y,      N,      Y,      Y,      Y,      Y,      Y,      Y,          Y,          N,      N,      Y,      Y,      N,      N,      N,      N],
+/* Map      */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
+/* Array    */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
+/* Pointer  */[N,       N,      N,      N,      N | D,  N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
 ];
 /** @formatter:on */
 
-export function getTypeConversionFlags(input: UCTypeKind, dest: UCTypeKind): number {
-    return TypeConversionFlagsTable[dest][input];
+export function getTypeConversionFlags(inputTypeKInd: UCTypeKind, destTypeKind: UCTypeKind): number {
+    return TypeConversionFlagsTable[destTypeKind][inputTypeKInd];
 }
 
-export function getConversionCost(input: ITypeSymbol, dest: ITypeSymbol): number {
-    let inputKind = input.getTypeKind();
-    if (inputKind === UCTypeKind.Struct) {
-        if (input.getName() === NAME_VECTOR) {
-            inputKind = UCTypeKind.Vector;
-        } else if (input.getName() === NAME_ROTATOR) {
-            inputKind = UCTypeKind.Rotator;
+export function getConversionCost(inputType: ITypeSymbol, destType: ITypeSymbol): number {
+    let inputTypeKind = inputType.getTypeKind();
+    if (inputTypeKind === UCTypeKind.Struct) {
+        if (inputType.getName() === NAME_VECTOR) {
+            inputTypeKind = UCTypeKind.Vector;
+        } else if (inputType.getName() === NAME_ROTATOR) {
+            inputTypeKind = UCTypeKind.Rotator;
         }
     }
-    let destKind = dest.getTypeKind();
-    if (destKind === UCTypeKind.Struct) {
-        if (dest.getName() === NAME_VECTOR) {
-            destKind = UCTypeKind.Vector;
-        } else if (dest.getName() === NAME_ROTATOR) {
-            destKind = UCTypeKind.Rotator;
+    let destTypeKind = destType.getTypeKind();
+    if (destTypeKind === UCTypeKind.Struct) {
+        if (destType.getName() === NAME_VECTOR) {
+            destTypeKind = UCTypeKind.Vector;
+        } else if (destType.getName() === NAME_ROTATOR) {
+            destTypeKind = UCTypeKind.Rotator;
         }
     }
 
-    if (inputKind === destKind) {
+    if (inputTypeKind === destTypeKind) {
         return 1;
     }
 
-    const flags = getTypeConversionFlags(inputKind, destKind);
+    const flags = getTypeConversionFlags(inputTypeKind, destTypeKind);
     if (flags === N) {
         return -1;
     }
@@ -640,43 +646,46 @@ export const enum UCMatchFlags {
 /**
  * (dest) SomeObject = (src) none;
  */
-export function typesMatch(input: ITypeSymbol, dest: ITypeSymbol, matchFlags: UCMatchFlags = UCMatchFlags.None): boolean {
+export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchFlags: UCMatchFlags = UCMatchFlags.None): boolean {
     // Ignore types with no reference (Error)
-    let inputKind = input.getTypeKind();
-    if (inputKind === UCTypeKind.Error) {
+    let inputTypeKind = inputType.getTypeKind();
+    if (inputTypeKind === UCTypeKind.Error) {
         return true;
     }
 
-    let destKind = dest.getTypeKind();
-    if (destKind === UCTypeKind.Error) {
+    let destTypeKind = destType.getTypeKind();
+    if (destTypeKind === UCTypeKind.Error) {
         return true;
     }
 
-    if (inputKind === UCTypeKind.Struct) {
-        if (input.getName() === NAME_VECTOR) {
-            inputKind = UCTypeKind.Vector;
-        } else if (input.getName() === NAME_ROTATOR) {
-            inputKind = UCTypeKind.Rotator;
+    if (inputTypeKind === UCTypeKind.Struct) {
+        if (inputType.getName() === NAME_VECTOR) {
+            inputTypeKind = UCTypeKind.Vector;
+        } else if (inputType.getName() === NAME_ROTATOR) {
+            inputTypeKind = UCTypeKind.Rotator;
         }
     }
 
-    if (destKind === UCTypeKind.Struct) {
-        if (dest.getName() === NAME_VECTOR) {
-            destKind = UCTypeKind.Vector;
-        } else if (dest.getName() === NAME_ROTATOR) {
-            destKind = UCTypeKind.Rotator;
+    if (destTypeKind === UCTypeKind.Struct) {
+        if (destType.getName() === NAME_VECTOR) {
+            destTypeKind = UCTypeKind.Vector;
+        } else if (destType.getName() === NAME_ROTATOR) {
+            destTypeKind = UCTypeKind.Rotator;
         }
     }
 
-    if (inputKind === destKind) {
+    if (inputTypeKind === destTypeKind) {
         // TODO: Return a distinguisable return type
         return true;
     }
 
-    const c = getTypeConversionFlags(inputKind, destKind);
+    const c = getTypeConversionFlags(inputTypeKind, destTypeKind);
     if (c === N) {
-        if (destKind === UCTypeKind.Delegate) {
-            return input.getRef()?.kind === UCSymbolKind.Function;
+        if (destTypeKind === UCTypeKind.Delegate) {
+            return inputType.getRef()?.kind === UCSymbolKind.Function;
+        }
+        if (destTypeKind === UCTypeKind.Object) {
+            // TODO: Class hierarchy
         }
         return false;
     }
@@ -685,7 +694,6 @@ export function typesMatch(input: ITypeSymbol, dest: ITypeSymbol, matchFlags: UC
         return true;
     }
 
-    // TODO: Class hierarchy
     // TODO: Struct (vector, rotator, range) conversions
     return (c & A) !== 0 || ((matchFlags & UCMatchFlags.Coerce) != 0 && (c & Y) !== 0);
 }

@@ -4,16 +4,63 @@ import { UCDocument } from './document';
 import { intersectsWith } from './helpers';
 import { config, getEnumMember } from './indexer';
 import {
-    CastTypeSymbolMap, ContextInfo, CORE_PACKAGE, DefaultArray, findOrIndexClassSymbol,
-    findOverloadedOperator, findSuperStruct, getConversionCost, getOuter, getSymbolHash,
-    getSymbolOuterHash, hasDefinedBaseType, Identifier, INode, IntrinsicClass, IntrinsicRngLiteral,
-    IntrinsicRotLiteral, IntrinsicVectLiteral, isConstSymbol, isFunction, isOperator, isProperty,
-    isStateSymbol, isStruct, ISymbol, ITypeSymbol, IWithIndex, IWithInnerSymbols, ModifierFlags,
-    ObjectsTable, OuterObjectsTable, resolveType, StaticBoolType, StaticByteType, StaticFloatType,
-    StaticIntType, StaticMetaType, StaticNameType, StaticNoneType, StaticRangeType,
-    StaticRotatorType, StaticStringType, StaticVectorType, tryFindClassSymbol, UCArrayTypeSymbol,
-    UCClassSymbol, UCMethodSymbol, UCNodeKind, UCObjectSymbol, UCObjectTypeSymbol, UCPackage,
-    UCQualifiedTypeSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind, UCTypeSymbol
+    CastTypeSymbolMap,
+    ContextInfo,
+    CORE_PACKAGE,
+    DefaultArray,
+    findOrIndexClassSymbol,
+    findOverloadedOperator,
+    findSuperStruct,
+    getConversionCost,
+    getOuter,
+    getSymbolHash,
+    getSymbolOuterHash,
+    hasDefinedBaseType,
+    Identifier,
+    INode,
+    IntrinsicClass,
+    IntrinsicRngLiteral,
+    IntrinsicRotLiteral,
+    IntrinsicVectLiteral,
+    isConstSymbol,
+    isFunction,
+    isOperator,
+    isProperty,
+    isStateSymbol,
+    isStruct,
+    ISymbol,
+    ITypeSymbol,
+    IWithIndex,
+    IWithInnerSymbols,
+    ModifierFlags,
+    ObjectsTable,
+    OuterObjectsTable,
+    resolveType,
+    StaticBoolType,
+    StaticByteType,
+    StaticErrorType,
+    StaticFloatType,
+    StaticIntType,
+    StaticMetaType,
+    StaticNameType,
+    StaticNoneType,
+    StaticRangeType,
+    StaticRotatorType,
+    StaticStringType,
+    StaticVectorType,
+    tryFindClassSymbol,
+    UCArrayTypeSymbol,
+    UCClassSymbol,
+    UCMethodSymbol,
+    UCNodeKind,
+    UCObjectSymbol,
+    UCObjectTypeSymbol,
+    UCPackage,
+    UCQualifiedTypeSymbol,
+    UCStructSymbol,
+    UCSymbolKind,
+    UCTypeKind,
+    UCTypeSymbol,
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 
@@ -216,6 +263,11 @@ export class UCCallExpression extends UCExpression {
     }
 
     index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+        if (!this.arguments?.length) {
+            this.expression.index(document, context);
+            return;
+        }
+
         /**
          * The compiler has a hacky implementation for casts/function calls.
          * 
@@ -223,7 +275,7 @@ export class UCCallExpression extends UCExpression {
          * If it's a match, then the first argument is compiled, 
          * if the argument is not an Object type or hit another argument, then it assumes it's a function call.
          */
-        if (this.arguments?.length == 1 && this.expression instanceof UCMemberExpression) {
+        if (this.arguments.length == 1 && this.expression instanceof UCMemberExpression) {
             const member = this.expression;
             const name = member.id.name;
 
@@ -253,23 +305,45 @@ export class UCCallExpression extends UCExpression {
             this.expression.index(document, context);
         }
 
-        const type = this.expression.getType();
-        const symbol = type?.getRef();
-        if (symbol && isFunction(symbol)) {
-            if (this.arguments) for (let i = 0; i < this.arguments.length; ++i) {
-                const arg = this.arguments[i];
-                const param = symbol.params?.[i];
-                const destType = param?.getType();
-                arg.index(document, context, {
-                    contextType: destType,
-                    inAssignment: param ? param.hasAnyModifierFlags(ModifierFlags.Out) : undefined
-                });
+        const methodType = this.expression.getType();
+        const methodSymbol = methodType?.getRef();
+        if (methodSymbol && isFunction(methodSymbol)) {
+            if (methodSymbol.params) {
+                const argInfo: ContextInfo = {
+                    contextType: StaticErrorType,
+                    inAssignment: false,
+                };
+                for (let i = 0; i < this.arguments.length; ++i) {
+                    if (i < methodSymbol.params.length) {
+                        const param = methodSymbol.params[i];
+                        argInfo.contextType = param.getType();
+                        argInfo.inAssignment = param.hasAnyModifierFlags(ModifierFlags.Out);
+                        this.arguments[i].index(document, context, argInfo);
+                    } else {
+                        // * Excessive arguments, we will still index the arguements.
+                        this.arguments[i].index(document, context, {
+                            contextType: StaticErrorType,
+                            inAssignment: false
+                        });
+                    }
+                }
+            } else {
+                // * Excessive arguments, we will still index the arguements.
+                for (let i = 0; i < this.arguments.length; ++i) {
+                    this.arguments[i].index(document, context, {
+                        contextType: StaticErrorType,
+                        inAssignment: false
+                    });
+                }
             }
         } else {
             // TODO: Handle call on array??
-            if (this.arguments) for (let i = 0; i < this.arguments.length; ++i) {
+            for (let i = 0; i < this.arguments.length; ++i) {
                 const arg = this.arguments[i];
-                arg.index(document, context, info);
+                arg.index(document, context, {
+                    contextType: StaticErrorType,
+                    inAssignment: false
+                });
             }
         }
     }
@@ -537,8 +611,14 @@ export class UCMemberExpression extends UCExpression {
     getType() {
         const symbol = this.type?.getRef();
         // We resolve UCMethodSymbols in UCCallExpression, because we don't want to return the function's type in assignment expressions...
-        if (symbol && (isProperty(symbol) || isConstSymbol(symbol))) {
-            return symbol.getType();
+        if (symbol) {
+            if (isProperty(symbol)) {
+                return symbol.getType();
+            }
+
+            if (isConstSymbol(symbol)) {
+                return symbol.getType();
+            }
         }
         return this.type;
     }
@@ -551,7 +631,8 @@ export class UCMemberExpression extends UCExpression {
     index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         const id = this.id.name;
 
-        const contextTypeKind = info?.contextType?.getTypeKind();
+        const contextType = info?.contextType;
+        const contextTypeKind = contextType?.getTypeKind();
         if (contextTypeKind === UCTypeKind.Name) {
             const label = context.labels?.[id.hash];
             if (label) {
@@ -567,11 +648,15 @@ export class UCMemberExpression extends UCExpression {
         let member = isStruct(context) && context.findSuperSymbol(id);
         if (!member) {
             // Look for a context-less enum tag reference, e.g. (myLocalByte === ET_EnumTag)
-            const doCheckForEnumTag = !config.checkTypes || (
-                contextTypeKind === UCTypeKind.Byte ||
-                contextTypeKind === UCTypeKind.Int
-            );
-            if (doCheckForEnumTag) {
+            // Follow the compilers behavior:
+            // - Tags are only visible when we have a context hint that is compatible with an enum.
+            if (config.checkTypes) {
+                if (contextTypeKind === UCTypeKind.Byte ||
+                    contextTypeKind === UCTypeKind.Int ||
+                    contextTypeKind === UCTypeKind.Enum) {
+                    member = getEnumMember(id);
+                }
+            } else {
                 member = getEnumMember(id);
             }
         }
@@ -638,26 +723,49 @@ export class UCDefaultMemberCallExpression extends UCExpression {
         this.propertyMember.index(document, context, info);
 
         const type = this.propertyMember.getType();
-        if (type && UCArrayTypeSymbol.is(type)) {
-            const symbol = DefaultArray.findSuperSymbol<UCMethodSymbol>(this.operationMember.id.name);
-            if (symbol) {
-                this.operationMember.setRef(symbol, document);
+        const isArrayType = type && UCArrayTypeSymbol.is(type);
+        const methodSymbol = isArrayType
+            ? DefaultArray.findSuperSymbol<UCMethodSymbol>(this.operationMember.id.name)
+            : undefined;
+        if (methodSymbol) {
+            this.operationMember.setRef(methodSymbol, document);
+        }
 
-                const innerType = type.baseType;
-                if (innerType) {
-                    const info: ContextInfo = {
-                        inAssignment: true
-                    };
+        if (!this.arguments) {
+            return;
+        }
 
-                    if (this.arguments) for (let i = 0; i < this.arguments.length; ++i) {
-                        const arg = this.arguments[i];
-                        const param = symbol.params && symbol.params.length > i && symbol.params[i];
-                        if (param && param.type === StaticMetaType) {
-                            info.contextType = innerType;
-                        }
-                        arg.index(document, context, info);
-                    }
+        const typeParameter = isArrayType
+            ? type.baseType
+            : StaticErrorType;
+        if (methodSymbol?.params) {
+            const argInfo: ContextInfo = {
+                contextType: StaticErrorType,
+                inAssignment: false,
+            };
+            for (let i = 0; i < this.arguments.length; ++i) {
+                if (i < methodSymbol.params.length) {
+                    const param = methodSymbol.params[i];
+                    const paramType = param.getType();
+                    argInfo.contextType = paramType === StaticMetaType && typeParameter
+                        ? typeParameter
+                        : paramType;
+                    argInfo.inAssignment = param.hasAnyModifierFlags(ModifierFlags.Out);
+                    this.arguments[i].index(document, context, argInfo);
+                } else {
+                    // * Excessive arguments, we will still index the arguements.
+                    this.arguments[i].index(document, context, {
+                        contextType: typeParameter,
+                        inAssignment: false
+                    });
                 }
+            }
+        } else {
+            if (this.arguments) for (let i = 0; i < this.arguments.length; ++i) {
+                this.arguments[i].index(document, context, {
+                    contextType: typeParameter,
+                    inAssignment: false
+                });
             }
         }
     }
@@ -689,6 +797,7 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
         switch (kind) {
             case UCTypeKind.Byte:
             case UCTypeKind.Int:
+            case UCTypeKind.Enum:
                 // FIXME: Constants should take precedence
                 member = getEnumMember(name);
                 break;
@@ -842,7 +951,7 @@ export abstract class UCLiteral implements IExpression {
         return undefined;
     }
 
-    getType(): ITypeSymbol | undefined{
+    getType(): ITypeSymbol | undefined {
         return undefined;
     }
 

@@ -605,6 +605,7 @@ async function buildCompletableSymbolItems(
                                     shouldIncludeConstants = false;
                                     break;
 
+                                case UCTypeKind.Enum:
                                 case UCTypeKind.Byte: {
                                     candidates.tokens.delete(UCParser.NONE_LITERAL);
 

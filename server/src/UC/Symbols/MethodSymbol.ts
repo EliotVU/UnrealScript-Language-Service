@@ -228,9 +228,13 @@ export class UCMethodLikeSymbol extends UCMethodSymbol {
 	override modifiers = ModifierFlags.ReadOnly | ModifierFlags.Intrinsic;
     override specifiers = MethodFlags.Static | MethodFlags.Final;
 
-	constructor(name: Name) {
-		super({ name, range: DEFAULT_RANGE });
-	}
+    constructor(name: Name) {
+        super({ name, range: DEFAULT_RANGE });
+    }
+
+    override getTypeKind() {
+        return UCTypeKind.Error;
+    }
 }
 
 export class UCEventSymbol extends UCMethodSymbol {
