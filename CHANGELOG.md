@@ -1,6 +1,16 @@
 # UnrealScript Language Service
 
+## 0.6.4 (Feb 16, 2023)
+
+- Fixed [Class-function field hint](https://github.com/EliotVU/UnrealScript-Language-Service/issues/161).
+- Fixed [Type checking error when passing an Enum object to a function as argument](https://github.com/EliotVU/UnrealScript-Language-Service/issues/166).
+- Fixed [Enum tag reference in a condition expression produces an error when type checking is enabled](https://github.com/EliotVU/UnrealScript-Language-Service/issues/167).
+- Fixed [Request textDocument/documentSymbol failed](https://github.com/EliotVU/UnrealScript-Language-Service/issues/169).
+- [Add a new diagnostic for UC3 enum based element dimensions; and fix the misplaced range for array dimension diagnostics.](https://github.com/EliotVU/UnrealScript-Language-Service/commit/97e7b1ec9dbd62ae98c81f473a79f20826f18ac5).
+- [Fail auto detection when no Object.uc document is present](https://github.com/EliotVU/UnrealScript-Language-Service/commit/1d64bc3771c5e23fa34f9624962e6567d197e879).
+
 ## 0.6.3 (Feb 10, 2023)
+
 - Fixed an issue with skipLine() failing on UnrealScript directives i.e. "#exec obj load ..."
 
 ## 0.6.2 (Feb 9, 2023)
