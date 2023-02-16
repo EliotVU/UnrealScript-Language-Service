@@ -25,9 +25,10 @@ describe('Document', () => {
             expect(grammarDocument.hasBeenIndexed).to.be.true;
         });
 
-        it('Diagnostics free?', () => {
+        it('should have no problems', () => {
             const diagnoser = new DocumentAnalyzer(grammarDocument);
-            const diagnostics = diagnoser.visitDocument(grammarDocument);
+            grammarDocument.accept(diagnoser);
+            const diagnostics = diagnoser.getDiagnostics();
             const msg = diagnostics.toDiagnostic()
                 .map(d => d.message)
                 .join(';');

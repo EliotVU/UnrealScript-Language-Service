@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import glob from 'glob';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
-import { BehaviorSubject, firstValueFrom, interval, Subject, Subscription } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, interval, of, Subject, Subscription } from 'rxjs';
 import { debounce, delay, filter, map, switchMap, tap, timeout } from 'rxjs/operators';
 import * as url from 'url';
 import { DocumentUri, TextDocument } from 'vscode-languageserver-textdocument';
@@ -134,7 +134,7 @@ function getFiles(fsPath: string, pattern: string): Promise<string[]> {
             }
             resolve(matches);
         });
-    })
+    });
 }
 
 type WorkspaceFiles = {
@@ -146,7 +146,7 @@ async function getWorkspaceFiles(folders: WorkspaceFolder[], reason: string): Pr
     let documentFiles: string[] = [];
     let packageFiles: string[] = [];
 
-    for (let folder of folders) {
+    for (const folder of folders) {
         const folderFSPath = URI.parse(folder.uri).fsPath;
         connection.console.info(`Scanning folder '${folderFSPath}' using pattern '${packageFileGlobPattern}', '${documentFileGlobPattern}'`);
         await Promise.all([
@@ -244,7 +244,7 @@ function invalidatePendingDocuments() {
     }
 }
 
-async function awaitDocumentDelivery(uri: DocumentUri): Promise<UCDocument | undefined> {
+async function awaitDocumentDelivery(uri: DocumentUri, timeoutEach = 1000 * 60): Promise<UCDocument | undefined> {
     const document = getDocumentByURI(uri);
     if (document && document.hasBeenIndexed) {
         return document;
@@ -260,12 +260,15 @@ async function awaitDocumentDelivery(uri: DocumentUri): Promise<UCDocument | und
                 return !!doc!;
             }),
             timeout({
-                each: 1000 * 60
+                each: timeoutEach,
+                with: () => {
+                    return of(undefined);
+                }
             })
         ));
 }
 
-async function awaitDocumentBuilt(uri: DocumentUri): Promise<UCDocument | undefined> {
+async function awaitDocumentBuilt(uri: DocumentUri, timeoutEach = 1000 * 60): Promise<UCDocument | undefined> {
     const document = getDocumentByURI(uri);
     if (document && document.hasBeenBuilt) {
         return document;
@@ -275,7 +278,10 @@ async function awaitDocumentBuilt(uri: DocumentUri): Promise<UCDocument | undefi
         .pipe(
             filter(doc => doc.uri === uri),
             timeout({
-                each: 1000 * 60
+                each: timeoutEach,
+                with: () => {
+                    return of(undefined);
+                }
             })
         ));
 }
@@ -429,7 +435,7 @@ connection.onInitialized((params) => {
 
                 if (document.hasBeenIndexed) {
                     if (process.env.NODE_ENV === 'development') {
-                        connection.console.log(`Document "${document.fileName}" is already indexed.`)
+                        connection.console.log(`Document "${document.fileName}" is already indexed.`);
                     }
                     return;
                 }
@@ -479,9 +485,9 @@ connection.onInitialized((params) => {
                 const newGeneration = tryAutoDetectGeneration();
                 if (newGeneration) {
                     config.generation = newGeneration;
-                    connection.console.info(`Auto-detected generation ${config.generation}.`)
+                    connection.console.info(`Auto-detected generation ${config.generation}.`);
                 } else {
-                    connection.console.warn(`Auto-detection failed, resorting to UC3.`)
+                    connection.console.warn(`Auto-detection failed, resorting to UC3.`);
                 }
             }
 
@@ -506,14 +512,14 @@ connection.onInitialized((params) => {
                     .filter(Boolean) as UCDocument[];
 
                 for (let i = activeDocuments.length - 1; i >= 0; i--) {
-                    connection.console.log(`Queueing active document "${activeDocuments[i].fileName}".`)
+                    connection.console.log(`Queueing active document "${activeDocuments[i].fileName}".`);
                     work.report(activeDocuments.length / i - 1.0, `${activeDocuments[i].fileName}`);
                     // if (documents[i].hasBeenIndexed) {
                     //     continue;
                     // }
 
                     if (work.token.isCancellationRequested) {
-                        connection.console.warn(`The workspace indexing has been cancelled.`)
+                        connection.console.warn(`The workspace indexing has been cancelled.`);
                         break;
                     }
 
@@ -529,7 +535,7 @@ connection.onInitialized((params) => {
                         }
 
                         if (work.token.isCancellationRequested) {
-                            connection.console.warn(`The workspace indexing has been cancelled.`)
+                            connection.console.warn(`The workspace indexing has been cancelled.`);
                             break;
                         }
 
@@ -645,7 +651,7 @@ connection.onDidChangeConfiguration((params: { settings: { unrealscript: UCLangu
     setConfiguration(params.settings.unrealscript);
     initializeConfiguration();
 
-    connection.console.info(`Re-indexing workspace due configuration changes.`)
+    connection.console.info(`Re-indexing workspace due configuration changes.`);
     isIndexReady$.next(false);
 });
 
@@ -672,8 +678,13 @@ function applyConfiguration(settings: UCLanguageServerSettings) {
  * The code should assume that no UC symbols do exist other than packages.
  */
 function tryAutoDetectGeneration(): UCGeneration | undefined {
+    let document = getDocumentById(toName('Object'));
+    if (!document || document.classPackage !== CORE_PACKAGE) {
+        return undefined;
+    }
+
     // UE3 has Component.uc we can use to determine the generation.
-    let document = getDocumentById(toName('Component'));
+    document = getDocumentById(toName('Component'));
     if (document?.classPackage === CORE_PACKAGE) {
         return UCGeneration.UC3;
     }
@@ -797,14 +808,14 @@ function setupFilePatterns(settings: UCLanguageServerSettings) {
 }
 
 connection.onHover(async (e) => {
-    const document = await awaitDocumentDelivery(e.textDocument.uri);
+    const document = await awaitDocumentDelivery(e.textDocument.uri, 5000);
     if (document) {
         return getDocumentTooltip(document, e.position);
     }
 });
 
 connection.onDefinition(async (e) => {
-    const document = await awaitDocumentDelivery(e.textDocument.uri);
+    const document = await awaitDocumentDelivery(e.textDocument.uri, 5000);
     if (document) {
         return getDocumentDefinition(document, e.position);
     }
@@ -881,7 +892,7 @@ connection.onRenameRequest(async (e) => {
         return undefined;
     }
 
-    const references = getSymbolReferences(symbol)
+    const references = getSymbolReferences(symbol);
     if (!references) {
         return undefined;
     }

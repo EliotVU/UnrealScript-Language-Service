@@ -4,7 +4,4 @@
         "strictNullChecks": false,
         "sourceMap": true
     },
-    "include": [
-        "**/*.test.ts"
-    ]
 }

@@ -1,31 +1,96 @@
-import { toName } from '../name';
 import { DiagnosticSeverity, Range } from 'vscode-languageserver';
 
 import { UCDocument } from '../document';
 import {
-    IExpression, UCArrayCountExpression, UCAssignmentOperatorExpression, UCBaseOperatorExpression,
-    UCBinaryOperatorExpression, UCCallExpression, UCConditionalExpression,
-    UCDefaultAssignmentExpression, UCDefaultMemberCallExpression, UCDefaultStructLiteral,
-    UCElementAccessExpression, UCEmptyArgument, UCIdentifierLiteralExpression, UCMemberExpression,
-    UCMetaClassExpression, UCNameOfExpression, UCObjectLiteral, UCParenthesizedExpression,
-    UCPropertyAccessExpression, UCSizeOfLiteral, UCSuperExpression
+    IExpression,
+    UCArrayCountExpression,
+    UCAssignmentOperatorExpression,
+    UCBaseOperatorExpression,
+    UCBinaryOperatorExpression,
+    UCCallExpression,
+    UCConditionalExpression,
+    UCDefaultAssignmentExpression,
+    UCDefaultMemberCallExpression,
+    UCDefaultStructLiteral,
+    UCElementAccessExpression,
+    UCEmptyArgument,
+    UCIdentifierLiteralExpression,
+    UCMemberExpression,
+    UCMetaClassExpression,
+    UCNameOfExpression,
+    UCObjectLiteral,
+    UCParenthesizedExpression,
+    UCPropertyAccessExpression,
+    UCSizeOfLiteral,
+    UCSuperExpression,
 } from '../expressions';
 import { config, getDocumentById, UCGeneration } from '../indexer';
+import { toName } from '../name';
 import { NAME_ENUMCOUNT, NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
 import {
-    UCAssertStatement, UCBlock, UCCaseClause, UCDoUntilStatement, UCExpressionStatement,
-    UCForEachStatement, UCForStatement, UCGotoStatement, UCIfStatement, UCRepIfStatement,
-    UCReturnStatement, UCSwitchStatement, UCWhileStatement
+    UCAssertStatement,
+    UCBlock,
+    UCCaseClause,
+    UCDoUntilStatement,
+    UCExpressionStatement,
+    UCForEachStatement,
+    UCForStatement,
+    UCGotoStatement,
+    UCIfStatement,
+    UCRepIfStatement,
+    UCReturnStatement,
+    UCSwitchStatement,
+    UCWhileStatement,
 } from '../statements';
 import {
-    areMethodsCompatibleWith, ArrayIterator, Array_LengthProperty, ClassModifierFlags, ContextInfo, IntrinsicClass,
-    IntrinsicEnum, isClass, isDelegateSymbol, isEnumSymbol, isField, isFunction, isMethodSymbol,
-    isStateSymbol, isTypeSymbol, ITypeSymbol, MethodFlags, ModifierFlags, quoteTypeFlags,
-    resolveType, StaticBoolType, StaticDelegateType, StaticIntType, StaticMetaType, StaticNameType, typesMatch,
-    UCArchetypeSymbol, UCArrayTypeSymbol, UCClassSymbol, UCConstSymbol, UCDelegateSymbol,
-    UCDelegateTypeSymbol, UCEnumMemberSymbol, UCEnumSymbol, UCFieldSymbol, UCInterfaceSymbol, UCMatchFlags,
-    UCMethodSymbol, UCObjectTypeSymbol, UCParamSymbol, UCPropertySymbol, UCQualifiedTypeSymbol,
-    UCScriptStructSymbol, UCStateSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
+    areMethodsCompatibleWith,
+    Array_LengthProperty,
+    ArrayIterator,
+    ClassModifierFlags,
+    ContextInfo,
+    IntrinsicClass,
+    IntrinsicEnum,
+    isClass,
+    isDelegateSymbol,
+    isEnumSymbol,
+    isEnumTagSymbol,
+    isField,
+    isFunction,
+    isMethodSymbol,
+    isStateSymbol,
+    isTypeSymbol,
+    ITypeSymbol,
+    MethodFlags,
+    ModifierFlags,
+    resolveType,
+    StaticBoolType,
+    StaticDelegateType,
+    StaticIntType,
+    StaticMetaType,
+    StaticNameType,
+    TypeKindToName,
+    typesMatch,
+    UCArchetypeSymbol,
+    UCArrayTypeSymbol,
+    UCClassSymbol,
+    UCConstSymbol,
+    UCDelegateSymbol,
+    UCDelegateTypeSymbol,
+    UCEnumMemberSymbol,
+    UCEnumSymbol,
+    UCFieldSymbol,
+    UCInterfaceSymbol,
+    UCMatchFlags,
+    UCMethodSymbol,
+    UCObjectTypeSymbol,
+    UCParamSymbol,
+    UCPropertySymbol,
+    UCQualifiedTypeSymbol,
+    UCScriptStructSymbol,
+    UCStateSymbol,
+    UCStructSymbol,
+    UCSymbolKind,
+    UCTypeKind,
 } from '../Symbols';
 import { DefaultSymbolWalker } from '../symbolWalker';
 import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
@@ -34,12 +99,12 @@ import * as diagnosticMessages from './diagnosticMessages.json';
 const OBJECT_DOCUMENT_ID = toName('Object');
 
 // TODO: Check if a UField is obscuring another UField
-export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection | undefined> {
-    private scopes: UCStructSymbol[] = [];
+export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
+    private readonly diagnostics = new DiagnosticCollection();
+    private readonly scopes: UCStructSymbol[] = [];
     private context?: UCStructSymbol;
     private state: ContextInfo = {};
     private cachedState: ContextInfo = {};
-    private diagnostics = new DiagnosticCollection();
     private allowedKindsMask: UCSymbolKind = 1 << UCClassSymbol.allowedKindsMask
         | 1 << UCSymbolKind.Class
         | 1 << UCSymbolKind.Interface;
@@ -56,6 +121,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                 }
             });
         }
+    }
+
+    public getDiagnostics() {
+        return this.diagnostics;
     }
 
     private pushScope(context?: UCStructSymbol) {
@@ -94,11 +163,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
 
     private revokeAllowed(kind: UCSymbolKind): void {
         this.allowedKindsMask &= ~(1 << kind);
-    }
-
-    visitDocument(document: UCDocument) {
-        super.visitDocument(document);
-        return this.diagnostics;
     }
 
     visitQualifiedType(symbol: UCQualifiedTypeSymbol) {
@@ -322,13 +386,32 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
         }
         super.visitProperty(symbol);
 
-        if (symbol.isFixedArray() && symbol.arrayDimRange) {
+        // Not an user-defined dimension. 
+        if (!symbol.arrayDimRange) {
+            return;
+        }
+
+        if (symbol.isFixedArray()) {
             const arraySize = symbol.getArrayDimSize();
             if (!arraySize) {
+                const dimSymbolRef = symbol.arrayDimRef?.getRef();
+                if (dimSymbolRef && config.generation !== UCGeneration.UC3) {
+                    if (isEnumSymbol(dimSymbolRef) || isEnumTagSymbol(dimSymbolRef)) {
+                        this.diagnostics.add({
+                            range: symbol.arrayDimRange,
+                            message: {
+                                text: `Using an enum or enum tag as an array dimension, is only available as of UC3.`,
+                                severity: DiagnosticSeverity.Error
+                            }
+                        });
+                        return;
+                    }
+                }
+
                 this.diagnostics.add({
                     range: symbol.arrayDimRange,
                     message: {
-                        text: `Bad array size, try refer to a type that can be evaluated to an integer!`,
+                        text: `Bad array size, try refer to a type that can be evaluated to an array dimension!`,
                         severity: DiagnosticSeverity.Error
                     }
                 });
@@ -352,11 +435,19 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
 
             if (baseType) {
                 const arrayType = baseType.getTypeKind();
-                if (arrayType === UCTypeKind.Bool || arrayType === UCTypeKind.Array) {
+                if (arrayType === UCTypeKind.Array) {
                     this.diagnostics.add({
-                        range: baseType.id.range,
+                        range: symbol.arrayDimRange,
                         message: {
-                            text: `Illegal array type '${baseType.id.name.text}'.`,
+                            text: `Illegal array type '${typeKindToDisplayString(arrayType)}'.`,
+                            severity: DiagnosticSeverity.Error
+                        }
+                    });
+                } else if (arrayType === UCTypeKind.Bool && config.generation !== UCGeneration.UC3) {
+                    this.diagnostics.add({
+                        range: symbol.arrayDimRange,
+                        message: {
+                            text: `Illegal array type '${typeKindToDisplayString(arrayType)}', is only available as of UC3.`,
                             severity: DiagnosticSeverity.Error
                         }
                     });
@@ -537,7 +628,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                 this.diagnostics.add({
                     range: symbol.id.range,
                     message: {
-                        text: `'ref' is only available in some versions of UC3 (such as XCom2).`,
+                        text: `'ref' is not allowed, is only available in some versions of UC3 (such as XCom2).`,
                         severity: DiagnosticSeverity.Error
                     },
                 });
@@ -784,7 +875,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                         this.diagnostics.add({
                             range: stm.expression.getRange(),
                             message: {
-                                text: `Type '${quoteTypeFlags(stm.expression.getType()!.getTypeKind())}' cannot be iterated. Expected an iterator function.`,
+                                text: `Type '${typeKindToDisplayString(stm.expression.getType()!.getTypeKind())}' cannot be iterated. Expected an iterator function.`,
                                 severity: DiagnosticSeverity.Error
                             }
                         });
@@ -795,7 +886,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                         this.diagnostics.add({
                             range: stm.expression.getRange(),
                             message: {
-                                text: `Type '${quoteTypeFlags(stm.expression.getType()!.getTypeKind())}' cannot be iterated. Expected an iterator function or dynamic array.`,
+                                text: `Type '${typeKindToDisplayString(stm.expression.getType()!.getTypeKind())}' cannot be iterated. Expected an iterator function or dynamic array.`,
                                 severity: DiagnosticSeverity.Error
                             }
                         });
@@ -897,7 +988,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                             this.diagnostics.add({
                                 range: expr.getRange(),
                                 message: {
-                                    text: `Type '${quoteTypeFlags(argumentType.getTypeKind())}' cannot be cast to type '${quoteTypeFlags(symbol.getTypeKind())}'`,
+                                    text: `Type '${typeKindToDisplayString(argumentType.getTypeKind())}' cannot be cast to type '${typeKindToDisplayString(symbol.getTypeKind())}'`,
                                     severity: DiagnosticSeverity.Error
                                 }
                             });
@@ -1256,7 +1347,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
             }
 
             if (config.checkTypes) {
-                const paramType = (param.getType() !== StaticMetaType ? param.getType() : undefined) ?? inferredType
+                const paramType = (param.getType() !== StaticMetaType ? param.getType() : undefined) ?? inferredType;
 
                 // We'll play nice by not pushing any errors if the method's param has no found or defined type,
                 // -- the 'type not found' error will suffice.
@@ -1280,7 +1371,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
                         this.diagnostics.add({
                             range: arg.getRange(),
                             message: diagnosticMessages.ARGUMENT_IS_INCOMPATIBLE,
-                            args: [quoteTypeFlags(argType.getTypeKind()), quoteTypeFlags(destTypeKind)]
+                            args: [typeKindToDisplayString(argType.getTypeKind()), typeKindToDisplayString(destTypeKind)]
                         });
                     }
                 }
@@ -1301,14 +1392,18 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<DiagnosticCollection |
 
 function createExpectedTypeMessage(destType: UCTypeKind, inputType: UCTypeKind): IDiagnosticMessage {
     return {
-        text: `Expected type '${quoteTypeFlags(destType)}', but got type '${quoteTypeFlags(inputType)}'.`,
+        text: `Expected type '${typeKindToDisplayString(destType)}', but got type '${typeKindToDisplayString(inputType)}'.`,
         severity: DiagnosticSeverity.Error
     };
 }
 
 function createTypeCannotBeAssignedToMessage(destType: UCTypeKind, inputType: UCTypeKind): IDiagnosticMessage {
     return {
-        text: `Type '${quoteTypeFlags(inputType)}' is not assignable to type '${quoteTypeFlags(destType)}'.`,
+        text: `Type '${typeKindToDisplayString(inputType)}' is not assignable to type '${typeKindToDisplayString(destType)}'.`,
         severity: DiagnosticSeverity.Error
     };
+}
+
+function typeKindToDisplayString(kind: UCTypeKind): string {
+    return TypeKindToName.get(kind)!.text;
 }

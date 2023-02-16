@@ -28,7 +28,9 @@ export class UCClassSymbol extends UCStructSymbol {
         | 1 << UCSymbolKind.Enum
         | 1 << UCSymbolKind.ScriptStruct
         | 1 << UCSymbolKind.Property
-        | 1 << UCSymbolKind.Function;
+        | 1 << UCSymbolKind.Function
+        | 1 << UCSymbolKind.Event
+        | 1 << UCSymbolKind.Delegate;
 
     declare outer: UCPackage;
     declare super?: UCClassSymbol;

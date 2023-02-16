@@ -8,8 +8,8 @@ import { isParamSymbol, isStruct, UCObjectSymbol } from './UC/Symbols';
 
 export function getWorkspaceSymbols(query: string): WorkspaceSymbol[] | undefined {
     const workspaceSymbols: WorkspaceSymbol[] = [];
-    for (let document of enumerateDocuments()) {
-        for (let symbol of document.enumerateSymbols()) {
+    for (const document of enumerateDocuments()) {
+        for (const symbol of document.enumerateSymbols()) {
             if (isSymbolDefined(symbol)) {
                 buildWorkSpaceSymbols(symbol);
             }

@@ -32,7 +32,7 @@ export function getDocumentSymbols(document: UCDocument): DocumentSymbol[] | und
 
     // Little hack, lend a hand and push all the class's children to the top.
     const symbols = document.enumerateSymbols();
-    for (let symbol of symbols) {
+    for (const symbol of symbols) {
         if (isSymbolDefined(symbol)) {
             const documentSymbol = toDocumentSymbol(symbol);
             documentSymbols.push(documentSymbol);

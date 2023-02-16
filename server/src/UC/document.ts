@@ -56,7 +56,7 @@ export class UCDocument {
     public readonly uri: DocumentUri;
 
     /** The current indexed TextDocument's version as reported by the client. */
-    public indexedVersion: number = 0;
+    public indexedVersion = 0;
 
     // TODO: Displace this with a DiagnosticCollection visitor.
     public nodes: IDiagnosticNode[] = [];
@@ -69,7 +69,7 @@ export class UCDocument {
     private readonly indexReferencesMade = new Map<NameHash, Set<SymbolReference>>();
 
     // List of symbols, including macro declarations.
-    private scope = new SymbolsTable<UCObjectSymbol>();
+    private readonly scope = new SymbolsTable<UCObjectSymbol>();
 
     constructor(readonly filePath: string, public readonly classPackage: UCPackage) {
         this.fileName = path.basename(filePath, '.uc');
@@ -78,7 +78,7 @@ export class UCDocument {
     }
 
     public enumerateSymbols() {
-        return this.scope.enumerateAll();
+        return this.scope.enumerate();
     }
 
     public addSymbol(symbol: UCObjectSymbol): void {
@@ -90,7 +90,7 @@ export class UCDocument {
     }
 
     public parse(text: string): DocumentParseData {
-        console.log('parsing document ' + this.fileName);
+        console.log(`parsing document "${this.fileName}"`);
 
         const inputStream = UCInputStream.fromString(text);
         const lexer = new UCLexer(inputStream);
@@ -110,7 +110,7 @@ export class UCDocument {
                 } catch (err) {
                     console.error(err);
                 } finally {
-                    console.info(this.fileName + ': preprocessing time ' + (performance.now() - startPreprocressing));
+                    console.info(`${this.fileName}: preprocessing time ${performance.now() - startPreprocressing}`);
                 }
             }
         }
@@ -144,7 +144,7 @@ export class UCDocument {
     }
 
     public build(text: string = this.readText()): DocumentParseData {
-        console.log('building document ' + this.fileName);
+        console.log(`building document "${this.fileName}"`);
 
         const inputStream = UCInputStream.fromString(text);
         const lexer = new UCLexer(inputStream);
@@ -166,7 +166,7 @@ export class UCDocument {
                 } catch (err) {
                     console.error(err);
                 } finally {
-                    console.info(this.fileName + ': preprocessing time ' + (performance.now() - startPreprocressing));
+                    console.info(`${this.fileName}: preprocessing time ${performance.now() - startPreprocressing}`);
                 }
             }
         }
@@ -208,7 +208,7 @@ export class UCDocument {
                     err
                 );
             }
-            console.info(this.fileName + ': transforming time ' + (performance.now() - startWalking));
+            console.info(`${this.fileName}: transforming time ${performance.now() - startWalking}`);
         }
         tokenStream.release(tokenStream.mark());
         this.nodes = this.nodes.concat(errorListener.nodes);
@@ -241,7 +241,9 @@ export class UCDocument {
         for (const [key, value] of this.indexReferencesMade) {
             const refs = IndexedReferencesMap.get(key);
             if (refs) {
-                value.forEach(ref => refs.delete(ref));
+                for (const ref of value) {
+                    refs.delete(ref);
+                }
             }
         }
         this.indexReferencesMade.clear();

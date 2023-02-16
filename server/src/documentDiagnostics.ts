@@ -18,7 +18,8 @@ function diagnosticsFromNodes(nodes: IDiagnosticNode[]) {
 }
 
 export function getDocumentDiagnostics(document: UCDocument): Diagnostic[] {
-    const documentAnalyzer = new DocumentAnalyzer(document);
-    const diagnostics = documentAnalyzer.visitDocument(document);
+    const diagnoser = new DocumentAnalyzer(document);
+    document.accept(diagnoser);
+    const diagnostics = diagnoser.getDiagnostics();
     return diagnosticsFromNodes(document.nodes).concat(diagnostics.toDiagnostic());
 }

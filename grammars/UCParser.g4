@@ -13,7 +13,13 @@ options {
         let token;
         do {
             token = this._input.get(i++);
-        } while (token.type !== UCParser.NEWLINE && token.type !== UCParser.EOF)
+            // We cannot consume an EOF token.
+            if (token.type === UCParser.EOF) {
+                break;
+            }
+            // We need to consume, incase the stream is not filled yet.
+            this._input.consume();
+        } while (token.type !== UCParser.NEWLINE)
         this._input.seek(i);
     }
 

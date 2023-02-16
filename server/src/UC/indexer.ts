@@ -57,7 +57,7 @@ export const defaultSettings: UCLanguageServerSettings = {
     generation: UCGeneration.UC3,
     licensee: UELicensee.Epic,
     analyzeDocuments: EAnalyzeOption.OnlyActive,
-    checkTypes: false,
+    checkTypes: true,
     macroSymbols: {
         'debug': ''
     },
@@ -112,7 +112,7 @@ export function indexDocument(document: UCDocument, text?: string): void {
         // We set this here to prevent any re-triggering within the following indexing process.
         document.hasBeenIndexed = true;
         if (document.class) {
-            for (let symbol of document.enumerateSymbols()) {
+            for (const symbol of document.enumerateSymbols()) {
                 symbol.index(document, document.class);
             }
         }
