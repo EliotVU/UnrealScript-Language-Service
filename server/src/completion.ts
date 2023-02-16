@@ -192,7 +192,7 @@ export async function getCompletableSymbolItems(uri: DocumentUri, position: Posi
     if (typeof data.context === 'undefined') {
         throw new Error('No parse context!');
     }
-    return buildCompletableSymbolItems(document, position, { context: data.context, parser: data.parser })
+    return buildCompletableSymbolItems(document, position, { context: data.context, parser: data.parser });
 }
 
 function insertTextForFunction(symbol: UCMethodSymbol): string {
@@ -281,7 +281,7 @@ async function buildCompletableSymbolItems(
     cc.preferredRules = PreferredRulesSet;
 
     const stream = data.parser.inputStream;
-    let carretToken = getCaretTokenFromStream(stream, position);
+    const carretToken = getCaretTokenFromStream(stream, position);
     if (!carretToken) {
         console.warn(`No carret token at ${position.line}:${position.character}`);
         // throw new Error(`No carret token at ${position}`);
@@ -397,7 +397,7 @@ async function buildCompletableSymbolItems(
     const items: CompletionItem[] = [];
     const symbols: ISymbol[] = [];
     let globalTypes: UCSymbolKind = UCSymbolKind.None;
-    let shouldIncludeTokenKeywords: boolean = true;
+    let shouldIncludeTokenKeywords = true;
 
     if (candidates.rules.has(UCParser.RULE_member) || carretRuleContext?.ruleIndex == UCParser.RULE_program) {
         if (isStruct(scopeSymbol)) {
@@ -563,7 +563,7 @@ async function buildCompletableSymbolItems(
                 }
             }
             else if (isWithin(UCParser.RULE_defaultValue)) {
-                let shouldIncludeConstants: Boolean = true;
+                let shouldIncludeConstants = true;
                 switch (rule) {
                     case UCParser.RULE_defaultIdentifierRef: {
                         if (carretContextSymbol && isTypeSymbol(carretContextSymbol)) {
@@ -644,7 +644,7 @@ async function buildCompletableSymbolItems(
 
                                     let i = 0;
                                     const expressions = properties.map(symbol => `${symbol.getName().text}=$${++i}`);
-                                    const structLiteralText: string = `(${expressions.join(',')})`;
+                                    const structLiteralText = `(${expressions.join(',')})`;
                                     const snippet: CompletionItem = buildSnippetSymbol(structLiteralText);
                                     items.push(snippet);
                                     break;
@@ -724,19 +724,23 @@ async function buildCompletableSymbolItems(
             case UCParser.RULE_qualifiedIdentifier: {
                 switch (contextRule) {
                     case UCParser.RULE_qualifiedIdentifierArguments: {
-                        globalTypes |= 1 << UCSymbolKind.Interface | 1 << UCSymbolKind.Package;
+                        globalTypes |= 1 << UCSymbolKind.Interface
+                            | 1 << UCSymbolKind.Package;
                         break;
                     }
 
                     case UCParser.RULE_extendsClause: {
                         switch (scopeSymbol?.kind) {
                             case UCSymbolKind.Class: {
-                                globalTypes |= 1 << UCSymbolKind.Class | 1 << UCSymbolKind.Package;
+                                globalTypes |= 1 << UCSymbolKind.Class
+                                    | 1 << UCSymbolKind.Package;
                                 break;
                             }
 
                             case UCSymbolKind.ScriptStruct: {
-                                globalTypes |= 1 << UCSymbolKind.ScriptStruct | 1 << UCSymbolKind.Class | 1 << UCSymbolKind.Package;
+                                globalTypes |= 1 << UCSymbolKind.ScriptStruct
+                                    | 1 << UCSymbolKind.Class
+                                    | 1 << UCSymbolKind.Package;
                                 break;
                             }
                         }
@@ -757,7 +761,8 @@ async function buildCompletableSymbolItems(
                     }
 
                     case UCParser.RULE_typeDecl: {
-                        globalTypes |= 1 << UCSymbolKind.Enum | 1 << UCSymbolKind.ScriptStruct;
+                        globalTypes |= 1 << UCSymbolKind.Enum
+                            | 1 << UCSymbolKind.ScriptStruct;
                         break;
                     }
                 }
@@ -784,7 +789,7 @@ async function buildCompletableSymbolItems(
 
                 if (contextSymbol) {
                     if (isPackage(contextSymbol)) {
-                        for (let symbol of ObjectsTable.enumerateKinds(PackageTypeContextSymbolKinds)) {
+                        for (const symbol of ObjectsTable.enumerateKinds(PackageTypeContextSymbolKinds)) {
                             if (symbol.outer !== contextSymbol) {
                                 continue;
                             }

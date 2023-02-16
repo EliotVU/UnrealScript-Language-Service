@@ -1,9 +1,6 @@
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
-import {
-    ContextKind, isFunction, isProperty, ISymbol, ModifierFlags, UCObjectSymbol, UCStructSymbol,
-    UCSymbolKind, UCTypeKind
-} from './';
+import { ContextKind, ISymbol, ModifierFlags, UCObjectSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
     static readonly allowedKindsMask = 1 << UCSymbolKind.Const

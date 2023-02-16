@@ -37,6 +37,8 @@ import {
     Identifier,
     INode,
     IntrinsicArray,
+    IntrinsicRotator,
+    IntrinsicVector,
     ISymbol,
     IWithIndex,
     IWithInnerSymbols,
@@ -543,6 +545,9 @@ export const StaticVectorType = new UCObjectTypeSymbol({ name: NAME_VECTOR, rang
 export const StaticRotatorType = new UCObjectTypeSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE });
 export const StaticRangeType = new UCObjectTypeSymbol({ name: NAME_RANGE, range: DEFAULT_RANGE });
 export const StaticMetaType = new UCMetaTypeSymbol({ name: NAME_TYPE, range: DEFAULT_RANGE });
+
+StaticVectorType.setRefNoIndex(IntrinsicVector);
+StaticRotatorType.setRefNoIndex(IntrinsicRotator);
 
 export const CastTypeSymbolMap: Readonly<WeakMap<Name, ITypeSymbol>> = new WeakMap([
     [NAME_BYTE, StaticByteType],

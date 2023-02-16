@@ -93,6 +93,7 @@ import {
     ITypeSymbol,
     MethodFlags,
     ModifierFlags,
+    StaticErrorType,
     UCArchetypeSymbol,
     UCArrayTypeSymbol,
     UCBinaryOperatorSymbol,
@@ -789,8 +790,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                     name: NAME_RETURNVALUE,
                     range: typeSymbol.getRange()
                 };
-                const returnValue = new UCParamSymbol(returnValueId);
-                returnValue.type = typeSymbol;
+                const returnValue = new UCParamSymbol(returnValueId, returnValueId.range, typeSymbol);
                 returnValue.modifiers |= paramModifiers;
 
                 this.declare(returnValue);
@@ -860,8 +860,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const varNode = ctx.variable();
 
         const identifier: Identifier = createIdentifier(varNode.identifier());
-        const symbol = new UCParamSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
-        symbol.type = typeSymbol;
+        const symbol = new UCParamSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop), typeSymbol);
         if (ctx._expr) {
             symbol.defaultExpression = ctx._expr.accept(this);
             modifiers |= ModifierFlags.Optional;
@@ -968,7 +967,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const symbol: UCPropertySymbol = new type(
             identifier,
             // Stop at varCtx instead of localCtx for multiple variable declarations.
-            rangeFromBounds(ctx.parent!.start, ctx.stop)
+            rangeFromBounds(ctx.parent!.start, ctx.stop),
+            StaticErrorType
         );
         this.initVariable(symbol, ctx);
         return symbol;

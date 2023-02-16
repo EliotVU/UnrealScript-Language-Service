@@ -24,12 +24,14 @@ import {
     NAME_PACKAGE,
     NAME_POINTERPROPERTY,
     NAME_PROPERTY,
+    NAME_ROTATOR,
     NAME_SCRIPTSTRUCT,
     NAME_STATE,
     NAME_STRINGPROPERTY,
     NAME_STRPROPERTY,
     NAME_STRUCT,
     NAME_STRUCTPROPERTY,
+    NAME_VECTOR,
 } from '../names';
 import {
     addHashedSymbol,
@@ -40,6 +42,7 @@ import {
     UCClassSymbol,
     UCPackage,
     UCPropertySymbol,
+    UCScriptStructSymbol,
 } from './';
 
 export const CORE_PACKAGE = new UCPackage(NAME_CORE);
@@ -49,20 +52,32 @@ export const IntrinsicObject = new UCClassSymbol({ name: NAME_OBJECT, range: DEF
 IntrinsicObject.modifiers |= ModifierFlags.Native | ModifierFlags.Abstract;
 IntrinsicObject.outer = CORE_PACKAGE;
 
-export const Object_OuterProperty = new UCPropertySymbol({ name: NAME_OUTER, range: DEFAULT_RANGE });
+export const IntrinsicVector = new UCScriptStructSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE });
+IntrinsicVector.outer = IntrinsicObject;
+
+export const IntrinsicRotator = new UCScriptStructSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE });
+IntrinsicRotator.outer = IntrinsicObject;
+
+export const Object_OuterProperty = new UCPropertySymbol(
+    { name: NAME_OUTER, range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticObjectType);
 Object_OuterProperty.modifiers |= ModifierFlags.Native;
-Object_OuterProperty.type = StaticObjectType;
 Object_OuterProperty.outer = IntrinsicObject;
+IntrinsicObject.addSymbol(Object_OuterProperty);
 
-export const Object_NameProperty = new UCPropertySymbol({ name: NAME_NAME, range: DEFAULT_RANGE });
+export const Object_NameProperty = new UCPropertySymbol(
+    { name: NAME_NAME, range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticNameType);
 Object_NameProperty.modifiers |= ModifierFlags.Native;
-Object_NameProperty.type = StaticNameType;
 Object_NameProperty.outer = IntrinsicObject;
+IntrinsicObject.addSymbol(Object_NameProperty);
 
-export const Object_ClassProperty = new UCPropertySymbol({ name: NAME_CLASS, range: DEFAULT_RANGE });
+export const Object_ClassProperty = new UCPropertySymbol(
+    { name: NAME_CLASS, range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticObjectType);
 Object_ClassProperty.modifiers |= ModifierFlags.Native;
-Object_ClassProperty.type = StaticObjectType;
 Object_ClassProperty.outer = IntrinsicObject;
+IntrinsicObject.addSymbol(Object_ClassProperty);
 
 export const IntrinsicField = new UCClassSymbol({ name: NAME_FIELD, range: DEFAULT_RANGE });
 IntrinsicField.modifiers |= ModifierFlags.Intrinsic;

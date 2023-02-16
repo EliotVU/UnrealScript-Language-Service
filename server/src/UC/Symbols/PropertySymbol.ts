@@ -5,6 +5,7 @@ import { config, UCGeneration } from '../indexer';
 import { SymbolWalker } from '../symbolWalker';
 import {
     ContextKind,
+    Identifier,
     isConstSymbol,
     isEnumSymbol,
     isEnumTagSymbol,
@@ -31,6 +32,11 @@ export class UCPropertySymbol extends UCFieldSymbol {
     // Array dimension is statically based on a declared symbol, such as a const or enum member.
     public arrayDimRef?: ITypeSymbol;
     public arrayDimRange?: Range;
+    
+	constructor(id: Identifier, range: Range, type: ITypeSymbol) {
+		super(id, range);
+        this.type = type;
+	}
 
     isDynamicArray(): this is { type: UCArrayTypeSymbol } {
         return (this.type?.getTypeKind() === UCTypeKind.Array);
