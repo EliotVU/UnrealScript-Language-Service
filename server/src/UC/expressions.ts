@@ -67,6 +67,7 @@ import { SymbolWalker } from './symbolWalker';
 export interface IExpression extends INode, IWithIndex, IWithInnerSymbols {
     getRange(): Range;
     getMemberSymbol(): ISymbol | undefined;
+    // TODO: Refactor to never return undefined, always return a StaticErrorType instead.
     getType(): ITypeSymbol | undefined;
     getSymbolAtPos(position: Position): ISymbol | undefined;
     getValue(): number | undefined;
@@ -91,7 +92,7 @@ export abstract class UCExpression implements IExpression {
     }
 
     getType(): ITypeSymbol | undefined {
-        return undefined;
+        return StaticErrorType;
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
@@ -557,43 +558,55 @@ export class UCBinaryOperatorExpression extends UCExpression {
         return this.left?.getSymbolAtPos(position) ?? this.right?.getSymbolAtPos(position);
     }
 
-    index(document: UCDocument, context: UCStructSymbol, info: ContextInfo = {}) {
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+        let leftType: ITypeSymbol;
         if (this.left) {
             this.left.index(document, context, info);
-
-            const type = this.left.getType();
-            info.contextType = type;
+            leftType = getExpressionTypeSafe(this.left);
+        } else {
+            leftType = StaticErrorType;
         }
-        this.right?.index(document, context, info);
+
+        let rightType: ITypeSymbol;
+        if (this.right) {
+            this.right.index(document, context, {
+                contextType: leftType
+            });
+            rightType = getExpressionTypeSafe(this.right);
+        } else {
+            rightType = StaticErrorType;
+        }
 
         if (this.operator) {
-            const leftType = this.left?.getType();
-            const rightType = this.right?.getType();
-            if (leftType && rightType) {
-                const opId = this.operator.getName();
-                const operatorSymbol = findOverloadedOperator(context, opId, (
-                    symbol => symbol.isBinaryOperator()
-                        && symbol.params?.length === 2
-                        && getConversionCost(leftType, symbol.params[0].getType()) === 1
-                        && getConversionCost(rightType, symbol.params[1].getType()) === 1
-                ));
-                if (operatorSymbol) {
-                    this.operator.setRef(operatorSymbol, document);
-                }
+            const opId = this.operator.getName();
+            const operatorSymbol = findOverloadedOperator(context, opId, (
+                symbol => symbol.isBinaryOperator()
+                    && symbol.params?.length === 2
+                    && getConversionCost(leftType, symbol.params[0].getType()) === 1
+                    && getConversionCost(rightType, symbol.params[1].getType()) === 1
+            ));
+            if (operatorSymbol) {
+                this.operator.setRef(operatorSymbol, document);
             }
         }
     }
 }
 
 export class UCAssignmentOperatorExpression extends UCBinaryOperatorExpression {
-    index(document: UCDocument, context: UCStructSymbol, info: ContextInfo = {}) {
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+        let leftType: ITypeSymbol;
         if (this.left) {
             this.left.index(document, context, { inAssignment: true });
-
-            const type = this.left.getType();
-            info.contextType = type;
+            leftType = getExpressionTypeSafe(this.left);
+        } else {
+            leftType = StaticErrorType;
         }
-        this.right?.index(document, context, info);
+
+        if (this.right) {
+            this.right.index(document, context, {
+                contextType: leftType
+            });
+        }
     }
 }
 
@@ -1217,4 +1230,8 @@ export class UCMetaClassExpression extends UCExpression {
         this.classRef?.index(document, context!);
         this.expression?.index(document, context, info);
     }
+}
+
+function getExpressionTypeSafe(expr: IExpression): ITypeSymbol {
+    return expr.getType() ?? StaticErrorType;
 }
