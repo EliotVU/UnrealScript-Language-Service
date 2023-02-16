@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import glob from 'glob';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
-import { BehaviorSubject, firstValueFrom, interval, Subject, Subscription } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, interval, of, Subject, Subscription } from 'rxjs';
 import { debounce, delay, filter, map, switchMap, tap, timeout } from 'rxjs/operators';
 import * as url from 'url';
 import { DocumentUri, TextDocument } from 'vscode-languageserver-textdocument';
@@ -244,7 +244,7 @@ function invalidatePendingDocuments() {
     }
 }
 
-async function awaitDocumentDelivery(uri: DocumentUri): Promise<UCDocument | undefined> {
+async function awaitDocumentDelivery(uri: DocumentUri, timeoutEach = 1000 * 60): Promise<UCDocument | undefined> {
     const document = getDocumentByURI(uri);
     if (document && document.hasBeenIndexed) {
         return document;
@@ -260,12 +260,15 @@ async function awaitDocumentDelivery(uri: DocumentUri): Promise<UCDocument | und
                 return !!doc!;
             }),
             timeout({
-                each: 1000 * 60
+                each: timeoutEach,
+                with: () => {
+                    return of(undefined);
+                }
             })
         ));
 }
 
-async function awaitDocumentBuilt(uri: DocumentUri): Promise<UCDocument | undefined> {
+async function awaitDocumentBuilt(uri: DocumentUri, timeoutEach = 1000 * 60): Promise<UCDocument | undefined> {
     const document = getDocumentByURI(uri);
     if (document && document.hasBeenBuilt) {
         return document;
@@ -275,7 +278,10 @@ async function awaitDocumentBuilt(uri: DocumentUri): Promise<UCDocument | undefi
         .pipe(
             filter(doc => doc.uri === uri),
             timeout({
-                each: 1000 * 60
+                each: timeoutEach,
+                with: () => {
+                    return of(undefined);
+                }
             })
         ));
 }
@@ -802,14 +808,14 @@ function setupFilePatterns(settings: UCLanguageServerSettings) {
 }
 
 connection.onHover(async (e) => {
-    const document = await awaitDocumentDelivery(e.textDocument.uri);
+    const document = await awaitDocumentDelivery(e.textDocument.uri, 5000);
     if (document) {
         return getDocumentTooltip(document, e.position);
     }
 });
 
 connection.onDefinition(async (e) => {
-    const document = await awaitDocumentDelivery(e.textDocument.uri);
+    const document = await awaitDocumentDelivery(e.textDocument.uri, 5000);
     if (document) {
         return getDocumentDefinition(document, e.position);
     }
