@@ -38,7 +38,7 @@ const partialConfig = {
                 }
             },
             {
-                from: './syntaxes/UnrealScript.YAML-tmLanguage',
+                from: './syntaxes/unrealscript.preprocessor.YAML-tmLanguage',
                 to: './unrealscript.preprocessor.tmLanguage.json',
                 transform: (input) => {
                     return Buffer.from(
