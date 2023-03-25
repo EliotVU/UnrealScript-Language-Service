@@ -106,8 +106,8 @@ let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasSemanticTokensCapability = false;
 
-let documentFileGlobPattern = "/**/*.{uc,uci}";
-let packageFileGlobPattern = "/**/*.{u,upk}";
+let documentFileGlobPattern = "**/*.{uc,uci}";
+let packageFileGlobPattern = "**/*.{u,upk}";
 
 // FIXME: Use glob pattern, and make the extension configurable.
 function isDocumentFileName(fileName: string): boolean {
@@ -122,7 +122,6 @@ function isPackageFileName(fileName: string): boolean {
 function getFiles(fsPath: string, pattern: string): Promise<string[]> {
     return new Promise((resolve, reject) => {
         return glob(pattern, {
-            cwd: fsPath,
             root: fsPath,
             realpath: true,
             nosort: true,
@@ -672,7 +671,7 @@ function applyConfiguration(settings: UCLanguageServerSettings) {
     setupFilePatterns(settings);
 }
 
-/** 
+/**
  * Auto-detects the UnrealScript generation.
  * This test is performed before any parsing/indexing has occurred, although it may also re-occur after a re-index.
  * The code should assume that no UC symbols do exist other than packages.
@@ -799,12 +798,12 @@ function setupFilePatterns(settings: UCLanguageServerSettings) {
     const packageFileExtensions = settings.indexPackageExtensions
         ?.filter(ext => /^\w+$/.test(ext)) // prevent injection
         ?? ['u', 'upk'];
-    packageFileGlobPattern = `/**/*.{${packageFileExtensions.join(',')}}`;
+    packageFileGlobPattern = `**/*.{${packageFileExtensions.join(',')}}`;
 
     const documentFileExtensions = settings.indexDocumentExtensions
         ?.filter(ext => /^\w+$/.test(ext)) // prevent injection
         ?? ['uc', 'uci'];
-    documentFileGlobPattern = `/**/*.{${documentFileExtensions.join(',')}}`;
+    documentFileGlobPattern = `**/*.{${documentFileExtensions.join(',')}}`;
 }
 
 connection.onHover(async (e) => {
