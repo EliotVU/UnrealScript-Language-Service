@@ -23,7 +23,6 @@ import {
     WorkspaceEdit,
     WorkspaceFolder,
 } from 'vscode-languageserver/node';
-import { URI } from 'vscode-uri';
 
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { buildCodeActions } from './codeActions';
@@ -71,7 +70,7 @@ import {
     CORE_PACKAGE,
     DEFAULT_RANGE,
     IntrinsicArray,
-    isClass as isClass,
+    isClass,
     isField,
     ISymbol,
     ModifierFlags,
@@ -115,24 +114,19 @@ function isDocumentFileName(fileName: string): boolean {
     return !isPackageFileName(fileName);
 }
 
+// FIXME: case-sensitive
 function isPackageFileName(fileName: string): boolean {
     return fileName.endsWith('.u');
 }
 
 function getFiles(fsPath: string, pattern: string): Promise<string[]> {
-    return new Promise((resolve, reject) => {
-        return glob(pattern, {
-            root: fsPath,
-            realpath: true,
-            nosort: true,
-            nocase: true,
-            nodir: true
-        }, (err, matches) => {
-            if (err) {
-                return reject(err);
-            }
-            resolve(matches);
-        });
+    return glob(pattern, {
+        root: fsPath,
+        realpath: true,
+        nocase: true,
+        nodir: true,
+        absolute: true,
+        ignore: 'node_modules/**'
     });
 }
 
@@ -146,7 +140,7 @@ async function getWorkspaceFiles(folders: WorkspaceFolder[], reason: string): Pr
     let packageFiles: string[] = [];
 
     for (const folder of folders) {
-        const folderFSPath = URI.parse(folder.uri).fsPath;
+        const folderFSPath = url.fileURLToPath(folder.uri);
         connection.console.info(`Scanning folder '${folderFSPath}' using pattern '${packageFileGlobPattern}', '${documentFileGlobPattern}'`);
         await Promise.all([
             getFiles(folderFSPath, packageFileGlobPattern).then((matches) => {
