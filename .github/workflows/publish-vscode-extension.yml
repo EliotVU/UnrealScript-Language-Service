@@ -1,11 +1,16 @@
+name: Publish Visual Studio Code Extension
+
 on:
   push:
     tags:
-      - 'release-*'
-
-name: Deploy Extension
+      - 'Release-*'
+      - 'pre-release-*'
+    branches:
+      - master
+  workflow_run:
+    
 jobs:
-  deploy:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -14,8 +19,9 @@ jobs:
           node-version: 16
       - run: npm ci
       - name: Publish to Visual Studio Marketplace
-        uses: HaaLeo/publish-vscode-extension@v0
+        uses: HaaLeo/publish-vscode-extension@v1
         with:
           pat: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
           noVerify: true
+          preRelease: startsWith(github.ref_name, 'pre-release')
