@@ -28,8 +28,8 @@ const partialConfig = {
     plugins: [
         new CopyPlugin({
             patterns: [{
-                from: './syntaxes/unrealscript.YAML-tmLanguage',
-                to: './unrealscript.tmLanguage.json',
+                from: './syntaxes/UnrealScript.YAML-tmLanguage',
+                to: './UnrealScript.tmLanguage.json',
                 transform: (input) => {
                     return Buffer.from(
                         JSON.stringify(jsyaml.load(input.toString('utf8'))),

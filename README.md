@@ -25,12 +25,13 @@ So far the extension has implemented support for the following features:
 
 ## How to build
 
-* Fork and/or clone this repository.
-* Open the folder where your cloned repository resides, in Visual Studio Code (Open folder).
-* Make sure that you have the latest NodeJS and NPM installed!
-* Go to "Run and Debug" or CTRL+Shift+D and select "Launch Extension", or press F5 for short, this should build (and watch) the project and proceed to launch another VSCode window (so called "Extension Host Development") with this repository's extension enabled.
-* You can also manually watch for changes by executing the following in a commandline: npm run watch
-* You are now free to make modifications, if compiled successfully, go to your "Extension Host Development" instance and press CTRL+R+R to restart the instance.
+1. Clone this repository.
+2. Ensure you have the latest [NodeJS 18](https://nodejs.org/en/download)
+3. Run `npm install` in the root directory of the cloned repository (where the package.json is located)
+5. Open the root directory in Visual Studio Code.
+6. Launch the task `Launch Client` (shortcut **F5**)
+7. If all went right, a new instanced window of Visual Studio Code should appear and be running the extension.
+8. After making any changes, press (CTRL+Shift+P) and look for "Restart Extension Host" to re-run the extension with the new changes.
 
 ## Contribution
 

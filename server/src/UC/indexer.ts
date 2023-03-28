@@ -1,9 +1,9 @@
 import path from 'path';
 import { performance } from 'perf_hooks';
 import { Subject } from 'rxjs';
+import * as url from 'url';
 import { Location } from 'vscode-languageserver';
 import { DocumentUri } from 'vscode-languageserver-textdocument';
-import { URI } from 'vscode-uri';
 
 import { EAnalyzeOption, UCLanguageServerSettings } from '../settings';
 import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
@@ -210,26 +210,28 @@ export function createDocumentByPath(filePath: string, pkg: UCPackage) {
     }
 
     document = new UCDocument(filePath, pkg);
-    documentsByPathMap.set(filePath, document);
+    // FIXME: Temporary fix around Glob 9.*, for some reason it returns results with cases that do not match its root input...
+    documentsByPathMap.set(filePath.toLowerCase(), document);
     documentsMap.set(document.name.hash, document);
     return document;
 }
 
 export function removeDocumentByPath(filePath: string) {
-    const document = documentsByPathMap.get(filePath);
+    const filePathLowerCase = filePath.toLowerCase();
+    const document = documentsByPathMap.get(filePathLowerCase);
     if (!document) {
         return;
     }
 
     // TODO: Re-index dependencies? (blocked by lack of a dependencies tree!)
     document.invalidate();
-    documentsByPathMap.delete(filePath);
+    documentsByPathMap.delete(filePathLowerCase);
     documentsMap.delete(document.name.hash);
 }
 
 export function getDocumentByURI(uri: DocumentUri): UCDocument | undefined {
-    const filePath = URI.parse(uri).fsPath;
-    const document = documentsByPathMap.get(filePath);
+    const filePathLowerCase = url.fileURLToPath(uri).toLowerCase();
+    const document = documentsByPathMap.get(filePathLowerCase);
     return document;
 }
 

@@ -3,6 +3,7 @@ import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
+import * as url from 'url';
 import { DocumentUri } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
@@ -216,7 +217,7 @@ export class UCDocument {
     }
 
     public readText(): string {
-        const filePath = URI.parse(this.uri).fsPath;
+        const filePath = url.fileURLToPath(this.uri);
         const text = fs.readFileSync(filePath).toString();
         return text;
     }
