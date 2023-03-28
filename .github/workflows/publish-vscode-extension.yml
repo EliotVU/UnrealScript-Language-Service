@@ -7,7 +7,6 @@ on:
       - 'pre-release-*'
     branches:
       - master
-  workflow_run:
     
 jobs:
   publish:
