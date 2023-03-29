@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'Release-*'
+      - 'Hotfix-*'
       - 'pre-release-*'
     branches:
       - master
