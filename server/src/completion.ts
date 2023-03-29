@@ -272,14 +272,6 @@ async function buildCompletableSymbolItems(
         return symbolItems;
     }
 
-    const cc = new c3.CodeCompletionCore(data.parser);
-    // cc.showResult = true;
-    // cc.showRuleStack = true;
-    // cc.showDebugOutput = true;
-    cc.translateRulesTopDown = false;
-    cc.ignoredTokens = currentIgnoredTokensSet;
-    cc.preferredRules = PreferredRulesSet;
-
     const stream = data.parser.inputStream;
     const carretToken = getCaretTokenFromStream(stream, position);
     if (!carretToken) {
@@ -291,16 +283,26 @@ async function buildCompletableSymbolItems(
         'completion::carretToken'.padEnd(42),
         getTokenDebugInfo(carretToken, data.parser));
 
+    if (carretToken.channel === UCLexer.COMMENTS_CHANNEL) {
+        // TODO: In this case we could suggest parameters based on the scope symbol we can retrieve from the @leadingToken.
+        return;
+    }
+
+    if (carretToken.type === UCLexer.STRING_LITERAL) {
+        // TODO: We could suggest objects if used as an Object Literal (in a T3D context)
+        return;
+    }
+
     let leadingToken = carretToken;
-    if (leadingToken.type == UCLexer.OPEN_PARENS
-        || leadingToken.type == UCLexer.OPEN_BRACE
-        || leadingToken.type == UCLexer.OPEN_BRACKET
-        || leadingToken.type == UCLexer.LT
-        || leadingToken.type == UCLexer.COMMA
-        || leadingToken.type == UCLexer.DOT
-        || leadingToken.type == UCLexer.ASSIGNMENT
-        || leadingToken.type == UCLexer.SEMICOLON
-        || leadingToken.type == UCLexer.COLON) {
+    if (leadingToken.type === UCLexer.OPEN_PARENS
+        || leadingToken.type === UCLexer.OPEN_BRACE
+        || leadingToken.type === UCLexer.OPEN_BRACKET
+        || leadingToken.type === UCLexer.LT
+        || leadingToken.type === UCLexer.COMMA
+        || leadingToken.type === UCLexer.DOT
+        || leadingToken.type === UCLexer.ASSIGNMENT
+        || leadingToken.type === UCLexer.SEMICOLON
+        || leadingToken.type === UCLexer.COLON) {
         leadingToken = stream.get(leadingToken.tokenIndex + 1);
     }
 
@@ -344,6 +346,14 @@ async function buildCompletableSymbolItems(
     console.info(
         'completion::scopeRuleContext'.padEnd(42),
         getCtxDebugInfo(scopeRuleContext, data.parser));
+
+    const cc = new c3.CodeCompletionCore(data.parser);
+    // cc.showResult = true;
+    // cc.showRuleStack = true;
+    // cc.showDebugOutput = true;
+    cc.translateRulesTopDown = false;
+    cc.ignoredTokens = currentIgnoredTokensSet;
+    cc.preferredRules = PreferredRulesSet;
     const candidates = cc.collectCandidates(leadingToken.tokenIndex, scopeRuleContext);
     // if (process.env.NODE_ENV === 'development') {
     //     console.debug('completion::tokens', Array

@@ -28,6 +28,7 @@ import {
     UCSizeOfLiteral,
     UCSuperExpression,
 } from './expressions';
+import { intersectsWithRange } from './helpers';
 import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from './statements';
 import {
     Identifier,
@@ -134,7 +135,7 @@ export const TypeToTokenTypeIndexMap = {
 export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
     private semanticTokensBuilder = new SemanticTokensBuilder();
 
-    constructor() {
+    constructor(private range?: Range) {
         super();
     }
 
@@ -195,7 +196,18 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
     }
 
     visitDocument(document: UCDocument): SemanticTokens {
-        super.visitDocument(document);
+        if (typeof this.range === 'undefined') {
+            super.visitDocument(document);
+        } else {
+            const symbols = document.enumerateSymbols();
+            for (const symbol of symbols) {
+                if (!intersectsWithRange(symbol.getRange().start, this.range)) {
+                    continue;
+                }
+                symbol.accept(this);
+            }
+        }
+        
         return this.getTokens();
     }
 

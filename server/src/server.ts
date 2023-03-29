@@ -17,6 +17,7 @@ import {
     ProposedFeatures,
     Range,
     ResponseError,
+    TextDocumentIdentifier,
     TextDocumentSyncKind,
     TextEdit,
     WorkspaceChange,
@@ -237,33 +238,32 @@ function invalidatePendingDocuments() {
     }
 }
 
-async function awaitDocumentDelivery(uri: DocumentUri, timeoutEach = 1000 * 60): Promise<UCDocument | undefined> {
-    const document = getDocumentByURI(uri);
-    if (document && document.hasBeenIndexed) {
+async function awaitDocumentDelivery(textDocument: TextDocument | TextDocumentIdentifier, timeoutEach = 1000 * 60): Promise<UCDocument | undefined> {
+    const document = getDocumentByURI(textDocument.uri);
+    if (document?.hasBeenIndexed) {
         return document;
     }
 
+    const indexedVersion = 'version' in textDocument
+        ? textDocument.version
+        : undefined;
+
     return firstValueFrom(documentsCodeIndexed$
         .pipe(
-            map(docs => {
-                const doc = docs.find((d => d.uri === uri));
-                return doc;
-            }),
-            filter(doc => {
-                return !!doc!;
-            }),
+            map(docs => docs.find((d => d.uri === textDocument.uri
+                && (typeof indexedVersion === 'undefined' || d.indexedVersion === indexedVersion)
+            ))),
+            filter(doc => !!doc!),
             timeout({
                 each: timeoutEach,
-                with: () => {
-                    return of(undefined);
-                }
+                with: () => of(undefined)
             })
         ));
 }
 
 async function awaitDocumentBuilt(uri: DocumentUri, timeoutEach = 1000 * 60): Promise<UCDocument | undefined> {
     const document = getDocumentByURI(uri);
-    if (document && document.hasBeenBuilt) {
+    if (document?.hasBeenBuilt) {
         return document;
     }
 
@@ -278,7 +278,6 @@ async function awaitDocumentBuilt(uri: DocumentUri, timeoutEach = 1000 * 60): Pr
             })
         ));
 }
-
 
 const connection = createConnection(ProposedFeatures.all);
 connection.listen();
@@ -367,7 +366,7 @@ connection.onInitialize((params: InitializeParams) => {
             semanticTokensProvider: {
                 documentSelector: null,
                 full: true,
-                range: false,
+                range: true,
                 legend: {
                     tokenTypes: TokenTypes,
                     tokenModifiers: TokenModifiers
@@ -609,18 +608,23 @@ connection.onInitialized((params) => {
     }
 
     if (hasSemanticTokensCapability) {
-        connection.languages.semanticTokens.on(async e => {
-            const document = await awaitDocumentDelivery(e.textDocument.uri);
+        async function getSemanticTokens(textDocument: TextDocumentIdentifier, range?: Range) {
+            const document = await awaitDocumentBuilt(textDocument.uri);
             if (document) {
-                return getDocumentSemanticTokens(document);
+                return getDocumentSemanticTokens(document, range);
             }
 
             return {
                 data: []
             };
+        }
+
+        connection.languages.semanticTokens.on(e => {
+            return getSemanticTokens(e.textDocument);
         });
-        // TODO: Support range
-        // connection.languages.semanticTokens.onRange(e => getSemanticTokens(e.textDocument.uri));
+        connection.languages.semanticTokens.onRange(e => {
+            return getSemanticTokens(e.textDocument, e.range);
+        });
     }
 
     // We need to sync the opened document with current state.
@@ -801,14 +805,14 @@ function setupFilePatterns(settings: UCLanguageServerSettings) {
 }
 
 connection.onHover(async (e) => {
-    const document = await awaitDocumentDelivery(e.textDocument.uri, 5000);
+    const document = await awaitDocumentDelivery(e.textDocument, 5000);
     if (document) {
         return getDocumentTooltip(document, e.position);
     }
 });
 
 connection.onDefinition(async (e) => {
-    const document = await awaitDocumentDelivery(e.textDocument.uri, 5000);
+    const document = await awaitDocumentDelivery(e.textDocument, 5000);
     if (document) {
         return getDocumentDefinition(document, e.position);
     }
