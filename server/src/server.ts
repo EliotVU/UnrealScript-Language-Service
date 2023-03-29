@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import glob from 'glob';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
 import { BehaviorSubject, firstValueFrom, interval, of, Subject, Subscription } from 'rxjs';
@@ -87,6 +86,7 @@ import {
     UCTypeKind,
 } from './UC/Symbols';
 import { UnrealPackage } from './UPK/UnrealPackage';
+import { getFiles, isDocumentFileName } from './workspace';
 import { getWorkspaceSymbols } from './workspaceSymbol';
 
 /**
@@ -108,28 +108,6 @@ let hasSemanticTokensCapability = false;
 
 let documentFileGlobPattern = "**/*.{uc,uci}";
 let packageFileGlobPattern = "**/*.{u,upk}";
-
-// FIXME: Use glob pattern, and make the extension configurable.
-function isDocumentFileName(fileName: string): boolean {
-    // Implied because we only receive one of the two.
-    return !isPackageFileName(fileName);
-}
-
-// FIXME: case-sensitive
-function isPackageFileName(fileName: string): boolean {
-    return fileName.endsWith('.u');
-}
-
-function getFiles(fsPath: string, pattern: string): Promise<string[]> {
-    return glob(pattern, {
-        root: fsPath,
-        realpath: true,
-        nocase: true,
-        nodir: true,
-        absolute: true,
-        ignore: 'node_modules/**'
-    });
-}
 
 type WorkspaceFiles = {
     documentFiles: string[];
