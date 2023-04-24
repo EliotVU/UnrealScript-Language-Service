@@ -88,12 +88,24 @@
     "extensionKind": [
         "workspace"
     ],
-    "configurationDefaults": {
-        "[unrealscript]": {
-            "editor.semanticHighlighting.enabled": true
-        }
-    },
     "contributes": {
+        "configurationDefaults": {
+            "editor.semanticHighlighting.enabled": true,
+            "editor.semanticTokenColorCustomizations": {
+                "rules": {
+                    "*.intrinsic": {
+                        "italic": true
+                    },
+                    "*.native": {
+                        "italic": true
+                    },
+                    "archetype": {
+                        "italic": true,
+                        "foreground": "#eeee00"
+                    }
+                }
+            }
+        },
         "configuration": {
             "type": "object",
             "title": "UnrealScript",
@@ -338,24 +350,12 @@
             {
                 "language": "unrealscript",
                 "scopes": {
-                    "intrinsic": [
+                    "*.intrinsic": [
                         "support.other.uc"
-                    ],
-                    "native": [
-                        "keyword.constant.uc"
-                    ],
-                    "archetype": [
-                        "variable.other.constant.uc"
                     ]
                 }
             }
         ],
-        "semanticTokenColors": {
-            "archetype:unrealscript": "#885524",
-            "*.native:unrealscript": {
-                "background": "#552424"
-            }
-        },
         "snippets": [
             {
                 "language": "unrealscript",
