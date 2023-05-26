@@ -587,6 +587,22 @@ async function buildCompletableSymbolItems(
 
                             const typeKind = letType.getTypeKind();
                             switch (typeKind) {
+                                case UCTypeKind.Byte:
+                                case UCTypeKind.Int:
+                                case UCTypeKind.Bool:
+                                case UCTypeKind.Float:
+                                case UCTypeKind.String:
+                                case UCTypeKind.Button:
+                                case UCTypeKind.Array:
+                                case UCTypeKind.Map:
+                                case UCTypeKind.Pointer:
+                                case UCTypeKind.Enum:
+                                case UCTypeKind.Struct:
+                                    candidates.tokens.delete(UCParser.NONE_LITERAL);
+                                    break;
+                            }
+
+                            switch (typeKind) {
                                 case UCTypeKind.Object:
                                     globalTypes |= 1 << UCSymbolKind.Class
                                         | 1 << UCSymbolKind.Interface
@@ -595,19 +611,10 @@ async function buildCompletableSymbolItems(
                                     break;
 
                                 case UCTypeKind.Bool:
-                                    candidates.tokens.delete(UCParser.NONE_LITERAL);
                                     items.push(
                                         { label: 'false', kind: CompletionItemKind.Keyword },
                                         { label: 'true', kind: CompletionItemKind.Keyword }
                                     );
-                                    break;
-
-                                case UCTypeKind.Float:
-                                case UCTypeKind.Int:
-                                case UCTypeKind.String:
-                                case UCTypeKind.Array:
-                                    // TODO: Figure out the extent of 'None' in a T3D context.
-                                    candidates.tokens.delete(UCParser.NONE_LITERAL);
                                     break;
 
                                 case UCTypeKind.Name:
@@ -617,8 +624,6 @@ async function buildCompletableSymbolItems(
 
                                 case UCTypeKind.Enum:
                                 case UCTypeKind.Byte: {
-                                    candidates.tokens.delete(UCParser.NONE_LITERAL);
-
                                     const enumSymbol = resolveType(letType).getRef<UCEnumSymbol>();
                                     if (enumSymbol && isEnumSymbol(enumSymbol)) {
                                         symbols.push(enumSymbol); // context suggestion
