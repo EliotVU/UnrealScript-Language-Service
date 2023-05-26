@@ -2,7 +2,7 @@ import { Position, Range } from 'vscode-languageserver';
 
 import { UCDocument } from './document';
 import { intersectsWith } from './helpers';
-import { config, getEnumMember } from './indexer';
+import { config, getConstSymbol, getEnumMember } from './indexer';
 import {
     CastTypeSymbolMap,
     ContextInfo,
@@ -22,6 +22,7 @@ import {
     IntrinsicRngLiteral,
     IntrinsicRotLiteral,
     IntrinsicVectLiteral,
+    isArchetypeSymbol,
     isConstSymbol,
     isFunction,
     isOperator,
@@ -51,6 +52,7 @@ import {
     tryFindClassSymbol,
     UCArrayTypeSymbol,
     UCClassSymbol,
+    UCEnumSymbol,
     UCMethodSymbol,
     UCNodeKind,
     UCObjectSymbol,
@@ -766,7 +768,7 @@ export class UCDefaultMemberCallExpression extends UCExpression {
                     argInfo.inAssignment = param.hasAnyModifierFlags(ModifierFlags.Out);
                     this.arguments[i].index(document, context, argInfo);
                 } else {
-                    // * Excessive arguments, we will still index the arguements.
+                    // * Excessive arguments, we will still index the arguments.
                     this.arguments[i].index(document, context, {
                         contextType: typeParameter,
                         inAssignment: false
@@ -803,16 +805,19 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
             return;
         }
 
-        // TODO: Const precedence?
-
         const name = this.id.name;
         let member: UCObjectSymbol | undefined;
         switch (kind) {
-            case UCTypeKind.Byte:
+            case UCTypeKind.Enum: {
+                // Search is restricted to the property enum's tags
+                const enumSymbol = info.contextType.getRef<UCEnumSymbol>()!;
+                member = enumSymbol.getSymbol(name);
+                break;
+            }
+
             case UCTypeKind.Int:
-            case UCTypeKind.Enum:
-                // FIXME: Constants should take precedence
-                member = getEnumMember(name);
+                // UE3 behavior, a name can match with any object outside of the current scope. 
+                member = getConstSymbol(name) ?? getEnumMember(name);
                 break;
 
             case UCTypeKind.Object:
@@ -828,36 +833,37 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
                 break;
             }
 
-            /**
-             * Note: a name identifier takes precedence over a const that may have a name literal.
-             * e.g.
-             * const myName = 'myConstName';
-             * literalName=myName
-             * Will be resolved as 'myName' instead of 'myConstName'
-             */
             case UCTypeKind.Name: {
                 const type = new UCTypeSymbol(UCTypeKind.Name, this.id.range);
                 this.type = type;
                 break;
             }
+        }
 
-            default: {
-                // Pickup const variables...
-                const classContext = getOuter<UCClassSymbol>(context, UCSymbolKind.Class);
-                console.assert(classContext, 'No class context for defaultproperties block!', context.getPath());
-                member = classContext?.findSuperSymbol(name, UCSymbolKind.Const);
-                break;
+        // Fall back to a constants search within the current class or the subobject's class.
+        // FIXME: Technically, we should also look for a constant even if we have a defined @member, if the defined member is also incompatible.
+        if (!member && kind !== UCTypeKind.Delegate) {
+            const classContext = getOuter<UCClassSymbol>(context, UCSymbolKind.Class)!;
+            console.assert(classContext, 'No class context for defaultproperties block!', context.getPath());
+
+            member = classContext.findSuperSymbol(name, UCSymbolKind.Const);
+            // Search within the subobject's class
+            if (!member && isArchetypeSymbol(context)) {
+                member = context.findSuperSymbol(name, UCSymbolKind.Const);
             }
         }
 
-        if (member) {
-            const type = new UCObjectTypeSymbol(this.id);
-            const ref = type.setRef(member, document)!;
-            if (info) {
-                ref.inAssignment = info.inAssignment;
-            }
-            this.type = type;
+        // All searches have failed.
+        if (!member) {
+            return;
         }
+
+        const type = new UCObjectTypeSymbol(this.id);
+        const ref = type.setRef(member, document)!;
+        if (info) {
+            ref.inAssignment = info.inAssignment;
+        }
+        this.type = type;
     }
 }
 

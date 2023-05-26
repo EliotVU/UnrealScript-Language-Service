@@ -16,6 +16,7 @@ import {
     ObjectsTable,
     SymbolReference,
     TRANSIENT_PACKAGE,
+    UCConstSymbol,
     UCEnumMemberSymbol,
     UCPackage,
     UCSymbolKind,
@@ -270,4 +271,11 @@ export function getEnumMember(enumMemberName: Name): UCEnumMemberSymbol | undefi
 }
 export function setEnumMember(enumMember: UCEnumMemberSymbol) {
     EnumMemberMap.set(enumMember.getName().hash, enumMember);
+}
+
+/**
+ * Find the first matching const, irregardless of scope.
+ **/
+export function getConstSymbol(name: Name): UCConstSymbol | undefined {
+    return ObjectsTable.getSymbol(name, UCSymbolKind.Const);
 }
