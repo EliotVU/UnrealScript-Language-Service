@@ -267,7 +267,14 @@
                 "extensions": [
                     ".uc"
                 ],
-                "configuration": "./language-configuration.json"
+                "filenamePatterns": [
+                    "[a-zA-Z_][a-zA-Z0-9_]*"
+                ],
+                "configuration": "./language-configuration.json",
+                "icon": {
+                    "dark": "./FileIcon.png",
+                    "light": "./FileIcon.png"
+                }
             },
             {
                 "id": "unrealscript-pp",
@@ -278,16 +285,17 @@
                 "extensions": [
                     ".uci"
                 ],
-                "configuration": "./language-configuration.json"
+                "configuration": "./language-configuration.json",
+                "icon": {
+                    "dark": "./FileIcon.png",
+                    "light": "./FileIcon.png"
+                }
             },
             {
                 "id": "ini",
                 "extensions": [
                     ".upkg",
                     ".ucproject"
-                ],
-                "filenamePatterns": [
-                    "[w]+"
                 ]
             }
         ],
