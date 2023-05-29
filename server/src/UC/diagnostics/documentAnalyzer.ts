@@ -978,6 +978,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     // FIXME: inferred type, this is unfortunately complicated :(
                     this.checkArguments(symbol, expr);
                 } else if (isTypeSymbol(symbol)) {
+                    // ! We are validating a conversion
+                    if (!config.checkTypes)
+                        return;
+
                     const firstArgument = expr.arguments && expr.arguments.length === 1
                         ? expr.arguments[0]
                         : undefined;
@@ -1347,7 +1351,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             }
 
             if (config.checkTypes) {
-                const paramType = (param.getType() !== StaticMetaType ? param.getType() : undefined) ?? inferredType;
+                const paramType = (param.getType() === StaticMetaType ? undefined : param.getType()) ?? inferredType;
 
                 // We'll play nice by not pushing any errors if the method's param has no found or defined type,
                 // -- the 'type not found' error will suffice.

@@ -31,6 +31,24 @@ options {
     isKeywordToken(token: Token): boolean {
         return token.type >= UCParser.KW_DEFAULT && token.type < UCParser.ID;
     }
+
+    isPreOperator(): boolean {
+        return false;
+    }
+
+    isPostOperator(): boolean {
+        return false;
+    }
+
+    isBinaryOperator(): boolean {
+        // FIXME: slow, we should figure a way to hash any identifier on the lexer-phase.
+        const id = this._input.LT(1).text!.toLowerCase();
+        // TODO: Match to a runtime map
+        if (id === 'dot' || id === 'cross') {
+            return true;
+        }
+        return false;
+    }
 }
 
 // Class modifier keywords have been commented out, because we are not using them for parsing.
@@ -897,10 +915,10 @@ assignmentExpression
 	;
 
 primaryExpression
-	: primaryExpression (OPEN_BRACKET arg=expression? CLOSE_BRACKET) 						#elementAccessExpression
-	| primaryExpression '.' classPropertyAccessSpecifier '.' identifier						#propertyClassAccessExpression
+	: primaryExpression '.' classPropertyAccessSpecifier '.' identifier						#propertyClassAccessExpression
 	| primaryExpression '.' identifier?												        #propertyAccessExpression
 	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 								#callExpression
+	| primaryExpression (OPEN_BRACKET arg=expression? CLOSE_BRACKET) 						#elementAccessExpression
 
 	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? expr=primaryExpression			#newExpression
 	| 'class' 		(LT identifier GT) (OPEN_PARENS expr=expression CLOSE_PARENS)			#metaClassExpression
@@ -918,9 +936,11 @@ primaryExpression
 	| id=SHARP right=primaryExpression														#preOperatorExpression
 	| id=DOLLAR right=primaryExpression														#preOperatorExpression
 	| id=AT right=primaryExpression															#preOperatorExpression
+    // | { this.isPreOperator() }? id=identifier right=primaryExpression                       #preNamedOperatorExpression  
 
 	| left=primaryExpression id=INCR 														#postOperatorExpression
 	| left=primaryExpression id=DECR 														#postOperatorExpression
+    // | left=primaryExpression { this.isPostOperator() }? id=identifier                       #postNamedOperatorExpression
 
 	| left=primaryExpression id=(ASSIGNMENT_INCR
 		| ASSIGNMENT_DECR
@@ -944,12 +964,14 @@ primaryExpression
 	| left=primaryExpression id=OR right=primaryExpression 									#binaryOperatorExpression
 	| left=primaryExpression id=(DOLLAR|AT) right=primaryExpression 						#binaryOperatorExpression
 
-	// Note, checking for ID instead of identifier here,
-	// -- so that we don't missmtach 'if, or return' statements
-	// -- after a foreach's expression.
-	| left=primaryExpression id=ID right=primaryExpression 									#binaryNamedOperatorExpression
+	| left=primaryExpression { this.isBinaryOperator() }? 
+      id=identifier right=primaryExpression                                                 #binaryNamedOperatorExpression
 
-	| <assoc=right> cond=primaryExpression INTERR left=primaryExpression COLON right=primaryExpression	#conditionalExpression
+    // TODO: Only valid if the conditional resolves to a boolean type.
+	| <assoc=right> 
+      cond=primaryExpression INTERR 
+      left=primaryExpression COLON 
+      right=primaryExpression	                                                            #conditionalExpression
 
 	| 'self'																				#selfReferenceExpression
 	| 'default'																				#defaultReferenceExpression

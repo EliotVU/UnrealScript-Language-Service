@@ -608,7 +608,13 @@ export function getTypeConversionFlags(inputTypeKInd: UCTypeKind, destTypeKind: 
     return TypeConversionFlagsTable[destTypeKind][inputTypeKInd];
 }
 
-export function getConversionCost(inputType: ITypeSymbol, destType: ITypeSymbol): number {
+export const enum UCConversionCost {
+    Negative = -1,
+    Zero = 0,
+    Positive = 1,
+}
+
+export function getConversionCost(inputType: ITypeSymbol, destType: ITypeSymbol): UCConversionCost {
     let inputTypeKind = inputType.getTypeKind();
     if (inputTypeKind === UCTypeKind.Struct) {
         if (inputType.getName() === NAME_VECTOR) {
@@ -627,17 +633,17 @@ export function getConversionCost(inputType: ITypeSymbol, destType: ITypeSymbol)
     }
 
     if (inputTypeKind === destTypeKind) {
-        return 1;
+        return UCConversionCost.Zero;
     }
 
     const flags = getTypeConversionFlags(inputTypeKind, destTypeKind);
     if (flags === N) {
-        return -1;
+        return UCConversionCost.Negative;
     }
     if (flags & A) {
-        return 1;
+        return UCConversionCost.Positive;
     }
-    return -1;
+    return UCConversionCost.Negative;
 }
 
 export const enum UCMatchFlags {

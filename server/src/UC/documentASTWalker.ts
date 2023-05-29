@@ -1498,7 +1498,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         const operatorNode = ctx._id;
-        const identifier = createIdentifierFromToken(operatorNode);
+        const identifier = createIdentifier(operatorNode);
         expression.operator = new UCObjectTypeSymbol(identifier);
 
         const rightNode = ctx._right;

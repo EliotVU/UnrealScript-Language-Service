@@ -52,6 +52,7 @@ import {
     tryFindClassSymbol,
     UCArrayTypeSymbol,
     UCClassSymbol,
+    UCConversionCost,
     UCEnumSymbol,
     UCMethodSymbol,
     UCNodeKind,
@@ -506,7 +507,7 @@ export class UCPostOperatorExpression extends UCBaseOperatorExpression {
                 const operatorSymbol = findOverloadedOperator(context, opId, (
                     symbol => symbol.isPostOperator()
                         && symbol.params?.length === 1
-                        && getConversionCost(type, symbol.params[0].getType()) === 1
+                        && getConversionCost(type, symbol.params[0].getType()) !== UCConversionCost.Negative
                 ));
                 if (operatorSymbol) {
                     this.operator.setRef(operatorSymbol, document);
@@ -526,7 +527,7 @@ export class UCPreOperatorExpression extends UCBaseOperatorExpression {
                 const operatorSymbol = findOverloadedOperator(context, opId, (
                     symbol => symbol.isPreOperator()
                         && symbol.params?.length === 1
-                        && getConversionCost(type, symbol.params[0].getType()) === 1
+                        && getConversionCost(type, symbol.params[0].getType()) !== UCConversionCost.Negative
                 ));
                 if (operatorSymbol) {
                     this.operator.setRef(operatorSymbol, document);
@@ -584,8 +585,8 @@ export class UCBinaryOperatorExpression extends UCExpression {
             const operatorSymbol = findOverloadedOperator(context, opId, (
                 symbol => symbol.isBinaryOperator()
                     && symbol.params?.length === 2
-                    && getConversionCost(leftType, symbol.params[0].getType()) === 1
-                    && getConversionCost(rightType, symbol.params[1].getType()) === 1
+                    && getConversionCost(leftType, symbol.params[0].getType()) !== UCConversionCost.Negative
+                    && getConversionCost(rightType, symbol.params[1].getType()) !== UCConversionCost.Negative
             ));
             if (operatorSymbol) {
                 this.operator.setRef(operatorSymbol, document);
