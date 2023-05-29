@@ -41,7 +41,14 @@ import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
 import { CommandIdentifier, CommandsList, InlineChangeCommand } from './UC/commands';
 import { UCDocument } from './UC/document';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
-import { getDocumentDefinition, getDocumentTooltip, getSymbol, getSymbolDefinition, VALID_ID_REGEXP } from './UC/helpers';
+import {
+    getDocumentDefinition,
+    getDocumentTooltip,
+    getSymbol,
+    getSymbolDefinition,
+    resolveSymbolToRef,
+    VALID_ID_REGEXP,
+} from './UC/helpers';
 import {
     applyMacroSymbols,
     clearMacroSymbols,
@@ -72,10 +79,8 @@ import {
     IntrinsicArray,
     isClass,
     isField,
-    ISymbol,
     ModifierFlags,
     ObjectsTable,
-    supportsRef,
     UCClassSymbol,
     UCMethodSymbol,
     UCObjectSymbol,
@@ -821,14 +826,11 @@ connection.onSignatureHelp((e) => getSignatureHelp(e.textDocument.uri, e.positio
 
 connection.onPrepareRename(async (e) => {
     const symbol = getSymbol(e.textDocument.uri, e.position);
-    if (!symbol || !(symbol instanceof UCObjectSymbol)) {
+    if (!symbol) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
 
-    const symbolRef: ISymbol | undefined = supportsRef(symbol)
-        ? symbol.getRef<UCObjectSymbol>()
-        : symbol;
-
+    const symbolRef = resolveSymbolToRef(symbol);
     if (!(symbolRef instanceof UCObjectSymbol)) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
@@ -840,18 +842,18 @@ connection.onPrepareRename(async (e) => {
 
     if (isField(symbolRef)) {
         if (isClass(symbolRef)) {
-            throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename a class!');
+            throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this class!');
         }
         if (symbolRef.modifiers & ModifierFlags.Intrinsic) {
-            throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
+            throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this instrinsic element!');
         }
     } else {
-        throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
+        throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this non-field element!');
     }
 
     // Disallow symbols with invalid identifiers, such as an operator.
     if (!VALID_ID_REGEXP.test(symbol.getName().text)) {
-        throw new ResponseError(ErrorCodes.InvalidParams, 'You cannot rename this element!');
+        throw new ResponseError(ErrorCodes.InvalidParams, 'You cannot rename this element with an invalid identifier!');
     }
 
     return symbol.id.range;
