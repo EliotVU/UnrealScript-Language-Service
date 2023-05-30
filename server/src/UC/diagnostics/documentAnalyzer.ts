@@ -28,9 +28,11 @@ import { config, getDocumentById, UCGeneration } from '../indexer';
 import { toName } from '../name';
 import { NAME_ENUMCOUNT, NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
 import {
+    IStatement,
     UCAssertStatement,
     UCBlock,
     UCCaseClause,
+    UCDefaultClause,
     UCDoUntilStatement,
     UCExpressionStatement,
     UCForEachStatement,
@@ -48,6 +50,7 @@ import {
     ArrayIterator,
     ClassModifierFlags,
     ContextInfo,
+    getConversionCost,
     IntrinsicClass,
     IntrinsicEnum,
     isClass,
@@ -74,6 +77,7 @@ import {
     UCArrayTypeSymbol,
     UCClassSymbol,
     UCConstSymbol,
+    UCConversionCost,
     UCDelegateSymbol,
     UCDelegateTypeSymbol,
     UCEnumMemberSymbol,
@@ -127,6 +131,16 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         return this.diagnostics;
     }
 
+    private error(range: Range, text: string): void {
+        this.diagnostics.add({
+            range,
+            message: {
+                text,
+                severity: DiagnosticSeverity.Error
+            }
+        });
+    }
+
     private pushScope(context?: UCStructSymbol) {
         this.context = context;
         if (context) {
@@ -163,6 +177,21 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
 
     private revokeAllowed(kind: UCSymbolKind): void {
         this.allowedKindsMask &= ~(1 << kind);
+    }
+
+    private nests: IStatement[] = [];
+
+    private pushNest(next: IStatement) {
+        this.nests.push(next);
+    }
+
+    private popNest() {
+        this.nests.pop();
+    }
+
+    private nest<T extends IStatement>(): IStatement {
+        const nest = <T>this.nests[this.nests.length - 1];
+        return nest;
     }
 
     visitQualifiedType(symbol: UCQualifiedTypeSymbol) {
@@ -759,8 +788,23 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
     }
 
     visitSwitchStatement(stm: UCSwitchStatement) {
+        this.pushNest(stm);
         super.visitSwitchStatement(stm);
         this.verifyStatementExpression(stm);
+        this.popNest();
+    }
+
+    visitCaseClause(stm: UCCaseClause) {
+        this.pushNest(stm);
+        super.visitCaseClause(stm);
+        this.verifyStatementExpression(stm);
+        this.popNest();
+    }
+
+    visitDefaultClause(stm: UCDefaultClause) {
+        this.pushNest(stm);
+        super.visitDefaultClause(stm);
+        this.popNest();
     }
 
     visitDoUntilStatement(stm: UCDoUntilStatement) {
@@ -836,73 +880,70 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         super.visitForEachStatement(stm);
         this.verifyStatementExpression(stm);
 
-        if (stm.expression) {
-            if (!(stm.expression instanceof UCCallExpression)) {
-                this.diagnostics.add({
-                    range: stm.expression.getRange(),
-                    message: {
-                        text: `Expression does not evaluate to an iteratable.`,
-                        severity: DiagnosticSeverity.Error
-                    }
-                });
-                return;
-            } else if (!stm.expression.arguments) {
-                this.diagnostics.add({
-                    range: stm.expression.getRange(),
-                    message: {
-                        text: `Missing iterator arguments.`,
-                        severity: DiagnosticSeverity.Error
-                    }
-                });
-                return;
-            }
+        if (!stm.expression) {
+            return;
+        }
 
-            const symbol = stm.expression?.getMemberSymbol();
-            if (symbol) {
-                // Cannot iterate on the return result of a function expression.
-                if (isFunction(symbol)) {
-                    if ((symbol.specifiers & MethodFlags.Iterator) == 0) {
-                        this.diagnostics.add({
-                            range: stm.expression.getRange(),
-                            message: {
-                                text: `Function is not an iterator.`,
-                                severity: DiagnosticSeverity.Error
-                            }
-                        });
-                    }
-                } else if (config.checkTypes) {
-                    if (config.generation != UCGeneration.UC3) {
-                        this.diagnostics.add({
-                            range: stm.expression.getRange(),
-                            message: {
-                                text: `Type '${typeKindToDisplayString(stm.expression.getType()!.getTypeKind())}' cannot be iterated. Expected an iterator function.`,
-                                severity: DiagnosticSeverity.Error
-                            }
-                        });
-                        return;
-                    }
+        if (!(stm.expression instanceof UCCallExpression)) {
+            this.diagnostics.add({
+                range: stm.expression.getRange(),
+                message: {
+                    text: `Expression does not evaluate to an iteratable.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+            return;
+        } else if (!stm.expression.arguments) {
+            this.diagnostics.add({
+                range: stm.expression.getRange(),
+                message: {
+                    text: `Missing iterator arguments.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+            return;
+        }
 
-                    if (stm.expression.getType()?.getTypeKind() != UCTypeKind.Array) {
-                        this.diagnostics.add({
-                            range: stm.expression.getRange(),
-                            message: {
-                                text: `Type '${typeKindToDisplayString(stm.expression.getType()!.getTypeKind())}' cannot be iterated. Expected an iterator function or dynamic array.`,
-                                severity: DiagnosticSeverity.Error
-                            }
-                        });
-                    } else {
-                        // check intrinsic arguments
-                        const arrayInnerType = ((symbol as UCFieldSymbol).getType() as UCArrayTypeSymbol).baseType;
-                        this.checkArguments(ArrayIterator, stm.expression, arrayInnerType);
-                    }
+        const symbol = stm.expression?.getMemberSymbol();
+        if (symbol) {
+            // Cannot iterate on the return result of a function expression.
+            if (isFunction(symbol)) {
+                if ((symbol.specifiers & MethodFlags.Iterator) == 0) {
+                    this.diagnostics.add({
+                        range: stm.expression.getRange(),
+                        message: {
+                            text: `Function is not an iterator.`,
+                            severity: DiagnosticSeverity.Error
+                        }
+                    });
+                }
+            } else if (config.checkTypes) {
+                if (config.generation != UCGeneration.UC3) {
+                    this.diagnostics.add({
+                        range: stm.expression.getRange(),
+                        message: {
+                            text: `Type '${typeKindToDisplayString(stm.expression.getType()!.getTypeKind())}' cannot be iterated. Expected an iterator function.`,
+                            severity: DiagnosticSeverity.Error
+                        }
+                    });
+                    return;
+                }
+
+                if (stm.expression.getType()?.getTypeKind() != UCTypeKind.Array) {
+                    this.diagnostics.add({
+                        range: stm.expression.getRange(),
+                        message: {
+                            text: `Type '${typeKindToDisplayString(stm.expression.getType()!.getTypeKind())}' cannot be iterated. Expected an iterator function or dynamic array.`,
+                            severity: DiagnosticSeverity.Error
+                        }
+                    });
+                } else {
+                    // check intrinsic arguments
+                    const arrayInnerType = ((symbol as UCFieldSymbol).getType() as UCArrayTypeSymbol).baseType;
+                    this.checkArguments(ArrayIterator, stm.expression, arrayInnerType);
                 }
             }
         }
-    }
-
-    visitCaseClause(stm: UCCaseClause) {
-        super.visitCaseClause(stm);
-        this.verifyStatementExpression(stm);
     }
 
     visitGotoStatement(stm: UCGotoStatement) {
@@ -972,34 +1013,67 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             expr.arguments?.forEach(arg => arg.accept(this));
 
             const type = expr.expression.getType();
-            const symbol = type?.getRef();
-            if (symbol) {
-                if (isFunction(symbol)) {
-                    // FIXME: inferred type, this is unfortunately complicated :(
-                    this.checkArguments(symbol, expr);
-                } else if (isTypeSymbol(symbol)) {
-                    // ! We are validating a conversion
-                    if (!config.checkTypes)
-                        return;
+            // Let's be silent when working with an unresolved type.
+            if (!type) {
+                return;
+            }
 
-                    const firstArgument = expr.arguments && expr.arguments.length === 1
-                        ? expr.arguments[0]
-                        : undefined;
-                    const argumentType = firstArgument?.getType();
-                    if (argumentType) {
-                        const canPerformConversion = typesMatch(symbol, argumentType, UCMatchFlags.Coerce);
-                        if (!canPerformConversion) {
-                            this.diagnostics.add({
-                                range: expr.getRange(),
-                                message: {
-                                    text: `Type '${typeKindToDisplayString(argumentType.getTypeKind())}' cannot be cast to type '${typeKindToDisplayString(symbol.getTypeKind())}'`,
-                                    severity: DiagnosticSeverity.Error
-                                }
-                            });
-                        }
-                    }
+            const symbol = type.getRef();
+            if (symbol && isFunction(symbol)) {
+                // FIXME: inferred type, this is unfortunately complicated :(
+                this.checkArguments(symbol, expr);
+                return;
+            }
+
+            // ! We are validating a conversion
+            if (!config.checkTypes)
+                return;
+
+            const firstArgument = expr.arguments && expr.arguments.length === 1
+                ? expr.arguments[0]
+                : undefined;
+            const argumentType = firstArgument?.getType();
+            if (!argumentType) {
+                return;
+            }
+
+            const argumentTypeKind = argumentType.getTypeKind();
+            const canPerformConversion = typesMatch(argumentType, type, UCMatchFlags.Coerce);
+            if (canPerformConversion) {
+                const typesToCheck = 1 << UCTypeKind.Byte
+                    | 1 << UCTypeKind.Int
+                    | 1 << UCTypeKind.Bool
+                    | 1 << UCTypeKind.Float
+                    | 1 << UCTypeKind.Name
+                    | 1 << UCTypeKind.String
+                    | 1 << UCTypeKind.Button
+                    | 1 << UCTypeKind.Struct;
+
+                if ((1 << argumentTypeKind & typesToCheck) !== 0
+                    && getConversionCost(argumentType, type) === UCConversionCost.Zero) {
+                    this.error(expr.getRange(),
+                        `Type '${typeKindToDisplayString(argumentTypeKind)}' should not be cast to itself.`);
+                }
+            } else {
+                this.error(expr.getRange(),
+                    `Type '${typeKindToDisplayString(argumentTypeKind)}' cannot be cast to type '${typeKindToDisplayString(type.getTypeKind())}'.`);
+            }
+
+            const nest = this.nest();
+            if (nest instanceof UCSwitchStatement && nest.expression) {
+                const invalidCastTypes = 1 << UCTypeKind.Object
+                    | 1 << UCTypeKind.Interface
+                    | 1 << UCTypeKind.String
+                    | 1 << UCTypeKind.Delegate
+                    | 1 << UCTypeKind.Struct;
+
+                const castTypeKind = type.getTypeKind() || UCTypeKind.Error;
+                if ((1 << castTypeKind & invalidCastTypes) != 0) {
+                    this.error(expr.getRange(),
+                        `Cannot switch on a dynamic cast of type '${typeKindToDisplayString(castTypeKind)}'.`);
                 }
             }
+
             // TODO: Validate if expressed symbol is callable,
             // i.e. either a 'Function/Delegate', 'Class', or a 'Struct' like Vector/Rotator.
         } else if (expr instanceof UCElementAccessExpression) {
@@ -1169,12 +1243,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                 if (expr instanceof UCAssignmentOperatorExpression) {
                     if (letType.getTypeKind() === UCTypeKind.Delegate) {
                         // TODO: Cleanup duplicate code when binary-operator types are resolved properly.
-                        if (!typesMatch(valueType, StaticDelegateType)) {
-                            this.diagnostics.add({
-                                range: expr.right.getRange(),
-                                message: createTypeCannotBeAssignedToMessage(UCTypeKind.Delegate, valueTypeKind),
-                            });
-                        } else {
+                        if (typesMatch(valueType, StaticDelegateType)) {
                             const letTypeRef = resolveType(letType).getRef<UCDelegateSymbol>();
                             const valueTypeRef = resolveType(valueType).getRef<UCMethodSymbol>();
                             if (letTypeRef && isDelegateSymbol(letTypeRef)
@@ -1186,6 +1255,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                                     args: [valueTypeRef.getPath(), letSymbol.getPath()]
                                 });
                             }
+                        } else {
+                            this.diagnostics.add({
+                                range: expr.right.getRange(),
+                                message: createTypeCannotBeAssignedToMessage(UCTypeKind.Delegate, valueTypeKind),
+                            });
                         }
                     } else if (!typesMatch(valueType, letType, matchFlags)) {
                         this.diagnostics.add({

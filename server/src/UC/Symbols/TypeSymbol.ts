@@ -604,8 +604,8 @@ const TypeConversionFlagsTable: Readonly<{ [key: number]: number[] }> = [
 ];
 /** @formatter:on */
 
-export function getTypeConversionFlags(inputTypeKInd: UCTypeKind, destTypeKind: UCTypeKind): number {
-    return TypeConversionFlagsTable[destTypeKind][inputTypeKInd];
+export function getTypeConversionFlags(inputTypeKind: UCTypeKind, destTypeKind: UCTypeKind): number {
+    return TypeConversionFlagsTable[destTypeKind][inputTypeKind];
 }
 
 export const enum UCConversionCost {
@@ -691,6 +691,10 @@ export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchF
     }
 
     const c = getTypeConversionFlags(inputTypeKind, destTypeKind);
+    if ((c & Y) || ((c & A) !== 0 && (matchFlags & UCMatchFlags.Coerce))) {
+        return true;
+    }
+
     if (c === N) {
         if (destTypeKind === UCTypeKind.Delegate) {
             return inputType.getRef()?.kind === UCSymbolKind.Function;
@@ -705,8 +709,7 @@ export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchF
         return true;
     }
 
-    // TODO: Struct (vector, rotator, range) conversions
-    return (c & A) !== 0 || ((matchFlags & UCMatchFlags.Coerce) != 0 && (c & Y) !== 0);
+    return false;
 }
 
 /** Resolves a type to its base type if set. e.g. "Class<Actor>" would be resolved to "Actor". */
