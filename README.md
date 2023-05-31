@@ -14,13 +14,25 @@ So far the extension has implemented support for the following features:
 
 * Semantic Syntax Highlighting
 * Diagnostics (linting)
-* Symbol Searching
-* Symbol Renaming
-* Find All References
 * Go to Definition, Peek Definition
-* Quick Info (hover tooltips)
 * Auto-Completion
 * Code-Actions (create new class)
+
+### Quick Info
+
+![PNG](docs/media/quickinfo.png)
+
+### Find All References
+
+![GIF](docs/media/references.gif)
+
+### Symbol Renaming
+
+![GIF](docs/media/renaming.gif)
+
+### Symbol Searching
+
+![PNG](docs/media/workspaceSymbols.png)
 
 Beware, for *Symbol Renaming* and *Find All References* it is recommended to enable *Index All Documents*
 
