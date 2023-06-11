@@ -195,7 +195,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    visitDocument(document: UCDocument): SemanticTokens {
+    override visitDocument(document: UCDocument): SemanticTokens {
         if (typeof this.range === 'undefined') {
             super.visitDocument(document);
         } else {
@@ -211,7 +211,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         return this.getTokens();
     }
 
-    visitBlock(symbol: UCBlock) {
+    override visitBlock(symbol: UCBlock) {
         for (const statement of symbol.statements) {
             if (statement) {
                 statement.accept(this);
@@ -219,7 +219,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    visitObjectType(symbol: UCObjectTypeSymbol) {
+    override visitObjectType(symbol: UCObjectTypeSymbol) {
         const symbolRef = symbol.getRef();
         if (symbolRef) {
             this.pushSymbol(symbolRef, symbol.id);
@@ -227,7 +227,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         super.visitObjectType(symbol);
     }
 
-    visitGotoStatement(stm: UCGotoStatement) {
+    override visitGotoStatement(stm: UCGotoStatement) {
         // super.visitGotoStatement(stm);
         if (stm.expression) {
             const type = stm.expression.getType();
@@ -241,7 +241,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    visitLabeledStatement(stm: UCLabeledStatement) {
+    override visitLabeledStatement(stm: UCLabeledStatement) {
         super.visitLabeledStatement(stm);
         if (stm.label) {
             this.pushRange(stm.label.range,
@@ -251,7 +251,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    visitRepIfStatement(stm: UCRepIfStatement): void {
+    override visitRepIfStatement(stm: UCRepIfStatement): void {
         super.visitRepIfStatement(stm);
         if (stm.symbolRefs)
             for (const repSymbolRef of stm.symbolRefs) {
@@ -264,7 +264,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
 
     // FIXME: DRY
     // FIXME: Infinite loop in Test.uc
-    visitExpression(expr: IExpression) {
+    override visitExpression(expr: IExpression) {
         if (expr instanceof UCParenthesizedExpression) {
             expr.expression?.accept(this);
         } else if (expr instanceof UCMetaClassExpression) {

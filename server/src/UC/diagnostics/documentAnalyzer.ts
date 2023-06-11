@@ -194,7 +194,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         return nest;
     }
 
-    visitQualifiedType(symbol: UCQualifiedTypeSymbol) {
+    override visitQualifiedType(symbol: UCQualifiedTypeSymbol) {
         symbol.left?.accept(this);
         if (symbol.left && !symbol.left.getRef()) {
             return;
@@ -202,7 +202,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         symbol.type.accept(this);
     }
 
-    visitObjectType(symbol: UCObjectTypeSymbol) {
+    override visitObjectType(symbol: UCObjectTypeSymbol) {
         super.visitObjectType(symbol);
 
         const referredSymbol = symbol.getRef();
@@ -215,16 +215,16 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
-    visitArrayType(symbol: UCArrayTypeSymbol) {
+    override visitArrayType(symbol: UCArrayTypeSymbol) {
         super.visitArrayType(symbol);
         // TODO: Check for valid array types
     }
 
-    visitDelegateType(symbol: UCDelegateTypeSymbol) {
+    override visitDelegateType(symbol: UCDelegateTypeSymbol) {
         super.visitDelegateType(symbol);
     }
 
-    visitInterface(symbol: UCInterfaceSymbol) {
+    override visitInterface(symbol: UCInterfaceSymbol) {
         if (!this.isAllowed(UCSymbolKind.Interface)) {
             this.diagnostics.add({
                 range: symbol.getRange(),
@@ -247,7 +247,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
-    visitClass(symbol: UCClassSymbol) {
+    override visitClass(symbol: UCClassSymbol) {
         if (!this.isAllowed(UCSymbolKind.Class)) {
             this.diagnostics.add({
                 range: symbol.getRange(),
@@ -298,7 +298,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
-    visitConst(symbol: UCConstSymbol) {
+    override visitConst(symbol: UCConstSymbol) {
         this.pushScope(this.document.class);
         super.visitConst(symbol);
         if (symbol.expression) {
@@ -315,7 +315,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         this.popScope();
     }
 
-    visitEnum(symbol: UCEnumSymbol) {
+    override visitEnum(symbol: UCEnumSymbol) {
         if (!this.isAllowed(UCSymbolKind.Enum)) {
             this.diagnostics.add({
                 range: symbol.getRange(),
@@ -342,7 +342,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         this.popScope();
     }
 
-    visitEnumMember(symbol: UCEnumMemberSymbol) {
+    override visitEnumMember(symbol: UCEnumMemberSymbol) {
         const enumSymbol = this.context as UCEnumSymbol;
         // The compiler interprets NAME_None as not found, and NAME_ENUMCOUNT is always preceded.
         if (symbol.id.name === NAME_ENUMCOUNT || symbol.id.name === NAME_NONE) {
@@ -376,7 +376,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
-    visitScriptStruct(symbol: UCScriptStructSymbol) {
+    override visitScriptStruct(symbol: UCScriptStructSymbol) {
         if (!this.isAllowed(UCSymbolKind.ScriptStruct)) {
             this.diagnostics.add({
                 range: symbol.getRange(),
@@ -403,7 +403,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         this.popScope();
     }
 
-    visitProperty(symbol: UCPropertySymbol) {
+    override visitProperty(symbol: UCPropertySymbol) {
         if (!this.isAllowed(UCSymbolKind.Property)) {
             this.diagnostics.add({
                 range: symbol.getRange(),
@@ -487,7 +487,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
-    visitMethod(symbol: UCMethodSymbol) {
+    override visitMethod(symbol: UCMethodSymbol) {
         this.pushScope(symbol);
         this.suspendState();
         this.setAllowed(UCMethodSymbol.allowedKindsMask);
@@ -568,7 +568,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         this.popScope();
     }
 
-    visitState(symbol: UCStateSymbol) {
+    override visitState(symbol: UCStateSymbol) {
         this.pushScope(symbol);
         this.suspendState();
         this.setAllowed(UCStateSymbol.allowedKindsMask);
@@ -627,7 +627,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         this.popScope();
     }
 
-    visitParameter(symbol: UCParamSymbol) {
+    override visitParameter(symbol: UCParamSymbol) {
         super.visitParameter(symbol);
 
         if (symbol.defaultExpression) {
@@ -665,7 +665,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
-    visitRepIfStatement(stm: UCRepIfStatement) {
+    override visitRepIfStatement(stm: UCRepIfStatement) {
         super.visitRepIfStatement(stm);
         const refs = stm.symbolRefs;
         if (typeof refs === 'undefined') {
@@ -676,7 +676,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     severity: DiagnosticSeverity.Error
                 }
             });
-            return undefined;
+            return;
         }
 
         for (const ref of refs) {
@@ -718,7 +718,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
-    visitArchetypeSymbol(symbol: UCArchetypeSymbol) {
+    override visitArchetypeSymbol(symbol: UCArchetypeSymbol) {
         this.pushScope(symbol.super ?? symbol);
         if (symbol.getName() === NAME_NONE) {
             this.diagnostics.add({
@@ -737,7 +737,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         this.popScope();
     }
 
-    visitBlock(symbol: UCBlock) {
+    override visitBlock(symbol: UCBlock) {
         for (const statement of symbol.statements) if (statement) {
             try {
                 statement.accept?.(this);
@@ -773,41 +773,41 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
-    visitIfStatement(stm: UCIfStatement) {
+    override visitIfStatement(stm: UCIfStatement) {
         super.visitIfStatement(stm);
 
         this.verifyStatementExpression(stm);
         this.verifyStatementBooleanCondition(stm);
     }
 
-    visitWhileStatement(stm: UCWhileStatement) {
+    override visitWhileStatement(stm: UCWhileStatement) {
         super.visitWhileStatement(stm);
 
         this.verifyStatementExpression(stm);
         this.verifyStatementBooleanCondition(stm);
     }
 
-    visitSwitchStatement(stm: UCSwitchStatement) {
+    override visitSwitchStatement(stm: UCSwitchStatement) {
         this.pushNest(stm);
         super.visitSwitchStatement(stm);
         this.verifyStatementExpression(stm);
         this.popNest();
     }
 
-    visitCaseClause(stm: UCCaseClause) {
+    override visitCaseClause(stm: UCCaseClause) {
         this.pushNest(stm);
         super.visitCaseClause(stm);
         this.verifyStatementExpression(stm);
         this.popNest();
     }
 
-    visitDefaultClause(stm: UCDefaultClause) {
+    override visitDefaultClause(stm: UCDefaultClause) {
         this.pushNest(stm);
         super.visitDefaultClause(stm);
         this.popNest();
     }
 
-    visitDoUntilStatement(stm: UCDoUntilStatement) {
+    override visitDoUntilStatement(stm: UCDoUntilStatement) {
         super.visitDoUntilStatement(stm);
 
         this.verifyStatementExpression(stm);
@@ -815,7 +815,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
     }
 
     // TODO: Test if any of the three expression can be omitted?
-    visitForStatement(stm: UCForStatement) {
+    override visitForStatement(stm: UCForStatement) {
         super.visitForStatement(stm);
 
         if (stm.init) {
@@ -876,7 +876,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
     }
 
     // TODO: Verify we have an iterator function or array(UC3+).
-    visitForEachStatement(stm: UCForEachStatement) {
+    override visitForEachStatement(stm: UCForEachStatement) {
         super.visitForEachStatement(stm);
         this.verifyStatementExpression(stm);
 
@@ -946,7 +946,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
-    visitGotoStatement(stm: UCGotoStatement) {
+    override visitGotoStatement(stm: UCGotoStatement) {
         this.verifyStatementExpression(stm);
 
         if (!config.checkTypes)
@@ -963,7 +963,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
-    visitReturnStatement(stm: UCReturnStatement) {
+    override visitReturnStatement(stm: UCReturnStatement) {
         super.visitReturnStatement(stm);
 
         if (!config.checkTypes)
@@ -992,14 +992,14 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
-    visitAssertStatement(stm: UCAssertStatement) {
+    override visitAssertStatement(stm: UCAssertStatement) {
         super.visitAssertStatement(stm);
 
         this.verifyStatementExpression(stm);
         this.verifyStatementBooleanCondition(stm);
     }
 
-    visitExpression(expr: IExpression) {
+    override visitExpression(expr: IExpression) {
         if (expr instanceof UCParenthesizedExpression) {
             expr.expression?.accept(this);
         } else if (expr instanceof UCMetaClassExpression) {

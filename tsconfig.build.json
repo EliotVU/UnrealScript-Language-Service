@@ -5,7 +5,8 @@
         "outDir": "out",
         "sourceMap": true,
         "declaration": false,
-        "moduleResolution": "Node"
+        "moduleResolution": "Node",
+        "removeComments": true,
     },
     "include": [
         "client",

@@ -28,6 +28,8 @@ export class UCStateSymbol extends UCStructSymbol {
 		if (this.overriddenState) {
             return '(override)';
 		}
+
+        return undefined;
     }
 
 	override getTypeKeyword(): string {
@@ -56,6 +58,8 @@ export class UCStateSymbol extends UCStructSymbol {
 		if (this.overriddenState) {
 			return this.overriddenState.getDocumentation();
 		}
+
+        return undefined;
 	}
 
 	override getContainedSymbolAtPos(position: Position) {

@@ -1,4 +1,4 @@
-import glob from 'glob';
+import { glob } from 'glob';
 
 // FIXME: case-sensitive
 export function isPackageFileName(fileName: string): boolean {

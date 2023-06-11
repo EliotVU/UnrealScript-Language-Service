@@ -2,7 +2,7 @@ import { SymbolWalker } from '../symbolWalker';
 import { ClassModifierFlags, UCClassSymbol, UCSymbolKind, UCTypeKind } from './';
 
 export class UCInterfaceSymbol extends UCClassSymbol {
-    static readonly allowedKindsMask = 1 << UCSymbolKind.Enum
+    static override readonly allowedKindsMask = 1 << UCSymbolKind.Enum
         | 1 << UCSymbolKind.ScriptStruct
         | 1 << UCSymbolKind.Property
         | 1 << UCSymbolKind.Function;

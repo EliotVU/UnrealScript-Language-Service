@@ -114,7 +114,7 @@ export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWit
 }
 
 export class UCEmptySymbol extends UCObjectSymbol {
-    accept<Result>(visitor: SymbolWalker<Result>): void | Result {
+    override accept<Result>(visitor: SymbolWalker<Result>): void | Result {
         return;
     }
 }

@@ -1,5 +1,3 @@
-// import * as CRC32 from 'crc-32';
-
 /*!
  * crc-32 (C) 2014-present SheetJS -- http://sheetjs.com
  *

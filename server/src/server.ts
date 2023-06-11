@@ -792,6 +792,8 @@ connection.onHover(async (e) => {
     if (document) {
         return getDocumentTooltip(document, e.position);
     }
+
+    return undefined;
 });
 
 connection.onDefinition(async (e) => {
@@ -799,6 +801,8 @@ connection.onDefinition(async (e) => {
     if (document) {
         return getDocumentDefinition(document, e.position);
     }
+
+    return undefined;
 });
 
 connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
@@ -807,6 +811,8 @@ connection.onDocumentSymbol(async (e) => {
     if (document) {
         return getDocumentSymbols(document);
     }
+
+    return undefined;
 });
 connection.onWorkspaceSymbol((e) => {
     return getWorkspaceSymbols(e.query);

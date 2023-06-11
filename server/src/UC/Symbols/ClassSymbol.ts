@@ -133,7 +133,7 @@ export class UCClassSymbol extends UCStructSymbol {
         return undefined;
     }
 
-    findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind): T | undefined {
+    override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind): T | undefined {
         return this.getSymbol<T>(id, kind)
             ?? this.super?.findSuperSymbol(id, kind)
             ?? this.within?.findSuperSymbol(id, kind);

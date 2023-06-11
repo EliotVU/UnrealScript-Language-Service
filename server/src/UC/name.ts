@@ -1,4 +1,4 @@
-import { crc32_str } from './hash';
+import { crc32_str } from 'crc-32';
 
 export type NameHash = number;
 export type Name = Readonly<{

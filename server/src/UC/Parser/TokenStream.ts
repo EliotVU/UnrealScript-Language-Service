@@ -45,7 +45,7 @@ export class UCTokenStream extends CommonTokenStream {
 		}
 	}
 
-	fetch(n: number) {
+	override fetch(n: number) {
 		if (this.fetchedEOF) {
 			return 0;
 		}

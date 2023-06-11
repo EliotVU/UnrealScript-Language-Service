@@ -11,13 +11,13 @@
         "url": "https://github.com/EliotVU/UnrealScript-Language-Service"
     },
     "engines": {
-        "vscode": "^1.74.0"
+        "vscode": "^1.75.0"
     },
     "dependencies": {
         "vscode-languageclient": "8.1.0"
     },
     "devDependencies": {
-        "@types/vscode": "^1.76.0",
-        "@vscode/test-electron": "^2.3.0"
+        "@types/vscode": "^1.79.0",
+        "@vscode/test-electron": "^2.3.2"
     }
 }

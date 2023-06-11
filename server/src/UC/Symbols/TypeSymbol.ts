@@ -201,6 +201,8 @@ export class UCTypeSymbol implements ITypeSymbol {
         if (intersectsWithRange(position, this.getRange())) {
             return this;
         }
+
+        return undefined;
     }
 
     index(document: UCDocument, context?: UCStructSymbol): void {
@@ -261,6 +263,8 @@ export class UCObjectTypeSymbol implements ITypeSymbol {
         if (intersectsWithRange(position, this.id.range)) {
             return this;
         }
+
+        return undefined;
     }
 
     getContainedSymbolAtPos(position: Position) {

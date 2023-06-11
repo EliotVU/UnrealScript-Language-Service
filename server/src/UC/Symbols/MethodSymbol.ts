@@ -104,6 +104,8 @@ export class UCMethodSymbol extends UCStructSymbol {
         if (this.overriddenMethod) {
             return this.overriddenMethod.getDocumentation();
         }
+
+        return undefined;
     }
 
     override getContainedSymbolAtPos(position: Position) {
@@ -177,6 +179,8 @@ export class UCMethodSymbol extends UCStructSymbol {
         if (this.overriddenMethod) {
             return '(override)';
         }
+
+        return undefined;
     }
 
     protected override getTypeKeyword(): string {

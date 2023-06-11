@@ -169,16 +169,16 @@ export class UCParenthesizedExpression implements IExpression {
 export class UCArrayCountExpression extends UCExpression {
     public argument?: IExpression;
 
-    getValue() {
+    override getValue() {
         const symbol = this.argument?.getMemberSymbol();
         return symbol && isProperty(symbol) && symbol.getArrayDimSize() || undefined;
     }
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.argument?.getMemberSymbol();
     }
 
-    getType() {
+    override getType() {
         return StaticIntType;
     }
 
@@ -187,7 +187,7 @@ export class UCArrayCountExpression extends UCExpression {
         return symbol;
     }
 
-    index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
         this.argument?.index(document, context, info);
     }
 }
@@ -195,11 +195,11 @@ export class UCArrayCountExpression extends UCExpression {
 export class UCNameOfExpression extends UCExpression {
     public argument?: IExpression;
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.argument?.getMemberSymbol();
     }
 
-    getType() {
+    override getType() {
         return StaticNameType;
     }
 
@@ -208,7 +208,7 @@ export class UCNameOfExpression extends UCExpression {
         return symbol;
     }
 
-    index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
         this.argument?.index(document, context, info);
     }
 }
@@ -223,11 +223,11 @@ export class UCCallExpression extends UCExpression {
     public expression: IExpression;
     public arguments?: Array<IExpression>;
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.expression.getMemberSymbol();
     }
 
-    getType() {
+    override getType() {
         const type = this.expression.getType();
         const symbol = type?.getRef();
         if (symbol && isFunction(symbol)) {
@@ -264,9 +264,11 @@ export class UCCallExpression extends UCExpression {
         if (UCCallExpression.hack_getTypeIfNoSymbol) {
             return this.getType();
         }
+
+        return undefined;
     }
 
-    index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
         if (!this.arguments?.length) {
             this.expression.index(document, context);
             return;
@@ -357,12 +359,12 @@ export class UCElementAccessExpression extends UCExpression {
     public expression: IExpression;
     public argument?: IExpression;
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.expression?.getMemberSymbol();
     }
 
     // Returns the type we are working with after [] has taken affect, this means we return undefined if the type is invalid.
-    getType() {
+    override getType() {
         const type = this.expression?.getType();
         if (type && UCArrayTypeSymbol.is(type)) {
             // Resolve metaclass class<Actor> to Actor
@@ -384,7 +386,7 @@ export class UCElementAccessExpression extends UCExpression {
         return this.expression?.getSymbolAtPos(position) ?? this.argument?.getSymbolAtPos(position);
     }
 
-    index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
         this.expression?.index(document, context, info);
         this.argument?.index(document, context, info);
     }
@@ -393,7 +395,7 @@ export class UCElementAccessExpression extends UCExpression {
 export class UCDefaultElementAccessExpression extends UCElementAccessExpression {
     declare expression: UCMemberExpression;
 
-    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         this.expression?.index(document, context, info);
         // this.argument?.index(document, context, info);
 
@@ -413,11 +415,11 @@ export class UCPropertyAccessExpression extends UCExpression {
     public left: IExpression;
     public member: UCMemberExpression | undefined;
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.member?.getMemberSymbol();
     }
 
-    getType() {
+    override getType() {
         return this.member?.getType();
     }
 
@@ -425,7 +427,7 @@ export class UCPropertyAccessExpression extends UCExpression {
         return this.member?.getSymbolAtPos(position) ?? this.left.getSymbolAtPos(position);
     }
 
-    index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
         // DO NOT PASS @info, only our right expression needs access to @info.
         this.left.index(document, context);
 
@@ -448,11 +450,11 @@ export class UCConditionalExpression extends UCExpression {
     public true?: IExpression;
     public false?: IExpression;
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.true?.getMemberSymbol();
     }
 
-    getType() {
+    override getType() {
         return this.true?.getType();
     }
 
@@ -462,7 +464,7 @@ export class UCConditionalExpression extends UCExpression {
             ?? this.false?.getSymbolAtPos(position);
     }
 
-    index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
         this.condition.index(document, context, info);
         this.true?.index(document, context, info);
         this.false?.index(document, context, info);
@@ -473,15 +475,17 @@ export abstract class UCBaseOperatorExpression extends UCExpression {
     public expression: IExpression;
     public operator: UCObjectTypeSymbol;
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.expression?.getMemberSymbol();
     }
 
-    getType() {
+    override getType() {
         const operatorSymbol = this.operator.getRef();
         if (operatorSymbol && isOperator(operatorSymbol)) {
             return operatorSymbol.getType();
         }
+
+        return undefined;
     }
 
     getContainedSymbolAtPos(position: Position) {
@@ -492,13 +496,13 @@ export abstract class UCBaseOperatorExpression extends UCExpression {
         return this.expression.getSymbolAtPos(position);
     }
 
-    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         this.expression.index(document, context, info);
     }
 }
 
 export class UCPostOperatorExpression extends UCBaseOperatorExpression {
-    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         super.index(document, context, info);
         if (this.operator && this.expression) {
             const type = this.expression.getType();
@@ -518,7 +522,7 @@ export class UCPostOperatorExpression extends UCBaseOperatorExpression {
 }
 
 export class UCPreOperatorExpression extends UCBaseOperatorExpression {
-    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         super.index(document, context, info);
         if (this.operator && this.expression) {
             const type = this.expression.getType();
@@ -542,15 +546,17 @@ export class UCBinaryOperatorExpression extends UCExpression {
     public operator?: UCObjectTypeSymbol;
     public right?: IExpression;
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.operator?.getRef();
     }
 
-    getType() {
+    override getType() {
         const operatorSymbol = this.operator?.getRef();
         if (operatorSymbol && isFunction(operatorSymbol) && operatorSymbol.isBinaryOperator()) {
             return operatorSymbol.getType();
         }
+
+        return undefined;
     }
 
     getContainedSymbolAtPos(position: Position) {
@@ -561,7 +567,7 @@ export class UCBinaryOperatorExpression extends UCExpression {
         return this.left?.getSymbolAtPos(position) ?? this.right?.getSymbolAtPos(position);
     }
 
-    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         let leftType: ITypeSymbol;
         if (this.left) {
             this.left.index(document, context, info);
@@ -596,7 +602,7 @@ export class UCBinaryOperatorExpression extends UCExpression {
 }
 
 export class UCAssignmentOperatorExpression extends UCBinaryOperatorExpression {
-    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         let leftType: ITypeSymbol;
         if (this.left) {
             this.left.index(document, context, { inAssignment: true });
@@ -620,11 +626,11 @@ export class UCMemberExpression extends UCExpression {
         super(id.range);
     }
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.type?.getRef();
     }
 
-    getType() {
+    override getType() {
         const symbol = this.type?.getRef();
         // We resolve UCMethodSymbols in UCCallExpression, because we don't want to return the function's type in assignment expressions...
         if (symbol) {
@@ -644,7 +650,7 @@ export class UCMemberExpression extends UCExpression {
         return this.type?.getRef() && this.type;
     }
 
-    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         const id = this.id.name;
 
         const contextType = info?.contextType;
@@ -689,7 +695,7 @@ export class UCMemberExpression extends UCExpression {
 }
 
 export class UCDefaultAssignmentExpression extends UCAssignmentOperatorExpression {
-    getType() {
+    override getType() {
         return undefined;
     }
 }
@@ -705,11 +711,11 @@ export class UCDefaultMemberCallExpression extends UCExpression {
     public operationMember: UCObjectTypeSymbol;
     public arguments?: Array<IExpression>;
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.operationMember.getRef();
     }
 
-    getType() {
+    override getType() {
         const type = this.propertyMember.getType();
         if (type && UCArrayTypeSymbol.is(type)) {
             // Resolve metaclass class<Actor> to Actor
@@ -733,9 +739,11 @@ export class UCDefaultMemberCallExpression extends UCExpression {
                 return symbol;
             }
         }
+
+        return undefined;
     }
 
-    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         this.propertyMember.index(document, context, info);
 
         const type = this.propertyMember.getType();
@@ -791,7 +799,7 @@ export class UCDefaultMemberCallExpression extends UCExpression {
  * Represents an identifier in a defaultproperties block. e.g. "Class=ClassName", here "ClassName" would be represented by this expression.
  **/
 export class UCIdentifierLiteralExpression extends UCMemberExpression {
-    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         if (this.type) {
             this.type.index(document, context, info);
             return;
@@ -874,11 +882,11 @@ export class UCPredefinedAccessExpression extends UCExpression {
         super(id.range);
     }
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.typeRef?.getRef();
     }
 
-    getType() {
+    override getType() {
         return this.typeRef;
     }
 
@@ -886,7 +894,7 @@ export class UCPredefinedAccessExpression extends UCExpression {
         return this.typeRef.getRef() && this.typeRef;
     }
 
-    index(document: UCDocument, _context?: UCStructSymbol) {
+    override index(document: UCDocument, _context?: UCStructSymbol) {
         this.typeRef.setRefNoIndex(document.class);
     }
 }
@@ -902,11 +910,11 @@ export class UCSuperExpression extends UCExpression {
     // Resolved structRef.
     private superStruct?: UCStructSymbol;
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.superStruct;
     }
 
-    getType() {
+    override getType() {
         return this.structTypeRef;
     }
 
@@ -914,9 +922,11 @@ export class UCSuperExpression extends UCExpression {
         if (this.structTypeRef?.getSymbolAtPos(position)) {
             return this.structTypeRef;
         }
+
+        return undefined;
     }
 
-    index(document: UCDocument, context: UCStructSymbol) {
+    override index(document: UCDocument, context: UCStructSymbol) {
         context = (isFunction(context) && context.outer && isStateSymbol(context.outer) && context.outer.super)
             ? context.outer
             : document.class!;
@@ -989,21 +999,21 @@ export abstract class UCLiteral implements IExpression {
 }
 
 export class UCNoneLiteral extends UCLiteral {
-    getType() {
+    override getType() {
         return StaticNoneType;
     }
 
-    toString() {
+    override toString() {
         return 'None';
     }
 }
 
 export class UCStringLiteral extends UCLiteral {
-    getType() {
+    override getType() {
         return StaticStringType;
     }
 
-    toString() {
+    override toString() {
         return '""';
     }
 }
@@ -1013,11 +1023,11 @@ export class UCNameLiteral extends UCLiteral {
         super(id.range);
     }
 
-    getType() {
+    override getType() {
         return StaticNameType;
     }
 
-    toString() {
+    override toString() {
         return `'${this.id.name.text}'`;
     }
 }
@@ -1025,11 +1035,11 @@ export class UCNameLiteral extends UCLiteral {
 export class UCBoolLiteral extends UCLiteral {
     value: boolean;
 
-    getType() {
+    override getType() {
         return StaticBoolType;
     }
 
-    toString() {
+    override toString() {
         return String(this.value);
     }
 }
@@ -1037,11 +1047,11 @@ export class UCBoolLiteral extends UCLiteral {
 export class UCFloatLiteral extends UCLiteral {
     value: number;
 
-    getType() {
+    override getType() {
         return StaticFloatType;
     }
 
-    getValue(): number {
+    override getValue(): number {
         return this.value;
     }
 }
@@ -1049,11 +1059,11 @@ export class UCFloatLiteral extends UCLiteral {
 export class UCIntLiteral extends UCLiteral {
     value: number;
 
-    getType() {
+    override getType() {
         return StaticIntType;
     }
 
-    getValue(): number {
+    override getValue(): number {
         return this.value;
     }
 }
@@ -1061,11 +1071,11 @@ export class UCIntLiteral extends UCLiteral {
 export class UCByteLiteral extends UCLiteral {
     value: number;
 
-    getType() {
+    override getType() {
         return StaticByteType;
     }
 
-    getValue(): number {
+    override getValue(): number {
         return this.value;
     }
 }
@@ -1074,22 +1084,22 @@ export class UCObjectLiteral extends UCLiteral {
     public castRef: UCObjectTypeSymbol;
     public objectRef?: UCObjectTypeSymbol | UCQualifiedTypeSymbol;
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.objectRef?.getRef() ?? this.castRef.getRef();
     }
 
-    getType() {
+    override getType() {
         return this.objectRef ?? this.castRef;
     }
 
-    getContainedSymbolAtPos(position: Position) {
+    override getContainedSymbolAtPos(position: Position) {
         if (intersectsWith(this.castRef.getRange(), position)) {
             return this.castRef.getRef() && this.castRef;
         }
         return this.objectRef?.getSymbolAtPos(position);
     }
 
-    index(document: UCDocument, context: UCStructSymbol) {
+    override index(document: UCDocument, context: UCStructSymbol) {
         const castClass = tryFindClassSymbol(this.castRef.id.name);
         if (castClass) {
             this.castRef.setRef(castClass, document);
@@ -1127,20 +1137,20 @@ export class UCObjectLiteral extends UCLiteral {
 export abstract class UCStructLiteral extends UCLiteral {
     structType!: UCObjectTypeSymbol;
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.structType.getRef();
     }
 
-    getType() {
+    override getType() {
         return this.structType;
     }
 
-    getContainedSymbolAtPos(_position: Position) {
+    override getContainedSymbolAtPos(_position: Position) {
         // Only return if we have a RESOLVED reference.
         return this.structType.getRef() && this.structType as ISymbol;
     }
 
-    index(_document: UCDocument, _context?: UCStructSymbol) {
+    override index(_document: UCDocument, _context?: UCStructSymbol) {
         if (this.structType.getRef()) {
             return;
         }
@@ -1160,9 +1170,11 @@ export class UCDefaultStructLiteral extends UCExpression {
                 return symbol;
             }
         }
+
+        return undefined;
     }
 
-    index(document: UCDocument, context?: UCStructSymbol) {
+    override index(document: UCDocument, context?: UCStructSymbol) {
         if (this.arguments) for (const arg of this.arguments) {
             arg?.index(document, context);
         }
@@ -1170,25 +1182,25 @@ export class UCDefaultStructLiteral extends UCExpression {
 }
 
 export class UCVectLiteral extends UCStructLiteral {
-    structType = StaticVectorType;
+    override structType = StaticVectorType;
 
-    getContainedSymbolAtPos(_position: Position) {
+    override getContainedSymbolAtPos(_position: Position) {
         return IntrinsicVectLiteral;
     }
 }
 
 export class UCRotLiteral extends UCStructLiteral {
-    structType = StaticRotatorType;
+    override structType = StaticRotatorType;
 
-    getContainedSymbolAtPos(_position: Position) {
+    override getContainedSymbolAtPos(_position: Position) {
         return IntrinsicRotLiteral;
     }
 }
 
 export class UCRngLiteral extends UCStructLiteral {
-    structType = StaticRangeType;
+    override structType = StaticRangeType;
 
-    getContainedSymbolAtPos(_position: Position) {
+    override getContainedSymbolAtPos(_position: Position) {
         return IntrinsicRngLiteral;
     }
 }
@@ -1196,21 +1208,21 @@ export class UCRngLiteral extends UCStructLiteral {
 export class UCSizeOfLiteral extends UCLiteral {
     public argumentRef?: ITypeSymbol;
 
-    getValue() {
+    override getValue() {
         // FIXME: We don't have the data to calculate a class's size.
         // const symbol = this.argumentRef?.getReference();
         return undefined;
     }
 
-    getType() {
+    override getType() {
         return this.argumentRef;
     }
 
-    getContainedSymbolAtPos(position: Position) {
+    override getContainedSymbolAtPos(position: Position) {
         return this.argumentRef?.getSymbolAtPos(position) && this.argumentRef;
     }
 
-    index(document: UCDocument, context?: UCStructSymbol) {
+    override index(document: UCDocument, context?: UCStructSymbol) {
         super.index(document, context);
         this.argumentRef?.index(document, context!);
     }
@@ -1220,11 +1232,11 @@ export class UCMetaClassExpression extends UCExpression {
     public classRef?: UCObjectTypeSymbol;
     public expression?: IExpression;
 
-    getMemberSymbol() {
+    override getMemberSymbol() {
         return this.classRef?.getRef();
     }
 
-    getType() {
+    override getType() {
         return this.classRef;
     }
 
@@ -1233,7 +1245,7 @@ export class UCMetaClassExpression extends UCExpression {
         return this.expression?.getSymbolAtPos(position) ?? (subSymbol?.getRef() && this.classRef);
     }
 
-    index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
         this.classRef?.index(document, context!);
         this.expression?.index(document, context, info);
     }
