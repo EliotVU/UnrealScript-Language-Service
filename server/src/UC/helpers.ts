@@ -142,7 +142,6 @@ export function getDocumentContext(document: UCDocument, position: Position): IS
 
     return undefined;
 }
-
 export async function getDocumentTooltip(document: UCDocument, position: Position): Promise<Hover | undefined> {
     const symbol = getDocumentSymbol(document, position);
     if (!symbol) {
@@ -154,15 +153,16 @@ export async function getDocumentTooltip(document: UCDocument, position: Positio
         return undefined;
     }
 
-    const docs = getSymbolDocumentation(symbol);
+    const documentation = getSymbolDocumentation(symbol);
     return {
         contents: {
             kind: MarkupKind.Markdown,
             value: [
                 `\`\`\`unrealscript`,
                 tooltip,
-                docs,
-                `\`\`\``
+                `\`\`\``,
+                '---',
+                documentation,
             ].filter(Boolean).join('\n')
         },
         range: symbol.id.range
