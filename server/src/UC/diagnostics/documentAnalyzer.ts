@@ -388,7 +388,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
 
         this.pushScope(symbol);
+
+        const lastAllowedKindsMask = this.allowedKindsMask;
+        this.setAllowed(UCScriptStructSymbol.allowedKindsMask);
         super.visitScriptStruct(symbol);
+        this.setAllowed(lastAllowedKindsMask);
 
         if (config.checkTypes && symbol.extendsType) {
             const referredSymbol = symbol.extendsType.getRef();
@@ -491,9 +495,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         this.pushScope(symbol);
         this.suspendState();
         this.setAllowed(UCMethodSymbol.allowedKindsMask);
-        super.visitMethod(symbol);
-        this.revokeAllowed(UCSymbolKind.Property);
-        this.resumeState();
 
         if (symbol.params) {
             let requiredParamsCount = 0;
@@ -519,6 +520,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             }
             symbol.requiredParamsCount = requiredParamsCount;
         }
+
+        super.visitMethod(symbol);
+        this.revokeAllowed(UCSymbolKind.Property);
+        this.resumeState();
 
         if (symbol.isOperatorKind()) {
             if (!symbol.hasAnySpecifierFlags(MethodFlags.Final)) {
@@ -1456,10 +1461,24 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             }
         }
 
+        if (!symbol.params) {
+            return;
+        }
+        
+        // Calc if not cached already
+        let requiredParamsCount = symbol.requiredParamsCount ?? 0;
+        if (typeof symbol.requiredParamsCount === 'undefined') for (; requiredParamsCount < symbol.params.length; ++requiredParamsCount) {
+            if (symbol.params[requiredParamsCount].hasAnyModifierFlags(ModifierFlags.Optional)) {
+                break;
+            }
+
+            symbol.requiredParamsCount = requiredParamsCount;
+        }
+    
         // When we have more params than required, we'll catch an unexpected argument error, see above.
-        if (symbol.requiredParamsCount && passedArgumentsCount < symbol.requiredParamsCount) {
+        if (requiredParamsCount && passedArgumentsCount < requiredParamsCount) {
             const totalPassedParamsCount = i;
-            this.pushError(expr.getRange(), `Expected ${symbol.requiredParamsCount} arguments, but got ${totalPassedParamsCount}.`);
+            this.pushError(expr.getRange(), `Expected ${requiredParamsCount} arguments, but got ${totalPassedParamsCount}.`);
         }
     }
 
