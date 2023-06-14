@@ -87,6 +87,13 @@ export function rangeFromCtx(ctx: ParserRuleContext): Range {
     return { start, end };
 }
 
+export function positionFromCtx(ctx: ParserRuleContext): Position {
+    return {
+        line: ctx.start.line - 1,
+        character: ctx.start.charPositionInLine
+    };
+}
+
 export function intersectsWith(range: Range, position: Position): boolean {
     if (position.line < range.start.line || position.line > range.end.line) {
         return false;

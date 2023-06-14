@@ -27,9 +27,9 @@ import {
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { buildCodeActions } from './codeActions';
 import {
-    getCompletableSymbolItems,
-    getFullCompletionItem,
     getSignatureHelp,
+    getCompletionItems,
+    getFullCompletionItem,
     updateIgnoredCompletionTokens,
 } from './completion';
 import { getDocumentDiagnostics } from './documentDiagnostics';
@@ -327,7 +327,8 @@ connection.onInitialize((params: InitializeParams) => {
                 resolveProvider: true
             },
             signatureHelpProvider: {
-                triggerCharacters: ['(', ',']
+                triggerCharacters: ['(', ','],
+                retriggerCharacters: [',']
             },
             definitionProvider: true,
             documentSymbolProvider: true,
@@ -822,13 +823,20 @@ connection.onDocumentHighlight((e) => getDocumentHighlights(e.textDocument.uri, 
 connection.onCompletion((e) => {
     if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
         return firstValueFrom(documentsCodeIndexed$).then(_documents => {
-            return getCompletableSymbolItems(e.textDocument.uri, e.position);
+            return getCompletionItems(e.textDocument.uri, e.position);
         });
     }
-    return getCompletableSymbolItems(e.textDocument.uri, e.position);
+    return getCompletionItems(e.textDocument.uri, e.position);
 });
 connection.onCompletionResolve(getFullCompletionItem);
-connection.onSignatureHelp((e) => getSignatureHelp(e.textDocument.uri, e.position));
+connection.onSignatureHelp((e) => {
+    if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
+        return firstValueFrom(documentsCodeIndexed$).then(_documents => {
+            return getSignatureHelp(e.textDocument.uri, e.position);
+        });
+    }
+    return getSignatureHelp(e.textDocument.uri, e.position);
+});
 
 connection.onPrepareRename(async (e) => {
     const symbol = getSymbol(e.textDocument.uri, e.position);

@@ -7,7 +7,7 @@ import { DocumentUri, Position } from 'vscode-languageserver-textdocument';
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { UCLanguageServerSettings } from './settings';
 import { UCLexer } from './UC/antlr/generated/UCLexer';
-import { ProgramContext, UCParser } from './UC/antlr/generated/UCParser';
+import { CallExpressionContext, EmptyArgumentContext, ProgramContext, UCParser } from './UC/antlr/generated/UCParser';
 import { UCDocument } from './UC/document';
 import { UCCallExpression } from './UC/expressions';
 import {
@@ -15,8 +15,14 @@ import {
     backtrackFirstTokenOfType,
     getCaretTokenFromStream,
     getDocumentContext,
+    getDocumentSymbol,
     getIntersectingContext,
+    intersectsWith,
+    intersectsWithRange,
+    positionFromCtx,
     rangeFromBound,
+    rangeFromBounds,
+    rangeFromCtx,
 } from './UC/helpers';
 import { config, getDocumentByURI, UCGeneration, UELicensee } from './UC/indexer';
 import { toName } from './UC/name';
@@ -32,6 +38,7 @@ import {
     isEnumSymbol,
     isField,
     isFunction,
+    isMethodSymbol,
     isPackage,
     isStruct,
     isTypeSymbol,
@@ -102,6 +109,14 @@ export const DefaultIgnoredTokensSet = new Set([
 
 let currentIgnoredTokensSet = DefaultIgnoredTokensSet;
 
+function getParentRule(ctx: ParserRuleContext | undefined, ruleIndex: number): ParserRuleContext | undefined {
+    while (ctx && ctx.ruleIndex !== ruleIndex) {
+        ctx = ctx.parent;
+    }
+
+    return ctx;
+}
+
 const TypeDeclSymbolKinds = 1 << UCSymbolKind.Enum
     | 1 << UCSymbolKind.ScriptStruct
     | 1 << UCSymbolKind.Class
@@ -127,56 +142,7 @@ const GlobalCastSymbolKinds = 1 << UCSymbolKind.Class
 const MethodSymbolKinds = 1 << UCSymbolKind.Function
     | 1 << UCSymbolKind.Event;
 
-export async function getSignatureHelp(uri: DocumentUri, position: Position): Promise<SignatureHelp | undefined> {
-    // const document = getDocumentByURI(uri);
-    // if (!document || !data) {
-    //     return undefined;
-    // }
-
-    // const cc = new c3.CodeCompletionCore(data.parser);
-    // // cc.showDebugOutput = true;
-    // cc.ignoredTokens = currentIgnoredTokensSet;
-    // cc.preferredRules = PreferredRulesSet;
-
-    // const context = data.context && getIntersectingContext(data.context, position);
-    // const caretTokenIndex = getCaretTokenIndexFromStream(data.parser.inputStream, position);
-    // const candidates = cc.collectCandidates(caretTokenIndex, context);
-
-    // for (let [type, candiateRule] of candidates.rules) {
-    //     // console.log('signatureHelp::type', data.parser.ruleNames[type]);
-
-    //     const stateType = candiateRule.ruleList.length
-    //         ? candiateRule.ruleList[candiateRule.ruleList.length - 1]
-    //         : undefined;
-    //     // console.log('signatureHelp::stateType', candiateRule.ruleList.map(t => t && data.parser.ruleNames[t]).join('.'));
-
-    //     // Speculative approach...
-    //     switch (type) {
-    //         case UCParser.RULE_identifier:
-    //         case UCParser.RULE_qualifiedIdentifier: {
-    //             switch (stateType) {
-    //                 case UCParser.RULE_qualifiedIdentifierArguments: {
-    //                     return {
-    //                         signatures: [{
-    //                             label: 'implements (interface, ...interface)',
-    //                             parameters: [{
-    //                                 label: 'interface',
-    //                             }],
-    //                             activeParameter: 0
-    //                         }],
-    //                         activeSignature: 0,
-    //                         activeParameter: null,
-    //                     };
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-    return undefined;
-}
-
-export async function getCompletableSymbolItems(uri: DocumentUri, position: Position): Promise<CompletionItem[] | undefined> {
+export async function getCompletionItems(uri: DocumentUri, position: Position): Promise<CompletionItem[] | undefined> {
     // Do a fresh parse (but no indexing or transforming, we'll use the cached AST instead).
     const text = ActiveTextDocuments.get(uri)?.getText();
     if (typeof text === 'undefined') {
@@ -192,7 +158,26 @@ export async function getCompletableSymbolItems(uri: DocumentUri, position: Posi
     if (typeof data.context === 'undefined') {
         throw new Error('No parse context!');
     }
-    return buildCompletableSymbolItems(document, position, { context: data.context, parser: data.parser });
+    return buildCompletionItems(document, position, { context: data.context, parser: data.parser });
+}
+
+export async function getSignatureHelp(uri: DocumentUri, position: Position): Promise<SignatureHelp | undefined> {
+    // Do a fresh parse (but no indexing or transforming, we'll use the cached AST instead).
+    const text = ActiveTextDocuments.get(uri)?.getText();
+    if (typeof text === 'undefined') {
+        return;
+    }
+
+    const document = getDocumentByURI(uri);
+    if (!document) {
+        return;
+    }
+
+    const data = document.parse(text);
+    if (typeof data.context === 'undefined') {
+        throw new Error('No parse context!');
+    }
+    return buildSignatureHelp(document, position, { context: data.context, parser: data.parser });
 }
 
 function insertTextForFunction(symbol: UCMethodSymbol): string {
@@ -260,7 +245,97 @@ function insertOverridableStates(document: UCDocument, contextSymbol: UCStructSy
     symbols.push(...symbolItems);
 }
 
-async function buildCompletableSymbolItems(
+async function buildSignatureHelp(document: UCDocument, position: Position, data: {
+    parser: Parser,
+    context: ProgramContext
+}): Promise<SignatureHelp | undefined> {
+    const stream = data.parser.inputStream;
+    const carretToken = getCaretTokenFromStream(stream, position);
+    if (!carretToken) {
+        console.warn(`No carret token at ${position.line}:${position.character}`);
+        // throw new Error(`No carret token at ${position}`);
+        return;
+    }
+    console.info(
+        'signatureHelp::carretToken'.padEnd(42),
+        getTokenDebugInfo(carretToken, data.parser));
+
+    if (carretToken.channel === UCLexer.COMMENTS_CHANNEL || carretToken.channel === UCLexer.STRING_LITERAL) {
+        return;
+    }
+
+    const carretRuleContext = getIntersectingContext(data.context, position);
+    if (process.env.NODE_ENV === 'development') {
+        console.debug(
+            'signatureHelp::carretRuleContext'.padEnd(42),
+            getCtxDebugInfo(carretRuleContext, data.parser));
+    }
+
+    // No c++ support, + this leads to an infinite loop with cc.collectCandiates.
+    if (carretRuleContext?.ruleIndex === UCParser.RULE_exportBlockText) {
+        return undefined;
+    }
+
+    let callExpression = carretRuleContext;
+    while (callExpression !== undefined && !(callExpression instanceof CallExpressionContext)) {
+        callExpression = getParentRule(callExpression.parent, UCParser.RULE_primaryExpression);
+    }
+
+    // Assert?
+    if (!(callExpression instanceof CallExpressionContext)) {
+        return undefined;
+    }
+
+    const scopeSymbol = getDocumentContext(document, position) as UCStructSymbol;
+    console.info(
+        'signatureHelp::scopeSymbol'.padEnd(42),
+        getDebugSymbolInfo(scopeSymbol));
+
+    // TODO: could be a call to a delegate within an array?
+
+    const invocationPosition = positionFromCtx(callExpression.primaryExpression());
+    const symbol = scopeSymbol.getSymbolAtPos(invocationPosition);
+    if (!symbol) {
+        return undefined;
+    }
+
+    let activeParameter: number | undefined = undefined;
+    const args = callExpression.arguments()?.children;
+    if (args) {
+        const stop = callExpression.CLOSE_PARENS()!._symbol;
+        for (let i = args.length - 1; i >= 0; --i) {
+            if (intersectsWithRange(position, rangeFromBounds((args[i] as ParserRuleContext).start, stop))) {
+                activeParameter = i;
+                break;
+            }
+        }
+    }
+
+    // As the user is typing an identifier could either match a function or a class like say "Fire"
+    // So we cannot reliable trust the indexed result, instead we'll always match a function instead.
+    const methodId = symbol.getName();
+    const methodSymbol = scopeSymbol.findSuperSymbol(methodId);
+    if (methodSymbol && isMethodSymbol(methodSymbol)) {
+        return {
+            signatures: [
+                {
+                    label: methodSymbol.getTooltip(),
+                    parameters: methodSymbol.params?.map(param => {
+                        return {
+                            label: param.getTextForSignature()
+                        };
+                    }),
+                }
+            ],
+            activeSignature: 0,
+            activeParameter
+        };
+    }
+
+    return undefined;
+}
+
+async function buildCompletionItems(
     document: UCDocument,
     position: Position,
     data: {
@@ -329,15 +404,6 @@ async function buildCompletableSymbolItems(
 
     // No c++ support, + this leads to an infinite loop with cc.collectCandiates.
     if (carretRuleContext?.ruleIndex === UCParser.RULE_exportBlockText) {
-        return undefined;
-    }
-
-    function getParentRule(ctx: ParserRuleContext | undefined, ruleIndex: number): ParserRuleContext | undefined {
-        while (ctx && (ctx = ctx.parent)) {
-            if (ctx.ruleIndex == ruleIndex) {
-                return ctx;
-            }
-        }
         return undefined;
     }
 
