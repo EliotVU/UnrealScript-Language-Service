@@ -1,53 +1,18 @@
 import * as c3 from 'antlr4-c3';
 import { Parser, ParserRuleContext } from 'antlr4ts';
 import { Token } from 'antlr4ts/Token';
-import { CompletionItem, CompletionItemKind, InsertTextFormat, InsertTextMode, SignatureHelp } from 'vscode-languageserver';
+import { CompletionItem, CompletionItemKind, InsertTextFormat, InsertTextMode, SignatureHelp, SignatureInformation } from 'vscode-languageserver';
 import { DocumentUri, Position } from 'vscode-languageserver-textdocument';
 
-import { ActiveTextDocuments } from './activeTextDocuments';
-import { UCLanguageServerSettings } from './settings';
-import { UCLexer } from './UC/antlr/generated/UCLexer';
-import { CallExpressionContext, EmptyArgumentContext, ProgramContext, UCParser } from './UC/antlr/generated/UCParser';
-import { UCDocument } from './UC/document';
-import { UCCallExpression } from './UC/expressions';
-import {
-    backtrackFirstToken,
-    backtrackFirstTokenOfType,
-    getCaretTokenFromStream,
-    getDocumentContext,
-    getDocumentSymbol,
-    getIntersectingContext,
-    intersectsWith,
-    intersectsWithRange,
-    positionFromCtx,
-    rangeFromBound,
-    rangeFromBounds,
-    rangeFromCtx,
-} from './UC/helpers';
-import { config, getDocumentByURI, UCGeneration, UELicensee } from './UC/indexer';
-import { toName } from './UC/name';
 import { getCtxDebugInfo, getTokenDebugInfo } from './UC/Parser/Parser.utils';
 import {
-    areMethodsCompatibleWith,
     ContextKind,
     DefaultArray,
-    getDebugSymbolInfo,
-    Identifier,
-    isClass,
-    isDelegateSymbol,
-    isEnumSymbol,
-    isField,
-    isFunction,
-    isMethodSymbol,
-    isPackage,
-    isStruct,
-    isTypeSymbol,
     ISymbol,
+    Identifier,
     MethodFlags,
     ModifierFlags,
     ObjectsTable,
-    resolveType,
-    tryFindClassSymbol,
     UCClassSymbol,
     UCConstSymbol,
     UCDelegateSymbol,
@@ -62,7 +27,42 @@ import {
     UCStructSymbol,
     UCSymbolKind,
     UCTypeKind,
+    areMethodsCompatibleWith,
+    findOrIndexClassSymbol,
+    getDebugSymbolInfo,
+    isClass,
+    isDelegateSymbol,
+    isEnumSymbol,
+    isField,
+    isFunction,
+    isMethodSymbol,
+    isPackage,
+    isStruct,
+    isTypeSymbol,
+    resolveType,
+    tryFindClassSymbol,
 } from './UC/Symbols';
+import { UCLexer } from './UC/antlr/generated/UCLexer';
+import { CallExpressionContext, ProgramContext, UCParser } from './UC/antlr/generated/UCParser';
+import { UCDocument } from './UC/document';
+import { UCCallExpression } from './UC/expressions';
+import {
+    backtrackFirstToken,
+    backtrackFirstTokenOfType,
+    getCaretTokenFromStream,
+    getDocumentContext,
+    getIntersectingContext,
+    intersectsWithRange,
+    positionFromToken,
+    rangeFromBound,
+    rangeFromBounds,
+    resolveSymbolToRef,
+} from './UC/helpers';
+import { config, getDocumentByURI } from './UC/indexer';
+import { toName } from './UC/name';
+import { UCGeneration, UELicensee } from './UC/settings';
+import { ActiveTextDocuments } from './activeTextDocuments';
+import { UCLanguageServerSettings } from './configuration';
 
 /** If the candidates collector hits any these it'll stop at the first occurance. */
 const PreferredRulesSet = new Set([

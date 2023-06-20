@@ -23,17 +23,19 @@
             "port": 6010,
             "name": "Attach to Server",
             "outFiles": [
-                "${workspaceRoot}/out/server.js"
+                "${workspaceRoot}/out/server.js",
+                "!${workspaceRoot}/out/vendor.js"
             ],
             "sourceMaps": true,
+            "smartStep": true,
             "restart": true,
             "request": "attach",
             "type": "node",
         },
         {
             "debugServer": 6020,
-            "name": "Antlr UC Macro",
-            "input": "grammars/examples/macro.uci",
+            "name": "Antlr UC Macro Test",
+            "input": "grammars/test/Macro.uci",
             "grammar": "grammars/UCPreprocessorParser.g4",
             "startRule": "macroProgram",
             "trace": true,

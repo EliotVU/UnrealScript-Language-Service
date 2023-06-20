@@ -4,8 +4,9 @@ import { Subject } from 'rxjs';
 import * as url from 'url';
 import { Location } from 'vscode-languageserver';
 import { DocumentUri } from 'vscode-languageserver-textdocument';
+import { UCGeneration, UELicensee } from "./settings";
 
-import { EAnalyzeOption, UCLanguageServerSettings } from '../settings';
+import { EAnalyzeOption, UCLanguageServerSettings } from '../configuration';
 import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
 import { UCDocument } from './document';
 import { DocumentCodeIndexer } from './documentCodeIndexer';
@@ -25,46 +26,20 @@ import {
 export const documentsByPathMap = new Map<string, UCDocument>();
 export const documentsMap = new Map<NameHash, UCDocument>();
 
-export enum UCGeneration {
-    Auto = 'auto',
-    UC1 = '1',
-    UC2 = '2',
-    UC3 = '3'
-}
-
-export const enum UELicensee {
-    Epic = 'Epic',
-    XCom = 'XCom',
-}
-
-export type IntrinsicSymbolItemMap = {
-    [key: string]: {
-        type?: string;
-        extends?: string;
-    }
-}
-
-export type UCLanguageSettings = {
-    generation: UCGeneration;
-    licensee: UELicensee;
-    checkTypes?: boolean;
-    macroSymbols?: {
-        [key: string]: string
-    };
-    intrinsicSymbols: IntrinsicSymbolItemMap
-}
-
 export const defaultSettings: UCLanguageServerSettings = {
     generation: UCGeneration.UC3,
     licensee: UELicensee.Epic,
-    analyzeDocuments: EAnalyzeOption.OnlyActive,
     checkTypes: true,
     macroSymbols: {
         'debug': ''
     },
     intrinsicSymbols: {
 
-    }
+    },
+    analyzeDocuments: EAnalyzeOption.OnlyActive,
+    analyzeDocumentDebouncePeriod: 50,
+    indexAllDocuments: false,
+    indexDocumentDebouncePeroid: 50
 };
 
 export const config: UCLanguageServerSettings = Object.assign({}, defaultSettings);

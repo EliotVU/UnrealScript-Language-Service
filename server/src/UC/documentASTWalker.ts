@@ -47,7 +47,7 @@ import {
     UCVectLiteral,
 } from './expressions';
 import { rangeFromBound, rangeFromBounds, rangeFromCtx } from './helpers';
-import { config, setEnumMember, UCGeneration } from './indexer';
+import { config, setEnumMember } from './indexer';
 import { toName } from './name';
 import {
     NAME_ARRAY,
@@ -126,6 +126,8 @@ import {
     UCTypeKind,
     UCTypeSymbol,
 } from './Symbols';
+import { UCGeneration } from './settings';
+import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 
 function createIdentifier(ctx: ParserRuleContext) {
     const identifier: Identifier = {
@@ -777,7 +779,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         this.push(symbol);
         try {
             if (ctx._returnParam) {
-                let paramModifiers: ModifierFlags = ModifierFlags.ReturnParam 
+                let paramModifiers: ModifierFlags = ModifierFlags.ReturnParam
                     | ModifierFlags.Out
                     | ModifierFlags.Generated;
                 const modifierNode = ctx._returnParam.returnTypeModifier();

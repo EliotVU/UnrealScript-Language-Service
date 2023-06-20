@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
 import { BehaviorSubject, firstValueFrom, interval, of, Subject, Subscription } from 'rxjs';
-import { debounce, delay, filter, map, switchMap, tap, timeout } from 'rxjs/operators';
+import { debounce, filter, map, switchMap, tap, timeout } from 'rxjs/operators';
 import * as url from 'url';
 import { DocumentUri, TextDocument } from 'vscode-languageserver-textdocument';
 import {
@@ -27,17 +27,17 @@ import {
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { buildCodeActions } from './codeActions';
 import {
-    getSignatureHelp,
     getCompletionItems,
     getFullCompletionItem,
+    getSignatureHelp,
     updateIgnoredCompletionTokens,
 } from './completion';
+import { EAnalyzeOption, UCLanguageServerSettings } from './configuration';
 import { getDocumentDiagnostics } from './documentDiagnostics';
 import { getDocumentHighlights } from './documentHighlight';
 import { getDocumentSymbols } from './documentSymbol';
 import { getDocumentSemanticTokens } from './documentTokenSemantics';
 import { getReferences, getSymbolReferences } from './references';
-import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
 import { CommandIdentifier, CommandsList, InlineChangeCommand } from './UC/commands';
 import { UCDocument } from './UC/document';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
@@ -64,14 +64,12 @@ import {
     getPendingDocumentsCount,
     indexDocument,
     indexPendingDocuments,
-    IntrinsicSymbolItemMap,
     queueIndexDocument,
     removeDocumentByPath,
-    UCGeneration,
-    UELicensee,
 } from './UC/indexer';
 import { toName } from './UC/name';
 import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
+import { IntrinsicSymbolItemMap, UCGeneration, UELicensee } from './UC/settings';
 import {
     addHashedSymbol,
     CORE_PACKAGE,
@@ -364,7 +362,7 @@ connection.onInitialized((params) => {
     lastIndexedDocumentsSub = documentsCodeIndexed$
         .pipe(
             filter(() => config.analyzeDocuments !== EAnalyzeOption.None),
-            delay(50),
+            debounce(() => interval(config.analyzeDocumentDebouncePeriod)),
         )
         .subscribe(documents => {
             if (config.analyzeDocuments === EAnalyzeOption.OnlyActive) {
@@ -388,7 +386,7 @@ connection.onInitialized((params) => {
     isIndexReadySub = isIndexReady$
         .pipe(
             switchMap(() => pendingTextDocument$),
-            debounce(({ source }) => interval(source === 'change' ? 50 : undefined))
+            debounce(({ source }) => interval(source === 'change' ? config.indexDocumentDebouncePeriod : undefined))
         )
         .subscribe({
             next: async ({ textDocument, source }) => {
@@ -643,6 +641,11 @@ function setConfiguration(settings: UCLanguageServerSettings) {
 function initializeConfiguration() {
     clearMacroSymbols();
     clearIntrinsicSymbols();
+
+    // Ensure that we are working with sane values!
+    config.indexDocumentDebouncePeriod = Math.max(Math.min(config.indexDocumentDebouncePeriod, 300), 0.0);
+    config.analyzeDocumentDebouncePeriod = Math.max(Math.min(config.analyzeDocumentDebouncePeriod, 1000), 0.0);
+
     applyConfiguration(config);
 }
 

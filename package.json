@@ -149,6 +149,13 @@
                     "description": "Whether to index all document files found in the workspace.",
                     "default": false
                 },
+                "unrealscript.indexDocumentDebouncePeriod": {
+                    "scope": "window",
+                    "type": "number",
+                    "default": 50,
+                    "minimum": 0,
+                    "maximum": 300
+                },
                 "unrealscript.analyzeDocuments": {
                     "scope": "window",
                     "type": "string",
@@ -159,6 +166,13 @@
                     ],
                     "description": "Analyzes any active document, or all documents, and report back \"problems\" if any.",
                     "default": "OnlyActive"
+                },
+                "unrealscript.analyzeDocumentDebouncePeriod": {
+                    "scope": "window",
+                    "type": "number",
+                    "default": 50,
+                    "minimum": 0,
+                    "maximum": 1000
                 },
                 "unrealscript.checkTypes": {
                     "scope": "window",

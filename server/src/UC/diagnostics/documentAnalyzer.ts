@@ -1,5 +1,56 @@
 import { DiagnosticSeverity, Range } from 'vscode-languageserver';
 
+import {
+    ArrayIterator,
+    Array_LengthProperty,
+    ClassModifierFlags,
+    ContextInfo,
+    ITypeSymbol,
+    IntrinsicClass,
+    IntrinsicEnum,
+    MethodFlags,
+    ModifierFlags,
+    StaticBoolType,
+    StaticDelegateType,
+    StaticIntType,
+    StaticMetaType,
+    StaticNameType,
+    TypeKindToName,
+    UCArchetypeSymbol,
+    UCArrayTypeSymbol,
+    UCClassSymbol,
+    UCConstSymbol,
+    UCConversionCost,
+    UCDelegateSymbol,
+    UCDelegateTypeSymbol,
+    UCEnumMemberSymbol,
+    UCEnumSymbol,
+    UCFieldSymbol,
+    UCInterfaceSymbol,
+    UCMatchFlags,
+    UCMethodSymbol,
+    UCObjectTypeSymbol,
+    UCParamSymbol,
+    UCPropertySymbol,
+    UCQualifiedTypeSymbol,
+    UCScriptStructSymbol,
+    UCStateSymbol,
+    UCStructSymbol,
+    UCSymbolKind,
+    UCTypeKind,
+    areMethodsCompatibleWith,
+    getConversionCost,
+    isClass,
+    isDelegateSymbol,
+    isEnumSymbol,
+    isEnumTagSymbol,
+    isField,
+    isFunction,
+    isMethodSymbol,
+    isStateSymbol,
+    resolveType,
+    typesMatch,
+} from '../Symbols';
 import { UCDocument } from '../document';
 import {
     IExpression,
@@ -24,9 +75,10 @@ import {
     UCSizeOfLiteral,
     UCSuperExpression,
 } from '../expressions';
-import { config, getDocumentById, UCGeneration } from '../indexer';
+import { config, getDocumentById } from '../indexer';
 import { toName } from '../name';
 import { NAME_ENUMCOUNT, NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
+import { UCGeneration } from '../settings';
 import {
     IStatement,
     UCAssertStatement,
@@ -44,58 +96,6 @@ import {
     UCSwitchStatement,
     UCWhileStatement,
 } from '../statements';
-import {
-    areMethodsCompatibleWith,
-    Array_LengthProperty,
-    ArrayIterator,
-    ClassModifierFlags,
-    ContextInfo,
-    getConversionCost,
-    IntrinsicClass,
-    IntrinsicEnum,
-    isClass,
-    isDelegateSymbol,
-    isEnumSymbol,
-    isEnumTagSymbol,
-    isField,
-    isFunction,
-    isMethodSymbol,
-    isStateSymbol,
-    isTypeSymbol,
-    ITypeSymbol,
-    MethodFlags,
-    ModifierFlags,
-    resolveType,
-    StaticBoolType,
-    StaticDelegateType,
-    StaticIntType,
-    StaticMetaType,
-    StaticNameType,
-    TypeKindToName,
-    typesMatch,
-    UCArchetypeSymbol,
-    UCArrayTypeSymbol,
-    UCClassSymbol,
-    UCConstSymbol,
-    UCConversionCost,
-    UCDelegateSymbol,
-    UCDelegateTypeSymbol,
-    UCEnumMemberSymbol,
-    UCEnumSymbol,
-    UCFieldSymbol,
-    UCInterfaceSymbol,
-    UCMatchFlags,
-    UCMethodSymbol,
-    UCObjectTypeSymbol,
-    UCParamSymbol,
-    UCPropertySymbol,
-    UCQualifiedTypeSymbol,
-    UCScriptStructSymbol,
-    UCStateSymbol,
-    UCStructSymbol,
-    UCSymbolKind,
-    UCTypeKind,
-} from '../Symbols';
 import { DefaultSymbolWalker } from '../symbolWalker';
 import { DiagnosticCollection, IDiagnosticMessage } from './diagnostic';
 import * as diagnosticMessages from './diagnosticMessages.json';
@@ -1464,7 +1464,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         if (!symbol.params) {
             return;
         }
-        
+
         // Calc if not cached already
         let requiredParamsCount = symbol.requiredParamsCount ?? 0;
         if (typeof symbol.requiredParamsCount === 'undefined') for (; requiredParamsCount < symbol.params.length; ++requiredParamsCount) {
@@ -1474,7 +1474,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
 
             symbol.requiredParamsCount = requiredParamsCount;
         }
-    
+
         // When we have more params than required, we'll catch an unexpected argument error, see above.
         if (requiredParamsCount && passedArgumentsCount < requiredParamsCount) {
             const totalPassedParamsCount = i;

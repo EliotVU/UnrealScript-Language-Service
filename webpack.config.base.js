@@ -20,7 +20,7 @@ const config = {
             },
         },
     },
-    devtool: 'source-map',
+    devtool: 'inline-source-map',
     externals: {
         vscode: 'commonjs vscode',
     },

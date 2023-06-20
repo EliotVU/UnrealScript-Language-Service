@@ -1,7 +1,8 @@
 import { Position, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { config, UCGeneration } from '../indexer';
+import { config } from '../indexer';
+import { UCGeneration } from '../settings';
 import { SymbolWalker } from '../symbolWalker';
 import {
     ContextKind,
@@ -32,11 +33,11 @@ export class UCPropertySymbol extends UCFieldSymbol {
     // Array dimension is statically based on a declared symbol, such as a const or enum member.
     public arrayDimRef?: ITypeSymbol;
     public arrayDimRange?: Range;
-    
-	constructor(id: Identifier, range: Range, type: ITypeSymbol) {
-		super(id, range);
+
+    constructor(id: Identifier, range: Range, type: ITypeSymbol) {
+        super(id, range);
         this.type = type;
-	}
+    }
 
     isDynamicArray(): this is { type: UCArrayTypeSymbol } {
         return (this.type?.getTypeKind() === UCTypeKind.Array);

@@ -1,4 +1,4 @@
-import { UCLanguageSettings } from './UC/indexer';
+import { UCLanguageSettings } from './UC/settings';
 
 export enum EAnalyzeOption {
 	None = "None",
@@ -7,8 +7,10 @@ export enum EAnalyzeOption {
 }
 
 export type UCLanguageServerSettings = UCLanguageSettings & {
-    analyzeDocuments?: EAnalyzeOption;
-    indexAllDocuments?: boolean;
     indexPackageExtensions?: string[];
     indexDocumentExtensions?: string[];
+    indexAllDocuments?: boolean;
+    indexDocumentDebouncePeriod: number;
+    analyzeDocuments?: EAnalyzeOption;
+    analyzeDocumentDebouncePeriod: number;
 }
