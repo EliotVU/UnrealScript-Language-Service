@@ -87,10 +87,24 @@ export function rangeFromCtx(ctx: ParserRuleContext): Range {
     return { start, end };
 }
 
-export function positionFromCtx(ctx: ParserRuleContext): Position {
+export function positionFromToken(token: Token): Position {
+    return {
+        line: token.line - 1,
+        character: token.charPositionInLine
+    };
+}
+
+export function positionFromCtxStart(ctx: ParserRuleContext): Position {
     return {
         line: ctx.start.line - 1,
         character: ctx.start.charPositionInLine
+    };
+}
+
+export function positionFromCtxStop(ctx: ParserRuleContext): Position {
+    return {
+        line: ctx.stop!.line - 1,
+        character: ctx.stop!.charPositionInLine
     };
 }
 

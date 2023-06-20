@@ -39,7 +39,7 @@ export const defaultSettings: UCLanguageServerSettings = {
     analyzeDocuments: EAnalyzeOption.OnlyActive,
     analyzeDocumentDebouncePeriod: 50,
     indexAllDocuments: false,
-    indexDocumentDebouncePeroid: 50
+    indexDocumentDebouncePeriod: 50
 };
 
 export const config: UCLanguageServerSettings = Object.assign({}, defaultSettings);

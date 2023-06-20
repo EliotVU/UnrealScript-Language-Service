@@ -1614,36 +1614,28 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         // expr ( arguments )
         const exprNode = ctx.primaryExpression();
         expression.expression = exprNode.accept(this);
-
-        const exprArgumentNodes = ctx.arguments();
-        if (exprArgumentNodes) {
-            expression.arguments = exprArgumentNodes.accept(this);
-        }
+        expression.arguments = ctx.arguments()?.accept(this);
         return expression;
     }
 
-    visitArguments(ctx: UCGrammar.ArgumentsContext): IExpression[] | undefined {
-        const argumentNodes = ctx.argument();
-        if (!argumentNodes) {
-            return undefined;
-        }
-
-        const exprArgs = new Array(argumentNodes.length);
-        for (let i = 0; i < exprArgs.length; ++i) {
-            const argNode = argumentNodes[i];
-            const expr = argNode.accept(this);
-            if (!expr) {
-                exprArgs[i] = new UCEmptyArgument(rangeFromBounds(argNode.start, argNode.stop));
+    visitArguments(ctx: UCGrammar.ArgumentsContext): IExpression[] {
+        const exprArgs = [];
+        for (let i = 0; i < ctx.children!.length; ++i) {
+            const arg = ctx.children![i].accept(this);
+            if (!arg) {
                 continue;
             }
-            exprArgs[i] = expr;
+            exprArgs.push(arg);
         }
         return exprArgs;
     }
 
-    visitArgument(ctx: UCGrammar.ArgumentContext): IExpression | undefined {
-        const exprNode = ctx.expression();
-        return exprNode?.accept(this);
+    visitArgument(ctx: UCGrammar.ArgumentContext): IExpression {
+        return ctx.expression().accept(this);
+    }
+
+    visitEmptyArgument(ctx: UCGrammar.EmptyArgumentContext): IExpression {
+        return new UCEmptyArgument(rangeFromBounds(ctx.start, ctx.stop));
     }
 
     visitDefaultArguments(ctx: UCGrammar.DefaultArgumentsContext): IExpression[] | undefined {

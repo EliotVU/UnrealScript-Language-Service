@@ -292,15 +292,12 @@ async function buildSignatureHelp(document: UCDocument, position: Position, data
         getDebugSymbolInfo(scopeSymbol));
 
     // TODO: could be a call to a delegate within an array?
+    const signatures: SignatureInformation[] = [];
 
-    const invocationPosition = positionFromCtx(callExpression.primaryExpression());
-    const symbol = scopeSymbol.getSymbolAtPos(invocationPosition);
-    if (!symbol) {
-        return undefined;
-    }
+    const invocationPosition = positionFromToken(callExpression.primaryExpression()._stop!);
 
     let activeParameter: number | undefined = undefined;
-    const args = callExpression.arguments()?.children;
+    const args = callExpression.arguments()?.children?.filter(c => c instanceof ParserRuleContext);
     if (args) {
         const stop = callExpression.CLOSE_PARENS()!._symbol;
         for (let i = args.length - 1; i >= 0; --i) {
@@ -311,28 +308,87 @@ async function buildSignatureHelp(document: UCDocument, position: Position, data
         }
     }
 
-    // As the user is typing an identifier could either match a function or a class like say "Fire"
-    // So we cannot reliable trust the indexed result, instead we'll always match a function instead.
-    const methodId = symbol.getName();
-    const methodSymbol = scopeSymbol.findSuperSymbol(methodId);
-    if (methodSymbol && isMethodSymbol(methodSymbol)) {
-        return {
-            signatures: [
-                {
-                    label: methodSymbol.getTooltip(),
-                    parameters: methodSymbol.params?.map(param => {
-                        return {
-                            label: param.getTextForSignature()
-                        };
-                    }),
-                }
-            ],
-            activeSignature: 0,
-            activeParameter
-        };
+    const invokedSymbol = scopeSymbol.getSymbolAtPos(invocationPosition);
+    if (invokedSymbol) {
+        console.info(
+            'signatureHelp::invokedSymbol'.padEnd(42),
+            getDebugSymbolInfo(invokedSymbol));
+
+        const resolvedSymbol = resolveSymbolToRef(invokedSymbol);
+        if (!resolvedSymbol) {
+            return undefined;
+        }
+
+        const signature = buildSymbolSignature(resolvedSymbol);
+        if (signature) {
+            signatures.push(signature);
+        }
+    } else {
+        const invocationToken = getCaretTokenFromStream(stream, invocationPosition);
+        console.info(
+            'signatureHelp::invokedToken'.padEnd(42),
+            getTokenDebugInfo(invocationToken));
+
+        if (!invocationToken) {
+            return undefined;
+        }
+
+        // As the user is typing an identifier could either match a function or a class like say "Fire"
+        // So we cannot reliable trust the indexed result, instead we'll always match a function instead.
+        const unknownId = toName(invocationToken.text!);
+        const classSymbol = findOrIndexClassSymbol(unknownId);
+        if (classSymbol) {
+            const classCastSignature = buildClassSignature(classSymbol);
+            signatures.push(classCastSignature);
+        }
+
+        const methodSymbol = scopeSymbol.findSuperSymbol(unknownId);
+        if (methodSymbol && isMethodSymbol(methodSymbol)) {
+            const methodSignature = buildMethodSignature(methodSymbol);
+            signatures.push(methodSignature);
+        }
+    }
+
+    return {
+        signatures,
+        activeSignature: 0,
+        activeParameter
+    };
+}
+
+// TODO: other kinds? Perhaps auto completion for things like dependson(classname...)
+function buildSymbolSignature(symbol: ISymbol): SignatureInformation | undefined {
+    if (isClass(symbol)) {
+        return buildClassSignature(symbol);
+    }
+
+    if (isMethodSymbol(symbol)) {
+        return buildMethodSignature(symbol);
     }
 
     return undefined;
+}
+
+function buildClassSignature(symbol: UCClassSymbol): SignatureInformation {
+    return {
+        label: `${symbol.getPath()}(Object other)`,
+        parameters: [
+            {
+                label: `Object other`
+            }
+        ]
+    };
+}
+
+function buildMethodSignature(symbol: UCMethodSymbol): SignatureInformation {
+    return {
+        label: symbol.getTooltip(),
+        parameters: symbol.params?.map(param => {
+            return {
+                label: param.getTextForSignature()
+            };
+        }),
+    };
 }
 
 async function buildCompletionItems(
