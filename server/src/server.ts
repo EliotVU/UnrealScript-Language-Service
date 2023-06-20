@@ -386,13 +386,29 @@ connection.onInitialized((params) => {
     isIndexReadySub = isIndexReady$
         .pipe(
             switchMap(() => pendingTextDocument$),
+            filter(({ textDocument, source }) => {
+                if (process.env.NODE_ENV === 'development') {
+                    connection.console.log(`Processing pending document "${textDocument.uri}":${textDocument.version}, source:${source}.`);
+                }
+
+                const document = getDocumentByURI(textDocument.uri);
+                if (!document) {
+                    // Don't index documents that are not part of the workspace.
+                    return false;
+                }
+
+                if (source === 'change' && textDocument.version !== document.indexedVersion) {
+                    // we are gonna wait 50ms before indexing the changes, 
+                    // therefore we want to ensure that any observers will receive this document as incomplete before the 50ms elapses.
+                    document.hasBeenBuilt = false;
+                    document.hasBeenIndexed = false;
+                }
+                return true;
+            }),
             debounce(({ source }) => interval(source === 'change' ? config.indexDocumentDebouncePeriod : undefined))
         )
         .subscribe({
             next: async ({ textDocument, source }) => {
-                if (process.env.NODE_ENV === 'development') {
-                    connection.console.log(`Processing pending document "${textDocument.uri}":${textDocument.version}, source:${source}.`);
-                }
                 const document = getDocumentByURI(textDocument.uri);
                 if (!document) {
                     // Don't index documents that are not part of the workspace.
