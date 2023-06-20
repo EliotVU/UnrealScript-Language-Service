@@ -37,6 +37,7 @@ import {
     ISymbol,
     MethodFlags,
     ModifierFlags,
+    UCMethodSymbol,
     UCObjectTypeSymbol,
     UCSymbolKind,
     UCTypeKind,
@@ -211,6 +212,11 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         return this.getTokens();
     }
 
+    override visitMethod(symbol: UCMethodSymbol): void {
+        this.pushSymbol(symbol, symbol.id);
+        super.visitMethod(symbol);
+    }
+
     override visitBlock(symbol: UCBlock) {
         for (const statement of symbol.statements) {
             if (statement) {
@@ -285,8 +291,10 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
             expr.false?.accept(this);
         } else if (expr instanceof UCBaseOperatorExpression) {
             expr.expression?.accept(this);
+            expr.operator?.accept(this);
         } else if (expr instanceof UCBinaryOperatorExpression) {
             expr.left?.accept(this);
+            expr.operator?.accept(this);
             expr.right?.accept(this);
         } else if (expr instanceof UCDefaultMemberCallExpression) {
             expr.propertyMember.accept(this);

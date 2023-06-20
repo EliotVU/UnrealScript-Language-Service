@@ -97,7 +97,6 @@
                         "italic": true
                     },
                     "*.native": {
-                        "italic": true
                     },
                     "archetype": {
                         "italic": true,
