@@ -52,6 +52,7 @@ import {
     getCaretTokenFromStream,
     getDocumentContext,
     getIntersectingContext,
+    getSymbolDocumentation,
     intersectsWithRange,
     positionFromToken,
     rangeFromBound,
@@ -1113,7 +1114,7 @@ export async function getFullCompletionItem(item: CompletionItem): Promise<Compl
     if (typeof id === 'object') {
         const symbol = tryFindClassSymbol(id.name);
         if (symbol) {
-            item.documentation = symbol.getDocumentation();
+            item.documentation = getSymbolDocumentation(symbol)?.join('\r\n');
         }
     }
     return item;

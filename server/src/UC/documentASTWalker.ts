@@ -127,7 +127,7 @@ import {
     UCTypeSymbol,
 } from './Symbols';
 import { UCGeneration } from './settings';
-import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
+import { UCTokenStream } from './Parser/TokenStream';
 
 function createIdentifier(ctx: ParserRuleContext) {
     const identifier: Identifier = {
@@ -235,26 +235,15 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, kind?: U
     return leftType;
 }
 
-function findHeaderComments(tokenStream: CommonTokenStream, ctx: ParserRuleContext): Token[] | undefined {
+function fetchDeclarationComments(tokenStream: UCTokenStream, ctx: ParserRuleContext): Token | Token[] | undefined {
     if (ctx.stop) {
-        const index = ctx.stop.tokenIndex;
-        const leadingComment = tokenStream
-            .getHiddenTokensToRight(index, UCLexer.COMMENTS_CHANNEL)
-            .filter(token => token.line === ctx.stop!.line)
-            .shift();
-
-        if (leadingComment) {
-            return [leadingComment];
+        const leadingComment = tokenStream.fetchLeadingComment(ctx.stop);
+        if (leadingComment?.line === ctx.stop.line && leadingComment.type !== UCLexer.EOF) {
+            return leadingComment;
         }
     }
 
-    const index = ctx.start.tokenIndex;
-    const headerComment = tokenStream
-        .getHiddenTokensToLeft(index, UCLexer.COMMENTS_CHANNEL)
-        .filter(token => token.charPositionInLine === ctx.start.charPositionInLine);
-
-    // return undefined when empty (i.e. may have found a comment, but it may have been filtered).
-    return headerComment ?? undefined;
+    return tokenStream.fetchHeaderComment(ctx.start);
 }
 
 const TypeKeywordToTypeKindMap: { [key: number]: UCTypeKind } = {
@@ -274,7 +263,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     constructor(
         private document: UCDocument,
         private defaultScope: ISymbolContainer<ISymbol>,
-        private tokenStream: CommonTokenStream | undefined
+        private tokenStream: UCTokenStream | undefined
     ) {
         super();
         this.scopes.push(defaultScope);
@@ -295,7 +284,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     declare(symbol: UCObjectSymbol, ctx?: ParserRuleContext, registerHash = false) {
         if (ctx) {
-            symbol.description = findHeaderComments(this.tokenStream!, ctx);
+            symbol.description = fetchDeclarationComments(this.tokenStream!, ctx);
         }
 
         const scope = this.scope();
@@ -557,7 +546,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const symbol = new UCConstSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 
         // Manually inject description, because a 'const' is passed to this.declare()
-        symbol.description = findHeaderComments(this.tokenStream!, ctx);
+        symbol.description = fetchDeclarationComments(this.tokenStream!, ctx);
 
         if (ctx._value) {
             symbol.expression = ctx._value.accept(this);
