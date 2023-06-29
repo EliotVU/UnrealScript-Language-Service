@@ -2,7 +2,7 @@
     "name": "uc",
     "description": "UnrealScript Language support",
     "displayName": "UnrealScript",
-    "version": "0.7.0",
+    "version": "0.7.1",
     "author": {
         "name": "Eliot van Uytfanghe",
         "url": "https://EliotVU.com"
@@ -279,9 +279,6 @@
                 ],
                 "extensions": [
                     ".uc"
-                ],
-                "filenamePatterns": [
-                    "[a-zA-Z_][a-zA-Z0-9_]*"
                 ],
                 "configuration": "./language-configuration.json",
                 "icon": {

@@ -4,6 +4,7 @@ client/
 coverage/
 grammars/
 node_modules/
+packages/
 scripts/
 server/
 syntaxes/
