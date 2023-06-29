@@ -4,10 +4,6 @@
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/last-updated/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/d/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 
-<p align="center">
-  <img src="Icon.png" width="180"
-</p>
-  
 ## Features
 
 This is a work-in-progress extension for Visual Studio Code, its goal is to bring a rich editing experience to UnrealScript, the Unreal Engine's domain specific language.
