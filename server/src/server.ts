@@ -1,9 +1,8 @@
 import * as fs from 'fs';
-import glob from 'glob';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
 import { BehaviorSubject, firstValueFrom, interval, of, Subject, Subscription } from 'rxjs';
-import { debounce, delay, filter, map, switchMap, tap, timeout } from 'rxjs/operators';
+import { debounce, filter, map, switchMap, tap, timeout } from 'rxjs/operators';
 import * as url from 'url';
 import { DocumentUri, TextDocument } from 'vscode-languageserver-textdocument';
 import {
@@ -17,6 +16,7 @@ import {
     ProposedFeatures,
     Range,
     ResponseError,
+    TextDocumentIdentifier,
     TextDocumentSyncKind,
     TextEdit,
     WorkspaceChange,
@@ -27,21 +27,28 @@ import {
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { buildCodeActions } from './codeActions';
 import {
-    getCompletableSymbolItems,
+    getCompletionItems,
     getFullCompletionItem,
     getSignatureHelp,
     updateIgnoredCompletionTokens,
 } from './completion';
+import { EAnalyzeOption, UCLanguageServerSettings } from './configuration';
 import { getDocumentDiagnostics } from './documentDiagnostics';
 import { getDocumentHighlights } from './documentHighlight';
 import { getDocumentSymbols } from './documentSymbol';
 import { getDocumentSemanticTokens } from './documentTokenSemantics';
 import { getReferences, getSymbolReferences } from './references';
-import { EAnalyzeOption, UCLanguageServerSettings } from './settings';
 import { CommandIdentifier, CommandsList, InlineChangeCommand } from './UC/commands';
 import { UCDocument } from './UC/document';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
-import { getDocumentDefinition, getDocumentTooltip, getSymbol, getSymbolDefinition, VALID_ID_REGEXP } from './UC/helpers';
+import {
+    getDocumentDefinition,
+    getDocumentTooltip,
+    getSymbol,
+    getSymbolDefinition,
+    resolveSymbolToRef,
+    VALID_ID_REGEXP,
+} from './UC/helpers';
 import {
     applyMacroSymbols,
     clearMacroSymbols,
@@ -57,14 +64,12 @@ import {
     getPendingDocumentsCount,
     indexDocument,
     indexPendingDocuments,
-    IntrinsicSymbolItemMap,
     queueIndexDocument,
     removeDocumentByPath,
-    UCGeneration,
-    UELicensee,
 } from './UC/indexer';
 import { toName } from './UC/name';
 import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
+import { IntrinsicSymbolItemMap, UCGeneration, UELicensee } from './UC/settings';
 import {
     addHashedSymbol,
     CORE_PACKAGE,
@@ -72,10 +77,8 @@ import {
     IntrinsicArray,
     isClass,
     isField,
-    ISymbol,
     ModifierFlags,
     ObjectsTable,
-    supportsRef,
     UCClassSymbol,
     UCMethodSymbol,
     UCObjectSymbol,
@@ -86,6 +89,7 @@ import {
     UCTypeKind,
 } from './UC/Symbols';
 import { UnrealPackage } from './UPK/UnrealPackage';
+import { getFiles, isDocumentFileName } from './workspace';
 import { getWorkspaceSymbols } from './workspaceSymbol';
 
 /**
@@ -107,28 +111,6 @@ let hasSemanticTokensCapability = false;
 
 let documentFileGlobPattern = "**/*.{uc,uci}";
 let packageFileGlobPattern = "**/*.{u,upk}";
-
-// FIXME: Use glob pattern, and make the extension configurable.
-function isDocumentFileName(fileName: string): boolean {
-    // Implied because we only receive one of the two.
-    return !isPackageFileName(fileName);
-}
-
-// FIXME: case-sensitive
-function isPackageFileName(fileName: string): boolean {
-    return fileName.endsWith('.u');
-}
-
-function getFiles(fsPath: string, pattern: string): Promise<string[]> {
-    return glob(pattern, {
-        root: fsPath,
-        realpath: true,
-        nocase: true,
-        nodir: true,
-        absolute: true,
-        ignore: 'node_modules/**'
-    });
-}
 
 type WorkspaceFiles = {
     documentFiles: string[];
@@ -237,33 +219,32 @@ function invalidatePendingDocuments() {
     }
 }
 
-async function awaitDocumentDelivery(uri: DocumentUri, timeoutEach = 1000 * 60): Promise<UCDocument | undefined> {
-    const document = getDocumentByURI(uri);
-    if (document && document.hasBeenIndexed) {
+async function awaitDocumentDelivery(textDocument: TextDocument | TextDocumentIdentifier, timeoutEach = 1000 * 60): Promise<UCDocument | undefined> {
+    const document = getDocumentByURI(textDocument.uri);
+    if (document?.hasBeenIndexed) {
         return document;
     }
 
+    const indexedVersion = 'version' in textDocument
+        ? textDocument.version
+        : undefined;
+
     return firstValueFrom(documentsCodeIndexed$
         .pipe(
-            map(docs => {
-                const doc = docs.find((d => d.uri === uri));
-                return doc;
-            }),
-            filter(doc => {
-                return !!doc!;
-            }),
+            map(docs => docs.find((d => d.uri === textDocument.uri
+                && (typeof indexedVersion === 'undefined' || d.indexedVersion === indexedVersion)
+            ))),
+            filter(doc => !!doc!),
             timeout({
                 each: timeoutEach,
-                with: () => {
-                    return of(undefined);
-                }
+                with: () => of(undefined)
             })
         ));
 }
 
 async function awaitDocumentBuilt(uri: DocumentUri, timeoutEach = 1000 * 60): Promise<UCDocument | undefined> {
     const document = getDocumentByURI(uri);
-    if (document && document.hasBeenBuilt) {
+    if (document?.hasBeenBuilt) {
         return document;
     }
 
@@ -278,7 +259,6 @@ async function awaitDocumentBuilt(uri: DocumentUri, timeoutEach = 1000 * 60): Pr
             })
         ));
 }
-
 
 const connection = createConnection(ProposedFeatures.all);
 connection.listen();
@@ -345,7 +325,8 @@ connection.onInitialize((params: InitializeParams) => {
                 resolveProvider: true
             },
             signatureHelpProvider: {
-                triggerCharacters: ['(', ',']
+                triggerCharacters: ['(', ','],
+                retriggerCharacters: [',']
             },
             definitionProvider: true,
             documentSymbolProvider: true,
@@ -367,7 +348,7 @@ connection.onInitialize((params: InitializeParams) => {
             semanticTokensProvider: {
                 documentSelector: null,
                 full: true,
-                range: false,
+                range: true,
                 legend: {
                     tokenTypes: TokenTypes,
                     tokenModifiers: TokenModifiers
@@ -381,7 +362,7 @@ connection.onInitialized((params) => {
     lastIndexedDocumentsSub = documentsCodeIndexed$
         .pipe(
             filter(() => config.analyzeDocuments !== EAnalyzeOption.None),
-            delay(50),
+            debounce(() => interval(config.analyzeDocumentDebouncePeriod)),
         )
         .subscribe(documents => {
             if (config.analyzeDocuments === EAnalyzeOption.OnlyActive) {
@@ -405,13 +386,29 @@ connection.onInitialized((params) => {
     isIndexReadySub = isIndexReady$
         .pipe(
             switchMap(() => pendingTextDocument$),
-            debounce(({ source }) => interval(source === 'change' ? 50 : undefined))
-        )
-        .subscribe({
-            next: async ({ textDocument, source }) => {
+            filter(({ textDocument, source }) => {
                 if (process.env.NODE_ENV === 'development') {
                     connection.console.log(`Processing pending document "${textDocument.uri}":${textDocument.version}, source:${source}.`);
                 }
+
+                const document = getDocumentByURI(textDocument.uri);
+                if (!document) {
+                    // Don't index documents that are not part of the workspace.
+                    return false;
+                }
+
+                if (source === 'change' && textDocument.version !== document.indexedVersion) {
+                    // we are gonna wait 50ms before indexing the changes, 
+                    // therefore we want to ensure that any observers will receive this document as incomplete before the 50ms elapses.
+                    document.hasBeenBuilt = false;
+                    document.hasBeenIndexed = false;
+                }
+                return true;
+            }),
+            debounce(({ source }) => interval(source === 'change' ? config.indexDocumentDebouncePeriod : undefined))
+        )
+        .subscribe({
+            next: async ({ textDocument, source }) => {
                 const document = getDocumentByURI(textDocument.uri);
                 if (!document) {
                     // Don't index documents that are not part of the workspace.
@@ -609,18 +606,23 @@ connection.onInitialized((params) => {
     }
 
     if (hasSemanticTokensCapability) {
-        connection.languages.semanticTokens.on(async e => {
-            const document = await awaitDocumentDelivery(e.textDocument.uri);
+        async function getSemanticTokens(textDocument: TextDocumentIdentifier, range?: Range) {
+            const document = await awaitDocumentBuilt(textDocument.uri);
             if (document) {
-                return getDocumentSemanticTokens(document);
+                return getDocumentSemanticTokens(document, range);
             }
 
             return {
                 data: []
             };
+        }
+
+        connection.languages.semanticTokens.on(e => {
+            return getSemanticTokens(e.textDocument);
         });
-        // TODO: Support range
-        // connection.languages.semanticTokens.onRange(e => getSemanticTokens(e.textDocument.uri));
+        connection.languages.semanticTokens.onRange(e => {
+            return getSemanticTokens(e.textDocument, e.range);
+        });
     }
 
     // We need to sync the opened document with current state.
@@ -655,6 +657,11 @@ function setConfiguration(settings: UCLanguageServerSettings) {
 function initializeConfiguration() {
     clearMacroSymbols();
     clearIntrinsicSymbols();
+
+    // Ensure that we are working with sane values!
+    config.indexDocumentDebouncePeriod = Math.max(Math.min(config.indexDocumentDebouncePeriod, 300), 0.0);
+    config.analyzeDocumentDebouncePeriod = Math.max(Math.min(config.analyzeDocumentDebouncePeriod, 1000), 0.0);
+
     applyConfiguration(config);
 }
 
@@ -801,17 +808,21 @@ function setupFilePatterns(settings: UCLanguageServerSettings) {
 }
 
 connection.onHover(async (e) => {
-    const document = await awaitDocumentDelivery(e.textDocument.uri, 5000);
+    const document = await awaitDocumentDelivery(e.textDocument, 5000);
     if (document) {
         return getDocumentTooltip(document, e.position);
     }
+
+    return undefined;
 });
 
 connection.onDefinition(async (e) => {
-    const document = await awaitDocumentDelivery(e.textDocument.uri, 5000);
+    const document = await awaitDocumentDelivery(e.textDocument, 5000);
     if (document) {
         return getDocumentDefinition(document, e.position);
     }
+
+    return undefined;
 });
 
 connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
@@ -820,6 +831,8 @@ connection.onDocumentSymbol(async (e) => {
     if (document) {
         return getDocumentSymbols(document);
     }
+
+    return undefined;
 });
 connection.onWorkspaceSymbol((e) => {
     return getWorkspaceSymbols(e.query);
@@ -829,24 +842,28 @@ connection.onDocumentHighlight((e) => getDocumentHighlights(e.textDocument.uri, 
 connection.onCompletion((e) => {
     if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
         return firstValueFrom(documentsCodeIndexed$).then(_documents => {
-            return getCompletableSymbolItems(e.textDocument.uri, e.position);
+            return getCompletionItems(e.textDocument.uri, e.position);
         });
     }
-    return getCompletableSymbolItems(e.textDocument.uri, e.position);
+    return getCompletionItems(e.textDocument.uri, e.position);
 });
 connection.onCompletionResolve(getFullCompletionItem);
-connection.onSignatureHelp((e) => getSignatureHelp(e.textDocument.uri, e.position));
+connection.onSignatureHelp((e) => {
+    if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
+        return firstValueFrom(documentsCodeIndexed$).then(_documents => {
+            return getSignatureHelp(e.textDocument.uri, e.position);
+        });
+    }
+    return getSignatureHelp(e.textDocument.uri, e.position);
+});
 
 connection.onPrepareRename(async (e) => {
     const symbol = getSymbol(e.textDocument.uri, e.position);
-    if (!symbol || !(symbol instanceof UCObjectSymbol)) {
+    if (!symbol) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
 
-    const symbolRef: ISymbol | undefined = supportsRef(symbol)
-        ? symbol.getRef<UCObjectSymbol>()
-        : symbol;
-
+    const symbolRef = resolveSymbolToRef(symbol);
     if (!(symbolRef instanceof UCObjectSymbol)) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
     }
@@ -858,18 +875,18 @@ connection.onPrepareRename(async (e) => {
 
     if (isField(symbolRef)) {
         if (isClass(symbolRef)) {
-            throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename a class!');
+            throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this class!');
         }
         if (symbolRef.modifiers & ModifierFlags.Intrinsic) {
-            throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
+            throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this instrinsic element!');
         }
     } else {
-        throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
+        throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this non-field element!');
     }
 
     // Disallow symbols with invalid identifiers, such as an operator.
     if (!VALID_ID_REGEXP.test(symbol.getName().text)) {
-        throw new ResponseError(ErrorCodes.InvalidParams, 'You cannot rename this element!');
+        throw new ResponseError(ErrorCodes.InvalidParams, 'You cannot rename this element with an invalid identifier!');
     }
 
     return symbol.id.range;

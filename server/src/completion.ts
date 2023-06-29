@@ -1,46 +1,18 @@
 import * as c3 from 'antlr4-c3';
 import { Parser, ParserRuleContext } from 'antlr4ts';
 import { Token } from 'antlr4ts/Token';
-import { CompletionItem, CompletionItemKind, InsertTextFormat, InsertTextMode, SignatureHelp } from 'vscode-languageserver';
+import { CompletionItem, CompletionItemKind, InsertTextFormat, InsertTextMode, SignatureHelp, SignatureInformation } from 'vscode-languageserver';
 import { DocumentUri, Position } from 'vscode-languageserver-textdocument';
 
-import { ActiveTextDocuments } from './activeTextDocuments';
-import { UCLanguageServerSettings } from './settings';
-import { UCLexer } from './UC/antlr/generated/UCLexer';
-import { ProgramContext, UCParser } from './UC/antlr/generated/UCParser';
-import { UCDocument } from './UC/document';
-import { UCCallExpression } from './UC/expressions';
-import {
-    backtrackFirstToken,
-    backtrackFirstTokenOfType,
-    getCaretTokenFromStream,
-    getDocumentContext,
-    getIntersectingContext,
-    rangeFromBound,
-} from './UC/helpers';
-import { config, getDocumentByURI, UCGeneration, UELicensee } from './UC/indexer';
-import { toName } from './UC/name';
 import { getCtxDebugInfo, getTokenDebugInfo } from './UC/Parser/Parser.utils';
 import {
-    areMethodsCompatibleWith,
     ContextKind,
     DefaultArray,
-    getDebugSymbolInfo,
-    Identifier,
-    isClass,
-    isDelegateSymbol,
-    isEnumSymbol,
-    isField,
-    isFunction,
-    isPackage,
-    isStruct,
-    isTypeSymbol,
     ISymbol,
+    Identifier,
     MethodFlags,
     ModifierFlags,
     ObjectsTable,
-    resolveType,
-    tryFindClassSymbol,
     UCClassSymbol,
     UCConstSymbol,
     UCDelegateSymbol,
@@ -55,11 +27,47 @@ import {
     UCStructSymbol,
     UCSymbolKind,
     UCTypeKind,
+    areMethodsCompatibleWith,
+    findOrIndexClassSymbol,
+    getDebugSymbolInfo,
+    isClass,
+    isDelegateSymbol,
+    isEnumSymbol,
+    isField,
+    isFunction,
+    isMethodSymbol,
+    isPackage,
+    isStruct,
+    isTypeSymbol,
+    resolveType,
+    tryFindClassSymbol,
 } from './UC/Symbols';
+import { UCLexer } from './UC/antlr/generated/UCLexer';
+import { CallExpressionContext, ProgramContext, UCParser } from './UC/antlr/generated/UCParser';
+import { UCDocument } from './UC/document';
+import { UCCallExpression } from './UC/expressions';
+import {
+    backtrackFirstToken,
+    backtrackFirstTokenOfType,
+    getCaretTokenFromStream,
+    getDocumentContext,
+    getIntersectingContext,
+    getSymbolDocumentation,
+    intersectsWithRange,
+    positionFromToken,
+    rangeFromBound,
+    rangeFromBounds,
+    resolveSymbolToRef,
+} from './UC/helpers';
+import { config, getDocumentByURI } from './UC/indexer';
+import { toName } from './UC/name';
+import { UCGeneration, UELicensee } from './UC/settings';
+import { ActiveTextDocuments } from './activeTextDocuments';
+import { UCLanguageServerSettings } from './configuration';
 
 /** If the candidates collector hits any these it'll stop at the first occurance. */
 const PreferredRulesSet = new Set([
-    UCParser.RULE_typeDecl,
+    // UCParser.RULE_typeDecl,
     UCParser.RULE_defaultIdentifierRef,
     UCParser.RULE_defaultQualifiedIdentifierRef,
     UCParser.RULE_qualifiedIdentifier, UCParser.RULE_identifier,
@@ -102,6 +110,14 @@ export const DefaultIgnoredTokensSet = new Set([
 
 let currentIgnoredTokensSet = DefaultIgnoredTokensSet;
 
+function getParentRule(ctx: ParserRuleContext | undefined, ruleIndex: number): ParserRuleContext | undefined {
+    while (ctx && ctx.ruleIndex !== ruleIndex) {
+        ctx = ctx.parent;
+    }
+
+    return ctx;
+}
+
 const TypeDeclSymbolKinds = 1 << UCSymbolKind.Enum
     | 1 << UCSymbolKind.ScriptStruct
     | 1 << UCSymbolKind.Class
@@ -127,56 +143,7 @@ const GlobalCastSymbolKinds = 1 << UCSymbolKind.Class
 const MethodSymbolKinds = 1 << UCSymbolKind.Function
     | 1 << UCSymbolKind.Event;
 
-export async function getSignatureHelp(uri: DocumentUri, position: Position): Promise<SignatureHelp | undefined> {
-    // const document = getDocumentByURI(uri);
-    // if (!document || !data) {
-    //     return undefined;
-    // }
-
-    // const cc = new c3.CodeCompletionCore(data.parser);
-    // // cc.showDebugOutput = true;
-    // cc.ignoredTokens = currentIgnoredTokensSet;
-    // cc.preferredRules = PreferredRulesSet;
-
-    // const context = data.context && getIntersectingContext(data.context, position);
-    // const caretTokenIndex = getCaretTokenIndexFromStream(data.parser.inputStream, position);
-    // const candidates = cc.collectCandidates(caretTokenIndex, context);
-
-    // for (let [type, candiateRule] of candidates.rules) {
-    //     // console.log('signatureHelp::type', data.parser.ruleNames[type]);
-
-    //     const stateType = candiateRule.ruleList.length
-    //         ? candiateRule.ruleList[candiateRule.ruleList.length - 1]
-    //         : undefined;
-    //     // console.log('signatureHelp::stateType', candiateRule.ruleList.map(t => t && data.parser.ruleNames[t]).join('.'));
-
-    //     // Speculative approach...
-    //     switch (type) {
-    //         case UCParser.RULE_identifier:
-    //         case UCParser.RULE_qualifiedIdentifier: {
-    //             switch (stateType) {
-    //                 case UCParser.RULE_qualifiedIdentifierArguments: {
-    //                     return {
-    //                         signatures: [{
-    //                             label: 'implements (interface, ...interface)',
-    //                             parameters: [{
-    //                                 label: 'interface',
-    //                             }],
-    //                             activeParameter: 0
-    //                         }],
-    //                         activeSignature: 0,
-    //                         activeParameter: null,
-    //                     };
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-    return undefined;
-}
-
-export async function getCompletableSymbolItems(uri: DocumentUri, position: Position): Promise<CompletionItem[] | undefined> {
+export async function getCompletionItems(uri: DocumentUri, position: Position): Promise<CompletionItem[] | undefined> {
     // Do a fresh parse (but no indexing or transforming, we'll use the cached AST instead).
     const text = ActiveTextDocuments.get(uri)?.getText();
     if (typeof text === 'undefined') {
@@ -192,7 +159,26 @@ export async function getCompletableSymbolItems(uri: DocumentUri, position: Posi
     if (typeof data.context === 'undefined') {
         throw new Error('No parse context!');
     }
-    return buildCompletableSymbolItems(document, position, { context: data.context, parser: data.parser });
+    return buildCompletionItems(document, position, { context: data.context, parser: data.parser });
+}
+
+export async function getSignatureHelp(uri: DocumentUri, position: Position): Promise<SignatureHelp | undefined> {
+    // Do a fresh parse (but no indexing or transforming, we'll use the cached AST instead).
+    const text = ActiveTextDocuments.get(uri)?.getText();
+    if (typeof text === 'undefined') {
+        return;
+    }
+
+    const document = getDocumentByURI(uri);
+    if (!document) {
+        return;
+    }
+
+    const data = document.parse(text);
+    if (typeof data.context === 'undefined') {
+        throw new Error('No parse context!');
+    }
+    return buildSignatureHelp(document, position, { context: data.context, parser: data.parser });
 }
 
 function insertTextForFunction(symbol: UCMethodSymbol): string {
@@ -260,7 +246,153 @@ function insertOverridableStates(document: UCDocument, contextSymbol: UCStructSy
     symbols.push(...symbolItems);
 }
 
-async function buildCompletableSymbolItems(
+async function buildSignatureHelp(document: UCDocument, position: Position, data: {
+    parser: Parser,
+    context: ProgramContext
+}): Promise<SignatureHelp | undefined> {
+    const stream = data.parser.inputStream;
+    const carretToken = getCaretTokenFromStream(stream, position);
+    if (!carretToken) {
+        console.warn(`No carret token at ${position.line}:${position.character}`);
+        // throw new Error(`No carret token at ${position}`);
+        return;
+    }
+    console.info(
+        'signatureHelp::carretToken'.padEnd(42),
+        getTokenDebugInfo(carretToken, data.parser));
+
+    if (carretToken.channel === UCLexer.COMMENTS_CHANNEL || carretToken.channel === UCLexer.STRING_LITERAL) {
+        return;
+    }
+
+    const carretRuleContext = getIntersectingContext(data.context, position);
+    if (process.env.NODE_ENV === 'development') {
+        console.debug(
+            'signatureHelp::carretRuleContext'.padEnd(42),
+            getCtxDebugInfo(carretRuleContext, data.parser));
+    }
+
+    // No c++ support, + this leads to an infinite loop with cc.collectCandiates.
+    if (carretRuleContext?.ruleIndex === UCParser.RULE_exportBlockText) {
+        return undefined;
+    }
+
+    let callExpression = carretRuleContext;
+    while (callExpression !== undefined && !(callExpression instanceof CallExpressionContext)) {
+        callExpression = getParentRule(callExpression.parent, UCParser.RULE_primaryExpression);
+    }
+
+    // Assert?
+    if (!(callExpression instanceof CallExpressionContext)) {
+        return undefined;
+    }
+
+    const scopeSymbol = getDocumentContext(document, position) as UCStructSymbol;
+    console.info(
+        'signatureHelp::scopeSymbol'.padEnd(42),
+        getDebugSymbolInfo(scopeSymbol));
+
+    // TODO: could be a call to a delegate within an array?
+    const signatures: SignatureInformation[] = [];
+
+    const invocationPosition = positionFromToken(callExpression.primaryExpression()._stop!);
+
+    let activeParameter: number | undefined = undefined;
+    const args = callExpression.arguments()?.children?.filter(c => c instanceof ParserRuleContext);
+    if (args) {
+        const stop = callExpression.CLOSE_PARENS()!._symbol;
+        for (let i = args.length - 1; i >= 0; --i) {
+            if (intersectsWithRange(position, rangeFromBounds((args[i] as ParserRuleContext).start, stop))) {
+                activeParameter = i;
+                break;
+            }
+        }
+    }
+
+    const invokedSymbol = scopeSymbol.getSymbolAtPos(invocationPosition);
+    if (invokedSymbol) {
+        console.info(
+            'signatureHelp::invokedSymbol'.padEnd(42),
+            getDebugSymbolInfo(invokedSymbol));
+
+        const resolvedSymbol = resolveSymbolToRef(invokedSymbol);
+        if (!resolvedSymbol) {
+            return undefined;
+        }
+
+        const signature = buildSymbolSignature(resolvedSymbol);
+        if (signature) {
+            signatures.push(signature);
+        }
+    } else {
+        const invocationToken = getCaretTokenFromStream(stream, invocationPosition);
+        console.info(
+            'signatureHelp::invokedToken'.padEnd(42),
+            getTokenDebugInfo(invocationToken));
+
+        if (!invocationToken) {
+            return undefined;
+        }
+
+        // As the user is typing an identifier could either match a function or a class like say "Fire"
+        // So we cannot reliable trust the indexed result, instead we'll always match a function instead.
+        const unknownId = toName(invocationToken.text!);
+        const classSymbol = findOrIndexClassSymbol(unknownId);
+        if (classSymbol) {
+            const classCastSignature = buildClassSignature(classSymbol);
+            signatures.push(classCastSignature);
+        }
+
+        const methodSymbol = scopeSymbol.findSuperSymbol(unknownId);
+        if (methodSymbol && isMethodSymbol(methodSymbol)) {
+            const methodSignature = buildMethodSignature(methodSymbol);
+            signatures.push(methodSignature);
+        }
+    }
+
+    return {
+        signatures,
+        activeSignature: 0,
+        activeParameter
+    };
+}
+
+// TODO: other kinds? Perhaps auto completion for things like dependson(classname...)
+function buildSymbolSignature(symbol: ISymbol): SignatureInformation | undefined {
+    if (isClass(symbol)) {
+        return buildClassSignature(symbol);
+    }
+
+    if (isMethodSymbol(symbol)) {
+        return buildMethodSignature(symbol);
+    }
+
+    return undefined;
+}
+
+function buildClassSignature(symbol: UCClassSymbol): SignatureInformation {
+    return {
+        label: `${symbol.getPath()}(Object other)`,
+        parameters: [
+            {
+                label: `Object other`
+            }
+        ]
+    };
+}
+
+function buildMethodSignature(symbol: UCMethodSymbol): SignatureInformation {
+    return {
+        label: symbol.getTooltip(),
+        parameters: symbol.params?.map(param => {
+            return {
+                label: param.getTextForSignature()
+            };
+        }),
+    };
+}
+
+async function buildCompletionItems(
     document: UCDocument,
     position: Position,
     data: {
@@ -271,14 +403,6 @@ async function buildCompletableSymbolItems(
         const symbolItems = symbol.getCompletionSymbols(document, ContextKind.DOT, kinds);
         return symbolItems;
     }
-
-    const cc = new c3.CodeCompletionCore(data.parser);
-    // cc.showResult = true;
-    // cc.showRuleStack = true;
-    // cc.showDebugOutput = true;
-    cc.translateRulesTopDown = false;
-    cc.ignoredTokens = currentIgnoredTokensSet;
-    cc.preferredRules = PreferredRulesSet;
 
     const stream = data.parser.inputStream;
     const carretToken = getCaretTokenFromStream(stream, position);
@@ -291,16 +415,26 @@ async function buildCompletableSymbolItems(
         'completion::carretToken'.padEnd(42),
         getTokenDebugInfo(carretToken, data.parser));
 
+    if (carretToken.channel === UCLexer.COMMENTS_CHANNEL) {
+        // TODO: In this case we could suggest parameters based on the scope symbol we can retrieve from the @leadingToken.
+        return;
+    }
+
+    if (carretToken.type === UCLexer.STRING_LITERAL) {
+        // TODO: We could suggest objects if used as an Object Literal (in a T3D context)
+        return;
+    }
+
     let leadingToken = carretToken;
-    if (leadingToken.type == UCLexer.OPEN_PARENS
-        || leadingToken.type == UCLexer.OPEN_BRACE
-        || leadingToken.type == UCLexer.OPEN_BRACKET
-        || leadingToken.type == UCLexer.LT
-        || leadingToken.type == UCLexer.COMMA
-        || leadingToken.type == UCLexer.DOT
-        || leadingToken.type == UCLexer.ASSIGNMENT
-        || leadingToken.type == UCLexer.SEMICOLON
-        || leadingToken.type == UCLexer.COLON) {
+    if (leadingToken.type === UCLexer.OPEN_PARENS
+        || leadingToken.type === UCLexer.OPEN_BRACE
+        || leadingToken.type === UCLexer.OPEN_BRACKET
+        || leadingToken.type === UCLexer.LT
+        || leadingToken.type === UCLexer.COMMA
+        || leadingToken.type === UCLexer.DOT
+        || leadingToken.type === UCLexer.ASSIGNMENT
+        || leadingToken.type === UCLexer.SEMICOLON
+        || leadingToken.type === UCLexer.COLON) {
         leadingToken = stream.get(leadingToken.tokenIndex + 1);
     }
 
@@ -330,21 +464,29 @@ async function buildCompletableSymbolItems(
         return undefined;
     }
 
-    function getParentRule(ctx: ParserRuleContext | undefined, ruleIndex: number): ParserRuleContext | undefined {
-        while (ctx && (ctx = ctx.parent)) {
-            if (ctx.ruleIndex == ruleIndex) {
-                return ctx;
-            }
-        }
-        return undefined;
-    }
-
     // Limit the context to RULE_member if possible
     const scopeRuleContext = getParentRule(carretRuleContext, UCParser.RULE_member) ?? data.context;
     console.info(
         'completion::scopeRuleContext'.padEnd(42),
         getCtxDebugInfo(scopeRuleContext, data.parser));
-    const candidates = cc.collectCandidates(leadingToken.tokenIndex, scopeRuleContext);
+
+    const cc = new c3.CodeCompletionCore(data.parser);
+    // cc.showResult = true;
+    // cc.showRuleStack = true;
+    // cc.showDebugOutput = true;
+    cc.translateRulesTopDown = false;
+    cc.ignoredTokens = currentIgnoredTokensSet;
+    cc.preferredRules = PreferredRulesSet;
+    let candidates = cc.collectCandidates(leadingToken.tokenIndex, scopeRuleContext);
+    if (carretRuleContext && candidates.rules.size === 0) {
+        candidates = cc.collectCandidates(leadingToken.tokenIndex, carretRuleContext);
+        if (candidates.rules.size === 0) {
+            candidates.rules.set(carretRuleContext.ruleIndex, {
+                startTokenIndex: leadingToken.tokenIndex,
+                ruleList: [scopeRuleContext.ruleIndex, carretRuleContext.ruleIndex]
+            });
+        }
+    }
     // if (process.env.NODE_ENV === 'development') {
     //     console.debug('completion::tokens', Array
     //         .from(candidates.tokens.keys())
@@ -577,6 +719,22 @@ async function buildCompletableSymbolItems(
 
                             const typeKind = letType.getTypeKind();
                             switch (typeKind) {
+                                case UCTypeKind.Byte:
+                                case UCTypeKind.Int:
+                                case UCTypeKind.Bool:
+                                case UCTypeKind.Float:
+                                case UCTypeKind.String:
+                                case UCTypeKind.Button:
+                                case UCTypeKind.Array:
+                                case UCTypeKind.Map:
+                                case UCTypeKind.Pointer:
+                                case UCTypeKind.Enum:
+                                case UCTypeKind.Struct:
+                                    candidates.tokens.delete(UCParser.NONE_LITERAL);
+                                    break;
+                            }
+
+                            switch (typeKind) {
                                 case UCTypeKind.Object:
                                     globalTypes |= 1 << UCSymbolKind.Class
                                         | 1 << UCSymbolKind.Interface
@@ -585,19 +743,10 @@ async function buildCompletableSymbolItems(
                                     break;
 
                                 case UCTypeKind.Bool:
-                                    candidates.tokens.delete(UCParser.NONE_LITERAL);
                                     items.push(
                                         { label: 'false', kind: CompletionItemKind.Keyword },
                                         { label: 'true', kind: CompletionItemKind.Keyword }
                                     );
-                                    break;
-
-                                case UCTypeKind.Float:
-                                case UCTypeKind.Int:
-                                case UCTypeKind.String:
-                                case UCTypeKind.Array:
-                                    // TODO: Figure out the extent of 'None' in a T3D context.
-                                    candidates.tokens.delete(UCParser.NONE_LITERAL);
                                     break;
 
                                 case UCTypeKind.Name:
@@ -607,8 +756,6 @@ async function buildCompletableSymbolItems(
 
                                 case UCTypeKind.Enum:
                                 case UCTypeKind.Byte: {
-                                    candidates.tokens.delete(UCParser.NONE_LITERAL);
-
                                     const enumSymbol = resolveType(letType).getRef<UCEnumSymbol>();
                                     if (enumSymbol && isEnumSymbol(enumSymbol)) {
                                         symbols.push(enumSymbol); // context suggestion
@@ -761,8 +908,39 @@ async function buildCompletableSymbolItems(
                     }
 
                     case UCParser.RULE_typeDecl: {
-                        globalTypes |= 1 << UCSymbolKind.Enum
-                            | 1 << UCSymbolKind.ScriptStruct;
+                        let contextSymbol: ISymbol | undefined;
+                        if (carretContextSymbol) {
+                            if (UCQualifiedTypeSymbol.is(carretContextSymbol)) {
+                                contextSymbol = carretContextSymbol.left?.getRef();
+                            } else if (isTypeSymbol(carretContextSymbol)) {
+                                contextSymbol = carretContextSymbol.getRef();
+                            }
+                        } else if (carretContextToken) {
+                            shouldIncludeTokenKeywords = false;
+        
+                            const id = toName(carretContextToken.text as string);
+                            // Only look for a class in a context of "ClassType.Type"
+                            contextSymbol = ObjectsTable.getSymbol<UCClassSymbol>(id, UCSymbolKind.Class);
+                        } else {
+                            globalTypes |= TypeDeclSymbolKinds;
+                        }
+        
+                        if (contextSymbol) {
+                            if (isPackage(contextSymbol)) {
+                                for (const symbol of ObjectsTable.enumerateKinds(PackageTypeContextSymbolKinds)) {
+                                    if (symbol.outer !== contextSymbol) {
+                                        continue;
+                                    }
+                                    symbols.push(symbol);
+                                }
+                            } else if (isClass(contextSymbol)) {
+                                const symbolItems = contextSymbol.getCompletionSymbols(
+                                    document,
+                                    ContextKind.None,
+                                    ClassTypeContextSymbolKinds);
+                                symbols.push(...symbolItems);
+                            }
+                        }
                         break;
                     }
                 }
@@ -770,39 +948,8 @@ async function buildCompletableSymbolItems(
             }
 
             case UCParser.RULE_typeDecl: {
-                let contextSymbol: ISymbol | undefined;
-                if (carretContextSymbol) {
-                    if (UCQualifiedTypeSymbol.is(carretContextSymbol)) {
-                        contextSymbol = carretContextSymbol.left?.getRef();
-                    } else if (isTypeSymbol(carretContextSymbol)) {
-                        contextSymbol = carretContextSymbol.getRef();
-                    }
-                } else if (carretContextToken) {
-                    shouldIncludeTokenKeywords = false;
-
-                    const id = toName(carretContextToken.text as string);
-                    // Only look for a class in a context of "ClassType.Type"
-                    contextSymbol = ObjectsTable.getSymbol<UCClassSymbol>(id, UCSymbolKind.Class);
-                } else {
-                    globalTypes |= TypeDeclSymbolKinds;
-                }
-
-                if (contextSymbol) {
-                    if (isPackage(contextSymbol)) {
-                        for (const symbol of ObjectsTable.enumerateKinds(PackageTypeContextSymbolKinds)) {
-                            if (symbol.outer !== contextSymbol) {
-                                continue;
-                            }
-                            symbols.push(symbol);
-                        }
-                    } else if (isClass(contextSymbol)) {
-                        const symbolItems = contextSymbol.getCompletionSymbols(
-                            document,
-                            ContextKind.None,
-                            ClassTypeContextSymbolKinds);
-                        symbols.push(...symbolItems);
-                    }
-                }
+                globalTypes |= 1 << UCSymbolKind.Enum
+                    | 1 << UCSymbolKind.ScriptStruct;
                 break;
             }
 
@@ -853,7 +1000,8 @@ async function buildCompletableSymbolItems(
             }
 
             case UCParser.RULE_objectLiteral: {
-                globalTypes |= 1 << UCSymbolKind.Class;
+                globalTypes |= 1 << UCSymbolKind.Class
+                    | 1 << UCSymbolKind.Package;
                 break;
             }
         }
@@ -976,7 +1124,7 @@ export async function getFullCompletionItem(item: CompletionItem): Promise<Compl
     if (typeof id === 'object') {
         const symbol = tryFindClassSymbol(id.name);
         if (symbol) {
-            item.documentation = symbol.getDocumentation();
+            item.documentation = getSymbolDocumentation(symbol)?.join('\r\n');
         }
     }
     return item;

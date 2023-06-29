@@ -31,12 +31,30 @@ options {
     isKeywordToken(token: Token): boolean {
         return token.type >= UCParser.KW_DEFAULT && token.type < UCParser.ID;
     }
+
+    isPreOperator(): boolean {
+        return false;
+    }
+
+    isPostOperator(): boolean {
+        return false;
+    }
+
+    isBinaryOperator(): boolean {
+        // FIXME: slow, we should figure a way to hash any identifier on the lexer-phase.
+        const id = this._input.LT(1).text!.toLowerCase();
+        // TODO: Match to a runtime map
+        if (id === 'dot' || id === 'cross' || id === 'clockwisefrom') {
+            return true;
+        }
+        return false;
+    }
 }
 
 // Class modifier keywords have been commented out, because we are not using them for parsing.
 identifier
     : ID
-    | { this.isKeywordToken(this.currentToken) }? ('default'
+    | ('default'
 	| 'self'
 	| 'super'
 	| 'global'
@@ -897,16 +915,20 @@ assignmentExpression
 	;
 
 primaryExpression
-	: primaryExpression (OPEN_BRACKET arg=expression? CLOSE_BRACKET) 						#elementAccessExpression
-	| primaryExpression '.' classPropertyAccessSpecifier '.' identifier						#propertyClassAccessExpression
+	: primaryExpression '.' classPropertyAccessSpecifier '.' identifier						#propertyClassAccessExpression
 	| primaryExpression '.' identifier?												        #propertyAccessExpression
 	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 								#callExpression
+	| primaryExpression (OPEN_BRACKET arg=expression? CLOSE_BRACKET) 						#elementAccessExpression
 
 	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? expr=primaryExpression			#newExpression
 	| 'class' 		(LT identifier GT) (OPEN_PARENS expr=expression CLOSE_PARENS)			#metaClassExpression
 	| 'arraycount' 	(OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#arrayCountExpression
 	| 'nameof' 	    (OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#nameOfExpression
 	| 'super' 		(OPEN_PARENS identifier CLOSE_PARENS)?									#superExpression
+
+	| left=primaryExpression id=INCR 														#postOperatorExpression
+	| left=primaryExpression id=DECR 														#postOperatorExpression
+    // | left=primaryExpression { this.isPostOperator() }? id=identifier                       #postNamedOperatorExpression
 
 	| id=INCR right=primaryExpression														#preOperatorExpression
 	| id=DECR right=primaryExpression														#preOperatorExpression
@@ -918,19 +940,11 @@ primaryExpression
 	| id=SHARP right=primaryExpression														#preOperatorExpression
 	| id=DOLLAR right=primaryExpression														#preOperatorExpression
 	| id=AT right=primaryExpression															#preOperatorExpression
+    // | { this.isPreOperator() }? id=identifier right=primaryExpression                       #preNamedOperatorExpression  
 
-	| left=primaryExpression id=INCR 														#postOperatorExpression
-	| left=primaryExpression id=DECR 														#postOperatorExpression
-
-	| left=primaryExpression id=(ASSIGNMENT_INCR
-		| ASSIGNMENT_DECR
-		| ASSIGNMENT_AT
-		| ASSIGNMENT_DOLLAR
-		| ASSIGNMENT_AND
-		| ASSIGNMENT_OR
-		| ASSIGNMENT_STAR
-		| ASSIGNMENT_CARET
-		| ASSIGNMENT_DIV) right=primaryExpression											#binaryOperatorExpression
+    // precedence: 16
+	| left=primaryExpression { this.isBinaryOperator() }? 
+      id=identifier right=primaryExpression                                                 #binaryNamedOperatorExpression
 
 	| left=primaryExpression id=EXP right=primaryExpression 								#binaryOperatorExpression
 	| left=primaryExpression id=(STAR|DIV) right=primaryExpression 							#binaryOperatorExpression
@@ -942,14 +956,31 @@ primaryExpression
 	| left=primaryExpression id=(AMP|CARET|BITWISE_OR) right=primaryExpression 				#binaryOperatorExpression
 	| left=primaryExpression id=(AND|MEQ) right=primaryExpression 							#binaryOperatorExpression
 	| left=primaryExpression id=OR right=primaryExpression 									#binaryOperatorExpression
+
+    // TODO: Only valid if the conditional resolves to a boolean type.
+	| <assoc=right> 
+      cond=primaryExpression INTERR 
+      left=primaryExpression COLON 
+      right=primaryExpression	                                                            #conditionalExpression
+
+    // precedence: 34
+    | left=primaryExpression id=(ASSIGNMENT_INCR
+    | ASSIGNMENT_DECR
+    | ASSIGNMENT_AND
+    | ASSIGNMENT_OR
+    | ASSIGNMENT_STAR
+    | ASSIGNMENT_CARET
+    | ASSIGNMENT_DIV) right=primaryExpression											    #binaryOperatorExpression
+
+    // precedence: 40 ($, @) string operators
 	| left=primaryExpression id=(DOLLAR|AT) right=primaryExpression 						#binaryOperatorExpression
 
-	// Note, checking for ID instead of identifier here,
-	// -- so that we don't missmtach 'if, or return' statements
-	// -- after a foreach's expression.
-	| left=primaryExpression id=ID right=primaryExpression 									#binaryNamedOperatorExpression
+    // precedence: 44 ($=, @=) string operators
+    | left=primaryExpression id=(ASSIGNMENT_DOLLAR|ASSIGNMENT_AT) right=primaryExpression   #binaryOperatorExpression
 
-	| <assoc=right> cond=primaryExpression INTERR left=primaryExpression COLON right=primaryExpression	#conditionalExpression
+    // precedence: 45 (-=) string operator
+    // Leaving out because it is semantic dependant.
+    // | left=primaryExpression id=(ASSIGNMENT_DECR) right=primaryExpression                   #binaryOperatorExpression
 
 	| 'self'																				#selfReferenceExpression
 	| 'default'																				#defaultReferenceExpression
@@ -963,9 +994,6 @@ primaryExpression
 	// Note any keyword must preceed identifier!
 	| identifier 																			#memberExpression
 
-	// | id=identifier right=primaryExpression													#preNamedOperatorExpression
-	// | left=primaryExpression id=identifier													#postNamedOperatorExpression
-
 	| (OPEN_PARENS expr=primaryExpression CLOSE_PARENS) 									#parenthesizedExpression
 	;
 
@@ -975,9 +1003,12 @@ classPropertyAccessSpecifier
 	| 'const'
 	;
 
-// 	created(, s, test);
-argument: COMMA | expression COMMA?;
-arguments: argument+;
+argument: expression;
+emptyArgument: COMMA;
+
+// created(, s, test,,)
+// (emptyArgument, argument, argument, emptyArgument)
+arguments: (emptyArgument | (COMMA argument)+ | (argument COMMA?))+;
 
 defaultArgument: COMMA | defaultValue;
 defaultArguments: defaultArgument (COMMA defaultArgument)*;
@@ -988,7 +1019,7 @@ defaultPropertiesBlock
 		'defaultproperties'
 		// UnrealScriptBug: Must be on the line after keyword!
 		(OPEN_BRACE
-            defaultStatement*
+            defaultStatement*?
         CLOSE_BRACE)
 	;
 
@@ -997,7 +1028,7 @@ structDefaultPropertiesBlock
 		'structdefaultproperties'
 		// UnrealScriptBug: Must be on the line after keyword!
 		(OPEN_BRACE
-            defaultStatement*
+            defaultStatement*?
         CLOSE_BRACE)
 	;
 
@@ -1046,7 +1077,7 @@ objectDecl
 	:
 		// UnrealScriptBug: name= and class= are required to be on the same line as the keyword!
 		('begin' 'object') objectAttribute+
-            defaultStatement*
+            defaultStatement*?
 		('end' 'object')
 	;
 

@@ -7,21 +7,12 @@ import * as url from 'url';
 import { DocumentUri } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
-import { UCLexer } from './antlr/generated/UCLexer';
-import { ProgramContext, UCParser } from './antlr/generated/UCParser';
-import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
-import { IDiagnosticNode } from './diagnostics/diagnostic';
-import { DocumentASTWalker } from './documentASTWalker';
-import { applyMacroSymbols, config, IndexedReferencesMap, UCGeneration } from './indexer';
-import { Name, NameHash, toName } from './name';
 import { UCErrorListener } from './Parser/ErrorListener';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import { UCInputStream } from './Parser/InputStream';
 import { UCTokenStream } from './Parser/TokenStream';
 import {
-    isStruct,
     ISymbol,
-    removeHashedSymbol,
     SymbolReference,
     SymbolsTable,
     UCClassSymbol,
@@ -29,7 +20,17 @@ import {
     UCPackage,
     UCStructSymbol,
     UCSymbolKind,
+    isStruct,
+    removeHashedSymbol,
 } from './Symbols';
+import { UCLexer } from './antlr/generated/UCLexer';
+import { ProgramContext, UCParser } from './antlr/generated/UCParser';
+import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
+import { IDiagnosticNode } from './diagnostics/diagnostic';
+import { DocumentASTWalker } from './documentASTWalker';
+import { IndexedReferencesMap, applyMacroSymbols, config } from './indexer';
+import { Name, NameHash, toName } from './name';
+import { UCGeneration } from './settings';
 import { SymbolWalker } from './symbolWalker';
 
 function removeChildren(scope: UCStructSymbol) {

@@ -42,12 +42,12 @@ fragment CALL_MACRO_CHAR
 
 LINE_COMMENT
 	: '//' ~[\r\n]*
-	-> channel(COMMENTS_CHANNEL)
+	-> channel(COMMENTS_CHANNEL) //, pushMode(LINE_COMMENT_MODE)
 	;
 
 BLOCK_COMMENT
 	: '/*' (BLOCK_COMMENT|.)*? '*/'
-	-> channel(COMMENTS_CHANNEL)
+	-> channel(COMMENTS_CHANNEL) //, pushMode(BLOCK_COMMENT_MODE)
 	;
 
 WS
@@ -354,7 +354,7 @@ MACRO_CLOSE_BRACE
 	{
 		if (--this.braceLevel === 0) {
 			this.isDefineContext = false;
-			this.mode(Lexer.DEFAULT_MODE);
+            this.popMode();
 		}
 	}
 	-> channel(MACRO), type(CLOSE_BRACE)
@@ -365,9 +365,9 @@ MACRO_SYMBOL
 	{
 		if (this.parensLevel === 0 && this.braceLevel === 0) {
 			if (this.isDefineContext) {
-				this.mode(UCLexer.MACRO_TEXT_MODE);
+				this.pushMode(UCLexer.MACRO_TEXT_MODE);
 			} else {
-				this.mode(Lexer.DEFAULT_MODE);
+				this.popMode();
 			}
 		}
 	}
@@ -381,7 +381,7 @@ MACRO_NEW_LINE
 		this.braceLevel = 0;
 		this.isDefineContext = false;
 	}
-	-> channel(HIDDEN), mode(DEFAULT_MODE)
+	-> channel(HIDDEN), popMode
 	;
 
 // MACRO_ERROR: . -> channel(HIDDEN);
@@ -402,3 +402,15 @@ MACRO_TEXT_NEW_LINE
 	}
 	-> channel(HIDDEN), type(MACRO_NEW_LINE), mode(DEFAULT_MODE)
 	;
+
+mode LINE_COMMENT_MODE;
+
+COMMENT_TEXT
+    : ~[\r\n]+
+    -> popMode
+    ;
+
+COMMENT_END
+    : [\r\n]
+    -> popMode
+    ;

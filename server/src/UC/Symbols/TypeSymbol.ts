@@ -201,6 +201,8 @@ export class UCTypeSymbol implements ITypeSymbol {
         if (intersectsWithRange(position, this.getRange())) {
             return this;
         }
+
+        return undefined;
     }
 
     index(document: UCDocument, context?: UCStructSymbol): void {
@@ -261,6 +263,8 @@ export class UCObjectTypeSymbol implements ITypeSymbol {
         if (intersectsWithRange(position, this.id.range)) {
             return this;
         }
+
+        return undefined;
     }
 
     getContainedSymbolAtPos(position: Position) {
@@ -604,11 +608,17 @@ const TypeConversionFlagsTable: Readonly<{ [key: number]: number[] }> = [
 ];
 /** @formatter:on */
 
-export function getTypeConversionFlags(inputTypeKInd: UCTypeKind, destTypeKind: UCTypeKind): number {
-    return TypeConversionFlagsTable[destTypeKind][inputTypeKInd];
+export function getTypeConversionFlags(inputTypeKind: UCTypeKind, destTypeKind: UCTypeKind): number {
+    return TypeConversionFlagsTable[destTypeKind][inputTypeKind];
 }
 
-export function getConversionCost(inputType: ITypeSymbol, destType: ITypeSymbol): number {
+export const enum UCConversionCost {
+    Negative = -1,
+    Zero = 0,
+    Positive = 1,
+}
+
+export function getConversionCost(inputType: ITypeSymbol, destType: ITypeSymbol): UCConversionCost {
     let inputTypeKind = inputType.getTypeKind();
     if (inputTypeKind === UCTypeKind.Struct) {
         if (inputType.getName() === NAME_VECTOR) {
@@ -627,17 +637,17 @@ export function getConversionCost(inputType: ITypeSymbol, destType: ITypeSymbol)
     }
 
     if (inputTypeKind === destTypeKind) {
-        return 1;
+        return UCConversionCost.Zero;
     }
 
     const flags = getTypeConversionFlags(inputTypeKind, destTypeKind);
     if (flags === N) {
-        return -1;
+        return UCConversionCost.Negative;
     }
     if (flags & A) {
-        return 1;
+        return UCConversionCost.Positive;
     }
-    return -1;
+    return UCConversionCost.Negative;
 }
 
 export const enum UCMatchFlags {
@@ -685,6 +695,10 @@ export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchF
     }
 
     const c = getTypeConversionFlags(inputTypeKind, destTypeKind);
+    if ((c & Y) || ((c & A) !== 0 && (matchFlags & UCMatchFlags.Coerce))) {
+        return true;
+    }
+
     if (c === N) {
         if (destTypeKind === UCTypeKind.Delegate) {
             return inputType.getRef()?.kind === UCSymbolKind.Function;
@@ -699,8 +713,7 @@ export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchF
         return true;
     }
 
-    // TODO: Struct (vector, rotator, range) conversions
-    return (c & A) !== 0 || ((matchFlags & UCMatchFlags.Coerce) != 0 && (c & Y) !== 0);
+    return false;
 }
 
 /** Resolves a type to its base type if set. e.g. "Class<Actor>" would be resolved to "Actor". */

@@ -47,7 +47,7 @@ import {
     UCVectLiteral,
 } from './expressions';
 import { rangeFromBound, rangeFromBounds, rangeFromCtx } from './helpers';
-import { config, setEnumMember, UCGeneration } from './indexer';
+import { config, setEnumMember } from './indexer';
 import { toName } from './name';
 import {
     NAME_ARRAY,
@@ -126,6 +126,8 @@ import {
     UCTypeKind,
     UCTypeSymbol,
 } from './Symbols';
+import { UCGeneration } from './settings';
+import { UCTokenStream } from './Parser/TokenStream';
 
 function createIdentifier(ctx: ParserRuleContext) {
     const identifier: Identifier = {
@@ -233,26 +235,15 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, kind?: U
     return leftType;
 }
 
-function findHeaderComments(tokenStream: CommonTokenStream, ctx: ParserRuleContext): Token[] | undefined {
+function fetchDeclarationComments(tokenStream: UCTokenStream, ctx: ParserRuleContext): Token | Token[] | undefined {
     if (ctx.stop) {
-        const index = ctx.stop.tokenIndex;
-        const leadingComment = tokenStream
-            .getHiddenTokensToRight(index, UCLexer.COMMENTS_CHANNEL)
-            .filter(token => token.line === ctx.stop!.line)
-            .shift();
-
-        if (leadingComment) {
-            return [leadingComment];
+        const leadingComment = tokenStream.fetchLeadingComment(ctx.stop);
+        if (leadingComment?.line === ctx.stop.line && leadingComment.type !== UCLexer.EOF) {
+            return leadingComment;
         }
     }
 
-    const index = ctx.start.tokenIndex;
-    const headerComment = tokenStream
-        .getHiddenTokensToLeft(index, UCLexer.COMMENTS_CHANNEL)
-        .filter(token => token.charPositionInLine === ctx.start.charPositionInLine);
-
-    // return undefined when empty (i.e. may have found a comment, but it may have been filtered).
-    return headerComment ?? undefined;
+    return tokenStream.fetchHeaderComment(ctx.start);
 }
 
 const TypeKeywordToTypeKindMap: { [key: number]: UCTypeKind } = {
@@ -272,7 +263,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     constructor(
         private document: UCDocument,
         private defaultScope: ISymbolContainer<ISymbol>,
-        private tokenStream: CommonTokenStream | undefined
+        private tokenStream: UCTokenStream | undefined
     ) {
         super();
         this.scopes.push(defaultScope);
@@ -293,7 +284,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     declare(symbol: UCObjectSymbol, ctx?: ParserRuleContext, registerHash = false) {
         if (ctx) {
-            symbol.description = findHeaderComments(this.tokenStream!, ctx);
+            symbol.description = fetchDeclarationComments(this.tokenStream!, ctx);
         }
 
         const scope = this.scope();
@@ -555,7 +546,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const symbol = new UCConstSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
 
         // Manually inject description, because a 'const' is passed to this.declare()
-        symbol.description = findHeaderComments(this.tokenStream!, ctx);
+        symbol.description = fetchDeclarationComments(this.tokenStream!, ctx);
 
         if (ctx._value) {
             symbol.expression = ctx._value.accept(this);
@@ -777,7 +768,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         this.push(symbol);
         try {
             if (ctx._returnParam) {
-                let paramModifiers: ModifierFlags = ModifierFlags.ReturnParam 
+                let paramModifiers: ModifierFlags = ModifierFlags.ReturnParam
                     | ModifierFlags.Out
                     | ModifierFlags.Generated;
                 const modifierNode = ctx._returnParam.returnTypeModifier();
@@ -1498,7 +1489,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         const operatorNode = ctx._id;
-        const identifier = createIdentifierFromToken(operatorNode);
+        const identifier = createIdentifier(operatorNode);
         expression.operator = new UCObjectTypeSymbol(identifier);
 
         const rightNode = ctx._right;
@@ -1612,36 +1603,28 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         // expr ( arguments )
         const exprNode = ctx.primaryExpression();
         expression.expression = exprNode.accept(this);
-
-        const exprArgumentNodes = ctx.arguments();
-        if (exprArgumentNodes) {
-            expression.arguments = exprArgumentNodes.accept(this);
-        }
+        expression.arguments = ctx.arguments()?.accept(this);
         return expression;
     }
 
-    visitArguments(ctx: UCGrammar.ArgumentsContext): IExpression[] | undefined {
-        const argumentNodes = ctx.argument();
-        if (!argumentNodes) {
-            return undefined;
-        }
-
-        const exprArgs = new Array(argumentNodes.length);
-        for (let i = 0; i < exprArgs.length; ++i) {
-            const argNode = argumentNodes[i];
-            const expr = argNode.accept(this);
-            if (!expr) {
-                exprArgs[i] = new UCEmptyArgument(rangeFromBounds(argNode.start, argNode.stop));
+    visitArguments(ctx: UCGrammar.ArgumentsContext): IExpression[] {
+        const exprArgs = [];
+        for (let i = 0; i < ctx.children!.length; ++i) {
+            const arg = ctx.children![i].accept(this);
+            if (!arg) {
                 continue;
             }
-            exprArgs[i] = expr;
+            exprArgs.push(arg);
         }
         return exprArgs;
     }
 
-    visitArgument(ctx: UCGrammar.ArgumentContext): IExpression | undefined {
-        const exprNode = ctx.expression();
-        return exprNode?.accept(this);
+    visitArgument(ctx: UCGrammar.ArgumentContext): IExpression {
+        return ctx.expression().accept(this);
+    }
+
+    visitEmptyArgument(ctx: UCGrammar.EmptyArgumentContext): IExpression {
+        return new UCEmptyArgument(rangeFromBounds(ctx.start, ctx.stop));
     }
 
     visitDefaultArguments(ctx: UCGrammar.DefaultArgumentsContext): IExpression[] | undefined {

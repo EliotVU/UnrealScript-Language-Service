@@ -24,7 +24,7 @@ export class DocumentCodeIndexer extends DefaultSymbolWalker<undefined> {
         super();
     }
 
-    visitStructBase(symbol: UCStructSymbol) {
+    override visitStructBase(symbol: UCStructSymbol) {
         for (let child = symbol.children; child; child = child.next) {
             if (isStruct(child)) {
                 child.accept(this);
@@ -32,16 +32,16 @@ export class DocumentCodeIndexer extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    visitEnum(_symbol: UCEnumSymbol) { return; }
-	visitScriptStruct(symbol: UCScriptStructSymbol) {
+    override visitEnum(_symbol: UCEnumSymbol) { return; }
+	override visitScriptStruct(symbol: UCScriptStructSymbol) {
         this.visitStructBase(symbol);
     }
 
-    visitClass(symbol: UCClassSymbol) {
+    override visitClass(symbol: UCClassSymbol) {
         this.visitStructBase(symbol);
     }
 
-    visitState(symbol: UCStateSymbol) {
+    override visitState(symbol: UCStateSymbol) {
         this.visitStructBase(symbol);
 
         if (symbol.block) {
@@ -49,7 +49,7 @@ export class DocumentCodeIndexer extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    visitMethod(symbol: UCMethodSymbol) {
+    override visitMethod(symbol: UCMethodSymbol) {
         for (let child = symbol.children; child; child = child.next) {
             // Parameter?
             if (isParamSymbol(child) && child.defaultExpression) {
@@ -66,7 +66,7 @@ export class DocumentCodeIndexer extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
+    override visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
         if (symbol.block) {
             symbol.block.index(this.document, symbol);
         }
@@ -76,7 +76,7 @@ export class DocumentCodeIndexer extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    visitReplicationBlock(symbol: UCReplicationBlock) {
+    override visitReplicationBlock(symbol: UCReplicationBlock) {
         if (symbol.block) {
             symbol.block.index(this.document, symbol);
         }

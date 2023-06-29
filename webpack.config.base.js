@@ -8,7 +8,21 @@ const config = {
         libraryTarget: 'commonjs2',
         devtoolModuleFilenameTemplate: '../[resource-path]'
     },
-    devtool: 'source-map',
+    optimization: {
+        splitChunks: {
+            chunks: 'all',
+            cacheGroups: {
+                vendor: {
+                    test: /[\\/]node_modules[\\/]/,
+                    name: 'vendor',
+                    chunks: 'all',
+                },
+            },
+        },
+    },
+    devtool: process.env.NODE_ENV === 'development'
+        ? 'inline-source-map'
+        : false,
     externals: {
         vscode: 'commonjs vscode',
     },
@@ -19,9 +33,10 @@ const config = {
         rules: [
             {
                 test: /\.ts$/,
-                exclude: /node_modules/,
+                // exclude: /node_modules/,
                 loader: 'ts-loader',
-                options: { 
+                options: {
+                    onlyCompileBundledFiles: true,
                     configFile: 'tsconfig.build.json',
                     compilerOptions: {
                         // module: 'es6'

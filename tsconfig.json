@@ -1,10 +1,11 @@
 {
     "extends": "@tsconfig/recommended/tsconfig.json",
     "compilerOptions": {
-        "target": "esnext",
+        "target": "ES2022",
         "lib": [
-            "es2021"
+            "ES2022"
         ],
+        "module": "NodeNext",
         "plugins": [
             {
                 "name": "typescript-eslint-language-service"
@@ -13,6 +14,9 @@
         "resolveJsonModule": true,
         "strictBindCallApply": false,
         "strictPropertyInitialization": false,
-        "sourceMap": true
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "noImplicitReturns": true
     },
 }

@@ -148,15 +148,15 @@ export class UCPackage extends UCObjectSymbol {
         super({ name, range: DEFAULT_RANGE });
     }
 
-    getTypeKind() {
+    override getTypeKind() {
         return UCTypeKind.Object;
     }
 
-    getTooltip(): string {
+    override getTooltip(): string {
         return `package ${this.getName().text}`;
     }
 
-    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+    override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
         return visitor.visitPackage(this);
     }
 }

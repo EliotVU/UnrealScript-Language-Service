@@ -39,7 +39,7 @@ export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWit
     public outer?: UCObjectSymbol = undefined;
     public nextInHash?: UCObjectSymbol | undefined = undefined;
 
-    public description?: Token[] = undefined;
+    public description?: Token | Token[] = undefined;
 
     // TODO: Clarify id
     constructor(public readonly id: Identifier) {
@@ -100,8 +100,8 @@ export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWit
         //
     }
 
-    getDocumentation(): string | undefined {
-        return this.description?.map(t => t.text!).join('\n');
+    getDocumentation(): Token | Token[] | undefined {
+        return this.description;
     }
 
     accept<Result>(visitor: SymbolWalker<Result>): Result | void {
@@ -114,7 +114,7 @@ export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWit
 }
 
 export class UCEmptySymbol extends UCObjectSymbol {
-    accept<Result>(visitor: SymbolWalker<Result>): void | Result {
+    override accept<Result>(visitor: SymbolWalker<Result>): void | Result {
         return;
     }
 }

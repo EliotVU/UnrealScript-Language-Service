@@ -6,15 +6,15 @@ export class UCReplicationBlock extends UCStructSymbol {
     override kind = UCSymbolKind.ReplicationBlock;
 
 	// Just return the keyword identifier.
-	getTooltip(): string {
+	override getTooltip(): string {
 		return this.getName().text;
 	}
 
-	acceptCompletion(_document: UCDocument, context: UCObjectSymbol): boolean {
+	override acceptCompletion(_document: UCDocument, context: UCObjectSymbol): boolean {
 		return isClass(context);
 	}
 
-	accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
 		return visitor.visitReplicationBlock(this);
 	}
 }

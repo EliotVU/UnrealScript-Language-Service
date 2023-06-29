@@ -28,6 +28,7 @@ import {
     UCSizeOfLiteral,
     UCSuperExpression,
 } from './expressions';
+import { intersectsWithRange } from './helpers';
 import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from './statements';
 import {
     Identifier,
@@ -36,6 +37,7 @@ import {
     ISymbol,
     MethodFlags,
     ModifierFlags,
+    UCMethodSymbol,
     UCObjectTypeSymbol,
     UCSymbolKind,
     UCTypeKind,
@@ -134,7 +136,7 @@ export const TypeToTokenTypeIndexMap = {
 export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
     private semanticTokensBuilder = new SemanticTokensBuilder();
 
-    constructor() {
+    constructor(private range?: Range) {
         super();
     }
 
@@ -194,12 +196,28 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    visitDocument(document: UCDocument): SemanticTokens {
-        super.visitDocument(document);
+    override visitDocument(document: UCDocument): SemanticTokens {
+        if (typeof this.range === 'undefined') {
+            super.visitDocument(document);
+        } else {
+            const symbols = document.enumerateSymbols();
+            for (const symbol of symbols) {
+                if (!intersectsWithRange(symbol.getRange().start, this.range)) {
+                    continue;
+                }
+                symbol.accept(this);
+            }
+        }
+        
         return this.getTokens();
     }
 
-    visitBlock(symbol: UCBlock) {
+    override visitMethod(symbol: UCMethodSymbol): void {
+        this.pushSymbol(symbol, symbol.id);
+        super.visitMethod(symbol);
+    }
+
+    override visitBlock(symbol: UCBlock) {
         for (const statement of symbol.statements) {
             if (statement) {
                 statement.accept(this);
@@ -207,7 +225,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    visitObjectType(symbol: UCObjectTypeSymbol) {
+    override visitObjectType(symbol: UCObjectTypeSymbol) {
         const symbolRef = symbol.getRef();
         if (symbolRef) {
             this.pushSymbol(symbolRef, symbol.id);
@@ -215,7 +233,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         super.visitObjectType(symbol);
     }
 
-    visitGotoStatement(stm: UCGotoStatement) {
+    override visitGotoStatement(stm: UCGotoStatement) {
         // super.visitGotoStatement(stm);
         if (stm.expression) {
             const type = stm.expression.getType();
@@ -229,7 +247,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    visitLabeledStatement(stm: UCLabeledStatement) {
+    override visitLabeledStatement(stm: UCLabeledStatement) {
         super.visitLabeledStatement(stm);
         if (stm.label) {
             this.pushRange(stm.label.range,
@@ -239,7 +257,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    visitRepIfStatement(stm: UCRepIfStatement): void {
+    override visitRepIfStatement(stm: UCRepIfStatement): void {
         super.visitRepIfStatement(stm);
         if (stm.symbolRefs)
             for (const repSymbolRef of stm.symbolRefs) {
@@ -252,7 +270,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
 
     // FIXME: DRY
     // FIXME: Infinite loop in Test.uc
-    visitExpression(expr: IExpression) {
+    override visitExpression(expr: IExpression) {
         if (expr instanceof UCParenthesizedExpression) {
             expr.expression?.accept(this);
         } else if (expr instanceof UCMetaClassExpression) {
@@ -273,8 +291,10 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
             expr.false?.accept(this);
         } else if (expr instanceof UCBaseOperatorExpression) {
             expr.expression?.accept(this);
+            expr.operator?.accept(this);
         } else if (expr instanceof UCBinaryOperatorExpression) {
             expr.left?.accept(this);
+            expr.operator?.accept(this);
             expr.right?.accept(this);
         } else if (expr instanceof UCDefaultMemberCallExpression) {
             expr.propertyMember.accept(this);
@@ -308,6 +328,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         } else if (expr instanceof UCDefaultStructLiteral) {
             expr.arguments?.forEach(arg => arg?.accept(this));
         } else if (expr instanceof UCObjectLiteral) {
+            expr.castRef.accept(this);
             expr.objectRef?.accept(this);
         } else if (expr instanceof UCArrayCountExpression) {
             expr.argument?.accept(this);

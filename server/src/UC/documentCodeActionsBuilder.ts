@@ -18,7 +18,7 @@ export class DocumentCodeActionsBuilder extends DefaultSymbolWalker<undefined> {
         this.codeActions.push(codeAction);
     }
 
-    visitObjectType(symbol: UCObjectTypeSymbol) {
+    override visitObjectType(symbol: UCObjectTypeSymbol) {
         const referredSymbol = symbol.getRef();
         if (!referredSymbol) {
             if (symbol.getExpectedKind() === UCSymbolKind.Class) {

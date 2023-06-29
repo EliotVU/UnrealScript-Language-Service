@@ -6,6 +6,20 @@
             "args": [
                 "--extensionDevelopmentPath=${workspaceRoot}"
             ],
+            "name": "Launch Client No Watch",
+            "outFiles": [
+                "${workspaceRoot}/out/extension.js",
+            ],
+            "sourceMaps": true,
+            "autoAttachChildProcesses": true,
+            "request": "launch",
+            "type": "extensionHost",
+        },
+        {
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceRoot}"
+            ],
             "name": "Launch Client",
             "outFiles": [
                 "${workspaceRoot}/out/extension.js",
@@ -23,19 +37,32 @@
             "port": 6010,
             "name": "Attach to Server",
             "outFiles": [
-                "${workspaceRoot}/out/server.js"
+                "${workspaceRoot}/out/server.js",
+                "!${workspaceRoot}/out/vendor.js"
             ],
             "sourceMaps": true,
+            "smartStep": false,
             "restart": true,
             "request": "attach",
             "type": "node",
         },
         {
             "debugServer": 6020,
-            "name": "Antlr UC Macro",
-            "input": "grammars/examples/macro.uci",
+            "name": "Antlr UC Macro Test",
+            "input": "grammars/test/Macro.uci",
             "grammar": "grammars/UCPreprocessorParser.g4",
             "startRule": "macroProgram",
+            "trace": true,
+            "visualParseTree": true,
+            "request": "launch",
+            "type": "antlr-debug",
+        },
+        {
+            "debugServer": 6020,
+            "name": "Antlr UC Test",
+            "input": "${workspaceFolder}/grammars/examples/classes/FunctionCallTest.uc",
+            "grammar": "grammars/UCParser.g4",
+            "startRule": "program",
             "trace": true,
             "visualParseTree": true,
             "request": "launch",
@@ -46,7 +73,7 @@
         {
             "name": "Client + Server",
             "configurations": [
-                "Launch Extension",
+                "Launch Client",
                 "Attach to Server"
             ]
         }

@@ -2,20 +2,21 @@ import { ParserRuleContext, Token, TokenStream } from 'antlr4ts';
 import { Hover, Location, MarkupKind, Position, Range } from 'vscode-languageserver';
 import { DocumentUri } from 'vscode-languageserver-textdocument';
 
-import { UCLexer } from './antlr/generated/UCLexer';
-import { UCDocument } from './document';
-import { getDocumentById, getDocumentByURI } from './indexer';
+import { commentTokensToStrings } from './Parser/TokenStream';
 import {
-    getOuter,
-    hasModifiers,
-    isField,
     ISymbol,
     ModifierFlags,
-    supportsRef,
     UCClassSymbol,
     UCObjectSymbol,
     UCSymbolKind,
+    getOuter,
+    hasModifiers,
+    isField,
+    supportsRef,
 } from './Symbols';
+import { UCLexer } from './antlr/generated/UCLexer';
+import { UCDocument } from './document';
+import { getDocumentById, getDocumentByURI } from './indexer';
 
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 
@@ -87,6 +88,27 @@ export function rangeFromCtx(ctx: ParserRuleContext): Range {
     return { start, end };
 }
 
+export function positionFromToken(token: Token): Position {
+    return {
+        line: token.line - 1,
+        character: token.charPositionInLine
+    };
+}
+
+export function positionFromCtxStart(ctx: ParserRuleContext): Position {
+    return {
+        line: ctx.start.line - 1,
+        character: ctx.start.charPositionInLine
+    };
+}
+
+export function positionFromCtxStop(ctx: ParserRuleContext): Position {
+    return {
+        line: ctx.stop!.line - 1,
+        character: ctx.stop!.charPositionInLine
+    };
+}
+
 export function intersectsWith(range: Range, position: Position): boolean {
     if (position.line < range.start.line || position.line > range.end.line) {
         return false;
@@ -149,36 +171,39 @@ export async function getDocumentTooltip(document: UCDocument, position: Positio
         return undefined;
     }
 
-    const tooltip = getSymbolTooltip(symbol);
-    if (!tooltip) {
+    const definitionSymbol = resolveSymbolToRef(symbol);
+    if (!definitionSymbol) {
         return undefined;
     }
 
-    const docs = getSymbolDocumentation(symbol);
+    const tooltip = getSymbolTooltip(definitionSymbol);
+    const output = [`\`\`\`unrealscript`, tooltip, `\`\`\``,];
+    const documentation = getSymbolDocumentation(definitionSymbol);
+    if (documentation) {
+        output.push(
+            '___',
+            documentation.join('\n\n')
+        );
+    }
     return {
         contents: {
             kind: MarkupKind.Markdown,
-            value: [
-                `\`\`\`unrealscript`,
-                tooltip,
-                docs,
-                `\`\`\``
-            ].filter(Boolean).join('\n')
+            value: output.join('\n')
         },
         range: symbol.id.range
     };
 }
 
+// placeholder, we'll use a visitor pattern eventually.
 export function getSymbolTooltip(symbol: ISymbol): string | undefined {
-    const symbolRef = resolveSymbolToRef(symbol);
-    const tooltipText = symbolRef?.getTooltip();
+    const tooltipText = symbol.getTooltip();
     return tooltipText;
 }
 
-export function getSymbolDocumentation(symbol: ISymbol): string | undefined {
-    if (symbol instanceof UCObjectSymbol) {
-        const documentation = symbol.getDocumentation();
-        return documentation;
+export function getSymbolDocumentation(symbol: ISymbol): string[] | undefined {
+    const documentation = symbol instanceof UCObjectSymbol && symbol.getDocumentation();
+    if (documentation) {
+        return commentTokensToStrings(documentation);
     }
 
     return undefined;

@@ -2,7 +2,7 @@
     "name": "uc",
     "description": "UnrealScript Language support",
     "displayName": "UnrealScript",
-    "version": "0.6.5",
+    "version": "0.7.0",
     "author": {
         "name": "Eliot van Uytfanghe",
         "url": "https://EliotVU.com"
@@ -36,7 +36,7 @@
         "theme": "dark"
     },
     "engines": {
-        "vscode": "^1.74.0"
+        "vscode": "^1.75.0"
     },
     "capabilities": {
         "virtualWorkspaces": {
@@ -45,28 +45,29 @@
     },
     "dependencies": {
         "antlr4ts": "0.5.0-alpha.4",
+        "crc-32": "file:packages/crc-32",
         "syntaxes": "file:syntaxes"
     },
     "devDependencies": {
         "@tsconfig/recommended": "^1.0.2",
-        "@types/node": "^18.15.10",
-        "@typescript-eslint/eslint-plugin": "^5.57.0",
-        "@typescript-eslint/parser": "^5.57.0",
+        "@types/node": "^20.3.1",
+        "@typescript-eslint/eslint-plugin": "^5.60.0",
+        "@typescript-eslint/parser": "^5.60.0",
         "antlr4ts-cli": "0.5.0-alpha.4",
         "copy-webpack-plugin": "^11.0.0",
-        "eslint": "^8.36.0",
+        "eslint": "^8.43.0",
         "gulp": "^4.0.2",
         "js-yaml": "^4.1.0",
         "merge-options": "^3.0.4",
         "mocha-explorer-launcher-scripts": "^0.4.0",
-        "rimraf": "^4.4.1",
-        "ts-loader": "^9.4.2",
+        "rimraf": "^5.0.1",
+        "ts-loader": "^9.4.3",
         "ts-node": "^10.9.1",
         "tsconfig-paths-webpack-plugin": "^4.0.1",
-        "typescript": "^5.0.2",
-        "typescript-eslint-language-service": "^5.0.3",
-        "webpack": "^5.76.3",
-        "webpack-cli": "^5.0.1"
+        "typescript": "^5.1.3",
+        "typescript-eslint-language-service": "^5.0.5",
+        "webpack": "^5.87.0",
+        "webpack-cli": "^5.1.4"
     },
     "scripts": {
         "vscode:prepublish": "npm run build",
@@ -81,19 +82,29 @@
         "test-live": "cd server && npm run test-live"
     },
     "activationEvents": [
-        "onLanguage:unrealscript",
         "workspaceContains:**/*.upkg,**/*.ucproject"
     ],
     "main": "out/extension.js",
     "extensionKind": [
         "workspace"
     ],
-    "configurationDefaults": {
-        "[unrealscript]": {
-            "editor.semanticHighlighting.enabled": true
-        }
-    },
     "contributes": {
+        "configurationDefaults": {
+            "editor.semanticHighlighting.enabled": true,
+            "editor.semanticTokenColorCustomizations": {
+                "rules": {
+                    "*.intrinsic": {
+                        "italic": true
+                    },
+                    "*.native": {
+                    },
+                    "archetype": {
+                        "italic": true,
+                        "foreground": "#eeee00"
+                    }
+                }
+            }
+        },
         "configuration": {
             "type": "object",
             "title": "UnrealScript",
@@ -137,6 +148,13 @@
                     "description": "Whether to index all document files found in the workspace.",
                     "default": false
                 },
+                "unrealscript.indexDocumentDebouncePeriod": {
+                    "scope": "window",
+                    "type": "number",
+                    "default": 50,
+                    "minimum": 0,
+                    "maximum": 300
+                },
                 "unrealscript.analyzeDocuments": {
                     "scope": "window",
                     "type": "string",
@@ -147,6 +165,13 @@
                     ],
                     "description": "Analyzes any active document, or all documents, and report back \"problems\" if any.",
                     "default": "OnlyActive"
+                },
+                "unrealscript.analyzeDocumentDebouncePeriod": {
+                    "scope": "window",
+                    "type": "number",
+                    "default": 50,
+                    "minimum": 0,
+                    "maximum": 1000
                 },
                 "unrealscript.checkTypes": {
                     "scope": "window",
@@ -255,7 +280,14 @@
                 "extensions": [
                     ".uc"
                 ],
-                "configuration": "./language-configuration.json"
+                "filenamePatterns": [
+                    "[a-zA-Z_][a-zA-Z0-9_]*"
+                ],
+                "configuration": "./language-configuration.json",
+                "icon": {
+                    "dark": "./FileIcon.png",
+                    "light": "./FileIcon.png"
+                }
             },
             {
                 "id": "unrealscript-pp",
@@ -266,16 +298,17 @@
                 "extensions": [
                     ".uci"
                 ],
-                "configuration": "./language-configuration.json"
+                "configuration": "./language-configuration.json",
+                "icon": {
+                    "dark": "./FileIcon.png",
+                    "light": "./FileIcon.png"
+                }
             },
             {
                 "id": "ini",
                 "extensions": [
                     ".upkg",
                     ".ucproject"
-                ],
-                "filenamePatterns": [
-                    "[w]+"
                 ]
             }
         ],
@@ -338,24 +371,12 @@
             {
                 "language": "unrealscript",
                 "scopes": {
-                    "intrinsic": [
+                    "*.intrinsic": [
                         "support.other.uc"
-                    ],
-                    "native": [
-                        "keyword.constant.uc"
-                    ],
-                    "archetype": [
-                        "variable.other.constant.uc"
                     ]
                 }
             }
         ],
-        "semanticTokenColors": {
-            "archetype:unrealscript": "#885524",
-            "*.native:unrealscript": {
-                "background": "#552424"
-            }
-        },
         "snippets": [
             {
                 "language": "unrealscript",
