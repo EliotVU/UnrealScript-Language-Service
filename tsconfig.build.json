@@ -4,10 +4,8 @@
         "baseUrl": ".",
         "outDir": "out",
         "sourceMap": true,
-        "inlineSources": true,
         "declaration": false,
         "moduleResolution": "Node",
-        "removeComments": true,
     },
     "include": [
         "client",

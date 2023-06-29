@@ -6,6 +6,7 @@ import { SymbolWalker } from '../symbolWalker';
 import {
     ModifierFlags, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
 } from './';
+import { Token } from 'antlr4ts/Token';
 
 export class UCStateSymbol extends UCStructSymbol {
     static readonly allowedKindsMask = 1 << UCSymbolKind.Const
@@ -49,7 +50,7 @@ export class UCStateSymbol extends UCStructSymbol {
 		return text.filter(s => s).join(' ');
 	}
 
-    override getDocumentation(): string | undefined {
+    override getDocumentation(): Token | Token[] | undefined {
 		const doc = super.getDocumentation();
 		if (doc) {
 			return doc;

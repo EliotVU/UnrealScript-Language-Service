@@ -1,5 +1,22 @@
 # UnrealScript Language Service
 
+## 0.7.0 (Juni 29, 2023)
+
+- Implemented signature help, providing assistance with function call arguments.
+- Added two new customizable options to control the debounce period time, allowing users to specify the delay until analysis and/or indexing initiates after a document edit.
+- Added underlining to comments in tooltips.
+- Added an icon for .uc files.
+- Expanded semantic highlighting to encompass additional symbol kinds.
+- Improved symbol lookup functionality for default value assignments.
+- Fixed an issue that prevented renaming of a symbol if it was a reference.
+- Fixed a minor completion keyword-suggestion issue when assigning a default value to a property.
+- Fixed a bug where analysis wouldn't detect invalid arguments in function calls if the function hadn't been analyzed yet.
+
+### TypeChecking (see option "unrealscript.checkTypes")
+
+- Added diagnostics for self-casting or casting to invalid types, as well as validation of dynamic casting in switch expressions.
+  - Bug: May produce false positives when an overloaded operator is mismatched.
+
 ## 0.6.4 (Feb 16, 2023)
 
 - Fixed [Class-function field hint](https://github.com/EliotVU/UnrealScript-Language-Service/issues/161).
