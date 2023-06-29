@@ -22,25 +22,25 @@ So far the extension has implemented support for the following features:
 
 ### Quick Info
 
-![PNG](docs/media/quickinfo.png)
+![PNG](./docs/media/quickinfo.png)
 
 ### Find All References
 
-![GIF](docs/media/references.gif)
+![GIF](./docs/media/references.gif)
 
 ### Symbol Renaming
 
-![GIF](docs/media/renaming.gif)
+![GIF](./docs/media/renaming.gif)
 
 ### Symbol Searching
 
-![PNG](docs/media/workspaceSymbols.png)
+![PNG](./docs/media/workspaceSymbols.png)
 
 Beware, for *Symbol Renaming* and *Find All References* it is recommended to enable *Index All Documents*
 
 ## Contribution
 
-Yes! For more information regarding contribution, please check the [Contributing Guidelines](.github/CONTRIBUTING.md).
+Yes! For more information regarding contribution, please check the [Contributing Guidelines](./.github/CONTRIBUTING.md).
 
 [![Gitter](https://img.shields.io/gitter/room/unrealscript/Language-Service?color=9cf)](https://gitter.im/unrealscript/Language-Service)
 [![Give something back!](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/eliotvu)
