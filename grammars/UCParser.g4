@@ -54,7 +54,7 @@ options {
 // Class modifier keywords have been commented out, because we are not using them for parsing.
 identifier
     : ID
-    | { this.isKeywordToken(this.currentToken) }? ('default'
+    | ('default'
 	| 'self'
 	| 'super'
 	| 'global'

@@ -67,7 +67,7 @@ import { UCLanguageServerSettings } from './configuration';
 
 /** If the candidates collector hits any these it'll stop at the first occurance. */
 const PreferredRulesSet = new Set([
-    UCParser.RULE_typeDecl,
+    // UCParser.RULE_typeDecl,
     UCParser.RULE_defaultIdentifierRef,
     UCParser.RULE_defaultQualifiedIdentifierRef,
     UCParser.RULE_qualifiedIdentifier, UCParser.RULE_identifier,
@@ -477,7 +477,16 @@ async function buildCompletionItems(
     cc.translateRulesTopDown = false;
     cc.ignoredTokens = currentIgnoredTokensSet;
     cc.preferredRules = PreferredRulesSet;
-    const candidates = cc.collectCandidates(leadingToken.tokenIndex, scopeRuleContext);
+    let candidates = cc.collectCandidates(leadingToken.tokenIndex, scopeRuleContext);
+    if (carretRuleContext && candidates.rules.size === 0) {
+        candidates = cc.collectCandidates(leadingToken.tokenIndex, carretRuleContext);
+        if (candidates.rules.size === 0) {
+            candidates.rules.set(carretRuleContext.ruleIndex, {
+                startTokenIndex: leadingToken.tokenIndex,
+                ruleList: [scopeRuleContext.ruleIndex, carretRuleContext.ruleIndex]
+            });
+        }
+    }
     // if (process.env.NODE_ENV === 'development') {
     //     console.debug('completion::tokens', Array
     //         .from(candidates.tokens.keys())
@@ -899,8 +908,39 @@ async function buildCompletionItems(
                     }
 
                     case UCParser.RULE_typeDecl: {
-                        globalTypes |= 1 << UCSymbolKind.Enum
-                            | 1 << UCSymbolKind.ScriptStruct;
+                        let contextSymbol: ISymbol | undefined;
+                        if (carretContextSymbol) {
+                            if (UCQualifiedTypeSymbol.is(carretContextSymbol)) {
+                                contextSymbol = carretContextSymbol.left?.getRef();
+                            } else if (isTypeSymbol(carretContextSymbol)) {
+                                contextSymbol = carretContextSymbol.getRef();
+                            }
+                        } else if (carretContextToken) {
+                            shouldIncludeTokenKeywords = false;
+        
+                            const id = toName(carretContextToken.text as string);
+                            // Only look for a class in a context of "ClassType.Type"
+                            contextSymbol = ObjectsTable.getSymbol<UCClassSymbol>(id, UCSymbolKind.Class);
+                        } else {
+                            globalTypes |= TypeDeclSymbolKinds;
+                        }
+        
+                        if (contextSymbol) {
+                            if (isPackage(contextSymbol)) {
+                                for (const symbol of ObjectsTable.enumerateKinds(PackageTypeContextSymbolKinds)) {
+                                    if (symbol.outer !== contextSymbol) {
+                                        continue;
+                                    }
+                                    symbols.push(symbol);
+                                }
+                            } else if (isClass(contextSymbol)) {
+                                const symbolItems = contextSymbol.getCompletionSymbols(
+                                    document,
+                                    ContextKind.None,
+                                    ClassTypeContextSymbolKinds);
+                                symbols.push(...symbolItems);
+                            }
+                        }
                         break;
                     }
                 }
@@ -908,39 +948,8 @@ async function buildCompletionItems(
             }
 
             case UCParser.RULE_typeDecl: {
-                let contextSymbol: ISymbol | undefined;
-                if (carretContextSymbol) {
-                    if (UCQualifiedTypeSymbol.is(carretContextSymbol)) {
-                        contextSymbol = carretContextSymbol.left?.getRef();
-                    } else if (isTypeSymbol(carretContextSymbol)) {
-                        contextSymbol = carretContextSymbol.getRef();
-                    }
-                } else if (carretContextToken) {
-                    shouldIncludeTokenKeywords = false;
-
-                    const id = toName(carretContextToken.text as string);
-                    // Only look for a class in a context of "ClassType.Type"
-                    contextSymbol = ObjectsTable.getSymbol<UCClassSymbol>(id, UCSymbolKind.Class);
-                } else {
-                    globalTypes |= TypeDeclSymbolKinds;
-                }
-
-                if (contextSymbol) {
-                    if (isPackage(contextSymbol)) {
-                        for (const symbol of ObjectsTable.enumerateKinds(PackageTypeContextSymbolKinds)) {
-                            if (symbol.outer !== contextSymbol) {
-                                continue;
-                            }
-                            symbols.push(symbol);
-                        }
-                    } else if (isClass(contextSymbol)) {
-                        const symbolItems = contextSymbol.getCompletionSymbols(
-                            document,
-                            ContextKind.None,
-                            ClassTypeContextSymbolKinds);
-                        symbols.push(...symbolItems);
-                    }
-                }
+                globalTypes |= 1 << UCSymbolKind.Enum
+                    | 1 << UCSymbolKind.ScriptStruct;
                 break;
             }
 
@@ -991,7 +1000,8 @@ async function buildCompletionItems(
             }
 
             case UCParser.RULE_objectLiteral: {
-                globalTypes |= 1 << UCSymbolKind.Class;
+                globalTypes |= 1 << UCSymbolKind.Class
+                    | 1 << UCSymbolKind.Package;
                 break;
             }
         }
