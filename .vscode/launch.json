@@ -6,6 +6,20 @@
             "args": [
                 "--extensionDevelopmentPath=${workspaceRoot}"
             ],
+            "name": "Launch Client No Watch",
+            "outFiles": [
+                "${workspaceRoot}/out/extension.js",
+            ],
+            "sourceMaps": true,
+            "autoAttachChildProcesses": true,
+            "request": "launch",
+            "type": "extensionHost",
+        },
+        {
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceRoot}"
+            ],
             "name": "Launch Client",
             "outFiles": [
                 "${workspaceRoot}/out/extension.js",
@@ -27,7 +41,7 @@
                 "!${workspaceRoot}/out/vendor.js"
             ],
             "sourceMaps": true,
-            "smartStep": true,
+            "smartStep": false,
             "restart": true,
             "request": "attach",
             "type": "node",
@@ -59,7 +73,7 @@
         {
             "name": "Client + Server",
             "configurations": [
-                "Launch Extension",
+                "Launch Client",
                 "Attach to Server"
             ]
         }
