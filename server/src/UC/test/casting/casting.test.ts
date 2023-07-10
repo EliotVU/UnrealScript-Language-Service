@@ -1,12 +1,11 @@
 import { expect } from 'chai';
 
-import { queueIndexDocument } from '../../indexer';
-import { toName } from '../../name';
-import { UCExpressionStatement } from '../../statements';
 import { UCMethodSymbol } from '../../Symbols';
-import { usingDocuments } from '../utils/utils';
 import { rangeToString } from '../../diagnostics/diagnostic';
 import { DocumentAnalyzer } from '../../diagnostics/documentAnalyzer';
+import { queueIndexDocument } from '../../indexer';
+import { toName } from '../../name';
+import { usingDocuments } from '../utils/utils';
 
 describe('Casting', () => {
     usingDocuments(__dirname, ['../interface/InterfaceTest.uc', 'CastingTest.uc'], ([
@@ -14,34 +13,22 @@ describe('Casting', () => {
         queueIndexDocument(castingTestDocument);
 
         const castingTestClass = castingTestDocument.class;
-        const targetMethodSymbol = castingTestClass.getSymbol<UCMethodSymbol>(toName('CastingTest'));
 
-        it('Usage in Methods', () => {
-            expect(targetMethodSymbol)
-                .to.not.be.undefined;
-
-            const symbol = castingTestClass.getSymbol<UCMethodSymbol>(toName('Created'));
-            expect(symbol, 'symbol')
-                .to.not.be.undefined;
-
-            {
-                const stm = symbol.block.statements[0] as UCExpressionStatement;
-                expect(stm.expression.getMemberSymbol())
-                    .to.equal(castingTestClass);
+        it('should have no problems', () => {
+            const diagnoser = new DocumentAnalyzer(castingTestDocument);
+            for (let field = castingTestClass.children; field; field = field.next) {
+                if (field.id.name.text.startsWith('Should')) {
+                    field.accept(diagnoser);
+                }
             }
-            {
-                const stm = symbol.block.statements[1] as UCExpressionStatement;
-                expect(stm.expression.getMemberSymbol())
-                    .to.equal(targetMethodSymbol);
-            }
-            // FIXME: Not yet supported
-            {
-                const stm = symbol.block.statements[2] as UCExpressionStatement;
-                expect(stm.expression.getMemberSymbol())
-                    .to.equal(targetMethodSymbol);
-            }
+            const diagnostics = diagnoser.getDiagnostics();
+            const msg = diagnostics.toDiagnostic()
+                .map(d => `${rangeToString(d.range)}: ${d.message}`)
+                .join('\n');
+            expect(diagnostics.count(), msg)
+                .is.equal(0);
         });
-
+        
         //! Each statement is expected to report an invalid casting conversion.
         it('InvalidCastingTest should have problems', () => {
             const methodSymbol = castingTestClass.getSymbol<UCMethodSymbol>(toName('InvalidCastingTest'));

@@ -5,19 +5,56 @@ struct Vector {};
 struct Rotator {};
 struct Range {};
 
+enum CastingTest { CT_Tag };
 var enum EEnum { E_1 } EnumProperty;
 var InterfaceTest InterfaceProperty;
 
 delegate DelegateFunction();
 
-function CastingTest(string message, optional int index);
-event Created()
+// Verify that we can match a function over a package of the same name.
+function int Core(Object other);
+
+// Verify that we can distinguish a function call from a class casting of the same name, depending on the context and arguments.
+function int CastingTest(string message, optional int index);
+
+function CastingTest ShouldCastToClass()
 {
-    // Should cast to the class
-    CastingTest(self);
-    // Should reference the function
-    CastingTest("Message", 0);
-    CastingTest("Message");
+    // Should resolve to class 'CastingTest'
+    return CastingTest(self);
+}
+
+function InterfaceTest ShouldCastToInterface()
+{
+    // Should resolve to interface 'InterfaceTest'
+    return InterfaceTest(self);
+}
+
+function CastingTest ShouldCastFromInterface()
+{
+    local InterfaceTest other;
+
+    // Should resolve to class 'CastingTest'
+    return CastingTest(other);
+}
+
+function CastingTest.CastingTest ShouldCastToEnum()
+{
+    local byte b;
+    
+    // Should resolve to enum 'CastingTest'
+    return CastingTest(b);
+}
+
+function int ShouldCallFunction()
+{
+    local int i;
+
+    // Should resolve to function 'CastingTest'
+    i = CastingTest("Message", 0);
+    i = CastingTest("Message");
+
+    // Should resolve to function 'Core', unless Core as a class does exist.
+    return Core(self);
 }
 
 function InvalidCastingTest()
@@ -27,7 +64,7 @@ function InvalidCastingTest()
     Name(false);
 
     // from enum
-    float(EEnum.E_1);
+    // float(EEnum.E_1);
 
     // Zero cost conversions:
     

@@ -1,42 +1,26 @@
 import { Position, Range } from 'vscode-languageserver';
 
-import { UCDocument } from './document';
-import { intersectsWith } from './helpers';
-import { config, getConstSymbol, getEnumMember } from './indexer';
 import {
+    CORE_PACKAGE,
     CastTypeSymbolMap,
     ContextInfo,
-    CORE_PACKAGE,
     DefaultArray,
-    findOrIndexClassSymbol,
-    findOverloadedOperator,
-    findSuperStruct,
-    getConversionCost,
-    getOuter,
-    getSymbolHash,
-    getSymbolOuterHash,
-    hasDefinedBaseType,
-    Identifier,
     INode,
-    IntrinsicClass,
-    IntrinsicRngLiteral,
-    IntrinsicRotLiteral,
-    IntrinsicVectLiteral,
-    isArchetypeSymbol,
-    isConstSymbol,
-    isFunction,
-    isOperator,
-    isProperty,
-    isStateSymbol,
-    isStruct,
     ISymbol,
     ITypeSymbol,
     IWithIndex,
     IWithInnerSymbols,
+    Identifier,
+    IntrinsicClass,
+    IntrinsicRngLiteral,
+    IntrinsicRotLiteral,
+    IntrinsicRotator,
+    IntrinsicScriptStruct,
+    IntrinsicVectLiteral,
+    IntrinsicVector,
     ModifierFlags,
     ObjectsTable,
     OuterObjectsTable,
-    resolveType,
     StaticBoolType,
     StaticByteType,
     StaticErrorType,
@@ -49,8 +33,8 @@ import {
     StaticRotatorType,
     StaticStringType,
     StaticVectorType,
-    tryFindClassSymbol,
     UCArrayTypeSymbol,
+    UCBaseOperatorSymbol,
     UCClassSymbol,
     UCConversionCost,
     UCEnumSymbol,
@@ -64,7 +48,28 @@ import {
     UCSymbolKind,
     UCTypeKind,
     UCTypeSymbol,
+    findOrIndexClassSymbol,
+    findOverloadedOperator,
+    findSuperStruct,
+    getConversionCost,
+    getOuter,
+    getSymbolHash,
+    getSymbolOuterHash,
+    hasDefinedBaseType,
+    isArchetypeSymbol,
+    isConstSymbol,
+    isFunction,
+    isOperator,
+    isProperty,
+    isStateSymbol,
+    isStruct,
+    resolveType,
+    tryFindClassSymbol,
 } from './Symbols';
+import { UCDocument } from './document';
+import { intersectsWith } from './helpers';
+import { config, getConstSymbol, getEnumMember } from './indexer';
+import { NAME_ROTATOR, NAME_STRUCT, NAME_VECTOR } from './names';
 import { SymbolWalker } from './symbolWalker';
 
 export interface IExpression extends INode, IWithIndex, IWithInnerSymbols {
@@ -238,11 +243,14 @@ export class UCCallExpression extends UCExpression {
                     const firstArgumentType = this.arguments[0]?.getType();
                     return firstArgumentType;
                 }
+
                 const returnValueType = returnValue.getType();
                 return returnValueType;
             }
+
             return undefined;
         }
+
         return type;
     }
 
@@ -268,46 +276,66 @@ export class UCCallExpression extends UCExpression {
         return undefined;
     }
 
-    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         if (!this.arguments?.length) {
             this.expression.index(document, context);
             return;
         }
 
-        /**
-         * The compiler has a hacky implementation for casts/function calls.
-         * 
-         * It will first check if the name could be a reference to a class.
-         * If it's a match, then the first argument is compiled, 
-         * if the argument is not an Object type or hit another argument, then it assumes it's a function call.
-         */
-        if (this.arguments.length == 1 && this.expression instanceof UCMemberExpression) {
-            const member = this.expression;
-            const name = member.id.name;
+        // Let's perform the indexing of the UCMemberExpression ourselves if some parameters are met.
+        // 1. Match a primitive (int, byte, etc) or vector/rotator cast regardless of the total count of arguments and type.
+        // 2. If false, try match a class, and verify that we have only one argument that is also of type 'Object'
+        // 3. If false, try match an enum and verify that we have only one argument that is also of type 'Byte'
+        let type: ITypeSymbol | undefined;
+        if (this.expression instanceof UCMemberExpression) {
+            const name = this.expression.id.name;
+            if ((type = CastTypeSymbolMap.get(name))) {
+                this.expression.type = type;
+            } else if (name === NAME_VECTOR) {
+                type = new UCObjectTypeSymbol(this.expression.id);
+                (type as UCObjectTypeSymbol).setRef(IntrinsicVector, document);
+                this.expression.type = type;
+            } else if (name === NAME_ROTATOR) {
+                type = new UCObjectTypeSymbol(this.expression.id);
+                (type as UCObjectTypeSymbol).setRef(IntrinsicRotator, document);
+                this.expression.type = type;
+            } else if (name === NAME_STRUCT) {
+                type = new UCObjectTypeSymbol(this.expression.id);
+                (type as UCObjectTypeSymbol).setRef(IntrinsicScriptStruct, document);
+                this.expression.type = type;
+            } else if (this.arguments.length === 1) {
+                this.arguments[0].index(document, context, {
+                    contextType: StaticErrorType,
+                    inAssignment: false
+                });
 
-            // Casting to a int, byte, bool? etc...
-            // TODO: Handle this in the parser.
-            const primitiveType = CastTypeSymbolMap.get(name);
-            if (primitiveType) {
-                member.type = primitiveType;
-            } else {
-                // Casting to a Class, Struct, or Enum?
-                // TODO: Check first argument type, because if it's not a valid object, a function call must be assumed
-                const structSymbol = tryFindClassSymbol(name) ?? ObjectsTable.getSymbol(name);
-                if (structSymbol) {
-                    const type = new UCObjectTypeSymbol(member.id);
-                    type.setRef(structSymbol, document);
-                    member.type = type;
-                } else { // Maybe a function
-                    const funcSymbol = isStruct(context) && context.findSuperSymbol<UCMethodSymbol>(name);
-                    if (funcSymbol) {
-                        const type = new UCObjectTypeSymbol(member.id);
-                        type.setRef(funcSymbol, document);
-                        member.type = type;
+                const sourceTypeKind = this.arguments[0].getType()?.getTypeKind();
+                switch (sourceTypeKind) {
+                    case UCTypeKind.Object: {
+                        const classSymbol = tryFindClassSymbol(name);
+                        if (classSymbol) {
+                            type = new UCObjectTypeSymbol(this.expression.id);
+                            (type as UCObjectTypeSymbol).setRef(classSymbol, document);
+                            this.expression.type = type;
+                        }
+                        break;
+                    }
+
+                    case UCTypeKind.Byte: {
+                        const enumSymbol = ObjectsTable.getSymbol<UCEnumSymbol>(name, UCSymbolKind.Enum);
+                        if (enumSymbol) {
+                            type = new UCObjectTypeSymbol(this.expression.id);
+                            (type as UCObjectTypeSymbol).setRef(enumSymbol, document);
+                            this.expression.type = type;
+                        }
+                        break;
                     }
                 }
             }
-        } else { // default binding
+        }
+
+        // Could still be a valid function call, so fallback to the default indexing behavior.
+        if (typeof type === 'undefined') {
             this.expression.index(document, context);
         }
 
@@ -326,7 +354,7 @@ export class UCCallExpression extends UCExpression {
                         argInfo.inAssignment = param.hasAnyModifierFlags(ModifierFlags.Out);
                         this.arguments[i].index(document, context, argInfo);
                     } else {
-                        // * Excessive arguments, we will still index the arguements.
+                        // * Excessive arguments, we will still index the arguments.
                         this.arguments[i].index(document, context, {
                             contextType: StaticErrorType,
                             inAssignment: false
@@ -334,7 +362,7 @@ export class UCCallExpression extends UCExpression {
                     }
                 }
             } else {
-                // * Excessive arguments, we will still index the arguements.
+                // * Excessive arguments, we will still index the arguments.
                 for (let i = 0; i < this.arguments.length; ++i) {
                     this.arguments[i].index(document, context, {
                         contextType: StaticErrorType,
