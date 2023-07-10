@@ -751,7 +751,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                 console.error('Error during analysis at', this.context ? this.context.getPath() : '???', range, err);
             }
         }
-        return undefined;
     }
 
     private verifyStatementExpression(stm: UCExpressionStatement) {

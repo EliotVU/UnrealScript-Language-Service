@@ -1,4 +1,4 @@
-import { CommonTokenStream, ParserRuleContext, Token } from 'antlr4ts';
+import { ParserRuleContext, Token } from 'antlr4ts';
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
 import { Range } from 'vscode-languageserver-types';
 
@@ -62,6 +62,8 @@ import {
     NAME_STRUCTDEFAULTPROPERTIES,
 } from './names';
 import { getCtxDebugInfo } from './Parser/Parser.utils';
+import { UCTokenStream } from './Parser/TokenStream';
+import { UCGeneration } from './settings';
 import {
     IStatement,
     UCArchetypeBlockStatement,
@@ -126,8 +128,6 @@ import {
     UCTypeKind,
     UCTypeSymbol,
 } from './Symbols';
-import { UCGeneration } from './settings';
-import { UCTokenStream } from './Parser/TokenStream';
 
 function createIdentifier(ctx: ParserRuleContext) {
     const identifier: Identifier = {
@@ -304,7 +304,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         // TODO: custom class
         const symbol = new UCMacroSymbol(identifier);
         this.document.addSymbol(symbol);
-        return undefined;
+        
+        return symbol;
     }
 
     visitIdentifier(ctx: UCGrammar.IdentifierContext): Identifier {
@@ -664,7 +665,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
         const statementNodes = ctx.replicationStatement();
         if (!statementNodes) {
-            return;
+            return undefined;
         }
 
         symbol.block = createBlock(this, ctx.replicationStatement());
@@ -885,7 +886,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
     }
 
-    visitLocalDecl(ctx: UCGrammar.LocalDeclContext) {
+    visitLocalDecl(ctx: UCGrammar.LocalDeclContext): undefined {
         const propTypeNode = ctx.typeDecl();
         const typeSymbol = this.visitTypeDecl(propTypeNode);
 
@@ -895,10 +896,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             symbol.type = typeSymbol;
             this.declare(symbol, ctx);
         }
+        
         return undefined;
     }
 
-    visitVarDecl(ctx: UCGrammar.VarDeclContext) {
+    visitVarDecl(ctx: UCGrammar.VarDeclContext): undefined {
         let modifiers: ModifierFlags = 0;
 
         const declTypeNode: UCGrammar.VarTypeContext | undefined = ctx.varType();
@@ -946,6 +948,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             symbol.modifiers |= modifiers;
             this.declare(symbol, ctx);
         }
+        
         return undefined;
     }
 
@@ -985,11 +988,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         } finally {
             this.pop();
         }
+
         return symbol;
     }
 
     // TODO: Refactor this as a statement
-    visitIgnoresDecl(ctx: UCGrammar.IgnoresDeclContext) {
+    visitIgnoresDecl(ctx: UCGrammar.IgnoresDeclContext): undefined {
         const scope = this.scope<UCStateSymbol>();
         const idNodes = ctx.identifier();
         if (idNodes) {
@@ -1003,6 +1007,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             }
             scope.ignoreRefs = scope.ignoreRefs.concat(ignoreRefs);
         }
+        
         return undefined;
     }
 
@@ -1149,10 +1154,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         switch (token.type) {
             case UCGrammar.UCParser.DECIMAL_LITERAL:
             case UCGrammar.UCParser.INTEGER_LITERAL: {
-                // Need to coerce float to int (to conform to the compiler)
-                const rawValue = Number.parseInt(ctx.text);
-                const expression = new UCIntLiteral(range);
-                (expression as UCIntLiteral).value = rawValue;
+                const expression = new UCIntLiteral(range, ctx._start);
                 return expression;
             }
         }
@@ -1770,33 +1772,22 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     visitLiteral(ctx: UCGrammar.LiteralContext) {
         const range = rangeFromBounds(ctx.start, ctx.stop);
-        let expression: IExpression | undefined;
         const token = ctx.start;
         switch (token.type) {
             case UCGrammar.UCParser.NONE_LITERAL:
-                expression = new UCNoneLiteral(range);
-                break;
+                return new UCNoneLiteral(range);
 
             case UCGrammar.UCParser.STRING_LITERAL:
-                expression = new UCStringLiteral(range);
-                break;
+                return new UCStringLiteral(range, token);
 
-            case UCGrammar.UCParser.INTEGER_LITERAL: {
-                const rawValue = Number.parseInt(ctx.text);
-                expression = new UCIntLiteral(range);
-                (expression as UCIntLiteral).value = rawValue;
-                break;
-            }
+            case UCGrammar.UCParser.INTEGER_LITERAL:
+                return new UCIntLiteral(range, token);
 
             case UCGrammar.UCParser.DECIMAL_LITERAL:
-                expression = new UCFloatLiteral(range);
-                (expression as UCFloatLiteral).value = Number.parseFloat(ctx.text);
-                break;
+                return new UCFloatLiteral(range, token);
 
             case UCGrammar.UCParser.BOOLEAN_LITERAL:
-                expression = new UCBoolLiteral(range);
-                (expression as UCBoolLiteral).value = Boolean(ctx.text);
-                break;
+                return new UCBoolLiteral(range, token);
 
             case UCGrammar.UCParser.NAME_LITERAL: {
                 const text = token.text!;
@@ -1805,14 +1796,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                     name: name,
                     range: rangeFromBound(token)
                 };
-                expression = new UCNameLiteral(id);
-                break;
+                return new UCNameLiteral(id);
             }
 
             default:
                 throw new Error(`Unsupported literal type '${UCGrammar.UCParser.VOCABULARY.getDisplayName(token.type)}'`);
         }
-        return expression;
     }
 
     visitSignedNumericLiteral(ctx: UCGrammar.SignedNumericLiteralContext) {
@@ -1820,11 +1809,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         let expression: UCFloatLiteral | UCIntLiteral;
         const txt = ctx.text;
         if (txt.includes('.')) {
-            expression = new UCFloatLiteral(range);
-            expression.value = Number.parseFloat(txt);
+            expression = new UCFloatLiteral(range, ctx.start);
         } else {
-            expression = new UCIntLiteral(range);
-            expression.value = Number.parseInt(txt);
+            expression = new UCIntLiteral(range, ctx.start);
         }
         return expression;
     }
@@ -1892,7 +1879,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         return expression;
     }
 
-    visitDefaultQualifiedIdentifierRef(ctx: UCGrammar.DefaultQualifiedIdentifierRefContext) {
+    visitDefaultQualifiedIdentifierRef(ctx: UCGrammar.DefaultQualifiedIdentifierRefContext): undefined {
         // TODO: Support
         return undefined;
     }
@@ -1902,7 +1889,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         return expression;
     }
 
-    protected defaultResult() {
+    protected defaultResult(): undefined {
         return undefined;
     }
 }

@@ -1,5 +1,6 @@
 import { Position, Range } from 'vscode-languageserver';
 
+import { Token } from 'antlr4ts/Token';
 import {
     CORE_PACKAGE,
     CastTypeSymbolMap,
@@ -78,7 +79,7 @@ export interface IExpression extends INode, IWithIndex, IWithInnerSymbols {
     // TODO: Refactor to never return undefined, always return a StaticErrorType instead.
     getType(): ITypeSymbol | undefined;
     getSymbolAtPos(position: Position): ISymbol | undefined;
-    getValue(): number | undefined;
+    getValue(): number | boolean | string | undefined;
 
     // TODO: Consider using visitor pattern to index.
     index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo): void;
@@ -219,7 +220,7 @@ export class UCNameOfExpression extends UCExpression {
 }
 
 export class UCEmptyArgument extends UCExpression {
-    getContainedSymbolAtPos(_position: Position) {
+    getContainedSymbolAtPos(_position: Position): undefined {
         return undefined;
     }
 }
@@ -574,8 +575,8 @@ export class UCBinaryOperatorExpression extends UCExpression {
     public operator?: UCObjectTypeSymbol;
     public right?: IExpression;
 
-    override getMemberSymbol() {
-        return this.operator?.getRef();
+    override getMemberSymbol(): UCBaseOperatorSymbol | undefined {
+        return this.operator?.getRef<UCBaseOperatorSymbol>();
     }
 
     override getType() {
@@ -723,7 +724,7 @@ export class UCMemberExpression extends UCExpression {
 }
 
 export class UCDefaultAssignmentExpression extends UCAssignmentOperatorExpression {
-    override getType() {
+    override getType(): undefined {
         return undefined;
     }
 }
@@ -986,7 +987,7 @@ export class UCNewExpression extends UCCallExpression {
 export abstract class UCLiteral implements IExpression {
     readonly kind = UCNodeKind.Expression;
 
-    constructor(protected range: Range) {
+    constructor(protected range: Range, protected valueToken?: Token) {
     }
 
     getRange(): Range {
@@ -1013,7 +1014,7 @@ export abstract class UCLiteral implements IExpression {
         return undefined;
     }
 
-    getValue(): number | undefined {
+    getValue(): number | boolean | string | undefined {
         return undefined;
     }
 
@@ -1031,18 +1032,28 @@ export class UCNoneLiteral extends UCLiteral {
         return StaticNoneType;
     }
 
-    override toString() {
+    override getValue() {
         return 'None';
+    }
+
+    override toString() {
+        return this.getValue();
     }
 }
 
 export class UCStringLiteral extends UCLiteral {
+    declare valueToken: Token;
+
     override getType() {
         return StaticStringType;
     }
 
+    override getValue() {
+        return `${this.valueToken.text!}[${this.valueToken.text!.length - 2}]`;
+    }
+
     override toString() {
-        return '""';
+        return this.getValue();
     }
 }
 
@@ -1055,56 +1066,64 @@ export class UCNameLiteral extends UCLiteral {
         return StaticNameType;
     }
 
-    override toString() {
+    override getValue() {
         return `'${this.id.name.text}'`;
+    }
+
+    override toString() {
+        return this.getValue();
     }
 }
 
 export class UCBoolLiteral extends UCLiteral {
-    value: boolean;
+    declare valueToken: Token;
 
     override getType() {
         return StaticBoolType;
     }
 
+    override getValue() {
+        return Boolean(this.valueToken.text!);
+    }
+
     override toString() {
-        return String(this.value);
+        return String(this.getValue());
     }
 }
 
 export class UCFloatLiteral extends UCLiteral {
-    value: number;
+    declare valueToken: Token;
 
     override getType() {
         return StaticFloatType;
     }
 
     override getValue(): number {
-        return this.value;
+        return Number.parseFloat(this.valueToken.text!);
     }
 }
 
 export class UCIntLiteral extends UCLiteral {
-    value: number;
+    declare valueToken: Token;
 
     override getType() {
         return StaticIntType;
     }
 
     override getValue(): number {
-        return this.value;
+        return Number.parseInt(this.valueToken.text!);
     }
 }
 
 export class UCByteLiteral extends UCLiteral {
-    value: number;
+    declare valueToken: Token;
 
     override getType() {
         return StaticByteType;
     }
 
     override getValue(): number {
-        return this.value;
+        return Number.parseInt(this.valueToken.text!);
     }
 }
 
@@ -1158,6 +1177,20 @@ export class UCObjectLiteral extends UCLiteral {
                 }
             }
         }
+    }
+
+    override getValue() {
+        const classRef = this.castRef.getRef();
+        if (typeof classRef === 'undefined') {
+            return 'None';
+        }
+
+        const objectRef = this.objectRef?.getRef();
+        return `${this.castRef.getName().text}'${objectRef?.getPath() ?? 'None'}'`;
+    }
+
+    override toString() {
+        return String(this.getValue());
     }
 }
 
@@ -1236,7 +1269,7 @@ export class UCRngLiteral extends UCStructLiteral {
 export class UCSizeOfLiteral extends UCLiteral {
     public argumentRef?: ITypeSymbol;
 
-    override getValue() {
+    override getValue(): undefined {
         // FIXME: We don't have the data to calculate a class's size.
         // const symbol = this.argumentRef?.getReference();
         return undefined;

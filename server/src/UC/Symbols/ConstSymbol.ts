@@ -11,7 +11,7 @@ export class UCConstSymbol extends UCFieldSymbol {
 
 	public expression?: IExpression;
 
-	getComputedValue(): number | undefined {
+	getComputedValue(): number | boolean | string | undefined {
 		return this.expression?.getValue();
 	}
 
@@ -26,7 +26,7 @@ export class UCConstSymbol extends UCFieldSymbol {
 	override getTooltip(): string {
 		const text = `const ${this.getPath()}`;
         const value = this.getComputedValue();
-        if (typeof value === 'number') {
+        if (typeof value !== 'undefined') {
             return `${text} = ${value}`;
         }
 		return text;
