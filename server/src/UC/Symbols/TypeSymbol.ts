@@ -28,26 +28,23 @@ import {
     NAME_TYPE,
     NAME_VECTOR,
 } from '../names';
+import { UCGeneration } from '../settings';
 import { IStatement } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
     ContextInfo,
     DEFAULT_IDENTIFIER,
     DEFAULT_RANGE,
-    Identifier,
     INode,
-    IntrinsicArray,
-    IntrinsicRotator,
-    IntrinsicVector,
     ISymbol,
     IWithIndex,
     IWithInnerSymbols,
     IWithReference,
+    Identifier,
+    IntrinsicArray,
     ModifierFlags,
     ObjectsTable,
     SymbolReference,
-    tryFindClassSymbol,
-    tryFindSymbolInPackage,
     UCArchetypeSymbol,
     UCBaseOperatorSymbol,
     UCClassSymbol,
@@ -64,6 +61,8 @@ import {
     UCScriptStructSymbol,
     UCStateSymbol,
     UCStructSymbol,
+    tryFindClassSymbol,
+    tryFindSymbolInPackage
 } from './';
 
 export const enum UCNodeKind {
@@ -549,9 +548,6 @@ export const StaticVectorType = new UCObjectTypeSymbol({ name: NAME_VECTOR, rang
 export const StaticRotatorType = new UCObjectTypeSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE });
 export const StaticRangeType = new UCObjectTypeSymbol({ name: NAME_RANGE, range: DEFAULT_RANGE });
 export const StaticMetaType = new UCMetaTypeSymbol({ name: NAME_TYPE, range: DEFAULT_RANGE });
-
-StaticVectorType.setRefNoIndex(IntrinsicVector);
-StaticRotatorType.setRefNoIndex(IntrinsicRotator);
 
 export const CastTypeSymbolMap: Readonly<WeakMap<Name, ITypeSymbol>> = new WeakMap([
     [NAME_BYTE, StaticByteType],

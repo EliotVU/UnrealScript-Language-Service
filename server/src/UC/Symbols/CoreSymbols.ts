@@ -34,19 +34,20 @@ import {
     NAME_VECTOR,
 } from '../names';
 import {
-    addHashedSymbol,
     DEFAULT_RANGE,
     ModifierFlags,
     StaticNameType,
     StaticObjectType,
+    StaticRotatorType,
+    StaticVectorType,
     UCClassSymbol,
     UCPackage,
     UCPropertySymbol,
     UCScriptStructSymbol,
+    addHashedSymbol
 } from './';
 
 export const CORE_PACKAGE = new UCPackage(NAME_CORE);
-addHashedSymbol(CORE_PACKAGE);
 
 export const IntrinsicObject = new UCClassSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE });
 IntrinsicObject.modifiers |= ModifierFlags.Native | ModifierFlags.Abstract;
@@ -215,6 +216,7 @@ IntrinsicPackage.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicPackage.super = IntrinsicObject;
 IntrinsicPackage.outer = CORE_PACKAGE;
 
+addHashedSymbol(CORE_PACKAGE);
 // addHashedSymbol(IntrinsicObject);
 /*----*/addHashedSymbol(IntrinsicField);
 /*--------*/addHashedSymbol(IntrinsicConst);
@@ -243,3 +245,7 @@ IntrinsicPackage.outer = CORE_PACKAGE;
 /*----------------*/addHashedSymbol(IntrinsicClass);
 /*----*/// addHashedSymbol(IntrinsicInterface);
 /*----*/addHashedSymbol(IntrinsicPackage);
+
+StaticVectorType.setRefNoIndex(IntrinsicVector);
+StaticRotatorType.setRefNoIndex(IntrinsicRotator);
+// StaticRangeType.setRefNoIndex(IntrinsicRange);
