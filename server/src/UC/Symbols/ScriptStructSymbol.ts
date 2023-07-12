@@ -1,8 +1,11 @@
+import { Name } from 'UC/name';
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
-import { ContextKind, ISymbol, ModifierFlags, UCObjectSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
+import { ContextKind, ISymbol, ModifierFlags, UCFieldSymbol, UCObjectSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
+    declare outer: UCStructSymbol;
+    
     static readonly allowedKindsMask = 1 << UCSymbolKind.Const
         | 1 << UCSymbolKind.ScriptStruct
         | 1 << UCSymbolKind.Property;
@@ -79,6 +82,14 @@ export class UCScriptStructSymbol extends UCStructSymbol {
         return true;
 		// return isProperty(context) || isFunction(context);
 	}
+
+    override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind) {
+        return this.getSymbol<T>(id, kind) ?? this.outer.findSuperSymbol<T>(id, kind);
+    }
+
+    override findSuperSymbolPredicate<T extends UCFieldSymbol>(predicate: (symbol: UCFieldSymbol) => boolean): T | undefined {
+        return this.findSymbolPredicate<T>(predicate) ?? this.outer.findSuperSymbolPredicate<T>(predicate);
+    }
 
 	override index(document: UCDocument, _context: UCStructSymbol) {
 		super.index(document, this);

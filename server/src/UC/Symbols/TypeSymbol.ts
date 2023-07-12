@@ -3,7 +3,7 @@ import { Location, Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { IExpression } from '../expressions';
 import { intersectsWith, intersectsWithRange } from '../helpers';
-import { indexReference } from '../indexer';
+import { config, indexReference } from '../indexer';
 import { Name } from '../name';
 import {
     NAME_ARRAY,
@@ -297,8 +297,7 @@ export class UCObjectTypeSymbol implements ITypeSymbol {
         this.expectedKind = kind;
     }
 
-    // TODO: Deprecate, UnrealScript's too context sensitive --
-    // it might be better to inline the particular context lookups
+    // TODO: Displace using a visitor pattern instead, too much spaghetti logic in UnrealScript and esp in this implementation!
     index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         // Don't move this below the reference return check,
         // because, we still want to index baseType for Predefined array/delegate types.
@@ -339,7 +338,7 @@ export class UCObjectTypeSymbol implements ITypeSymbol {
             case UCSymbolKind.Delegate: {
                 // The actual 'delegate' type will be verified during the analysis.
                 // When qualified, we don't want to match an inherited delegate.
-                if (info && info.isQualified) {
+                if (info?.isQualified) {
                     symbol = context.getSymbol<UCDelegateSymbol>(id, UCSymbolKind.Delegate);
                 } else {
                     symbol = document.class?.findSuperSymbol<UCDelegateSymbol>(id, UCSymbolKind.Delegate);
@@ -347,9 +346,29 @@ export class UCObjectTypeSymbol implements ITypeSymbol {
                 break;
             }
 
-            // Either a class, struct, or enum
+            // i.e. "var Class.FieldTypeHere Name;"
             case UCSymbolKind.Field: {
-                symbol = tryFindClassSymbol(id) ?? ObjectsTable.getSymbol(id);
+                // e.g. "local Actor.Vector vector;" should also be able to pickup the inherited struct type.
+                // Note: Only if the context type is of type class, but we should probably report an error during the analysis stage instead.
+                symbol = context.findSuperSymbolPredicate<UCFieldSymbol>((symbol) => {
+                    return (symbol.kind === UCSymbolKind.ScriptStruct || symbol.kind === UCSymbolKind.Enum) 
+                        && symbol.id.name === id;
+                });
+                break;
+            }
+
+            // Either a global class, or a (inherited if < UE3) struct or enum
+            // i.e. "var ClassOrFieldTypeHere Name;"
+            case UCSymbolKind.Type: {
+                symbol = config.generation < UCGeneration.UC3 
+                    ? tryFindClassSymbol(id) 
+                        ?? context.findSuperSymbol(id, UCSymbolKind.Enum)
+                        ?? context.findSuperSymbol(id, UCSymbolKind.ScriptStruct)
+                    : tryFindClassSymbol(id) 
+                        ?? ObjectsTable.getSymbol(id, UCSymbolKind.Enum)
+                        ?? ObjectsTable.getSymbol(id, UCSymbolKind.ScriptStruct)
+                        // TODO: Search within the class's "within" class
+                        ;
                 break;
             }
 

@@ -209,6 +209,11 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, kind?: U
 
         const symbol = new UCQualifiedTypeSymbol(rightType, new UCQualifiedTypeSymbol(leftType));
         switch (kind) {
+            case UCSymbolKind.Field:
+                leftType.setExpectedKind(UCSymbolKind.Class);
+                rightType.setExpectedKind(UCSymbolKind.Field);
+                break;
+                
             case UCSymbolKind.ScriptStruct:
                 leftType.setExpectedKind(UCSymbolKind.Class);
                 break;
@@ -230,8 +235,16 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, kind?: U
                 leftType.setExpectedKind(UCSymbolKind.Class);
                 break;
         }
+
         return symbol;
     }
+
+    switch (kind) {
+        case UCSymbolKind.Field:
+            leftType.setExpectedKind(UCSymbolKind.Type); // class, enum, or struct
+            break;
+    }
+
     return leftType;
 }
 
@@ -330,7 +343,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
                 // With UE3 the pointer type was displaced by a struct i.e Core.Object.Pointer.
                 if (typeKind == UCTypeKind.Pointer && config.generation == UCGeneration.UC3) {
-                    const type: ITypeSymbol = createObjectType(rule, UCSymbolKind.Field);
+                    const type: ITypeSymbol = createObjectType(rule, UCSymbolKind.Type);
                     return type;
                 }
 

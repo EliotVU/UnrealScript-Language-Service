@@ -1,5 +1,6 @@
 import { Location, Position } from 'vscode-languageserver-types';
 
+import { Token } from 'antlr4ts/Token';
 import { UCDocument } from '../document';
 import { Name } from '../name';
 import { NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
@@ -7,7 +8,6 @@ import { SymbolWalker } from '../symbolWalker';
 import {
     ContextKind,
     DEFAULT_RANGE,
-    isFunction,
     ISymbol,
     ModifierFlags,
     UCFieldSymbol,
@@ -16,8 +16,8 @@ import {
     UCStructSymbol,
     UCSymbolKind,
     UCTypeKind,
+    isFunction,
 } from './';
-import { Token } from 'antlr4ts/Token';
 
 export enum MethodFlags {
     None = 0x0000,
@@ -41,6 +41,8 @@ export enum MethodFlags {
 }
 
 export class UCMethodSymbol extends UCStructSymbol {
+    declare outer: UCStructSymbol;
+
     static readonly allowedKindsMask = 1 << UCSymbolKind.Const
         | 1 << UCSymbolKind.Property/** params and locals */;
 
@@ -139,7 +141,11 @@ export class UCMethodSymbol extends UCStructSymbol {
     }
 
     override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind) {
-        return this.getSymbol<T>(id, kind) ?? (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
+        return this.getSymbol<T>(id, kind) ?? this.outer.findSuperSymbol<T>(id, kind);
+    }
+
+    override findSuperSymbolPredicate<T extends UCFieldSymbol>(predicate: (symbol: UCFieldSymbol) => boolean): T | undefined {
+        return this.findSymbolPredicate<T>(predicate) ?? this.outer.findSuperSymbolPredicate<T>(predicate);
     }
 
     override index(document: UCDocument, context: UCStructSymbol) {

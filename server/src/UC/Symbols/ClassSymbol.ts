@@ -139,6 +139,12 @@ export class UCClassSymbol extends UCStructSymbol {
             ?? this.within?.findSuperSymbol(id, kind);
     }
 
+    override findSuperSymbolPredicate<T extends UCFieldSymbol>(predicate: (symbol: UCFieldSymbol) => boolean): T | undefined {
+        return this.findSymbolPredicate<T>(predicate) 
+            ?? this.super?.findSuperSymbolPredicate<T>(predicate)
+            ?? this.within?.findSuperSymbolPredicate<T>(predicate);
+    }
+
     override index(document: UCDocument, context: UCClassSymbol) {
         if (this.dependsOnTypes) {
             for (const classTypeRef of this.dependsOnTypes) {

@@ -150,6 +150,10 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<UC
 		return this.getSymbol<T>(id, kind) ?? this.super?.findSuperSymbol(id, kind);
 	}
 
+    findSuperSymbolPredicate<T extends UCFieldSymbol>(predicate: (symbol: UCFieldSymbol) => boolean): T | undefined {
+		return this.findSymbolPredicate<T>(predicate) ?? this.super?.findSymbolPredicate(predicate);
+	}
+
 	override index(document: UCDocument, context: UCStructSymbol) {
 		super.index(document, context);
         this.indexSuper(document, context);

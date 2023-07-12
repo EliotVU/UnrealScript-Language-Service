@@ -1,12 +1,12 @@
 import { Location, Position } from 'vscode-languageserver-types';
 
+import { Token } from 'antlr4ts/Token';
 import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import {
     ModifierFlags, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
 } from './';
-import { Token } from 'antlr4ts/Token';
 
 export class UCStateSymbol extends UCStructSymbol {
     static readonly allowedKindsMask = 1 << UCSymbolKind.Const
@@ -77,6 +77,10 @@ export class UCStateSymbol extends UCStructSymbol {
 		const symbol = super.findSuperSymbol<T>(id, kind) ?? (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
 		return symbol;
 	}
+
+    override findSuperSymbolPredicate<T extends UCFieldSymbol>(predicate: (symbol: UCFieldSymbol) => boolean): T | undefined {
+        return this.findSymbolPredicate<T>(predicate) ?? (<UCStructSymbol>(this.outer)).findSuperSymbolPredicate<T>(predicate);
+    }
 
 	override index(document: UCDocument, context: UCStructSymbol) {
         super.index(document, context);
