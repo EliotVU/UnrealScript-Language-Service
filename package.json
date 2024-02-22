@@ -50,33 +50,30 @@
     },
     "devDependencies": {
         "@tsconfig/recommended": "^1.0.3",
-        "@types/node": "^20.11.19",
+        "@types/node": "^20.11.20",
         "@typescript-eslint/eslint-plugin": "^7.0.2",
         "@typescript-eslint/parser": "^7.0.2",
         "antlr4ts-cli": "0.5.0-alpha.4",
-        "copy-webpack-plugin": "^12.0.2",
+        "esbuild": "^0.20.1",
         "eslint": "^8.56.0",
         "gulp": "^4.0.2",
-        "js-yaml": "^4.1.0",
-        "merge-options": "^3.0.4",
         "mocha-explorer-launcher-scripts": "^0.4.0",
         "rimraf": "^5.0.5",
         "ts-loader": "^9.5.1",
         "ts-node": "^10.9.2",
-        "tsconfig-paths-webpack-plugin": "^4.1.0",
         "typescript": "^5.3.3",
         "typescript-eslint-language-service": "^5.0.5",
-        "webpack": "^5.90.3",
-        "webpack-cli": "^5.1.4"
+        "yaml-convert": "^1.0.1"
     },
     "scripts": {
         "vscode:prepublish": "npm run build",
-        "build": "npx gulp buildGrammar && npm run compile:grammar && npm run compile:preprocessor && npm run clean && npx webpack --mode production --config ./webpack.config.js",
-        "compile": "npx webpack --mode development --config ./webpack.config.js",
+        "build": "npm run clean && npm run compile:grammar && npm run compile:preprocessor && npm run compile -- --minify --define:process.env.NODE_ENV=\\\"production\\\" && npm run compile:syntax",
+        "compile": "npx esbuild ./client/src/extension.ts ./server/src/server.ts --color --bundle --outdir=out --entry-names=[name] --chunk-names=vendor --format=cjs --external:vscode --platform=node",
         "compile:grammar": "npx antlr4ts -visitor -no-listener -Xexact-output-dir grammars/UCLexer.g4 -o server/src/UC/antlr/generated && npx antlr4ts -visitor -no-listener -Xexact-output-dir grammars/UCParser.g4 -o server/src/UC/antlr/generated",
         "compile:preprocessor": "npx antlr4ts -visitor -no-listener -Xexact-output-dir grammars/UCPreprocessorParser.g4 -o server/src/UC/antlr/generated",
-        "watch": "(set NODE_ENV=development) & start npx gulp & npx webpack --mode development --config ./webpack.config.js --watch",
-        "clean": "rimraf out",
+        "compile:syntax": "npx yaml-convert --np < ./syntaxes/UnrealScript.YAML-tmLanguage > ./out/UnrealScript.tmLanguage.json && npx yaml-convert --np < ./syntaxes/unrealScript.preprocessor.YAML-tmLanguage > ./out/unrealscript.preprocessor.tmLanguage.json",
+        "watch": "(set NODE_ENV=development) & npm run compile -- --sourcemap --watch --define:process.env.NODE_ENV=\\\"development\\\" & start npx gulp",
+        "clean": "rimraf out --preserve-root",
         "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
         "test": "cd server && npm test",
         "test-live": "cd server && npm run test-live"
@@ -96,8 +93,7 @@
                     "*.intrinsic": {
                         "italic": true
                     },
-                    "*.native": {
-                    },
+                    "*.native": {},
                     "archetype": {
                         "italic": true,
                         "foreground": "#eeee00"
