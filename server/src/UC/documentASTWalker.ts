@@ -520,9 +520,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                     this.visitImplementsModifier(modifierNode as UCGrammar.ImplementsModifierContext);
                     break;
 
-                // case UCGrammar.UCParser.KW_ABSTRACT:
-                //     symbol.modifiers |= ModifierFlags.Abstract;
-                //     break;
+                case UCGrammar.UCParser.KW_ABSTRACT:
+                    symbol.modifiers |= ModifierFlags.Abstract;
+                    break;
 
                 case UCGrammar.UCParser.KW_DEPRECATED:
                     symbol.modifiers |= ModifierFlags.Deprecated;

@@ -154,12 +154,12 @@ identifier
 	// | 'nativereplication'
 	| 'nativeonly'
 	| 'export'
-	// | 'abstract'
-	// | 'perobjectconfig'
+	| 'abstract'
+	| 'perobjectconfig'
 	// | 'perobjectlocalized'
-	// | 'placeable'
+	| 'placeable'
+	| 'notplaceable'
 	// | 'nousercreate'
-	// | 'notplaceable'
 	// | 'safereplace'
 	| 'dependson'
 	// | 'showcategories'
@@ -313,8 +313,8 @@ classModifier
 	(KW_NATIVE modifierArgument?)                                                               #nativeModifier
 	// | KW_NATIVEREPLICATION
 	// | KW_LOCALIZED // UC1
-	// | KW_ABSTRACT
-	// | KW_PEROBJECTCONFIG
+	| KW_ABSTRACT                                                                               #abstractModifier
+	| KW_PEROBJECTCONFIG                                                                        #perobjectconfigModifier
 	| KW_TRANSIENT                                                                              #transientModifier
 	| KW_EXPORT                                                                                 #exportModifier
 	// | KW_NOEXPORT
@@ -322,8 +322,8 @@ classModifier
 	// | KW_SAFEREPLACE
 	// | (KW_CONFIG modifierArgument?)
 	// // UC2+
-	// | KW_PLACEABLE
-	// | KW_NOTPLACEABLE
+	| KW_PLACEABLE                                                                              #placeableModifier
+	| KW_NOTPLACEABLE                                                                           #notplaceableModifier
 	// | KW_CACHEEXEMPT // UT2004
 	// | KW_HIDEDROPDOWN
 	// | KW_EXPORTSTRUCTS
@@ -557,7 +557,7 @@ variableModifier
 	| 'crosslevelactive'
 	| 'crosslevelpassive'
 	| 'allowabstract')
-	// I have only see this occur in XCOM2, but may possibly be a late UC3+ feature
+	// I have only attested this in XCOM2, but could possibly be a late UC3+ feature
 	| ('config' (OPEN_PARENS identifier CLOSE_PARENS)? )
 	| ('public' exportBlockText?)
 	| ('protected' exportBlockText?)
