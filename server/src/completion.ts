@@ -1,4 +1,4 @@
-import * as c3 from 'antlr4-c3';
+import * as c3 from 'antlr4-c3/lib/src/CodeCompletionCore';
 import { Parser, ParserRuleContext } from 'antlr4ts';
 import { Token } from 'antlr4ts/Token';
 import { CompletionItem, CompletionItemKind, InsertTextFormat, InsertTextMode, SignatureHelp, SignatureInformation } from 'vscode-languageserver';
