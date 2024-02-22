@@ -45,7 +45,7 @@ export class UCEnumSymbol extends UCStructSymbol {
                 symbols.push(child);
             }
         }
-        symbols.push(this.enumCountMember);
+        if (context === ContextKind.DOT) symbols.push(this.enumCountMember);
         return symbols as C[];
     }
 
