@@ -983,7 +983,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     if (returnType && !typesMatch(returnType, functionReturnType)) {
                         this.diagnostics.add({
                             range: stm.getRange(),
-                            message: createTypeCannotBeAssignedToMessage(functionReturnType.getTypeKind(), returnType.getTypeKind())
+                            message: {
+                                text: `Type '${typeKindToDisplayString(returnType.getTypeKind())}' is not assignable to return type '${typeKindToDisplayString(functionReturnType.getTypeKind())}'.`,
+                                severity: DiagnosticSeverity.Error
+                            }
                         });
                     }
                 }
