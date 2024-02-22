@@ -1,29 +1,35 @@
 {
-	"root": true,
-	"extends": [
-		"eslint:recommended",
-		"plugin:@typescript-eslint/recommended"
-	],
+    "root": true,
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended"
+    ],
     "env": {
         "node": true,
         "es2022": true
     },
-	"settings": {
-        "indent": ["warning", 4]
+    "settings": {
+        "indent": [
+            "warning",
+            4
+        ]
     },
-	"parser": "@typescript-eslint/parser",
-	"plugins": [
-		"@typescript-eslint"
-	],
-	"rules": {
-		"semi": [
-			2,
-			"always"
-		],
-		"@typescript-eslint/no-unused-vars": 0,
-		"@typescript-eslint/no-explicit-any": 0,
-		"@typescript-eslint/explicit-module-boundary-types": 0,
-		"@typescript-eslint/no-non-null-assertion": 0,
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "project": "./tsconfig.json"
+    },
+    "plugins": [
+        "@typescript-eslint"
+    ],
+    "rules": {
+        "semi": [
+            2,
+            "always"
+        ],
+        "@typescript-eslint/no-unused-vars": 0,
+        "@typescript-eslint/no-explicit-any": 0,
+        "@typescript-eslint/explicit-module-boundary-types": 0,
+        "@typescript-eslint/no-non-null-assertion": 0,
         "no-inner-declarations": "off"
-	}
+    }
 }
