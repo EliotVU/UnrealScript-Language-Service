@@ -523,6 +523,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 // case UCGrammar.UCParser.KW_ABSTRACT:
                 //     symbol.modifiers |= ModifierFlags.Abstract;
                 //     break;
+
+                case UCGrammar.UCParser.KW_DEPRECATED:
+                    symbol.modifiers |= ModifierFlags.Deprecated;
+                    break;
             }
         }
         return symbol;
@@ -938,6 +942,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                         break;
                     case UCGrammar.UCParser.KW_TRANSIENT:
                         modifiers |= ModifierFlags.Transient;
+                        break;
+                    case UCGrammar.UCParser.KW_DEPRECATED:
+                        modifiers |= ModifierFlags.Deprecated;
                         break;
                 }
             }

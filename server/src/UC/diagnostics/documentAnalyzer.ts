@@ -1321,14 +1321,27 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                 }
             }
         } else if (expr instanceof UCMemberExpression) {
-            if (!expr.type && this.context) {
+            if (!expr.type) {
                 this.diagnostics.add({
                     range: expr.getRange(),
                     message: {
                         text: diagnosticMessages.ID_0_DOES_NOT_EXIST_ON_TYPE_1.text,
                         severity: DiagnosticSeverity.Error
                     },
-                    args: [expr.id.name.text, this.context.getPath()]
+                    args: [expr.id.name.text, this.context!.getPath()]
+                });
+
+                return;
+            }
+
+            const memberSymbol = expr.getMemberSymbol();
+            if (isField(memberSymbol) && memberSymbol.hasAnyModifierFlags(ModifierFlags.Deprecated)) {
+                this.diagnostics.add({
+                    range: expr.getRange(),
+                    message: {
+                        text: `Reference to deprecated field '${memberSymbol.getName()}'`,
+                        severity: DiagnosticSeverity.Warning
+                    }
                 });
             }
         } else if (expr instanceof UCSuperExpression) {
