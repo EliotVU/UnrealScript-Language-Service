@@ -447,70 +447,53 @@ repository:
     begin: (?=\b((?i)class|interface)\b)
     end: (?<=\;)
     patterns:
-      - begin: ((?i)class|interface)\s+(?<id>\w+)\s*(?:((?i)extends|expands)\s+(?:(\w+)(?:\s*(\.)\s*(\w+))?))?\s*(?:((?i)within)\s+(?:(\w+)(?:\s*(\.)\s*(\w+))?))?
-        beginCaptures:
+      - include: '#comment'
+
+      - match: ((?i)class|interface)(?<id>\s+\w+)?
+        captures:
+          '1':
+            name: keyword.other.class.uc
+          '2':
+            name: entity.name.type.class.uc
+          
+      - match: ((?i)extends|expands)(?:\s+(\w+)(?:\s*\.\s*(\w+))?)?
+        captures:
           '1':
             name: keyword.other.class.uc
           '2':
             name: entity.name.type.class.uc
           '3':
+            name: entity.name.type.class.uc
+
+      - match: ((?i)within)(?:\s+(\w+)(?:\s*\.\s*(\w+))?)?
+        captures:
+          '1':
+            name: keyword.other.class.uc
+          '2':
+            name: entity.name.type.class.uc
+          '3':
+            name: entity.name.type.class.uc
+
+      - match: \b((?i)abstract|export|exportstructs|noexport|noexportheader|nativereplication|nativeonly|deprecated|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|parseconfig|hidedropdown|editinlinenew|noteditinlinenew|cacheexempt|perobjectconfig|perobjectlocalized|forcescriptorder|instanced)\b
+        name: storage.modifier.uc
+
+      # modifiers with optional params
+      - match: \b((?i)config|native|intrinsic)\b
+        name: storage.modifier.uc
+
+      # modifiers with params
+      - match: \b((?i)hidecategories|showcategories|autocollapsecategories|dontautocollapsecategories|autoexpandcategories|dontsortcategories|collapsecategories|dontcollapsecategories|classgroup)\b
+        name: storage.modifier.uc
+
+      - begin: \b((?i)dllbind|inherits|dependson|implements|classredirect)\b
+        beginCaptures:
+          '1':
             name: storage.modifier.uc
-          '4':
-            name: entity.other.inherited-class.uc
-          '5':
-            name: punctuation.dot.uc
-          '6':
-            name: entity.other.inherited-class.uc
-          '7':
-            name: storage.modifier.uc
-          '8':
-            name: entity.other.inherited-class.uc
-          '9':
-            name: punctuation.dot.uc
-          '10':
-            name: entity.other.inherited-class.uc
+          '2':
+            name: entity.name.type.uc
         patterns:
           - include: '#comment'
 
-          - match: \b((?i)abstract|export|exportstructs|noexport|noexportheader|nativereplication|nativeonly|deprecated|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|parseconfig|hidedropdown|editinlinenew|noteditinlinenew|cacheexempt|perobjectconfig|perobjectlocalized|forcescriptorder|instanced)\b
-            name: storage.modifier.uc
-
-          # modifiers with optional params
-          - match: \b((?i)config|native|intrinsic)\b
-            name: storage.modifier.uc
-
-          # modifiers with params
-          - match: \b((?i)hidecategories|showcategories|autocollapsecategories|dontautocollapsecategories|autoexpandcategories|dontsortcategories|collapsecategories|dontcollapsecategories|classgroup)\b
-            name: storage.modifier.uc
-
-          - begin: \b((?i)dllbind|inherits|dependson|implements|classredirect)\b
-            beginCaptures:
-              '1':
-                name: storage.modifier.uc
-              '2':
-                name: entity.name.type.uc
-            patterns:
-              - include: '#comment'
-
-              - begin: \(
-                beginCaptures:
-                  '0':
-                    name: punctuation.parenthesis.open.uc
-                patterns:
-                  - include: '#comment'
-
-                  - match: \w+
-                    name: entity.name.type.uc
-
-                  - match: \,
-                    name: punctuation.separator.uc
-                end: \)
-                endCaptures:
-                  '0':
-                    name: punctuation.parenthesis.close.uc
-            end: (?<=\))
-
-          # modifier params
           - begin: \(
             beginCaptures:
               '0':
@@ -519,7 +502,7 @@ repository:
               - include: '#comment'
 
               - match: \w+
-                name: string.quoted.single.uc
+                name: entity.name.type.uc
 
               - match: \,
                 name: punctuation.separator.uc
@@ -527,8 +510,25 @@ repository:
             endCaptures:
               '0':
                 name: punctuation.parenthesis.close.uc
-        end: \;
+        end: (?<=\))
 
+      # modifier params
+      - begin: \(
+        beginCaptures:
+          '0':
+            name: punctuation.parenthesis.open.uc
+        patterns:
+          - include: '#comment'
+
+          - match: \w+
+            name: string.quoted.single.uc
+
+          - match: \,
+            name: punctuation.separator.uc
+        end: \)
+        endCaptures:
+          '0':
+            name: punctuation.parenthesis.close.uc
   const-declaration:
     name: meta.definition.variable.uc
     begin: \b((?i)const)\b\s*(\w+)
