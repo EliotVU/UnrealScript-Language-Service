@@ -2,25 +2,11 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Launch Client (Build)",
             "runtimeExecutable": "${execPath}",
             "args": [
                 "--extensionDevelopmentPath=${workspaceRoot}"
             ],
-            "name": "Launch Client No Watch",
-            "outFiles": [
-                "${workspaceRoot}/out/extension.js",
-            ],
-            "sourceMaps": true,
-            "autoAttachChildProcesses": true,
-            "request": "launch",
-            "type": "extensionHost",
-        },
-        {
-            "runtimeExecutable": "${execPath}",
-            "args": [
-                "--extensionDevelopmentPath=${workspaceRoot}"
-            ],
-            "name": "Launch Client",
             "outFiles": [
                 "${workspaceRoot}/out/extension.js",
             ],
@@ -28,14 +14,32 @@
             "autoAttachChildProcesses": true,
             "preLaunchTask": {
                 "type": "npm",
-                "script": "watch"
+                "script": "build",
             },
             "request": "launch",
             "type": "extensionHost",
         },
         {
-            "port": 6010,
+            "name": "Launch Client (Watch)",
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceRoot}"
+            ],
+            "outFiles": [
+                "${workspaceRoot}/out/extension.js",
+            ],
+            "sourceMaps": true,
+            "autoAttachChildProcesses": true,
+            "preLaunchTask": {
+                "type": "npm",
+                "script": "watch",
+            },
+            "request": "launch",
+            "type": "extensionHost",
+        },
+        {
             "name": "Attach to Server",
+            "port": 6010,
             "outFiles": [
                 "${workspaceRoot}/out/server.js",
                 "!${workspaceRoot}/out/vendor.js"
@@ -47,8 +51,8 @@
             "type": "node",
         },
         {
-            "debugServer": 6020,
             "name": "Antlr UC Macro Test",
+            "debugServer": 6020,
             "input": "grammars/test/Macro.uci",
             "grammar": "grammars/UCPreprocessorParser.g4",
             "startRule": "macroProgram",
@@ -58,8 +62,8 @@
             "type": "antlr-debug",
         },
         {
-            "debugServer": 6020,
             "name": "Antlr UC Test",
+            "debugServer": 6020,
             "input": "${workspaceFolder}/grammars/examples/classes/FunctionCallTest.uc",
             "grammar": "grammars/UCParser.g4",
             "startRule": "program",
@@ -73,7 +77,7 @@
         {
             "name": "Client + Server",
             "configurations": [
-                "Launch Client",
+                "Launch Client (Watch)",
                 "Attach to Server"
             ]
         }

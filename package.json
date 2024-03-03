@@ -72,7 +72,7 @@
         "compile:grammar": "npx antlr4ts -visitor -no-listener -Xexact-output-dir grammars/UCLexer.g4 -o server/src/UC/antlr/generated && npx antlr4ts -visitor -no-listener -Xexact-output-dir grammars/UCParser.g4 -o server/src/UC/antlr/generated",
         "compile:preprocessor": "npx antlr4ts -visitor -no-listener -Xexact-output-dir grammars/UCPreprocessorParser.g4 -o server/src/UC/antlr/generated",
         "compile:syntax": "npx yaml-convert --np < ./syntaxes/UnrealScript.YAML-tmLanguage > ./out/UnrealScript.tmLanguage.json && npx yaml-convert --np < ./syntaxes/unrealScript.preprocessor.YAML-tmLanguage > ./out/unrealscript.preprocessor.tmLanguage.json",
-        "watch": "(set NODE_ENV=development) & npm run compile -- --sourcemap --watch --define:process.env.NODE_ENV=\\\"development\\\" & start npx gulp",
+        "watch": "(set NODE_ENV=development) & npm run compile -- --bundle --sourcemap --watch --define:process.env.NODE_ENV=\\\"development\\\" & start npx gulp",
         "clean": "rimraf out --preserve-root",
         "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
         "test": "cd server && npm test",
