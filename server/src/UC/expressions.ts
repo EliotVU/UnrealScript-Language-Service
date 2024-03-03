@@ -37,7 +37,6 @@ import {
     UCArrayTypeSymbol,
     UCBaseOperatorSymbol,
     UCClassSymbol,
-    UCConversionCost,
     UCEnumSymbol,
     UCMethodSymbol,
     UCNodeKind,
@@ -50,9 +49,10 @@ import {
     UCTypeKind,
     UCTypeSymbol,
     findOrIndexClassSymbol,
-    findOverloadedOperator,
+    findOverloadedBinaryOperator,
+    findOverloadedPostOperator,
+    findOverloadedPreOperator,
     findSuperStruct,
-    getConversionCost,
     getOuter,
     getSymbolHash,
     getSymbolOuterHash,
@@ -534,14 +534,10 @@ export class UCPostOperatorExpression extends UCBaseOperatorExpression {
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         super.index(document, context, info);
         if (this.operator && this.expression) {
-            const type = this.expression.getType();
-            if (type) {
-                const opId = this.operator.getName();
-                const operatorSymbol = findOverloadedOperator(context, opId, (
-                    symbol => symbol.isPostOperator()
-                        && symbol.params?.length === 1
-                        && getConversionCost(type, symbol.params[0].getType()) !== UCConversionCost.Negative
-                ));
+            const inputType = this.expression.getType();
+            if (inputType) {
+                const operatorName = this.operator.getName();
+                const operatorSymbol = findOverloadedPostOperator(context, operatorName, inputType);
                 if (operatorSymbol) {
                     this.operator.setRef(operatorSymbol, document);
                 }
@@ -554,14 +550,10 @@ export class UCPreOperatorExpression extends UCBaseOperatorExpression {
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         super.index(document, context, info);
         if (this.operator && this.expression) {
-            const type = this.expression.getType();
-            if (type) {
-                const opId = this.operator.getName();
-                const operatorSymbol = findOverloadedOperator(context, opId, (
-                    symbol => symbol.isPreOperator()
-                        && symbol.params?.length === 1
-                        && getConversionCost(type, symbol.params[0].getType()) !== UCConversionCost.Negative
-                ));
+            const inputType = this.expression.getType();
+            if (inputType) {
+                const operatorName = this.operator.getName();
+                const operatorSymbol = findOverloadedPreOperator(context, operatorName, inputType);
                 if (operatorSymbol) {
                     this.operator.setRef(operatorSymbol, document);
                 }
@@ -617,12 +609,7 @@ export class UCBinaryOperatorExpression extends UCExpression {
 
         if (this.operator) {
             const opId = this.operator.getName();
-            const operatorSymbol = findOverloadedOperator(context, opId, (
-                symbol => symbol.isBinaryOperator()
-                    && symbol.params?.length === 2
-                    && getConversionCost(leftType, symbol.params[0].getType()) !== UCConversionCost.Negative
-                    && getConversionCost(rightType, symbol.params[1].getType()) !== UCConversionCost.Negative
-            ));
+            const operatorSymbol = findOverloadedBinaryOperator(context, opId, leftType, rightType);
             if (operatorSymbol) {
                 this.operator.setRef(operatorSymbol, document);
             }

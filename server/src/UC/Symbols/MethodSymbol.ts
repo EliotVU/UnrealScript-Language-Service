@@ -82,6 +82,10 @@ export class UCMethodSymbol extends UCStructSymbol {
         return (this.specifiers & MethodFlags.Operator) !== 0;
     }
 
+    isUnaryOperator(): this is UCBaseOperatorSymbol {
+        return (this.specifiers & (MethodFlags.PreOperator | MethodFlags.PostOperator)) !== 0;
+    }
+
     isPreOperator(): this is UCPreOperatorSymbol {
         return (this.specifiers & MethodFlags.PreOperator) !== 0;
     }

@@ -7,13 +7,17 @@ import { UCBlock } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
     ContextKind,
+    getConversionCost,
     Identifier,
     isFunction,
     isOperator,
     isStateSymbol,
     ISymbol,
     ISymbolContainer,
+    ITypeSymbol,
     UCBaseOperatorSymbol,
+    UCBinaryOperatorSymbol,
+    UCConversionCost,
     UCFieldSymbol,
     UCObjectSymbol,
     UCObjectTypeSymbol,
@@ -194,11 +198,7 @@ export function findSuperStruct(context: UCStructSymbol, id: Name): UCStructSymb
 	return undefined;
 }
 
-export function findOverloadedOperator<T extends UCBaseOperatorSymbol>(
-    context: UCStructSymbol,
-    id: Name,
-    predicate: (symbol: T) => boolean
-): T | undefined {
+export function getOperatorsByName<T extends UCBaseOperatorSymbol>(context: UCStructSymbol, name: Name): T[] {
     let scope: UCStructSymbol | undefined = isFunction(context)
         ? context.outer as UCStructSymbol
         : context;
@@ -213,18 +213,139 @@ export function findOverloadedOperator<T extends UCBaseOperatorSymbol>(
                 continue;
             }
 
-            if (child.id.name === id) {
+            if (child.id.name === name) {
                 operators.push(child as T);
             }
         }
     }
 
-    // It is crucial to overload in the reverse order.
-    for (let i = operators.length - 1; i >= 0; --i) {
-        if (predicate(operators[i])) {
-            return operators[i];
+    return operators;
+}
+
+export function getBinaryOperatorConversionCost(
+    operator: UCBinaryOperatorSymbol,
+    inputTypeA: ITypeSymbol, inputTypeB: ITypeSymbol
+): UCConversionCost {
+    const operandA = operator.params![0].getType();
+    const operandB = operator.params![1].getType();
+
+    const operandACost = getConversionCost(inputTypeA, operandA);
+    if (operandACost === UCConversionCost.Illegal) {
+        // left type is incompatible.
+        return UCConversionCost.Illegal;
+    }
+
+    const operandBCost = getConversionCost(inputTypeB, operandB);
+    if (operandBCost === UCConversionCost.Illegal) {
+        // right type is incompatible.
+        return UCConversionCost.Illegal;
+    }
+
+    const evalulatedCost: UCConversionCost = Math.max(operandACost, operandBCost);
+    return evalulatedCost;
+}
+
+export function getUnaryOperatorConversionCost(
+    operator: UCBaseOperatorSymbol,
+    inputType: ITypeSymbol
+): UCConversionCost {
+    const operandA = operator.params![0].getType();
+    const operandACost = getConversionCost(inputType, operandA);
+    return operandACost;
+}
+
+export function findOverloadedPreOperator<T extends UCBaseOperatorSymbol>(
+    context: UCStructSymbol, operatorName: Name,
+    inputType: ITypeSymbol
+): T | undefined {
+    const operators = getOperatorsByName<T>(context, operatorName);
+
+    let lowestCost = UCConversionCost.Illegal;
+    let lowestOperator: T | undefined = undefined;
+    for (let i = 0; i < operators.length; ++i) {
+        if (!operators[i].isPreOperator()) {
+            continue;
+        }
+
+        const evalulatedCost: UCConversionCost = getUnaryOperatorConversionCost(operators[i], inputType);
+        if (evalulatedCost === UCConversionCost.Illegal) {
+            continue;
+        }
+
+        if (evalulatedCost === lowestCost && lowestOperator) {
+            // multiple matches, so we cannot pick the best operator.
+            return undefined;
+        }
+
+        if (evalulatedCost <= lowestCost) {
+            lowestCost = evalulatedCost;
+            lowestOperator = operators[i];
         }
     }
 
-    return undefined;
+    return lowestOperator;
+}
+
+export function findOverloadedPostOperator<T extends UCBaseOperatorSymbol>(
+    context: UCStructSymbol, operatorName: Name,
+    inputType: ITypeSymbol
+): T | undefined {
+    const operators = getOperatorsByName<T>(context, operatorName);
+
+    let lowestCost = UCConversionCost.Illegal;
+    let lowestOperator: T | undefined = undefined;
+    for (let i = 0; i < operators.length; ++i) {
+        if (!operators[i].isPostOperator()) {
+            continue;
+        }
+
+        const evalulatedCost: UCConversionCost = getUnaryOperatorConversionCost(operators[i], inputType);
+        if (evalulatedCost === UCConversionCost.Illegal) {
+            continue;
+        }
+
+        if (evalulatedCost === lowestCost && lowestOperator) {
+            // multiple matches, so we cannot pick the best operator.
+            return undefined;
+        }
+
+        if (evalulatedCost <= lowestCost) {
+            lowestCost = evalulatedCost;
+            lowestOperator = operators[i];
+        }
+    }
+
+    return lowestOperator;
+}
+
+export function findOverloadedBinaryOperator<T extends UCBinaryOperatorSymbol>(
+    context: UCStructSymbol, operatorName: Name,
+    inputTypeA: ITypeSymbol, inputTypeB: ITypeSymbol
+): T | undefined {
+    const operators = getOperatorsByName<T>(context, operatorName);
+
+    let lowestCost = UCConversionCost.Illegal;
+    let lowestOperator: T | undefined = undefined;
+    for (let i = 0; i < operators.length; ++i) {
+        if (!operators[i].isBinaryOperator()) {
+            continue;
+        }
+
+        const evalulatedCost: UCConversionCost = getBinaryOperatorConversionCost(operators[i], inputTypeA, inputTypeB);
+        if (evalulatedCost === UCConversionCost.Illegal) {
+            continue;
+        }
+
+        if (evalulatedCost === lowestCost && lowestOperator) {
+            // multiple matches, so we cannot pick the best operator.
+            return undefined;
+        }
+
+        if (evalulatedCost <= lowestCost) {
+            lowestCost = evalulatedCost;
+            lowestOperator = operators[i];
+        }
+    }
+
+    return lowestOperator;
 }
