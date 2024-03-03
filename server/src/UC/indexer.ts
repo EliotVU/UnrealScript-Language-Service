@@ -23,6 +23,7 @@ import {
     UCSymbolKind,
 } from './Symbols';
 
+// TODO: Re-work to hash documents by URI instead of file path, this would integrate easier with LSP events.
 export const documentsByPathMap = new Map<string, UCDocument>();
 export const documentsMap = new Map<NameHash, UCDocument>();
 
@@ -192,17 +193,18 @@ export function createDocumentByPath(filePath: string, pkg: UCPackage) {
     return document;
 }
 
-export function removeDocumentByPath(filePath: string) {
+export function removeDocumentByPath(filePath: string): boolean {
     const filePathLowerCase = filePath.toLowerCase();
     const document = documentsByPathMap.get(filePathLowerCase);
     if (!document) {
-        return;
+        return false;
     }
 
     // TODO: Re-index dependencies? (blocked by lack of a dependencies tree!)
     document.invalidate();
     documentsByPathMap.delete(filePathLowerCase);
     documentsMap.delete(document.name.hash);
+    return true;
 }
 
 export function getDocumentByURI(uri: DocumentUri): UCDocument | undefined {

@@ -1168,6 +1168,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                 return;
             }
 
+            if (!expr.operator) {
+                // TODO: Loop over potential matching operators and report the incompatible inputs.
+                // this.pushError(expr.getRange(), "No compatible operator found!");
+            }
+
             if (!(expr instanceof UCAssignmentOperatorExpression || expr instanceof UCDefaultAssignmentExpression)) {
                 return;
             }

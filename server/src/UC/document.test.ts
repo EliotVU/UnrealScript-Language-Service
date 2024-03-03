@@ -1,18 +1,18 @@
 import { expect } from 'chai';
 import * as path from 'path';
 
+import { UCInputStream } from './Parser/InputStream';
 import { UCLexer } from './antlr/generated/UCLexer';
-import { DocumentAnalyzer } from './diagnostics/documentAnalyzer';
 import { createPreprocessor, preprocessDocument } from './document';
 import { applyMacroSymbols, queueIndexDocument } from './indexer';
-import { UCInputStream } from './Parser/InputStream';
+import { assertDocumentAnalysis } from './test/utils/diagnosticUtils';
 import { assertDocument, usingDocuments } from './test/utils/utils';
 
 const GRAMMARS_DIR = path.resolve(__dirname, '../../../grammars/test');
 
 describe('Document', () => {
     const GRAMMARS_DOCUMENTNAME = 'Grammar';
-    usingDocuments(GRAMMARS_DIR, [GRAMMARS_DOCUMENTNAME + '.uc'], () => {
+    usingDocuments(GRAMMARS_DIR, [`${GRAMMARS_DOCUMENTNAME}.uc`], () => {
         const grammarDocument = assertDocument(GRAMMARS_DOCUMENTNAME);
 
         // Ensure that the extracted name matches the joined file name.
@@ -26,13 +26,8 @@ describe('Document', () => {
         });
 
         it('should have no problems', () => {
-            const diagnoser = new DocumentAnalyzer(grammarDocument);
-            grammarDocument.accept(diagnoser);
-            const diagnostics = diagnoser.getDiagnostics();
-            const msg = diagnostics.toDiagnostic()
-                .map(d => d.message)
-                .join(';');
-            expect(diagnostics.count(), msg).is.equal(0);
+            queueIndexDocument(grammarDocument);
+            assertDocumentAnalysis(grammarDocument, /\bShould/).is.equal(0);
         });
     });
 });
@@ -77,3 +72,4 @@ describe('Document with macros', () => {
         }
     });
 });
+
