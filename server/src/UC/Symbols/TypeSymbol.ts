@@ -189,7 +189,7 @@ export class UCTypeSymbol implements ITypeSymbol {
     }
 
     getTooltip(): string {
-        return 'type ' + this.getName().text;
+        return `type ${this.getName().text}`;
     }
 
     getTypeText(): string {
@@ -280,7 +280,7 @@ export class UCObjectTypeSymbol implements ITypeSymbol {
 
     getTypeText(): string {
         if (this.baseType) {
-            return this.getName().text + `<${this.baseType.getTypeText()}>`;
+            return `${this.getName().text}<${this.baseType.getTypeText()}>`;
         }
         return this.getName().text;
     }
@@ -579,14 +579,19 @@ export const CastTypeSymbolMap: Readonly<WeakMap<Name, ITypeSymbol>> = new WeakM
     [NAME_BUTTON, StaticBoolType]
 ]);
 
-/** No conversion allowed */
+/** Conversion is illegal */
 const N = 0x00;
-/** Conversion is allowed */
+/** Conversion is possible */
 const Y = 0x01;
-/** Can be converted implicitally */
-const A = 0x02;
-/** Auto-coerced in a defaultproperties context */
-const D = 0x04;
+/** Conversion requires expansion that can be performed automatically, for instance a conversion from byte to int */
+const E = 0x02;
+/** Conversion requires truncation */
+const T = 0x04;
+/** Conversion requires shifting */
+const S = 0x08;
+/** Conversion can be performed automatically in a T3D context */
+const D = 0x10;
+const ConversionMask = ~D;
 
 /**
  * e.g.
@@ -599,27 +604,27 @@ const D = 0x04;
  **/
 /** @formatter:off */
 const TypeConversionFlagsTable: Readonly<{ [key: number]: number[] }> = [
-/* From        Error    None    Byte    Enum    Int     Bool    Float   Object  Name    Delegate    Interface   Range   Struct  Vector  Rotator String  Map     Array   Pointer
-/* To       */
-/* Error    */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* None     */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Byte     */[N,       N,      N,      Y | A,  Y | A,  Y,      Y | A,  N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
-/* Enum     */[N,       N,      Y | A,  N,      Y | A,  N,      N,      Y | A,  N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
-/* Int      */[N,       N,      Y | A,  Y | A,  N,      Y,      Y | A,  N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
-/* Bool     */[N,       N,      Y,      N,      Y | D,  N,      Y,      Y,      Y,      N,          Y,          N,      N,      Y,      Y,      Y,      N,      N,      N],
-/* Float    */[N,       N,      Y | A,  N,      Y | A,  Y,      N,      N,      N,      N,          N,          N,      N,      N,      N,      Y,      N,      N,      N],
-/* Object   */[N,       Y | A,  N,      Y | A,  N,      N,      N,      N,      N,      N,          A,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Name     */[N,       Y | A,  N,      N,      N,      N | D,  N,      N,      N,      N,          N,          N,      N,      N,      N,      Y | D,  N,      N,      N],
-/* Delegate */[N,       Y | A,  N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Interface*/[N,       Y | A,  N,      N,      N,      N,      N,      Y | A,  N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Range    */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Struct   */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Vector   */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      Y,      Y,      N,      N,      N],
-/* Rotator  */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      Y,      N,      Y,      N,      N,      N],
-/* String   */[N,       N,      Y,      N,      Y,      Y,      Y,      Y,      Y,      Y,          Y,          N,      N,      Y,      Y,      N,      N,      N,      N],
-/* Map      */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Array    */[N,       N,      N,      N,      N,      N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
-/* Pointer  */[N,       N,      N,      N,      N | D,  N,      N,      N,      N,      N,          N,          N,      N,      N,      N,      N,      N,      N,      N],
+/* From        Error    None        Byte        Enum        Int         Bool        Float       Object      Name    Delegate    Interface   Range   Struct  Vector  Rotator     String      Map     Array   Pointer
+/* To       */              
+/* Error    */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
+/* None     */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Byte     */[N,       N,          N,          Y | E,      Y | E | T,  Y,          Y | E | T,  N,          N,      N,          N,          N,      N,      N,      N,          Y,          N,      N,      N],
+/* Enum     */[N,       N,          Y | E,      N,          Y | E | T,  N,          N,          Y | E,      N,      N,          N,          N,      N,      N,      N,          Y,          N,      N,      N],
+/* Int      */[N,       N,          Y | E,      Y | E,      N,          Y,          Y | E | T,  N,          N,      N,          N,          N,      N,      N,      N,          Y,          N,      N,      N],
+/* Bool     */[N,       N,          Y,          N,          Y | D,      N,          Y,          Y,          Y,      N,          Y,          N,      N,      Y,      Y,          Y,          N,      N,      N],
+/* Float    */[N,       N,          Y | E | S,  N,          Y | E | S,  Y,          N,          N,          N,      N,          N,          N,      N,      N,      N,          Y,          N,      N,      S],
+/* Object   */[N,       Y | E,      N,          Y | E,      N,          N,          N,          N,          N,      N,          E,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Name     */[N,       Y | E,      N,          N,          N,          D,          N,          N,          N,      N,          N,          N,      N,      N,      N,          Y | D,      N,      N,      N],
+/* Delegate */[N,       Y | E,      N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Interface*/[N,       Y | E,      N,          N,          N,          N,          N,          Y | E,      N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Range    */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Struct   */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Vector   */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      Y,          Y,          N,      N,      N],
+/* Rotator  */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      Y,      N,          Y,          N,      N,      N],
+/* String   */[N,       N,          Y,          N,          Y,          Y,          Y,          Y,          Y,      Y,          Y,          N,      N,      Y,      Y,          N,          N,      N,      N],
+/* Map      */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Array    */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Pointer  */[N,       N,          N,          N,          D,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 ];
 /** @formatter:on */
 
@@ -627,42 +632,85 @@ export function getTypeConversionFlags(inputTypeKind: UCTypeKind, destTypeKind: 
     return TypeConversionFlagsTable[destTypeKind][inputTypeKind];
 }
 
+export function resolveTypeKind(type: ITypeSymbol): UCTypeKind {
+    if (type.getName() === NAME_VECTOR) {
+        return UCTypeKind.Vector;
+    }
+
+    if (type.getName() === NAME_ROTATOR) {
+        return UCTypeKind.Rotator;
+    }
+
+    return type.getTypeKind();
+}
+
 export const enum UCConversionCost {
-    Negative = -1,
     Zero = 0,
-    Positive = 1,
+    // 1 - 99 directly define the relative cost, e.g. a conversion to an inherited class
+    Expansion = 100,
+    Shift = 200,
+    Truncation = 300,
+    Illegal = 0x7FFFFFFF,
 }
 
 export function getConversionCost(inputType: ITypeSymbol, destType: ITypeSymbol): UCConversionCost {
-    let inputTypeKind = inputType.getTypeKind();
-    if (inputTypeKind === UCTypeKind.Struct) {
-        if (inputType.getName() === NAME_VECTOR) {
-            inputTypeKind = UCTypeKind.Vector;
-        } else if (inputType.getName() === NAME_ROTATOR) {
-            inputTypeKind = UCTypeKind.Rotator;
-        }
-    }
-    let destTypeKind = destType.getTypeKind();
-    if (destTypeKind === UCTypeKind.Struct) {
-        if (destType.getName() === NAME_VECTOR) {
-            destTypeKind = UCTypeKind.Vector;
-        } else if (destType.getName() === NAME_ROTATOR) {
-            destTypeKind = UCTypeKind.Rotator;
-        }
-    }
+    const inputTypeKind = resolveTypeKind(inputType);
+    const destTypeKind = resolveTypeKind(destType);
 
+    // TODO: Should not be identical if one of the following are true:
+    // - If destType is an OutParam and Const or if inputType is not an OutParam
+    // - ArrayDimension mismatch
+    // - If both types are an enum, they must be the same enum
+    // - If destType is an object reference and the class or metaclass are not identical or not derived
+    // - If destType is a struct and are either not identical nor derived
     if (inputTypeKind === destTypeKind) {
+        if (inputTypeKind === UCTypeKind.Struct) {
+            const inputStruct = inputType.getRef<UCStructSymbol>();
+            if (!inputStruct) {
+                return UCConversionCost.Illegal;
+            }
+    
+            let destStruct = destType.getRef<UCStructSymbol>();
+            if (!destStruct) {
+                return UCConversionCost.Illegal;
+            }
+    
+            if (inputStruct.getHash() === destStruct.getHash()) {
+                return UCConversionCost.Zero;
+            }
+            
+            let depth = 1;
+            for (destStruct = destStruct.super; destStruct; destStruct = destStruct.super, ++depth) {
+                if (destStruct.getHash() === inputStruct.getHash()) {
+                    return depth as UCConversionCost;
+                }
+            }
+
+            // Incompatible, because no inheritance.
+            return UCConversionCost.Illegal;
+        }
+
         return UCConversionCost.Zero;
     }
 
     const flags = getTypeConversionFlags(inputTypeKind, destTypeKind);
-    if (flags === N) {
-        return UCConversionCost.Negative;
+    if ((flags & ConversionMask) === N) {
+        return UCConversionCost.Illegal;
     }
-    if (flags & A) {
-        return UCConversionCost.Positive;
+
+    if (flags & T) {
+        return UCConversionCost.Truncation;
     }
-    return UCConversionCost.Negative;
+
+    if (flags & S) {
+        return UCConversionCost.Shift;
+    }
+
+    if (flags & E) {
+        return UCConversionCost.Expansion;
+    }
+
+    return UCConversionCost.Illegal;
 }
 
 export const enum UCMatchFlags {
@@ -688,29 +736,15 @@ export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchF
         return true;
     }
 
-    if (inputTypeKind === UCTypeKind.Struct) {
-        if (inputType.getName() === NAME_VECTOR) {
-            inputTypeKind = UCTypeKind.Vector;
-        } else if (inputType.getName() === NAME_ROTATOR) {
-            inputTypeKind = UCTypeKind.Rotator;
-        }
-    }
-
-    if (destTypeKind === UCTypeKind.Struct) {
-        if (destType.getName() === NAME_VECTOR) {
-            destTypeKind = UCTypeKind.Vector;
-        } else if (destType.getName() === NAME_ROTATOR) {
-            destTypeKind = UCTypeKind.Rotator;
-        }
-    }
-
+    inputTypeKind = resolveTypeKind(inputType);
+    destTypeKind = resolveTypeKind(destType);
     if (inputTypeKind === destTypeKind) {
         // TODO: Return a distinguisable return type
         return true;
     }
 
     const c = getTypeConversionFlags(inputTypeKind, destTypeKind);
-    if ((c & Y) || ((c & A) !== 0 && (matchFlags & UCMatchFlags.Coerce))) {
+    if ((c & Y) || ((c & E) !== 0 && (matchFlags & UCMatchFlags.Coerce))) {
         return true;
     }
 
