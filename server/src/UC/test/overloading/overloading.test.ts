@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 
-import { DEFAULT_RANGE, StaticByteType, StaticErrorType, StaticFloatType, StaticIntType, StaticVectorType, UCConversionCost, UCObjectTypeSymbol, UCTypeKind, findOverloadedBinaryOperator, getConversionCost, isOperator } from '../../Symbols';
+import { DEFAULT_RANGE, IntrinsicClass, IntrinsicObject, StaticByteType, StaticErrorType, StaticFloatType, StaticIntType, StaticVectorType, UCConversionCost, UCObjectTypeSymbol, UCTypeKind, findOverloadedBinaryOperator, getConversionCost, isOperator } from '../../Symbols';
 import { indexDocument, queueIndexDocument } from '../../indexer';
 import { assertDocumentAnalysis } from '../utils/diagnosticUtils';
 import { usingDocuments } from '../utils/utils';
@@ -55,9 +55,9 @@ describe('Overloading', () => {
             const structOne = overloadsDocument.class!.findSuperSymbol(toName('StructOne'));
             const structTwo = overloadsDocument.class!.findSuperSymbol(toName('StructTwo'));
             const structOneType = new UCObjectTypeSymbol({ name: structOne.getName(), range: DEFAULT_RANGE });
-            structOneType.setRef(structOne, overloadsDocument);
+            structOneType.setRefNoIndex(structOne);
             const structTwoType = new UCObjectTypeSymbol({ name: structTwo.getName(), range: DEFAULT_RANGE });
-            structTwoType.setRef(structTwo, overloadsDocument);
+            structTwoType.setRefNoIndex(structTwo);
             expect(getConversionCost(structOneType, structOneType)).is.equal(UCConversionCost.Zero);
             expect(getConversionCost(structOneType, structTwoType)).is.equal(UCConversionCost.Illegal);
         });
@@ -73,5 +73,13 @@ describe('Overloading', () => {
 
         expect(getConversionCost(StaticByteType, StaticIntType)).is.equal(UCConversionCost.Expansion);
         expect(getConversionCost(StaticIntType, StaticByteType)).is.equal(UCConversionCost.Truncation);
+
+        const intrinsicClassType = new UCObjectTypeSymbol({ name: IntrinsicClass.getName(), range: DEFAULT_RANGE });
+        intrinsicClassType.setRefNoIndex(IntrinsicClass);
+
+        const intrinsicObjectType = new UCObjectTypeSymbol({ name: IntrinsicObject.getName(), range: DEFAULT_RANGE });
+        intrinsicObjectType.setRefNoIndex(IntrinsicObject);
+
+        expect(getConversionCost(intrinsicClassType, intrinsicObjectType)).is.not.equal(UCConversionCost.Illegal);
     });
 });

@@ -57,5 +57,23 @@
         "text": "Argument of type '{0}' is not assignable to parameter of type '{1}'.",
 		"code": "9",
 		"severity": 1
+    },
+
+    "_0_CANNOT_BE_DECLARED_HERE": {
+		"text": "{0} cannot be declared here!",
+		"code": "10",
+		"severity": 1
+	},
+
+    "SYMBOL_KIND_0_1_NOT_FOUND": {
+		"text": "{0} '{1}' not found.",
+		"code": "11",
+		"severity": 1
+	},
+
+    "ARGUMENT_CLASS_IS_INCOMPATIBLE": {
+        "text": "Argument of type Class '{0}' does not derive from the parameter of type Class '{1}'.",
+		"code": "12",
+		"severity": 1
     }
 }

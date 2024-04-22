@@ -969,6 +969,16 @@ export class UCSuperExpression extends UCExpression {
 
 export class UCNewExpression extends UCCallExpression {
     // TODO: Implement pseudo new operator for hover info?
+
+    override getType() {
+        const type = this.expression.getType();
+        if (type && hasDefinedBaseType(type)) {
+            // Redirect to the object reference (possibly a qualifed type) instead of the class.
+            return type.baseType;
+        }
+
+        return type;
+    }
 }
 
 export abstract class UCLiteral implements IExpression {
@@ -1114,66 +1124,80 @@ export class UCByteLiteral extends UCLiteral {
     }
 }
 
+/** Represents an expression like: ClassName'ObjectReferencePath' e.g. Class'Core.Object', Struct'Core.Object.Vector' */
 export class UCObjectLiteral extends UCLiteral {
-    public castRef: UCObjectTypeSymbol;
-    public objectRef?: UCObjectTypeSymbol | UCQualifiedTypeSymbol;
+    /** 
+     * The class specifier in the literal, i.e. Class for Class'MyClass'.
+     * @property classRef.baseType should represent the object reference. 
+     **/
+    public classRef: UCObjectTypeSymbol<UCQualifiedTypeSymbol | UCObjectTypeSymbol>;
 
     override getMemberSymbol() {
-        return this.objectRef?.getRef() ?? this.castRef.getRef();
+        return this.classRef.baseType?.getRef() ?? this.classRef.getRef();
     }
 
     override getType() {
-        return this.objectRef ?? this.castRef;
+        return this.classRef;
     }
 
     override getContainedSymbolAtPos(position: Position) {
-        if (intersectsWith(this.castRef.getRange(), position)) {
-            return this.castRef.getRef() && this.castRef;
-        }
-        return this.objectRef?.getSymbolAtPos(position);
+        return this.classRef.getContainedSymbolAtPos(position);
     }
 
     override index(document: UCDocument, context: UCStructSymbol) {
-        const castClass = tryFindClassSymbol(this.castRef.id.name);
-        if (castClass) {
-            this.castRef.setRef(castClass, document);
-            if (this.objectRef) {
-                if (UCQualifiedTypeSymbol.is(this.objectRef)) {
-                    for (let next: UCQualifiedTypeSymbol | undefined = this.objectRef; next; next = next.left) {
-                        let symbol: ISymbol | undefined;
-                        if (next.left) {
-                            const hash = getSymbolOuterHash(getSymbolHash(next), getSymbolHash(next.left));
-                            symbol = OuterObjectsTable.getSymbol(hash, castClass.kind);
-                        } else {
-                            const hash = getSymbolHash(next);
-                            symbol = ObjectsTable.getSymbol<UCPackage>(hash, UCSymbolKind.Package);
-                        }
-                        if (symbol) {
-                            next.type.setRef(symbol, document);
-                        }
-                    }
+        const classSymbol = tryFindClassSymbol(this.classRef.id.name);
+        if (!classSymbol) {
+            return;
+        }
+
+        this.classRef.setRef(classSymbol, document);
+
+        const objectRefType = this.classRef.baseType;
+        if (!objectRefType) {
+            return;
+        }
+
+        // TODO: Implement StaticClass logic, so we can properly fetch the correct object by hash.
+
+        if (UCQualifiedTypeSymbol.is(objectRefType)) {
+            for (let next: UCQualifiedTypeSymbol | undefined = objectRefType; next; next = next.left) {
+                let symbol: ISymbol | undefined;
+                if (next.left) {
+                    const hash = getSymbolOuterHash(getSymbolHash(next), getSymbolHash(next.left));
+                    symbol = OuterObjectsTable.getSymbol(hash, classSymbol.kind);
                 } else {
-                    const id = this.objectRef.getName();
-                    const symbol = ObjectsTable.getSymbol(id, castClass.kind)
-                        ?? findOrIndexClassSymbol(id)
-                        // FIXME: Hacky case for literals like Property'TempColor', only enums and structs are added to the objects table.
-                        ?? context.findSuperSymbol(id);
-                    if (symbol) {
-                        this.objectRef.setRef(symbol, document);
-                    }
+                    const hash = getSymbolHash(next);
+                    symbol = ObjectsTable.getSymbol<UCPackage>(hash, UCSymbolKind.Package);
+                }
+                if (symbol) {
+                    next.type.setRef(symbol, document);
                 }
             }
+
+            return;
+        }
+
+        let symbol: ISymbol | undefined = undefined;
+
+        const objectName = objectRefType.getName();
+        symbol = tryFindClassSymbol(objectName)
+            ?? ObjectsTable.getSymbol(objectName, classSymbol.kind)
+            // FIXME: Hacky case for literals like Property'TempColor', only enums and structs are added to the objects table.
+            ?? context.findSuperSymbol(objectName);
+
+        if (symbol) {
+            objectRefType.setRef(symbol, document);
         }
     }
 
     override getValue() {
-        const classRef = this.castRef.getRef();
+        const classRef = this.classRef.getRef();
         if (typeof classRef === 'undefined') {
             return 'None';
         }
 
-        const objectRef = this.objectRef?.getRef();
-        return `${this.castRef.getName().text}'${objectRef?.getPath() ?? 'None'}'`;
+        const objectRef = this.classRef.baseType?.getRef();
+        return `${this.classRef.getName().text}'${objectRef?.getPath() ?? 'None'}'`;
     }
 
     override toString() {

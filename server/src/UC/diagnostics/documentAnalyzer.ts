@@ -15,7 +15,6 @@ import {
     StaticIntType,
     StaticMetaType,
     StaticNameType,
-    TypeKindToName,
     UCArchetypeSymbol,
     UCArrayTypeSymbol,
     UCClassSymbol,
@@ -38,8 +37,11 @@ import {
     UCStructSymbol,
     UCSymbolKind,
     UCTypeKind,
+    areDescendants,
+    areIdentityMatch,
     areMethodsCompatibleWith,
     getConversionCost,
+    hasDefinedBaseType,
     isClass,
     isDelegateSymbol,
     isEnumSymbol,
@@ -48,7 +50,10 @@ import {
     isFunction,
     isMethodSymbol,
     isStateSymbol,
+    isStruct,
     resolveType,
+    symbolKindToDisplayString,
+    typeKindToDisplayString,
     typesMatch,
 } from '../Symbols';
 import { UCDocument } from '../document';
@@ -207,11 +212,19 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
 
         const referredSymbol = symbol.getRef();
         if (!referredSymbol) {
-            this.diagnostics.add({
-                range: symbol.id.range,
-                message: diagnosticMessages.TYPE_0_NOT_FOUND,
-                args: [symbol.getName().text]
-            });
+            if (symbol.getExpectedKind() === UCSymbolKind.None) {
+                this.diagnostics.add({
+                    range: symbol.id.range,
+                    message: diagnosticMessages.TYPE_0_NOT_FOUND,
+                    args: [symbol.getName().text]
+                });
+            } else {
+                this.diagnostics.add({
+                    range: symbol.id.range,
+                    message: diagnosticMessages.SYMBOL_KIND_0_1_NOT_FOUND,
+                    args: [symbolKindToDisplayString(symbol.getExpectedKind()), symbol.getName().text]
+                });
+            }
         }
     }
 
@@ -228,10 +241,8 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         if (!this.isAllowed(UCSymbolKind.Interface)) {
             this.diagnostics.add({
                 range: symbol.getRange(),
-                message: {
-                    text: `Interface cannot be declared here!`,
-                    severity: DiagnosticSeverity.Error
-                }
+                message: diagnosticMessages._0_CANNOT_BE_DECLARED_HERE,
+                args: ['An interface']
             });
         }
         this.setAllowed(UCInterfaceSymbol.allowedKindsMask);
@@ -251,10 +262,8 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         if (!this.isAllowed(UCSymbolKind.Class)) {
             this.diagnostics.add({
                 range: symbol.getRange(),
-                message: {
-                    text: `Class cannot be declared here!`,
-                    severity: DiagnosticSeverity.Error
-                }
+                message: diagnosticMessages._0_CANNOT_BE_DECLARED_HERE,
+                args: ['A class']
             });
         }
         this.setAllowed(UCClassSymbol.allowedKindsMask);
@@ -585,7 +594,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             if (symbol.overriddenState) {
                 this.diagnostics.add({
                     range: symbol.extendsType.id.range,
-                    message: { text: `'Extends' not allowed here: The state already overrides state '{0}'` },
+                    message: { text: `'Extends' is not allowed here: The state already overrides state '{0}'` },
                     args: [symbol.overriddenState.getPath()]
                 });
             } else {
@@ -1019,13 +1028,13 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             this.state.hasArguments = false;
             expr.arguments?.forEach(arg => arg.accept(this));
 
-            const type = expr.expression.getType();
+            const destType = expr.expression.getType();
             // Let's be silent when working with an unresolved type.
-            if (!type) {
+            if (!destType) {
                 return;
             }
 
-            const symbol = type.getRef();
+            const symbol = destType.getRef();
             if (symbol && isFunction(symbol)) {
                 // FIXME: inferred type, this is unfortunately complicated :(
                 this.checkArguments(symbol, expr);
@@ -1036,34 +1045,74 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             if (!config.checkTypes)
                 return;
 
-            const firstArgument = expr.arguments && expr.arguments.length === 1
+            const firstArgument = expr.arguments?.length === 1
                 ? expr.arguments[0]
                 : undefined;
-            const argumentType = firstArgument?.getType();
-            if (!argumentType) {
+            const inputArgumentType = firstArgument?.getType();
+            if (!inputArgumentType) {
                 return;
             }
 
-            const argumentTypeKind = argumentType.getTypeKind();
-            const canPerformConversion = typesMatch(argumentType, type, UCMatchFlags.Coerce);
-            if (canPerformConversion) {
-                const typesToCheck = 1 << UCTypeKind.Byte
-                    | 1 << UCTypeKind.Int
-                    | 1 << UCTypeKind.Bool
-                    | 1 << UCTypeKind.Float
-                    | 1 << UCTypeKind.Name
-                    | 1 << UCTypeKind.String
-                    | 1 << UCTypeKind.Button
-                    | 1 << UCTypeKind.Struct;
+            const inputArgumentTypeKind = inputArgumentType.getTypeKind();
+            const destTypeKind = destType.getTypeKind();
 
-                if ((1 << argumentTypeKind & typesToCheck) !== 0
-                    && getConversionCost(argumentType, type) === UCConversionCost.Zero) {
+            // also struct, but we don't have to verify inheritance, because that is not even allowed in UnrealScript.
+            const classTypesToCheck = 1 << UCTypeKind.Object | 1 << UCTypeKind.Interface;
+            // If both are identical with one of the super-types
+            if ((1 << inputArgumentTypeKind & classTypesToCheck) & (1 << destTypeKind & classTypesToCheck)) {
+                const destSymbol = destType.getRef<UCStructSymbol>();
+                const inputSymbol = inputArgumentType.getRef<UCStructSymbol>();
+                // No point in analyzing unresolved types.
+                if (!isStruct(destSymbol) || !isStruct(inputSymbol)) {
+                    return;
+                }
+
+                // TODO: Handle Object to Interface too
+
+                // Reverse input with dest if we are attempting to cast a class.
+                if (typesMatch(destType, inputArgumentType)) {
+                    // Identical cast?
+                    if (areIdentityMatch(destSymbol, inputSymbol)) {
+                        this.error(expr.getRange(),
+                            `Redundant cast to type Class '${destSymbol!.getPath()}'.`);
+                        return;
+                    }
+                    // TODO: Also validate unnecessary casts based on context like the parameter being passed to.
+                    // -- Like for instance, casting Pawn to xPawn<Pawn when a function's parameter only requires Pawn.
+                } else {
+                    if (areDescendants(destSymbol, inputSymbol)) {
+                        this.error(expr.getRange(),
+                            `Redundant cast to parent type Class '${destSymbol!.getPath()}'.`);
+                        return;
+                    }
+
                     this.error(expr.getRange(),
-                        `Type '${typeKindToDisplayString(argumentTypeKind)}' should not be cast to itself.`);
+                        `Cannot cast to type Class '${destSymbol!.getPath()}' because it does not derive from type Class '${inputSymbol.getPath()}'.`);
+                    return;
                 }
             } else {
-                this.error(expr.getRange(),
-                    `Type '${typeKindToDisplayString(argumentTypeKind)}' cannot be cast to type '${typeKindToDisplayString(type.getTypeKind())}'.`);
+                const canPerformConversion = typesMatch(inputArgumentType, destType, UCMatchFlags.Coerce);
+                if (canPerformConversion) {
+                    const typesToCheck = 1 << UCTypeKind.Byte
+                        | 1 << UCTypeKind.Int
+                        | 1 << UCTypeKind.Bool
+                        | 1 << UCTypeKind.Float
+                        | 1 << UCTypeKind.Name
+                        | 1 << UCTypeKind.String
+                        | 1 << UCTypeKind.Button
+                        | 1 << UCTypeKind.Struct;
+
+                    if ((1 << inputArgumentTypeKind & typesToCheck) !== 0
+                        && getConversionCost(inputArgumentType, destType) === UCConversionCost.Zero) {
+                        this.error(expr.getRange(),
+                            `Type '${typeKindToDisplayString(inputArgumentTypeKind)}' should not be cast to itself.`);
+                    }
+
+                    // ...success
+                } else {
+                    this.error(expr.getRange(),
+                        `Type '${typeKindToDisplayString(inputArgumentTypeKind)}' cannot be cast to type '${typeKindToDisplayString(destTypeKind)}'.`);
+                }
             }
 
             const nest = this.nest();
@@ -1074,15 +1123,12 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     | 1 << UCTypeKind.Delegate
                     | 1 << UCTypeKind.Struct;
 
-                const castTypeKind = type.getTypeKind() || UCTypeKind.Error;
-                if ((1 << castTypeKind & invalidCastTypes) != 0) {
+                const castTypeKind = destTypeKind;
+                if ((1 << castTypeKind & invalidCastTypes)) {
                     this.error(expr.getRange(),
                         `Cannot switch on a dynamic cast of type '${typeKindToDisplayString(castTypeKind)}'.`);
                 }
             }
-
-            // TODO: Validate if expressed symbol is callable,
-            // i.e. either a 'Function/Delegate', 'Class', or a 'Struct' like Vector/Rotator.
         } else if (expr instanceof UCElementAccessExpression) {
             if (expr.expression) {
                 expr.expression.accept(this);
@@ -1274,10 +1320,26 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                             });
                         }
                     } else if (!typesMatch(valueType, letType, matchFlags)) {
-                        this.diagnostics.add({
-                            range: expr.right.getRange(),
-                            message: createTypeCannotBeAssignedToMessage(letType.getTypeKind(), valueTypeKind),
-                        });
+                        // Produce a more specific warning for incompatible classes.
+                        if (letType.getTypeKind() === UCTypeKind.Object && valueType.getTypeKind() === UCTypeKind.Object) {
+                            this.diagnostics.add({
+                                range: expr.getRange(),
+                                message: {
+                                    text: `Cannot assign type Class '{0}' to '{1}' because it does not derive from type Class '{2}'.`,
+                                    severity: DiagnosticSeverity.Error
+                                },
+                                args: [
+                                    resolveType(valueType).getRef()!.getPath(),
+                                    letSymbol.getName().text,
+                                    resolveType(letType).getRef()!.getPath(),
+                                ]
+                            });
+                        } else {
+                            this.diagnostics.add({
+                                range: expr.right.getRange(),
+                                message: createTypeCannotBeAssignedToMessage(letType.getTypeKind(), valueTypeKind),
+                            });
+                        }
                     }
                 }
             }
@@ -1327,14 +1389,25 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             }
         } else if (expr instanceof UCMemberExpression) {
             if (!expr.type) {
-                this.diagnostics.add({
-                    range: expr.getRange(),
-                    message: {
-                        text: diagnosticMessages.ID_0_DOES_NOT_EXIST_ON_TYPE_1.text,
-                        severity: DiagnosticSeverity.Error
-                    },
-                    args: [expr.id.name.text, this.context!.getPath()]
-                });
+                if (this.context) {
+                    this.diagnostics.add({
+                        range: expr.getRange(),
+                        message: {
+                            text: diagnosticMessages.ID_0_DOES_NOT_EXIST_ON_TYPE_1.text,
+                            severity: DiagnosticSeverity.Error
+                        },
+                        args: [expr.id.name.text, this.context.getPath()]
+                    });
+                } else {
+                    this.diagnostics.add({
+                        range: expr.getRange(),
+                        message: {
+                            text: diagnosticMessages.COULDNT_FIND_0.text,
+                            severity: DiagnosticSeverity.Error
+                        },
+                        args: [expr.id.name.text]
+                    });
+                }
 
                 return;
             }
@@ -1365,19 +1438,19 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             expr.arguments?.forEach(arg => arg?.accept(this));
         } else if (expr instanceof UCObjectLiteral) {
             // TODO: verify class type by inheritance
-            const castSymbol = expr.castRef.getRef();
-            expr.castRef.accept(this);
+            const classSymbol = expr.classRef.getRef();
+            if (typeof classSymbol === 'undefined') {
+                // Let's not validate the object reference if we have no class reference.
+                return;
+            }
 
-            if (expr.objectRef) {
-                expr.objectRef.accept(this);
-
-                const objectSymbol = expr.objectRef.getRef();
-                if (config.checkTypes && objectSymbol) {
-                    if (castSymbol === IntrinsicClass && !(isClass(objectSymbol))) {
-                        this.pushError(expr.objectRef.id.range, `Type of '${objectSymbol.getPath()}' is not a class!`);
-                    } else if (castSymbol === IntrinsicEnum && !(isEnumSymbol(objectSymbol))) {
-                        this.pushError(expr.objectRef.id.range, `Type of '${objectSymbol.getPath()}' is not an enum!`);
-                    }
+            expr.classRef.accept(this);
+            const objectSymbol = expr.classRef.baseType?.getRef();
+            if (config.checkTypes && objectSymbol) {
+                if (classSymbol === IntrinsicClass && !(isClass(objectSymbol))) {
+                    this.pushError(expr.classRef.id.range, `Type of '${objectSymbol.getPath()}' is not a class!`);
+                } else if (classSymbol === IntrinsicEnum && !(isEnumSymbol(objectSymbol))) {
+                    this.pushError(expr.classRef.id.range, `Type of '${objectSymbol.getPath()}' is not an enum!`);
                 }
             }
         } else if (expr instanceof UCArrayCountExpression) {
@@ -1471,11 +1544,20 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     }
 
                     if (!typesMatch(argType, paramType, UCMatchFlags.Coerce * Number(param.hasAnyModifierFlags(ModifierFlags.Coerce)))) {
-                        this.diagnostics.add({
-                            range: arg.getRange(),
-                            message: diagnosticMessages.ARGUMENT_IS_INCOMPATIBLE,
-                            args: [typeKindToDisplayString(argType.getTypeKind()), typeKindToDisplayString(destTypeKind)]
-                        });
+                        // TODO: interface type error
+                        if (destTypeKind === UCTypeKind.Object && argType.getTypeKind() === UCTypeKind.Object) {
+                            this.diagnostics.add({
+                                range: expr.getRange(),
+                                message: diagnosticMessages.ARGUMENT_CLASS_IS_INCOMPATIBLE,
+                                args: [resolveType(argType).getRef()!.getPath(), resolveType(paramType).getRef()!.getPath()]
+                            });
+                        } else {
+                            this.diagnostics.add({
+                                range: arg.getRange(),
+                                message: diagnosticMessages.ARGUMENT_IS_INCOMPATIBLE,
+                                args: [typeKindToDisplayString(argType.getTypeKind()), typeKindToDisplayString(destTypeKind)]
+                            });
+                        }
                     }
                 }
             }
@@ -1519,8 +1601,4 @@ function createTypeCannotBeAssignedToMessage(destType: UCTypeKind, inputType: UC
         text: `Type '${typeKindToDisplayString(inputType)}' is not assignable to type '${typeKindToDisplayString(destType)}'.`,
         severity: DiagnosticSeverity.Error
     };
-}
-
-function typeKindToDisplayString(kind: UCTypeKind): string {
-    return TypeKindToName.get(kind)!.text;
 }

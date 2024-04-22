@@ -2,7 +2,7 @@ import { expect } from 'chai';
 
 import { toName } from '../name';
 import { NAME_CLASS, NAME_PACKAGE } from '../names';
-import { DEFAULT_RANGE, getOuter, StaticNoneType, UCClassSymbol, UCPackage, UCPropertySymbol, UCSymbolKind } from './';
+import { DEFAULT_RANGE, getContext, getOuter, StaticNoneType, UCClassSymbol, UCPackage, UCPropertySymbol, UCSymbolKind } from './';
 
 describe('Test ISymbol utilities', () => {
     const packageSymbol = new UCPackage(NAME_PACKAGE);
@@ -21,5 +21,24 @@ describe('Test ISymbol utilities', () => {
             .to.equal(classSymbol);
         expect(getOuter(propertySymbol, UCSymbolKind.Package))
             .to.equal(packageSymbol);
+        // test against self
+        expect(getOuter(propertySymbol, UCSymbolKind.Property))
+            .to.be.undefined;
+        // test against a missing kind
+        expect(getOuter(propertySymbol, UCSymbolKind.Const))
+            .to.be.undefined;
+    });
+
+    it('getContext()', () => {
+        expect(getContext(propertySymbol, UCSymbolKind.Class))
+            .to.equal(classSymbol);
+        expect(getContext(propertySymbol, UCSymbolKind.Package))
+            .to.equal(packageSymbol);
+        expect(getContext(propertySymbol, UCSymbolKind.Const))
+            .to.be.undefined;
+        expect(getContext(classSymbol, UCSymbolKind.Class))
+            .to.equal(classSymbol);
+        expect(getContext(classSymbol, UCSymbolKind.Const))
+            .to.be.undefined;
     });
 });

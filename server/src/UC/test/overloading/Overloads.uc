@@ -11,6 +11,8 @@ struct StructTwo {};
 static final operator(24) bool          ==  (bool A, bool B);
 static final operator(24) bool          ==  (int A, int B);
 
+static final operator(24) bool          ==  (Object A, Object B);
+
 static final operator(20) int           +   (int A, int B);
 static final operator(20) float         +   (float A, float B);
 static final operator(20) StructOne     +   (StructOne A, StructOne B);

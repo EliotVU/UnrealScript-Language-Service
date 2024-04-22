@@ -1839,10 +1839,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     visitObjectLiteral(ctx: UCGrammar.ObjectLiteralContext) {
         const expression = new UCObjectLiteral(rangeFromBounds(ctx.start, ctx.stop));
 
-        const classIdNode = ctx._classRef;
-        const castRef = new UCObjectTypeSymbol(createIdentifier(classIdNode), undefined, UCSymbolKind.Class);
-        expression.castRef = castRef;
-
         const objectIdNode = ctx._path;
         const startLine = objectIdNode.line - 1;
         let startChar = objectIdNode.charPositionInLine + 1;
@@ -1867,8 +1863,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 return identifier;
             });
 
-        const type = createTypeFromIdentifiers(identifiers);
-        expression.objectRef = type;
+        const classReferenceType = new UCObjectTypeSymbol<UCQualifiedTypeSymbol | UCObjectTypeSymbol>(createIdentifier(ctx._classRef), undefined, UCSymbolKind.Class);
+        classReferenceType.baseType = createTypeFromIdentifiers(identifiers);
+        expression.classRef = classReferenceType;
+
         return expression;
     }
 

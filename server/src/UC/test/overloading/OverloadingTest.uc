@@ -8,6 +8,7 @@ function ShouldOverload()
     local StructOne structOne;
     local StructTwo structTwo;
     local EnumOne enumOne;
+    local Class classOne, classTwo;
 
     true == true;
 
@@ -28,6 +29,9 @@ function ShouldOverload()
 
     // Should pick Overloads.==(Int,Int)
     enumOne == EO_1;
+
+    // Should pick Overloads.==(Object,Object)
+    classOne == classTwo;
 }
 
 function InvalidOverload()
@@ -35,6 +39,7 @@ function InvalidOverload()
     local StructOne structOne;
     local StructTwo structTwo;
 
-    structOne + structTwo;
-    structTwo + structOne;
+    // FIXME: Diagnostic for missmatching overloads, (not added yet because we have false positives)
+    // structOne + structTwo;
+    // structTwo + structOne;
 }

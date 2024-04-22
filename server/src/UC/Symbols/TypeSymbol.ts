@@ -6,23 +6,41 @@ import { intersectsWith, intersectsWithRange } from '../helpers';
 import { config, indexReference } from '../indexer';
 import { Name } from '../name';
 import {
+    NAME_ARCHETYPE,
     NAME_ARRAY,
     NAME_BOOL,
     NAME_BUTTON,
     NAME_BYTE,
+    NAME_CLASS,
+    NAME_CONST,
+    NAME_DEFAULTPROPERTIES,
     NAME_DELEGATE,
     NAME_ENUM,
+    NAME_ENUMTAG,
     NAME_ERROR,
+    NAME_EVENT,
+    NAME_FIELD,
     NAME_FLOAT,
+    NAME_FUNCTION,
     NAME_INT,
     NAME_INTERFACE,
+    NAME_LOCAL,
+    NAME_MACRO,
     NAME_MAP,
     NAME_NAME,
     NAME_NONE,
     NAME_OBJECT,
+    NAME_OPERATOR,
+    NAME_PACKAGE,
+    NAME_PARAMETER,
     NAME_POINTER,
+    NAME_PROPERTY,
     NAME_RANGE,
+    NAME_REPLICATION,
     NAME_ROTATOR,
+    NAME_SCRIPTSTRUCT,
+    NAME_STATE,
+    NAME_STATEMENT,
     NAME_STRING,
     NAME_STRUCT,
     NAME_TYPE,
@@ -42,6 +60,7 @@ import {
     IWithReference,
     Identifier,
     IntrinsicArray,
+    IntrinsicClass,
     ModifierFlags,
     ObjectsTable,
     SymbolReference,
@@ -61,6 +80,7 @@ import {
     UCScriptStructSymbol,
     UCStateSymbol,
     UCStructSymbol,
+    areIdentityMatch,
     tryFindClassSymbol,
     tryFindSymbolInPackage
 } from './';
@@ -94,6 +114,36 @@ export const enum UCSymbolKind {
     DefaultPropertiesBlock,
     Statement,
     Macro
+}
+
+export const SymboldKindToName: Readonly<Map<UCSymbolKind, Name>> = new Map([
+    [UCSymbolKind.None, NAME_NONE],
+    [UCSymbolKind.Type, NAME_TYPE],
+    [UCSymbolKind.Package, NAME_PACKAGE],
+    [UCSymbolKind.Archetype, NAME_ARCHETYPE],
+    [UCSymbolKind.Field, NAME_FIELD],
+    [UCSymbolKind.ScriptStruct, NAME_SCRIPTSTRUCT],
+    [UCSymbolKind.State, NAME_STATE],
+    [UCSymbolKind.Class, NAME_CLASS],
+    [UCSymbolKind.Interface, NAME_INTERFACE],
+    [UCSymbolKind.Const, NAME_CONST],
+    [UCSymbolKind.Enum, NAME_ENUM],
+    [UCSymbolKind.EnumTag, NAME_ENUMTAG],
+    [UCSymbolKind.Property, NAME_PROPERTY],
+    [UCSymbolKind.Parameter, NAME_PARAMETER],
+    [UCSymbolKind.Local, NAME_LOCAL],
+    [UCSymbolKind.Function, NAME_FUNCTION],
+    [UCSymbolKind.Event, NAME_EVENT],
+    [UCSymbolKind.Delegate, NAME_DELEGATE],
+    [UCSymbolKind.Operator, NAME_OPERATOR],
+    [UCSymbolKind.ReplicationBlock, NAME_REPLICATION],
+    [UCSymbolKind.DefaultPropertiesBlock, NAME_DEFAULTPROPERTIES],
+    [UCSymbolKind.Statement, NAME_STATEMENT],
+    [UCSymbolKind.Macro, NAME_MACRO],
+]);
+
+export function symbolKindToDisplayString(kind: UCSymbolKind): string {
+    return SymboldKindToName.get(kind)!.text;
 }
 
 export const enum UCTypeKind {
@@ -145,6 +195,10 @@ export const TypeKindToName: Readonly<Map<UCTypeKind, Name>> = new Map([
     [UCTypeKind.Pointer, NAME_POINTER],
     [UCTypeKind.Button, NAME_BUTTON],
 ]);
+
+export function typeKindToDisplayString(kind: UCTypeKind): string {
+    return TypeKindToName.get(kind)!.text;
+}
 
 export interface ITypeSymbol extends ISymbol, IWithReference, IWithInnerSymbols, IWithIndex {
     getTypeText(): string;
@@ -221,11 +275,11 @@ export class UCTypeSymbol implements ITypeSymbol {
     }
 }
 
-export class UCObjectTypeSymbol implements ITypeSymbol {
+export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> implements ITypeSymbol {
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
     protected reference?: ISymbol = undefined;
 
-    public baseType?: ITypeSymbol = undefined;
+    public baseType?: TBaseType | undefined = undefined;
 
     constructor(
         readonly id: Identifier,
@@ -351,7 +405,7 @@ export class UCObjectTypeSymbol implements ITypeSymbol {
                 // e.g. "local Actor.Vector vector;" should also be able to pickup the inherited struct type.
                 // Note: Only if the context type is of type class, but we should probably report an error during the analysis stage instead.
                 symbol = context.findSuperSymbolPredicate<UCFieldSymbol>((symbol) => {
-                    return (symbol.kind === UCSymbolKind.ScriptStruct || symbol.kind === UCSymbolKind.Enum) 
+                    return (symbol.kind === UCSymbolKind.ScriptStruct || symbol.kind === UCSymbolKind.Enum)
                         && symbol.id.name === id;
                 });
                 break;
@@ -360,15 +414,15 @@ export class UCObjectTypeSymbol implements ITypeSymbol {
             // Either a global class, or a (inherited if < UE3) struct or enum
             // i.e. "var ClassOrFieldTypeHere Name;"
             case UCSymbolKind.Type: {
-                symbol = config.generation < UCGeneration.UC3 
-                    ? tryFindClassSymbol(id) 
-                        ?? context.findSuperSymbol(id, UCSymbolKind.Enum)
-                        ?? context.findSuperSymbol(id, UCSymbolKind.ScriptStruct)
-                    : tryFindClassSymbol(id) 
-                        ?? ObjectsTable.getSymbol(id, UCSymbolKind.Enum)
-                        ?? ObjectsTable.getSymbol(id, UCSymbolKind.ScriptStruct)
-                        // TODO: Search within the class's "within" class
-                        ;
+                symbol = config.generation < UCGeneration.UC3
+                    ? tryFindClassSymbol(id)
+                    ?? context.findSuperSymbol(id, UCSymbolKind.Enum)
+                    ?? context.findSuperSymbol(id, UCSymbolKind.ScriptStruct)
+                    : tryFindClassSymbol(id)
+                    ?? ObjectsTable.getSymbol(id, UCSymbolKind.Enum)
+                    ?? ObjectsTable.getSymbol(id, UCSymbolKind.ScriptStruct)
+                    // TODO: Search within the class's "within" class
+                    ;
                 break;
             }
 
@@ -605,7 +659,7 @@ const ConversionMask = ~D;
 /** @formatter:off */
 const TypeConversionFlagsTable: Readonly<{ [key: number]: number[] }> = [
 /* From        Error    None        Byte        Enum        Int         Bool        Float       Object      Name    Delegate    Interface   Range   Struct  Vector  Rotator     String      Map     Array   Pointer
-/* To       */              
+/* To       */
 /* Error    */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 /* None     */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 /* Byte     */[N,       N,          N,          Y | E,      Y | E | T,  Y,          Y | E | T,  N,          N,      N,          N,          N,      N,      N,      N,          Y,          N,      N,      N],
@@ -661,27 +715,26 @@ export function getConversionCost(inputType: ITypeSymbol, destType: ITypeSymbol)
     // - If destType is an OutParam and Const or if inputType is not an OutParam
     // - ArrayDimension mismatch
     // - If both types are an enum, they must be the same enum
-    // - If destType is an object reference and the class or metaclass are not identical or not derived
-    // - If destType is a struct and are either not identical nor derived
     if (inputTypeKind === destTypeKind) {
-        if (inputTypeKind === UCTypeKind.Struct) {
-            const inputStruct = inputType.getRef<UCStructSymbol>();
+        if (inputTypeKind === UCTypeKind.Object || inputTypeKind === UCTypeKind.Struct) {
+            let inputStruct = inputType.getRef<UCStructSymbol>();
             if (!inputStruct) {
                 return UCConversionCost.Illegal;
             }
-    
-            let destStruct = destType.getRef<UCStructSymbol>();
+
+            const destStruct = destType.getRef<UCStructSymbol>();
             if (!destStruct) {
                 return UCConversionCost.Illegal;
             }
-    
-            if (inputStruct.getHash() === destStruct.getHash()) {
+
+            if (areIdentityMatch(inputStruct, destStruct)) {
                 return UCConversionCost.Zero;
             }
-            
+
             let depth = 1;
-            for (destStruct = destStruct.super; destStruct; destStruct = destStruct.super, ++depth) {
-                if (destStruct.getHash() === inputStruct.getHash()) {
+            const hash = destStruct.getHash();
+            for (inputStruct = inputStruct.super; inputStruct; inputStruct = inputStruct.super, ++depth) {
+                if (inputStruct === destStruct || inputStruct.getHash() === hash) {
                     return depth as UCConversionCost;
                 }
             }
@@ -722,7 +775,7 @@ export const enum UCMatchFlags {
 }
 
 /**
- * (dest) SomeObject = (src) none;
+ * (dest) SomeObject = (input) none;
  */
 export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchFlags: UCMatchFlags = UCMatchFlags.None): boolean {
     // Ignore types with no reference (Error)
@@ -739,10 +792,56 @@ export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchF
     inputTypeKind = resolveTypeKind(inputType);
     destTypeKind = resolveTypeKind(destType);
     if (inputTypeKind === destTypeKind) {
+        // If we are expecting an assignment to an object that has a class type, then verify that the input class is compatible.
+        // TODO: Interface kind
+        if ((destTypeKind === UCTypeKind.Object || destTypeKind === UCTypeKind.Interface)
+            // Safety check to ensure that we are working with resolved types.
+            && isClass(destType.getRef())
+            && isClass(inputType.getRef())) {
+            // e.g. "var Class","var Class<ClassLimitor>", or "Class'ClassReference'"
+            if (destType.getRef() === IntrinsicClass) {
+                // Resolves Class<destMetaClass>
+                const destMetaClass = hasDefinedBaseType(destType) && destType.baseType.getRef<UCClassSymbol>();
+                if (destMetaClass) {
+                    const inputMetaClass = hasDefinedBaseType(inputType) 
+                        ? inputType.baseType.getRef<UCClassSymbol>()
+                        // e.g. a MyClass as input to destination of Class<MyClass>
+                        : inputType.getRef<UCClassSymbol>();
+                    if (inputMetaClass && (areDescendants(destMetaClass, inputMetaClass))) {
+                        return true;
+                    }
+
+                    return false;
+                }
+
+                // Any class derivative is compatible with the intrinsic class object.
+                return isClass(inputType.getRef());
+            } 
+            
+            // e.g. "var AClassName", see if the input class is a derivative of "AClassName"
+            if (areDescendants(destType.getRef<UCStructSymbol>()!, inputType.getRef<UCStructSymbol>()!)) {
+                return true;
+            }
+
+            return false;
+        }
+
+        if (destTypeKind === UCTypeKind.Struct
+            // Safety check to ensure that we are working with resolved types.
+            && isStruct(destType.getRef())
+            && isStruct(inputType.getRef())) {
+            if (areDescendants(destType.getRef<UCStructSymbol>()!, inputType.getRef<UCStructSymbol>()!)) {
+                return true;
+            }
+
+            return false;
+        }
+
         // TODO: Return a distinguisable return type
         return true;
     }
 
+    // Not a perfect match, see if we can convert or even coerce the types.
     const c = getTypeConversionFlags(inputTypeKind, destTypeKind);
     if ((c & Y) || ((c & E) !== 0 && (matchFlags & UCMatchFlags.Coerce))) {
         return true;
@@ -752,9 +851,7 @@ export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchF
         if (destTypeKind === UCTypeKind.Delegate) {
             return inputType.getRef()?.kind === UCSymbolKind.Function;
         }
-        if (destTypeKind === UCTypeKind.Object) {
-            // TODO: Class hierarchy
-        }
+
         return false;
     }
 
@@ -765,13 +862,33 @@ export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchF
     return false;
 }
 
-/** Resolves a type to its base type if set. e.g. "Class<Actor>" would be resolved to "Actor". */
+/** Resolves a type to its base type if set. e.g. "Class&lt;Actor&gt;" would be resolved to "Actor", if "Actor" is missing it will resolve to "Class" instead. */
 export function resolveType(type: ITypeSymbol): ITypeSymbol {
     return hasDefinedBaseType(type) ? type.baseType : type;
 }
 
 export function hasDefinedBaseType(type: ITypeSymbol & { baseType?: ITypeSymbol | undefined }): type is UCObjectTypeSymbol & { baseType: ITypeSymbol } {
     return typeof type.baseType !== 'undefined';
+}
+
+export function hasDefinedSuper(symbol: ISymbol & { super?: UCStructSymbol | undefined }): symbol is UCStructSymbol & { super: UCStructSymbol } {
+    return typeof symbol.super !== 'undefined';
+}
+
+export function areDescendants(parentSymbol: ISymbol & { super?: UCStructSymbol | undefined }, derivedSymbol: ISymbol & { super?: UCStructSymbol | undefined }): boolean {
+    let other: ISymbol & { super?: UCStructSymbol | undefined } | undefined = derivedSymbol;
+
+    // We compare by hash, because we could be working with multiple and outdated instances of the same object.
+    const hash = parentSymbol.getHash();
+    while (other) {
+        if (other === parentSymbol || other.getHash() === hash) {
+            return true;
+        }
+
+        other = other.super;
+    }
+
+    return false;
 }
 
 export function hasModifiers(symbol: (ISymbol & { modifiers?: ModifierFlags })): symbol is ISymbol & { modifiers: ModifierFlags } {
