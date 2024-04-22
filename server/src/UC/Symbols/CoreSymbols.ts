@@ -1,3 +1,4 @@
+import { toName } from 'UC/name';
 import {
     NAME_ARRAYPROPERTY,
     NAME_BOOLPROPERTY,
@@ -36,6 +37,7 @@ import {
 import {
     DEFAULT_RANGE,
     ModifierFlags,
+    StaticIntType,
     StaticNameType,
     StaticObjectType,
     StaticRotatorType,
@@ -44,7 +46,8 @@ import {
     UCPackage,
     UCPropertySymbol,
     UCScriptStructSymbol,
-    addHashedSymbol
+    addHashedSymbol,
+    getSymbolOuterHash
 } from './';
 
 export const CORE_PACKAGE = new UCPackage(NAME_CORE);
@@ -53,11 +56,45 @@ export const IntrinsicObject = new UCClassSymbol({ name: NAME_OBJECT, range: DEF
 IntrinsicObject.modifiers |= ModifierFlags.Native | ModifierFlags.Abstract;
 IntrinsicObject.outer = CORE_PACKAGE;
 
+export const IntrinsicVectorHash = getSymbolOuterHash(NAME_VECTOR.hash, NAME_OBJECT.hash);
 export const IntrinsicVector = new UCScriptStructSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE });
+IntrinsicVector.modifiers |= ModifierFlags.Native;
 IntrinsicVector.outer = IntrinsicObject;
 
+const VectorXProperty = new UCPropertySymbol(
+    { name: toName('X'), range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticIntType);
+IntrinsicVector.addSymbol(VectorXProperty);
+
+const VectorYProperty = new UCPropertySymbol(
+    { name: toName('Y'), range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticIntType);
+IntrinsicVector.addSymbol(VectorYProperty);
+
+const VectorZProperty = new UCPropertySymbol(
+    { name: toName('Z'), range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticIntType);
+IntrinsicVector.addSymbol(VectorZProperty);
+
+export const IntrinsicRotatorHash = getSymbolOuterHash(NAME_ROTATOR.hash, NAME_OBJECT.hash);
 export const IntrinsicRotator = new UCScriptStructSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE });
+IntrinsicRotator.modifiers |= ModifierFlags.Native;
 IntrinsicRotator.outer = IntrinsicObject;
+
+const RotatorPitchProperty = new UCPropertySymbol(
+    { name: toName('Pitch'), range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticIntType);
+IntrinsicRotator.addSymbol(RotatorPitchProperty);
+
+const RotatorYawProperty = new UCPropertySymbol(
+    { name: toName('Yaw'), range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticIntType);
+IntrinsicRotator.addSymbol(RotatorYawProperty);
+
+const RotatorRollProperty = new UCPropertySymbol(
+    { name: toName('Roll'), range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticIntType);
+IntrinsicRotator.addSymbol(RotatorRollProperty);
 
 export const Object_OuterProperty = new UCPropertySymbol(
     { name: NAME_OUTER, range: DEFAULT_RANGE },

@@ -13,6 +13,7 @@ import {
     IWithInnerSymbols,
     Identifier,
     IntrinsicClass,
+    IntrinsicObject,
     IntrinsicRngLiteral,
     IntrinsicRotLiteral,
     IntrinsicRotator,
@@ -48,15 +49,16 @@ import {
     UCSymbolKind,
     UCTypeKind,
     UCTypeSymbol,
-    findOrIndexClassSymbol,
     findOverloadedBinaryOperator,
     findOverloadedPostOperator,
     findOverloadedPreOperator,
     findSuperStruct,
+    getContext,
     getOuter,
     getSymbolHash,
     getSymbolOuterHash,
     hasDefinedBaseType,
+    areIdentityMatch,
     isArchetypeSymbol,
     isConstSymbol,
     isFunction,
@@ -66,11 +68,13 @@ import {
     isStruct,
     resolveType,
     tryFindClassSymbol,
+    IntrinsicVectorHash,
+    IntrinsicRotatorHash,
 } from './Symbols';
 import { UCDocument } from './document';
 import { intersectsWith } from './helpers';
 import { config, getConstSymbol, getEnumMember } from './indexer';
-import { NAME_ROTATOR, NAME_STRUCT, NAME_VECTOR } from './names';
+import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_STRUCT, NAME_VECTOR } from './names';
 import { SymbolWalker } from './symbolWalker';
 
 export interface IExpression extends INode, IWithIndex, IWithInnerSymbols {
@@ -240,9 +244,9 @@ export class UCCallExpression extends UCExpression {
             const returnValue = symbol.returnValue;
             if (returnValue) {
                 // Coerce the return type to match that of the first passed argument, e.g. "coerce Object Spawn(class'Actor' actor);"
-                if (returnValue.hasAnyModifierFlags(ModifierFlags.Coerce) && this.arguments) {
-                    const firstArgumentType = this.arguments[0]?.getType();
-                    return firstArgumentType;
+                if (returnValue.hasAnyModifierFlags(ModifierFlags.Coerce) && this.arguments && this.arguments.length > 0) {
+                    const firstArgumentType = this.arguments[0].getType();
+                    return firstArgumentType && resolveType(firstArgumentType);
                 }
 
                 const returnValueType = returnValue.getType();
@@ -294,11 +298,15 @@ export class UCCallExpression extends UCExpression {
                 this.expression.type = type;
             } else if (name === NAME_VECTOR) {
                 type = new UCObjectTypeSymbol(this.expression.id);
-                (type as UCObjectTypeSymbol).setRef(IntrinsicVector, document);
+                // Try work with the declared native struct instead of the intrinsic struct. (so that Vector(MyVec).X will resolve properly, as well as go to definition)
+                // Fall back to the intrinsic struct for situations where we have no Object.uc in the workspace.
+                const nativeStruct = OuterObjectsTable.getSymbol(IntrinsicVectorHash, UCSymbolKind.ScriptStruct) ?? IntrinsicVector;
+                (type as UCObjectTypeSymbol).setRef(nativeStruct, document);
                 this.expression.type = type;
             } else if (name === NAME_ROTATOR) {
                 type = new UCObjectTypeSymbol(this.expression.id);
-                (type as UCObjectTypeSymbol).setRef(IntrinsicRotator, document);
+                const nativeStruct = OuterObjectsTable.getSymbol(IntrinsicRotatorHash, UCSymbolKind.ScriptStruct) ?? IntrinsicRotator;
+                (type as UCObjectTypeSymbol).setRef(nativeStruct, document);
                 this.expression.type = type;
             } else if (name === NAME_STRUCT) {
                 type = new UCObjectTypeSymbol(this.expression.id);
@@ -637,16 +645,25 @@ export class UCAssignmentOperatorExpression extends UCBinaryOperatorExpression {
 
 export class UCMemberExpression extends UCExpression {
     public type?: ITypeSymbol;
+    private coercedType?: ITypeSymbol;
 
     constructor(readonly id: Identifier) {
         super(id.range);
     }
 
     override getMemberSymbol() {
+        if (this.coercedType) {
+            return this.coercedType.getRef();
+        }
+
         return this.type?.getRef();
     }
 
     override getType() {
+        if (this.coercedType) {
+            return this.coercedType;
+        }
+
         const symbol = this.type?.getRef();
         // We resolve UCMethodSymbols in UCCallExpression, because we don't want to return the function's type in assignment expressions...
         if (symbol) {
@@ -662,6 +679,10 @@ export class UCMemberExpression extends UCExpression {
     }
 
     getContainedSymbolAtPos(_position: Position) {
+        if (this.coercedType) {
+            return this.coercedType;
+        }
+
         // Only return if we have a RESOLVED reference.
         return this.type?.getRef() && this.type;
     }
@@ -697,6 +718,14 @@ export class UCMemberExpression extends UCExpression {
             } else {
                 member = getEnumMember(id);
             }
+        } else if (member.getName() === NAME_CLASS && areIdentityMatch(member.outer, IntrinsicObject)) {
+            const classContext = getContext<UCClassSymbol>(context, UCSymbolKind.Class)!;
+            const coercedType = new UCObjectTypeSymbol(this.id);
+            coercedType.setRefNoIndex(classContext);
+            this.coercedType = coercedType;
+        } else if (member.getName() === NAME_OUTER && areIdentityMatch(member.outer, IntrinsicObject)) {
+            const classContext = getContext<UCClassSymbol>(context, UCSymbolKind.Class)!;
+            this.coercedType = classContext.withinType;
         }
 
         if (member) {

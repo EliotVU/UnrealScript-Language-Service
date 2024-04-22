@@ -9,6 +9,7 @@ import {
     UCClassSymbol,
     UCObjectSymbol,
     UCSymbolKind,
+    getContext,
     getOuter,
     hasModifiers,
     isField,
@@ -252,10 +253,9 @@ export function getSymbol(uri: DocumentUri, position: Position): ISymbol | undef
 }
 
 export function getSymbolDocument(symbol: ISymbol): UCDocument | undefined {
-    const documentClass = symbol && (symbol.kind === UCSymbolKind.Class
-        ? (symbol as UCClassSymbol)
-        : getOuter<UCClassSymbol>(symbol, UCSymbolKind.Class));
+    console.assert(typeof symbol !== 'undefined');
 
+    const documentClass = getContext<UCClassSymbol>(symbol, UCSymbolKind.Class);
     const document = documentClass && getDocumentById(documentClass.id.name);
     return document;
 }

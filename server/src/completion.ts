@@ -27,6 +27,7 @@ import {
     UCStructSymbol,
     UCSymbolKind,
     UCTypeKind,
+    areIdentityMatch,
     areMethodsCompatibleWith,
     findOrIndexClassSymbol,
     getDebugSymbolInfo,
@@ -212,7 +213,7 @@ function getCallableMethods(document: UCDocument, contextSymbol: UCStructSymbol)
         .getCompletionSymbols<UCMethodSymbol>(document, ContextKind.None, MethodSymbolKinds)
         .filter(method => {
             return method.super == null
-                && ((method.modifiers & ModifierFlags.Private) == 0 || (method.getHash() == contextSymbol.getHash()));
+                && ((method.modifiers & ModifierFlags.Private) == 0 || (areIdentityMatch(method, contextSymbol)));
         });
 }
 
