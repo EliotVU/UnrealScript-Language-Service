@@ -13,7 +13,7 @@ import { queueIndexDocument } from '../../indexer';
 import { toName } from '../../name';
 import { NAME_DEFAULTPROPERTIES, NAME_ENUMCOUNT } from '../../names';
 import { assertBinaryOperatorExpressionMemberSymbol, assertExpressionStatement } from '../utils/codeAsserts';
-import { assertDocumentAnalysis } from '../utils/diagnosticUtils';
+import { assertDocumentValidFieldsAnalysis } from '../utils/diagnosticUtils';
 import { usingDocuments } from '../utils/utils';
 
 describe('Enum usage', () => {
@@ -23,7 +23,7 @@ describe('Enum usage', () => {
 
         it('should have no problems', () => {
             queueIndexDocument(testDocument);
-            assertDocumentAnalysis(testDocument, /\bShould/).is.equal(0);
+            assertDocumentValidFieldsAnalysis(testDocument);
         });
 
         it('Enum EEnumTest is declared', () => {

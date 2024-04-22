@@ -3,7 +3,7 @@ import { Location, Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
-import { ITypeSymbol, UCNodeKind, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
+import { ITypeSymbol, UCNodeKind, UCStructSymbol, UCSymbolKind, UCTypeKind, typeKindToDisplayString } from './';
 
 export type Identifier = Readonly<{
     readonly name: Name;
@@ -139,12 +139,12 @@ export function hasNoKind(symbol: { kind: UCNodeKind }): boolean {
     return typeof symbol.kind === 'undefined';
 }
 
-export function getDebugSymbolInfo(symbol?: ISymbol): string {
+export function getSymbolDebugInfo(symbol?: ISymbol): string {
     if (typeof symbol === 'undefined') {
         return 'null';
     }
 
     const range = symbol.getRange();
     const path = symbol.getName().text;
-    return `(${range.start.line + 1}:${range.start.character} - ${range.end.line + 1}:${range.end.character}) [${path}]`;
+    return `(${range.start.line + 1}:${range.start.character} - ${range.end.line + 1}:${range.end.character}) [${path}]: ${typeKindToDisplayString(symbol.getTypeKind())}`;
 }

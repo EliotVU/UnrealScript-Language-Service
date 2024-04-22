@@ -2,7 +2,7 @@ import { expect } from 'chai';
 
 import { DEFAULT_RANGE, IntrinsicClass, IntrinsicObject, StaticByteType, StaticErrorType, StaticFloatType, StaticIntType, StaticVectorType, UCConversionCost, UCObjectTypeSymbol, UCTypeKind, findOverloadedBinaryOperator, getConversionCost, isOperator } from '../../Symbols';
 import { indexDocument, queueIndexDocument } from '../../indexer';
-import { assertDocumentAnalysis } from '../utils/diagnosticUtils';
+import { assertDocumentInvalidFieldsAnalysis, assertDocumentValidFieldsAnalysis } from '../utils/diagnosticUtils';
 import { usingDocuments } from '../utils/utils';
 import { toName } from '../../name';
 
@@ -11,8 +11,8 @@ describe('Overloading', () => {
     it('should have no problems', () => {
         usingDocuments(__dirname, ['Overloads.uc', 'OverloadingTest.uc'], ([, testDocument]) => {
             queueIndexDocument(testDocument);
-            assertDocumentAnalysis(testDocument, /\bShould/).is.equal(0);
-            assertDocumentAnalysis(testDocument, /\bInvalid/).is.equal(2);
+            assertDocumentValidFieldsAnalysis(testDocument, /\bShould/);
+            assertDocumentInvalidFieldsAnalysis(testDocument, /\bInvalid/);
         });
     });
 

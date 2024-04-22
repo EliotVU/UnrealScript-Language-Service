@@ -5,7 +5,7 @@ import { UCInputStream } from './Parser/InputStream';
 import { UCLexer } from './antlr/generated/UCLexer';
 import { createPreprocessor, preprocessDocument } from './document';
 import { applyMacroSymbols, queueIndexDocument } from './indexer';
-import { assertDocumentAnalysis } from './test/utils/diagnosticUtils';
+import { assertDocumentValidFieldsAnalysis } from './test/utils/diagnosticUtils';
 import { assertDocument, usingDocuments } from './test/utils/utils';
 
 const GRAMMARS_DIR = path.resolve(__dirname, '../../../grammars/test');
@@ -27,7 +27,7 @@ describe('Document', () => {
 
         it('should have no problems', () => {
             queueIndexDocument(grammarDocument);
-            assertDocumentAnalysis(grammarDocument, /\bShould/).is.equal(0);
+            assertDocumentValidFieldsAnalysis(grammarDocument, /\bShould/);
         });
     });
 });

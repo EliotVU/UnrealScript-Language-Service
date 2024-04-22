@@ -56,6 +56,10 @@ export class DiagnosticCollection {
             return Object.assign(diagnostic, template.custom);
         });
     }
+
+    clear(): void {
+        this.items.splice(0, this.items.length);
+    }
 }
 
 export function rangeToString(range: Range): string {

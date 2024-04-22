@@ -30,7 +30,7 @@ import {
     areIdentityMatch,
     areMethodsCompatibleWith,
     findOrIndexClassSymbol,
-    getDebugSymbolInfo,
+    getSymbolDebugInfo,
     isClass,
     isDelegateSymbol,
     isEnumSymbol,
@@ -291,7 +291,7 @@ async function buildSignatureHelp(document: UCDocument, position: Position, data
     const scopeSymbol = getDocumentContext(document, position) as UCStructSymbol;
     console.info(
         'signatureHelp::scopeSymbol'.padEnd(42),
-        getDebugSymbolInfo(scopeSymbol));
+        getSymbolDebugInfo(scopeSymbol));
 
     // TODO: could be a call to a delegate within an array?
     const signatures: SignatureInformation[] = [];
@@ -314,7 +314,7 @@ async function buildSignatureHelp(document: UCDocument, position: Position, data
     if (invokedSymbol) {
         console.info(
             'signatureHelp::invokedSymbol'.padEnd(42),
-            getDebugSymbolInfo(invokedSymbol));
+            getSymbolDebugInfo(invokedSymbol));
 
         const resolvedSymbol = resolveSymbolToRef(invokedSymbol);
         if (!resolvedSymbol) {
@@ -502,7 +502,7 @@ async function buildCompletionItems(
     const scopeSymbol = getDocumentContext(document, position);
     console.info(
         'completion::scopeSymbol'.padEnd(42),
-        getDebugSymbolInfo(scopeSymbol));
+        getSymbolDebugInfo(scopeSymbol));
 
     /**
      * Resolves to a symbol that is either at the left of a "." or "=".
@@ -533,10 +533,10 @@ async function buildCompletionItems(
         getTokenDebugInfo(carretContextToken, data.parser));
     console.info(
         'completion::carretContextSymbol'.padEnd(42),
-        getDebugSymbolInfo(carretContextSymbol));
+        getSymbolDebugInfo(carretContextSymbol));
     console.info(
         'completion::carretSymbol'.padEnd(42),
-        getDebugSymbolInfo(carretSymbol));
+        getSymbolDebugInfo(carretSymbol));
     const items: CompletionItem[] = [];
     const symbols: ISymbol[] = [];
     let globalTypes: UCSymbolKind = UCSymbolKind.None;
@@ -918,14 +918,14 @@ async function buildCompletionItems(
                             }
                         } else if (carretContextToken) {
                             shouldIncludeTokenKeywords = false;
-        
+
                             const id = toName(carretContextToken.text as string);
                             // Only look for a class in a context of "ClassType.Type"
                             contextSymbol = ObjectsTable.getSymbol<UCClassSymbol>(id, UCSymbolKind.Class);
                         } else {
                             globalTypes |= TypeDeclSymbolKinds;
                         }
-        
+
                         if (contextSymbol) {
                             if (isPackage(contextSymbol)) {
                                 for (const symbol of ObjectsTable.enumerateKinds(PackageTypeContextSymbolKinds)) {

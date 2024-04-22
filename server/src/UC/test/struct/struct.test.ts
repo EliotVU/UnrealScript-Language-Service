@@ -1,12 +1,12 @@
 import { queueIndexDocument } from '../../indexer';
-import { assertDocumentAnalysis } from '../utils/diagnosticUtils';
+import { assertDocumentValidFieldsAnalysis } from '../utils/diagnosticUtils';
 import { usingDocuments } from '../utils/utils';
 
 describe('Struct usage', () => {
-    usingDocuments(__dirname, ['StructTest.uc'], ([testDocument]) => {
-        it('should have no problems', () => {
+    it('should have no problems', () => {
+        usingDocuments(__dirname, ['StructTest.uc'], ([testDocument]) => {
             queueIndexDocument(testDocument);
-            assertDocumentAnalysis(testDocument).is.equal(0);
+            assertDocumentValidFieldsAnalysis(testDocument);
         });
     });
 });

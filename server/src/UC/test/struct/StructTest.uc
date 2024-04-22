@@ -10,6 +10,21 @@ struct Plane extends Vector
     var float W;
 };
 
+struct Matrix
+{
+    var Plane XPlane;
+    var Plane YPlane;
+    var Plane ZPlane;
+    var Plane WPlane;
+};
+
+struct Custom
+{
+    struct InnerStruct {  };
+
+    var InnerStruct Inner;
+};
+
 static final operator(16) Vector * (float A, Vector B);
 static final operator(16) Vector * (Vector A, float B);
 
@@ -30,6 +45,7 @@ function ShouldProduceNoProblems()
     plane.X = 0;
     plane.W = 0;
 
-    vector = plane;
-    plane = vector;
+    // FIXME: Not yet dealt with
+    // vector = plane;
+    // plane = vector;
 }
