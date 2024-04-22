@@ -1,4 +1,4 @@
-import { toName } from 'UC/name';
+import { toName } from '../name';
 import {
     NAME_ARRAYPROPERTY,
     NAME_BOOLPROPERTY,
@@ -47,7 +47,7 @@ import {
     UCPropertySymbol,
     UCScriptStructSymbol,
     addHashedSymbol,
-    getSymbolOuterHash
+    getSymbolOuterHash,
 } from './';
 
 export const CORE_PACKAGE = new UCPackage(NAME_CORE);

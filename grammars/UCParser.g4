@@ -822,7 +822,7 @@ whileStatement
 doStatement
 	: 'do'
 		codeBlockOptional
-	  'until' (OPEN_PARENS expr=expression? CLOSE_PARENS)
+	  ('until' (OPEN_PARENS expr=expression? CLOSE_PARENS))?
 	;
 
 switchStatement
