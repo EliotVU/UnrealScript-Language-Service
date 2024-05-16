@@ -1,4 +1,4 @@
-import { expect } from 'chai';
+import { assert, expect } from 'chai';
 import { rangeToString } from '../../diagnostics/diagnostic';
 import { DocumentAnalyzer } from '../../diagnostics/documentAnalyzer';
 import { UCDocument } from '../../document';
@@ -51,6 +51,8 @@ export function assertDocumentInvalidFieldsAnalysis(document: UCDocument, patter
                 stm.accept(diagnoser);
                 if (diagnostics.count() === 0) {
                     expect.fail(`Missing problem in statement "${textDocument.getText(stm.getRange())}" of '${field.getPath()}' at ${rangeToString(stm.getRange())}`);
+                } else {
+                    console.debug(`Validated problem in statement "${textDocument.getText(stm.getRange())}" of '${field.getPath()}' at ${rangeToString(stm.getRange())}`);
                 }
             }
         }
