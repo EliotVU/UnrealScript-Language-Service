@@ -9,6 +9,8 @@ enum CastingTest { CT_Tag };
 var private enum EEnum { E_1 } EnumProperty;
 var private InterfaceTest InterfaceProperty;
 
+var array< Class<CastingTest> > TestClasses;
+
 private delegate DelegateFunction();
 
 // Verify that we can match a function over a package of the same name.
@@ -61,7 +63,7 @@ function ShouldBeInvalidCastingTest()
 {
     // Invalid non-zero cost conversions:
 
-    Name(false);
+    name(false);
 
     // from enum
     // float(EEnum.E_1);
@@ -224,4 +226,10 @@ function ShouldBeInvalidClassArgumentTest()
     AcceptClassLimitor(cls);
     // Should not allow an object to be passed to a class limitor
     AcceptClassLimitor(obj);
+}
+
+defaultproperties
+{
+    TestClasses.Add(Class'CastingTest')
+    TestClasses.Add(Class'CastingDerivative')
 }

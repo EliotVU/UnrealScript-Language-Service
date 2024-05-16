@@ -764,9 +764,10 @@ export class UCDefaultMemberCallExpression extends UCExpression {
         const type = this.propertyMember.getType();
         if (type && UCArrayTypeSymbol.is(type)) {
             // Resolve metaclass class<Actor> to Actor
-            if (hasDefinedBaseType(type) && hasDefinedBaseType(type.baseType)) {
-                return type.baseType.baseType;
-            }
+            // Commented out because it was causing issues with type compatibility checks, TODO: Figure out if this resolve matters anymore.
+            // if (hasDefinedBaseType(type) && hasDefinedBaseType(type.baseType)) {
+            //     return type.baseType.baseType;
+            // }
             return type.baseType;
         }
         return type;

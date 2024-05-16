@@ -942,7 +942,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     return;
                 }
 
-                if (stm.expression.getType()?.getTypeKind() != UCTypeKind.Array) {
+                if (stm.expression.getType()?.getTypeKind() !== UCTypeKind.Array) {
                     this.diagnostics.add({
                         range: stm.expression.getRange(),
                         message: {
@@ -1522,44 +1522,52 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                 }
             }
 
-            if (config.checkTypes) {
-                const paramType = (param.getType() === StaticMetaType ? undefined : param.getType()) ?? inferredType;
+            if (!config.checkTypes) {
+                continue;
+            }
 
-                // We'll play nice by not pushing any errors if the method's param has no found or defined type,
-                // -- the 'type not found' error will suffice.
-                if (paramType) {
-                    const destTypeKind = paramType.getTypeKind();
-                    if (destTypeKind === UCTypeKind.Delegate) {
-                        const argSymbol = resolveType(argType).getRef<UCDelegateSymbol>();
-                        const paramSymbol = resolveType(paramType).getRef<UCDelegateSymbol>();
-                        if (argSymbol && isFunction(argSymbol)
-                            && paramSymbol && isFunction(paramSymbol)
-                            && !areMethodsCompatibleWith(paramSymbol, argSymbol)) {
-                            this.diagnostics.add({
-                                range: arg.getRange(),
-                                message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
-                                args: [argSymbol.getPath(), paramType.getPath()]
-                            });
-                        }
-                    }
+            const paramType = (param.getType() === StaticMetaType ? undefined : param.getType()) ?? inferredType;
 
-                    if (!typesMatch(argType, paramType, UCMatchFlags.Coerce * Number(param.hasAnyModifierFlags(ModifierFlags.Coerce)))) {
-                        // TODO: interface type error
-                        if (destTypeKind === UCTypeKind.Object && argType.getTypeKind() === UCTypeKind.Object) {
-                            this.diagnostics.add({
-                                range: expr.getRange(),
-                                message: diagnosticMessages.ARGUMENT_CLASS_IS_INCOMPATIBLE,
-                                args: [resolveType(argType).getRef()!.getPath(), resolveType(paramType).getRef()!.getPath()]
-                            });
-                        } else {
-                            this.diagnostics.add({
-                                range: arg.getRange(),
-                                message: diagnosticMessages.ARGUMENT_IS_INCOMPATIBLE,
-                                args: [typeKindToDisplayString(argType.getTypeKind()), typeKindToDisplayString(destTypeKind)]
-                            });
-                        }
-                    }
+            // We'll play nice by not pushing any errors if the method's param has no found or defined type,
+            // -- the 'type not found' error will suffice.
+            if (!paramType) {
+                continue;
+            }
+
+            const destTypeKind = paramType.getTypeKind();
+            if (destTypeKind === UCTypeKind.Delegate) {
+                const argSymbol = resolveType(argType).getRef<UCDelegateSymbol>();
+                const paramSymbol = resolveType(paramType).getRef<UCDelegateSymbol>();
+                if (argSymbol && isFunction(argSymbol)
+                    && paramSymbol && isFunction(paramSymbol)
+                    && !areMethodsCompatibleWith(paramSymbol, argSymbol)) {
+                    this.diagnostics.add({
+                        range: arg.getRange(),
+                        message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
+                        args: [argSymbol.getPath(), paramType.getPath()]
+                    });
                 }
+            }
+
+            // Enable type coercing if the parameter has the modifier 'coerce'
+            if (typesMatch(argType, paramType, UCMatchFlags.Coerce * Number(param.hasAnyModifierFlags(ModifierFlags.Coerce)))) {
+                continue;
+            }
+
+            const inputArgumentTypeKind = argType.getTypeKind();
+            const classTypesToCheck = 1 << UCTypeKind.Object | 1 << UCTypeKind.Interface;
+            if ((1 << inputArgumentTypeKind & classTypesToCheck) & (1 << destTypeKind & classTypesToCheck)) {
+                this.diagnostics.add({
+                    range: arg.getRange(),
+                    message: diagnosticMessages.ARGUMENT_CLASS_IS_INCOMPATIBLE,
+                    args: [argType.getRef()!.getPath(), paramType.getRef()!.getPath()]
+                });
+            } else {
+                this.diagnostics.add({
+                    range: arg.getRange(),
+                    message: diagnosticMessages.ARGUMENT_IS_INCOMPATIBLE,
+                    args: [typeKindToDisplayString(argType.getTypeKind()), typeKindToDisplayString(destTypeKind)]
+                });
             }
         }
 
