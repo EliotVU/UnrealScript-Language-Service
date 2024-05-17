@@ -3,7 +3,7 @@ import { Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { intersectsWith, intersectsWithRange } from '../helpers';
 import { indexDeclarationReference } from '../indexer';
-import { Identifier, ISymbol, ITypeSymbol, UCObjectSymbol, UCStructSymbol } from './';
+import { Identifier, isParamSymbol, ISymbol, ITypeSymbol, UCObjectSymbol, UCStructSymbol } from './';
 
 export enum ModifierFlags {
 	None 				= 0x0000,
@@ -120,6 +120,19 @@ export abstract class UCFieldSymbol extends UCObjectSymbol {
 	public buildModifiers(modifiers = this.modifiers): string[] {
 		const text: string[] = [];
 
+        // The modifiers below are not applicable to parameters.
+        if (isParamSymbol(this)) {
+            return text;
+        }
+
+        if (modifiers & ModifierFlags.Protected) {
+            text.push('protected');
+        } else if (modifiers & ModifierFlags.Private) {
+            text.push('private');
+        } else {
+            text.push('public');
+        }
+
 		if (modifiers & ModifierFlags.Native) {
 			text.push('native');
 		}
@@ -127,13 +140,6 @@ export abstract class UCFieldSymbol extends UCObjectSymbol {
         if (modifiers & ModifierFlags.Transient) {
             text.push('transient');
         }
-
-		if (modifiers & ModifierFlags.Protected) {
-			text.push('protected');
-		}
-		else if (modifiers & ModifierFlags.Private) {
-			text.push('private');
-		}
 
 		return text;
 	}
