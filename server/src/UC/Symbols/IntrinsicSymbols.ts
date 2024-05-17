@@ -103,12 +103,15 @@ export const IntrinsicVectLiteral = new UCMethodLikeSymbol(toName('Vect'));
 IntrinsicVectLiteral.returnValue = VectorReturnValue;
 
 const XParam = new UCParamSymbol({ name: toName('X'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+XParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicVectLiteral.addSymbol(XParam);
 
 const YParam = new UCParamSymbol({ name: toName('Y'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+YParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicVectLiteral.addSymbol(YParam);
 
 const ZParam = new UCParamSymbol({ name: toName('Z'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+ZParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicVectLiteral.addSymbol(ZParam);
 
 IntrinsicVectLiteral.params = [XParam, YParam, ZParam];
@@ -117,12 +120,15 @@ export const IntrinsicRotLiteral = new UCMethodLikeSymbol(toName('Rot'));
 IntrinsicRotLiteral.returnValue = RotatorReturnValue;
 
 const PitchParam = new UCParamSymbol({ name: toName('Pitch'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
+PitchParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRotLiteral.addSymbol(PitchParam);
 
 const YawParam = new UCParamSymbol({ name: toName('Yaw'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
+YawParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRotLiteral.addSymbol(YawParam);
 
 const RollParam = new UCParamSymbol({ name: toName('Roll'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
+RollParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRotLiteral.addSymbol(RollParam);
 
 IntrinsicRotLiteral.params = [PitchParam, YawParam, RollParam];
@@ -131,9 +137,11 @@ export const IntrinsicRngLiteral = new UCMethodLikeSymbol(toName('Rng'));
 IntrinsicRngLiteral.returnValue = RangeReturnValue;
 
 const MinParam = new UCParamSymbol({ name: toName('Min'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+MinParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRngLiteral.addSymbol(MinParam);
 
 const MaxParam = new UCParamSymbol({ name: toName('Max'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+MinParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRngLiteral.addSymbol(MaxParam);
 
 IntrinsicRngLiteral.params = [MinParam, MaxParam];
