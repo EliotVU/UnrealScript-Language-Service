@@ -28,7 +28,7 @@ struct Custom
 static final operator(16) Vector * (float A, Vector B);
 static final operator(16) Vector * (Vector A, float B);
 
-function ShouldProduceNoProblems()
+function ShouldBeValidStructTest()
 {
     local Vector vector;
     local Plane plane;

@@ -154,6 +154,8 @@ function ShouldBeValidAssignmentTest()
     local CastingTest c;
     local Object obj;
 
+    c = new (none) Class'CastingTest';
+    c = new (self) Class'CastingTest';
     c = new (none) Class'CastingDerivative';
     obj = Class'Object';
 }

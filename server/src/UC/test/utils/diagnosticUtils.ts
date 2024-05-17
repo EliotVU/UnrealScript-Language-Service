@@ -2,7 +2,7 @@ import { assert, expect } from 'chai';
 import { rangeToString } from '../../diagnostics/diagnostic';
 import { DocumentAnalyzer } from '../../diagnostics/documentAnalyzer';
 import { UCDocument } from '../../document';
-import { UCFieldSymbol, isFunction } from '../../Symbols';
+import { ISymbol, UCFieldSymbol, isFunction } from '../../Symbols';
 import { Range, TextDocument } from 'vscode-languageserver-textdocument';
 
 /** Runs the document's declared fields through the DocumentAnalyzer, and asserts the count of diagnostic problems that have been produced. */
@@ -35,13 +35,13 @@ export function assertDocumentValidFieldsAnalysis(document: UCDocument, pattern?
 }
 
 /** Runs the document's declared fields through the DocumentAnalyzer, and asserts the count of diagnostic problems that have been produced. */
-export function assertDocumentValidFieldAnalysis(document: UCDocument, field: UCFieldSymbol) {
+export function assertDocumentValidSymbolAnalysis(document: UCDocument, symbol: ISymbol) {
     expect(document.class, 'class').to.not.be.undefined;
     expect(document.class.children, 'children').to.not.be.undefined;
 
     const diagnoser = new DocumentAnalyzer(document);
 
-    field.accept(diagnoser);
+    symbol.accept(diagnoser);
     assertDocumentDiagnoser(diagnoser).to.equal(0, diagnoser.getDiagnostics().toDiagnostic().map(d => d.message).join('\n'));
 }
 

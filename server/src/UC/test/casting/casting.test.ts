@@ -1,6 +1,6 @@
 import { queueIndexDocument } from '../../indexer';
 import { usingDocuments } from '../utils/utils';
-import { assertDocumentValidFieldsAnalysis, assertDocumentInvalidFieldsAnalysis, assertDocumentValidFieldAnalysis } from '../utils/diagnosticUtils';
+import { assertDocumentValidFieldsAnalysis, assertDocumentInvalidFieldsAnalysis, assertDocumentValidSymbolAnalysis } from '../utils/diagnosticUtils';
 import { toName } from '../../name';
 
 describe('Casting', () => {
@@ -10,7 +10,7 @@ describe('Casting', () => {
             assertDocumentValidFieldsAnalysis(castingTestDocument, /\bShould(?!BeInvalid)/i);
             assertDocumentInvalidFieldsAnalysis(castingTestDocument, /\bShouldBeInvalid/i);
 
-            assertDocumentValidFieldAnalysis(castingTestDocument, castingTestDocument.class!.getSymbol(toName('defaultproperties')));
+            assertDocumentValidSymbolAnalysis(castingTestDocument, castingTestDocument.class!.getSymbol(toName('defaultproperties')));
         });
     });
 });
