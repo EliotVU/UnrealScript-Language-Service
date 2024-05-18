@@ -70,6 +70,8 @@ import {
     tryFindClassSymbol,
     IntrinsicVectorHash,
     IntrinsicRotatorHash,
+    StaticDelegateType,
+    UCDelegateSymbol,
 } from './Symbols';
 import { UCDocument } from './document';
 import { intersectsWith } from './helpers';
@@ -239,7 +241,17 @@ export class UCCallExpression extends UCExpression {
 
     override getType() {
         const type = this.expression.getType();
-        const symbol = type?.getRef();
+        if (!type) {
+            return undefined;
+        }
+
+        let symbol = type.getRef();
+        // HACK: Resolve to baseType's reference for delegate property calls
+        // Not sure why this was designed in such a way, let's deal with that later.
+        if (symbol === StaticDelegateType && hasDefinedBaseType(type)) {
+            symbol = type.baseType.getRef<UCDelegateSymbol>();
+        }
+
         if (symbol && isFunction(symbol)) {
             const returnValue = symbol.returnValue;
             if (returnValue) {

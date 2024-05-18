@@ -1,13 +1,18 @@
 class DelegateTest;
 
-delegate bool DelegateFunction();
+delegate bool Delegate();
 
 function ShouldBeValidDelegateTest()
 {
-    local delegate<DelegateFunction> delegateFunction;
+    local delegate<Delegate> delegateFunction;
 
-    // Validate whether a delegate call resolves to the delegate's return type, in this case 'Bool'
+    // Validate whether a delegate property call resolves to the delegate's return type, in this case 'Bool'
     if (delegateFunction()) {
+
+    }
+
+    // Validate whether a delegate function call resolves to the delegate's return type, in this case 'Bool'
+    if (Delegate()) {
 
     }
 }
