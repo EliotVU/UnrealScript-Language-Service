@@ -153,11 +153,19 @@ function ShouldBeValidAssignmentTest()
 {
     local CastingTest c;
     local Object obj;
+    local CastingTest cc[2];
+    local array<CastingTest> ca;
 
     c = new (none) Class'CastingTest';
     c = new (self) Class'CastingTest';
     c = new (none) Class'CastingDerivative';
     obj = Class'Object';
+
+    cc[0] = c;
+    cc[0] = new (none) Class'CastingDerivative';
+
+    ca[0] = c;
+    ca[0] = new (none) Class'CastingDerivative';
 }
 
 function ShouldBeInvalidAssignmentTest()
