@@ -96,24 +96,27 @@ const RotatorRollProperty = new UCPropertySymbol(
     DEFAULT_RANGE, StaticIntType);
 IntrinsicRotator.addSymbol(RotatorRollProperty);
 
+export const Object_OuterPropertyHash = getSymbolOuterHash(NAME_OUTER.hash, getSymbolOuterHash(NAME_OBJECT.hash, NAME_CORE.hash));
 export const Object_OuterProperty = new UCPropertySymbol(
     { name: NAME_OUTER, range: DEFAULT_RANGE },
     DEFAULT_RANGE, StaticObjectType);
-Object_OuterProperty.modifiers |= ModifierFlags.Native;
+Object_OuterProperty.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Native;
 Object_OuterProperty.outer = IntrinsicObject;
 IntrinsicObject.addSymbol(Object_OuterProperty);
 
+export const Object_NamePropertyHash = getSymbolOuterHash(NAME_NAME.hash, getSymbolOuterHash(NAME_OBJECT.hash, NAME_CORE.hash));
 export const Object_NameProperty = new UCPropertySymbol(
     { name: NAME_NAME, range: DEFAULT_RANGE },
     DEFAULT_RANGE, StaticNameType);
-Object_NameProperty.modifiers |= ModifierFlags.Native;
+Object_NameProperty.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Native;
 Object_NameProperty.outer = IntrinsicObject;
 IntrinsicObject.addSymbol(Object_NameProperty);
 
+export const Object_ClassPropertyHash = getSymbolOuterHash(NAME_CLASS.hash, getSymbolOuterHash(NAME_OBJECT.hash, NAME_CORE.hash));
 export const Object_ClassProperty = new UCPropertySymbol(
     { name: NAME_CLASS, range: DEFAULT_RANGE },
     DEFAULT_RANGE, StaticObjectType);
-Object_ClassProperty.modifiers |= ModifierFlags.Native;
+Object_ClassProperty.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Native;
 Object_ClassProperty.outer = IntrinsicObject;
 IntrinsicObject.addSymbol(Object_ClassProperty);
 

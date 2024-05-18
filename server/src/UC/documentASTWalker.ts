@@ -32,6 +32,7 @@ import {
     UCNameOfExpression,
     UCNewExpression,
     UCNoneLiteral,
+    UCObjectAttributeExpression,
     UCObjectLiteral,
     UCParenthesizedExpression,
     UCPostOperatorExpression,
@@ -87,15 +88,25 @@ import {
 } from './statements';
 import {
     addHashedSymbol,
+    DEFAULT_RANGE,
     hasNoKind,
     Identifier,
+    IntrinsicObject,
     isStatement,
     ISymbol,
     ISymbolContainer,
     ITypeSymbol,
     MethodFlags,
     ModifierFlags,
+    Object_ClassProperty,
+    Object_ClassPropertyHash,
+    Object_NameProperty,
+    Object_NamePropertyHash,
+    ObjectsTable,
+    OuterObjectsTable,
     StaticErrorType,
+    StaticNameType,
+    StaticObjectType,
     UCArchetypeSymbol,
     UCArrayTypeSymbol,
     UCBinaryOperatorSymbol,
@@ -179,6 +190,20 @@ function createBlock(
     return block;
 }
 
+export function createTypeFromQualifiedIdentifier(qualifiedIdentifier: string): UCQualifiedTypeSymbol | UCObjectTypeSymbol {
+    const identifiers = qualifiedIdentifier
+        .split('.')
+        .map(id => {
+            return {
+                name: toName(id),
+                range: DEFAULT_RANGE,
+            } as Identifier;
+        });
+
+    // We never expect to return 'undefined'.
+    return createTypeFromIdentifiers(identifiers)!;
+}
+
 function createTypeFromIdentifiers(identifiers: Identifier[]): UCQualifiedTypeSymbol | UCObjectTypeSymbol | undefined {
     if (identifiers.length === 1) {
         return new UCObjectTypeSymbol(identifiers[0]);
@@ -213,7 +238,7 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, kind?: U
                 leftType.setExpectedKind(UCSymbolKind.Class);
                 rightType.setExpectedKind(UCSymbolKind.Field);
                 break;
-                
+
             case UCSymbolKind.ScriptStruct:
                 leftType.setExpectedKind(UCSymbolKind.Class);
                 break;
@@ -317,7 +342,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         // TODO: custom class
         const symbol = new UCMacroSymbol(identifier);
         this.document.addSymbol(symbol);
-        
+
         return symbol;
     }
 
@@ -913,7 +938,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             symbol.type = typeSymbol;
             this.declare(symbol, ctx);
         }
-        
+
         return undefined;
     }
 
@@ -968,7 +993,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             symbol.modifiers |= modifiers;
             this.declare(symbol, ctx);
         }
-        
+
         return undefined;
     }
 
@@ -1027,7 +1052,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             }
             scope.ignoreRefs = scope.ignoreRefs.concat(ignoreRefs);
         }
-        
+
         return undefined;
     }
 
@@ -1090,11 +1115,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const range = rangeFromBounds(ctx.start, ctx.stop);
         const block = new UCArchetypeBlockStatement(range);
 
-        let nameExpr: UCDefaultAssignmentExpression | undefined;
         let nameId: Identifier | undefined;
-        let nameType: UCTypeSymbol | undefined;
-        let classExpr: UCDefaultAssignmentExpression | undefined;
-        let classId: Identifier | undefined;
         let classType: UCObjectTypeSymbol | undefined;
 
         const hardcodedStatements: IExpression[] = [];
@@ -1102,26 +1123,50 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         if (attrs) for (const objAttr of attrs) {
             switch (objAttr._id.type) {
                 case UCLexer.KW_NAME: {
-                    nameExpr = new UCDefaultAssignmentExpression(rangeFromBounds(ctx.start, ctx.stop));
-                    nameExpr.left = new UCMemberExpression(createIdentifierFromToken(objAttr._id));
-                    nameId = createIdentifier(objAttr._value);
-                    const idExpr = new UCIdentifierLiteralExpression(nameId);
-                    nameType = new UCTypeSymbol(UCTypeKind.Name);
-                    idExpr.type = nameType;
-                    nameExpr.right = idExpr;
-                    hardcodedStatements.push(nameExpr);
+                    const valueId = createIdentifier(objAttr._value);
+                    nameId = valueId;
+
+                    const valueExpr = new UCIdentifierLiteralExpression(valueId);
+                    valueExpr.type = StaticNameType;
+                    
+                    const propertyId = createIdentifierFromToken(objAttr._id);
+                    const letType = new UCObjectTypeSymbol(propertyId);
+                    
+                    const propertySymbol = OuterObjectsTable.getSymbol(Object_NamePropertyHash) ?? Object_NameProperty;
+                    letType.setRef(propertySymbol, this.document);
+
+                    const letExpr = new UCMemberExpression(propertyId);
+                    letExpr.type = letType;
+                    
+                    const expression = new UCObjectAttributeExpression(rangeFromBounds(ctx.start, ctx.stop));
+                    expression.left = letExpr;
+                    expression.right = valueExpr;
+
+                    hardcodedStatements.push(expression);
                     break;
                 }
 
                 case UCLexer.KW_CLASS: {
-                    classExpr = new UCDefaultAssignmentExpression(rangeFromBounds(ctx.start, ctx.stop));
-                    classExpr.left = new UCMemberExpression(createIdentifierFromToken(objAttr._id));
-                    classId = createIdentifier(objAttr._value);
-                    const idExpr = new UCIdentifierLiteralExpression(classId);
-                    classType = new UCObjectTypeSymbol(classId, undefined, UCSymbolKind.Class);
-                    idExpr.type = classType;
-                    classExpr.right = idExpr;
-                    hardcodedStatements.push(classExpr);
+                    const valueId = createIdentifier(objAttr._value);
+                    classType = new UCObjectTypeSymbol(valueId, undefined, UCSymbolKind.Class);
+
+                    const valueExpr = new UCIdentifierLiteralExpression(valueId);
+                    valueExpr.type = classType;
+                    
+                    const propertyId = createIdentifierFromToken(objAttr._id);
+                    const letType = new UCObjectTypeSymbol(propertyId);
+
+                    const propertySymbol = OuterObjectsTable.getSymbol(Object_ClassPropertyHash) ?? Object_ClassProperty;
+                    letType.setRef(propertySymbol, this.document);
+
+                    const letExpr = new UCMemberExpression(propertyId);
+                    letExpr.type = letType;
+
+                    const expression = new UCObjectAttributeExpression(rangeFromBounds(ctx.start, ctx.stop));
+                    expression.left = letExpr;
+                    expression.right = valueExpr;
+
+                    hardcodedStatements.push(expression);
                     break;
                 }
 
@@ -1683,7 +1728,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         return expression;
     }
 
-    // new ( arguments ) classArgument=primaryExpression
+    // new ( arguments ) expression=primaryExpression
     visitNewExpression(ctx: UCGrammar.NewExpressionContext) {
         const expression = new UCNewExpression(rangeFromBounds(ctx.start, ctx.stop));
 

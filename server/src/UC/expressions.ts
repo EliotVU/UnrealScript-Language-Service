@@ -745,6 +745,10 @@ export class UCDefaultAssignmentExpression extends UCAssignmentOperatorExpressio
     }
 }
 
+export class UCObjectAttributeExpression extends UCDefaultAssignmentExpression {
+
+}
+
 /**
  * Resembles "propertyMember.operationMember(arguments)"".
  *

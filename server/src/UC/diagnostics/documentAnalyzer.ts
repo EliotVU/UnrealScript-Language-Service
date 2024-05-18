@@ -74,6 +74,7 @@ import {
     UCMemberExpression,
     UCMetaClassExpression,
     UCNameOfExpression,
+    UCObjectAttributeExpression,
     UCObjectLiteral,
     UCParenthesizedExpression,
     UCPropertyAccessExpression,
@@ -1235,11 +1236,21 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
 
             const valueTypeKind = valueType.getTypeKind();
             const letSymbol = expr.left.getMemberSymbol();
-            if (!(letSymbol && isField(letSymbol))) {
+            if (!letSymbol) {
+                this.pushError(
+                    expr.left.getRange(),
+                    `Couldn't find variable '${letType.getName().text}'`
+                );
+
+                return;
+            }
+
+            if (!isField(letSymbol)) {
                 this.pushError(
                     expr.left.getRange(),
                     `The left-hand side of an assignment expression must be a variable.`
                 );
+
                 return;
             }
 
@@ -1284,6 +1295,8 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     || ((letSymbol.modifiers & ModifierFlags.Transient) !== 0
                         && config.generation !== UCGeneration.UC3)
                 ) && (matchFlags & UCMatchFlags.T3D)
+                // Ignore same-line assignments like Name= and Class=
+                && !(expr instanceof UCObjectAttributeExpression)
             ) {
                 const modifiers = letSymbol
                     .buildModifiers(letSymbol.modifiers & (ModifierFlags.Native | ModifierFlags.Transient))
