@@ -10,6 +10,8 @@ import {
     DefaultArray,
     ISymbol,
     Identifier,
+    IntrinsicArray,
+    IntrinsicClass,
     MethodFlags,
     ModifierFlags,
     ObjectsTable,
@@ -605,10 +607,39 @@ async function buildCompletionItems(
                 switch (rule) {
                     case UCParser.RULE_identifier: {
                         if (carretContextToken) {
+                            candidates.tokens.delete(UCParser.KW_SELF);
+                            candidates.tokens.delete(UCParser.KW_ROT);
+                            candidates.tokens.delete(UCParser.KW_RNG);
+                            candidates.tokens.delete(UCParser.KW_VECT);
+
                             // Only object types are allowed
                             if (carretContextSymbol instanceof UCObjectTypeSymbol) {
                                 const resolvedReference = carretContextSymbol.getRef();
                                 if (isField(resolvedReference)) {
+                                    const fieldType = resolvedReference.getType();
+                                    // static class access? Either a property resolving to Class'Class'.Identifier or Class<MetaClass>.Identifier   
+                                    if (resolvedReference === IntrinsicClass
+                                        && carretContextSymbol.baseType instanceof UCObjectTypeSymbol
+                                        && isClass(carretContextSymbol.baseType.getRef())) {
+                                        candidates.tokens.clear();
+                                        candidates.tokens.set(UCParser.KW_STATIC, [UCParser.KW_STATIC]);
+                                        candidates.tokens.set(UCParser.KW_DEFAULT, [UCParser.KW_DEFAULT]);
+                                        if (config.generation === UCGeneration.UC3) {
+                                            candidates.tokens.set(UCParser.KW_CONST, [UCParser.KW_CONST]);
+                                        }
+                                        
+                                        break;
+                                    } else {
+                                        //  FieldExpr.default.Identifier
+                                        // candidates.tokens.delete(UCParser.KW_DEFAULT);
+                                        // candidates.tokens.delete(UCParser.KW_STATIC);
+                                        candidates.tokens.delete(UCParser.KW_CONST);
+                                    }
+
+                                    if (fieldType?.getRef() === IntrinsicArray) {
+                                        candidates.tokens.clear();
+                                    }
+
                                     const symbolItems = getContextSymbols(
                                         resolvedReference,
                                         1 << UCSymbolKind.Property
@@ -626,19 +657,15 @@ async function buildCompletionItems(
                                         });
 
                                     symbols.push(...symbolItems);
-
-                                    // A little hack to remove false positive keywords when possible
-                                    if (!(isClass(resolvedReference))) {
-                                        candidates.tokens.delete(UCParser.KW_DEFAULT);
-                                        candidates.tokens.delete(UCParser.KW_STATIC);
-                                        candidates.tokens.delete(UCParser.KW_CONST);
-                                    } else if (config.generation != UCGeneration.UC3) {
-                                        candidates.tokens.delete(UCParser.KW_CONST);
-                                    }
                                 }
                                 break;
                             }
                         }
+
+                        // No context, include all scope symbols of all kinds.
+
+                        // Remove the "Class<id>(expr)" keyword here, because we are already including the intrinsic class symbol.
+                        candidates.tokens.delete(UCParser.KW_CLASS);
 
                         const symbolItems = scopeSymbol
                             .getCompletionSymbols(
