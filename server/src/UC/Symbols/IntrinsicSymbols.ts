@@ -79,12 +79,19 @@ IntrinsicArray.addSymbol(Array_RemoveItemFunction);
 
 const Array_FindFunction = new UCMethodSymbol({ name: toName('Find'), range: DEFAULT_RANGE });
 Array_FindFunction.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.ReadOnly;
-const ItemParam4 = new UCParamSymbol({ name: toName('Value|PropertyName'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticMetaType);
+const ItemParam4 = new UCParamSymbol({ name: toName('Value'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticMetaType);
 Array_FindFunction.addSymbol(ItemParam4);
-const ItemParam5 = new UCParamSymbol({ name: toName('Value'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticNameType);
-Array_FindFunction.addSymbol(ItemParam5);
-Array_FindFunction.params = [ItemParam4, ItemParam5];
+Array_FindFunction.params = [ItemParam4];
 IntrinsicArray.addSymbol(Array_FindFunction);
+
+const Array_FindMemberFunction = new UCMethodSymbol({ name: toName('Find'), range: DEFAULT_RANGE });
+Array_FindMemberFunction.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.ReadOnly;
+const ItemParam6 = new UCParamSymbol({ name: toName('PropertyName'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticNameType);
+Array_FindMemberFunction.addSymbol(ItemParam6);
+const ItemParam7 = new UCParamSymbol({ name: toName('Value'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticNameType);
+Array_FindMemberFunction.addSymbol(ItemParam7);
+Array_FindMemberFunction.params = [ItemParam6, ItemParam7];
+IntrinsicArray.addSymbol(Array_FindMemberFunction);
 
 const Array_SortFunction = new UCMethodSymbol({ name: toName('Sort'), range: DEFAULT_RANGE });
 Array_SortFunction.modifiers |= ModifierFlags.Intrinsic;
