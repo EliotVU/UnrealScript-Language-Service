@@ -1,3 +1,4 @@
+import { createToken } from '../Parser/TokenFactory';
 import { toName } from '../name';
 import { NAME_ARRAY } from '../names';
 import {
@@ -9,7 +10,6 @@ import {
     UCParamSymbol,
     UCStructSymbol,
 } from './';
-import { createToken } from 'UC/Parser/TokenFactory';
 
 /** (defaultproperties) Acts as a template for array operations such as MyArray.Replace(item1, item2) etc.  */
 export const DefaultArray = new UCStructSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });

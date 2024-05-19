@@ -157,7 +157,6 @@ function ShouldBeValidAssignmentTest()
     local array<CastingTest> ca;
 
     c = new (none) Class'CastingTest';
-    c = new (self) Class'CastingTest';
     c = new (none) Class'CastingDerivative';
     obj = Class'Object';
 
@@ -177,6 +176,7 @@ function ShouldBeInvalidAssignmentTest()
 
     // Test assignment of a class to an object reference (that is a class)
     c = Class'CastingTest';
+    c = Class'CastingDerivative';
 }
 
 function ShouldBeInvalidDynamicCastingInSwitchStatementTest()

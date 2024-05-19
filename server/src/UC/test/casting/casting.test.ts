@@ -1,7 +1,7 @@
 import { queueIndexDocument } from '../../indexer';
-import { usingDocuments } from '../utils/utils';
-import { assertDocumentValidFieldsAnalysis, assertDocumentInvalidFieldsAnalysis, assertDocumentValidSymbolAnalysis } from '../utils/diagnosticUtils';
 import { toName } from '../../name';
+import { assertDocumentInvalidFieldsAnalysis, assertDocumentValidFieldsAnalysis, assertDocumentValidSymbolAnalysis } from '../utils/diagnosticUtils';
+import { usingDocuments } from '../utils/utils';
 
 describe('Casting', () => {
     it('should have no problems', () => {

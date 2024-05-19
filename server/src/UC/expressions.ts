@@ -1016,14 +1016,17 @@ export class UCSuperExpression extends UCExpression {
 export class UCNewExpression extends UCCallExpression {
     // TODO: Implement pseudo new operator for hover info?
 
+    /**
+     * Gets the type of the class expression
+     * 
+     * @returns The resolved type of the class expression
+     */
     override getType() {
         const type = this.expression.getType();
-        if (type && hasDefinedBaseType(type)) {
-            // Redirect to the object reference (possibly a qualifed type) instead of the class.
-            return type.baseType;
-        }
-
-        return type;
+        // We need to resolve the type to its `baseType`, because we expect expressions to work with the object reference instead.
+        // e.g. assigning a new object of class type to Foo: `Foo = new (None) Class'MyClass'` 
+        // in this example Foo needs to be an object reference with the class type `MyClass`
+        return type && resolveType(type);
     }
 }
 
