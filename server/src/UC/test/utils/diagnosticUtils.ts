@@ -1,9 +1,10 @@
-import { assert, expect } from 'chai';
+import { expect } from 'chai';
+import { Range, TextDocument } from 'vscode-languageserver-textdocument';
+import { readTextByURI } from '../../../workspace';
+import { ISymbol, isFunction } from '../../Symbols';
 import { rangeToString } from '../../diagnostics/diagnostic';
 import { DocumentAnalyzer } from '../../diagnostics/documentAnalyzer';
 import { UCDocument } from '../../document';
-import { ISymbol, UCFieldSymbol, isFunction } from '../../Symbols';
-import { Range, TextDocument } from 'vscode-languageserver-textdocument';
 
 /** Runs the document's declared fields through the DocumentAnalyzer, and asserts the count of diagnostic problems that have been produced. */
 export function assertDocumentValidFieldsAnalysis(document: UCDocument, pattern?: string | RegExp) {
@@ -13,7 +14,7 @@ export function assertDocumentValidFieldsAnalysis(document: UCDocument, pattern?
     const diagnoser = new DocumentAnalyzer(document);
     const diagnostics = diagnoser.getDiagnostics();
 
-    const textDocument = TextDocument.create(document.uri, 'unrealscript', 0, document.readText());
+    const textDocument = TextDocument.create(document.uri, 'unrealscript', 0, readTextByURI(document.uri));
 
     if (typeof pattern === 'undefined') {
         document.accept(diagnoser);
@@ -26,7 +27,7 @@ export function assertDocumentValidFieldsAnalysis(document: UCDocument, pattern?
                     stm.accept(diagnoser);
                     if (diagnostics.count() > 0) {
                         const problems = diagnostics.toDiagnostic();
-                        expect.fail(`Reported problem(s) "${problems.map(p => p.message).join(',')}" in statement "${textDocument.getText(stm.getRange())}" of '${field.getPath()}' at ${rangeToString(stm.getRange())}`);
+                        expect.fail(`Reported problem(s) "${problems.map(p => p.message).join(',')}" in statement "${textDocument.getText(stm.range)}" of '${field.getPath()}' at ${rangeToString(stm.range)}`);
                     }
                 }
             }
@@ -53,7 +54,7 @@ export function assertDocumentInvalidFieldsAnalysis(document: UCDocument, patter
     const diagnoser = new DocumentAnalyzer(document);
     const diagnostics = diagnoser.getDiagnostics();
 
-    const textDocument = TextDocument.create(document.uri, 'unrealscript', 0, document.readText());
+    const textDocument = TextDocument.create(document.uri, 'unrealscript', 0, readTextByURI(document.uri));
 
     for (let field = document.class.children; field; field = field.next) {
         if (isFunction(field) && field.id.name.text.match(pattern)) {
@@ -61,9 +62,9 @@ export function assertDocumentInvalidFieldsAnalysis(document: UCDocument, patter
                 diagnostics.clear();
                 stm.accept(diagnoser);
                 if (diagnostics.count() === 0) {
-                    expect.fail(`Missing problem in statement "${textDocument.getText(stm.getRange())}" of '${field.getPath()}' at ${rangeToString(stm.getRange())}`);
+                    expect.fail(`Missing problem in statement "${textDocument.getText(stm.range)}" of '${field.getPath()}' at ${rangeToString(stm.range)}`);
                 } else {
-                    console.debug(`Validated problem in statement "${textDocument.getText(stm.getRange())}" of '${field.getPath()}' at ${rangeToString(stm.getRange())}`);
+                    console.debug(`Validated problem in statement "${textDocument.getText(stm.range)}" of '${field.getPath()}' at ${rangeToString(stm.range)}`);
                 }
             }
         }
@@ -81,6 +82,6 @@ export function assertDocumentDiagnoser(diagnoser: DocumentAnalyzer) {
 
 /** Returns the text at the range, this is slow because it will load the entire document's content. */
 function getTextAtRange(document: UCDocument, range: Range): string {
-    const doc = TextDocument.create(document.uri, 'unrealscript', 0, document.readText());
+    const doc = TextDocument.create(document.uri, 'unrealscript', 0, readTextByURI(document.uri));
     return doc.getText(range);
 }

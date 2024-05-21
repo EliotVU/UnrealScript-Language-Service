@@ -10,8 +10,8 @@ import {
     UCObjectSymbol,
     UCSymbolKind,
     getContext,
-    getOuter,
     hasModifiers,
+    isClass,
     isField,
     supportsRef,
 } from './Symbols';
@@ -140,8 +140,12 @@ export function intersectsWithRange(position: Position, range: Range): boolean {
 export function getDocumentSymbol(document: UCDocument, position: Position): ISymbol | undefined {
     const symbols = document.enumerateSymbols();
     for (const symbol of symbols) {
-        const child = symbol.getSymbolAtPos(position);
+        let child = UCObjectSymbol.getSymbolAtPos(symbol, position);
         if (child) {
+            return child;
+        }
+
+        if (isClass(symbol) && (child = symbol.getChildSymbolAtPos(position))) {
             return child;
         }
     }

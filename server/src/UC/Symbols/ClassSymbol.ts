@@ -90,17 +90,6 @@ export class UCClassSymbol extends UCStructSymbol {
         return text;
     }
 
-    override getSymbolAtPos(position: Position): ISymbol | undefined {
-        if (intersectsWith(this.getRange(), position)) {
-            if (intersectsWithRange(position, this.id.range)) {
-                return this;
-            }
-            return this.getContainedSymbolAtPos(position);
-        }
-        // HACK: due the fact that a class doesn't enclose its symbols we'll have to check for child symbols regardless if the given position is within the declaration span.
-        return this.getChildSymbolAtPos(position);
-    }
-
     override getContainedSymbolAtPos(position: Position) {
         let symbol: ISymbol | undefined = undefined;
         if (this.extendsType && (symbol = this.extendsType.getSymbolAtPos(position))) {

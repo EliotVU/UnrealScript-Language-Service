@@ -1,20 +1,28 @@
 import { Location, Position, Range } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
-import { ITypeSymbol, UCNodeKind, UCStructSymbol, UCSymbolKind, UCTypeKind, typeKindToDisplayString } from './';
+import { ITypeSymbol, UCNodeKind, UCSymbolKind, UCTypeKind, typeKindToDisplayString } from './';
 
 export type Identifier = Readonly<{
     readonly name: Name;
     readonly range: Range;
 }>;
 
-export interface INode {
+export interface IRange {
+    /** 
+     * Encompassing range of the node in a document.
+     * 
+     * TODO: Flatten and simplify boundaries.
+     **/
+    readonly range: Range;
+}
+
+export interface INode extends IRange {
     readonly kind: UCNodeKind;
 }
 
-export interface ISymbol {
+export interface ISymbol extends IRange {
     readonly kind: UCSymbolKind;
     readonly id: Identifier;
 
@@ -31,7 +39,6 @@ export interface ISymbol {
     getName(): Name;
     getHash(): number;
 
-    getRange(): Range;
     /**
      * Returns a path presented in a qualified identifier format.
      * e.g. "Core.Object.Outer".
@@ -81,10 +88,6 @@ export function supportsRef<T>(obj: T & any): obj is T & IWithReference {
 
 export interface IWithInnerSymbols {
     getSymbolAtPos(position: Position): ISymbol | undefined;
-}
-
-export interface IWithIndex {
-    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo): void;
 }
 
 /** 
@@ -144,7 +147,7 @@ export function getSymbolDebugInfo(symbol?: ISymbol): string {
         return 'null';
     }
 
-    const range = symbol.getRange();
+    const range = symbol.range;
     const path = symbol.getName().text;
     return `(${range.start.line + 1}:${range.start.character} - ${range.end.line + 1}:${range.end.character}) [${path}]: ${typeKindToDisplayString(symbol.getTypeKind())}`;
 }

@@ -1,9 +1,7 @@
 import { CommonTokenStream } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
-import * as fs from 'fs';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
-import * as url from 'url';
 import { DocumentUri } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
@@ -91,6 +89,10 @@ export class UCDocument {
         return this.scope.count() > 0;
     }
 
+    public getSymbol<T extends UCObjectSymbol>(name: Name): T {
+        return this.scope.getSymbol(name.hash) as T;
+    }
+
     public parse(text: string): DocumentParseData {
         console.log(`parsing document "${this.fileName}"`);
 
@@ -145,9 +147,10 @@ export class UCDocument {
         return { context, parser };
     }
 
-    public build(text: string = this.readText()): DocumentParseData {
+    public build(text: string): DocumentParseData {
+        console.assert(typeof text !== 'undefined', `text cannot be undefined`);
+        
         console.log(`building document "${this.fileName}"`);
-
         const inputStream = UCInputStream.fromString(text);
         const lexer = new UCLexer(inputStream);
         const errorListener = new UCErrorListener();
@@ -215,12 +218,6 @@ export class UCDocument {
         tokenStream.release(tokenStream.mark());
         this.nodes = this.nodes.concat(errorListener.nodes);
         return { context, parser };
-    }
-
-    public readText(): string {
-        const filePath = url.fileURLToPath(this.uri);
-        const text = fs.readFileSync(filePath).toString();
-        return text;
     }
 
     public invalidate(cleanup = true) {

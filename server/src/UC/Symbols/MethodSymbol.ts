@@ -37,7 +37,7 @@ export enum MethodFlags {
     OperatorKind = Operator | PreOperator | PostOperator,
     HasKind = Function | OperatorKind | Event | Delegate,
 
-    NonOverridable = Final || PreOperator,
+    NonOverridable = Final | PreOperator,
 }
 
 export class UCMethodSymbol extends UCStructSymbol {
@@ -253,7 +253,7 @@ export class UCMethodLikeSymbol extends UCMethodSymbol {
     override specifiers = MethodFlags.Static | MethodFlags.Final;
 
     constructor(name: Name) {
-        super({ name, range: DEFAULT_RANGE });
+        super({ name, range: DEFAULT_RANGE }, DEFAULT_RANGE);
     }
 
     override getTypeKind() {
@@ -284,11 +284,6 @@ export class UCDelegateSymbol extends UCMethodSymbol {
 
 export abstract class UCBaseOperatorSymbol extends UCMethodSymbol {
     override kind = UCSymbolKind.Operator;
-
-    override acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
-        // TODO: Perhaps only list operators with a custom Identifier? i.e. "Dot" and "Cross".
-        return false;
-    }
 }
 
 export class UCBinaryOperatorSymbol extends UCBaseOperatorSymbol {

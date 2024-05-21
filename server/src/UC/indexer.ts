@@ -6,11 +6,9 @@ import { Location } from 'vscode-languageserver';
 import { DocumentUri } from 'vscode-languageserver-textdocument';
 import { UCGeneration, UELicensee } from "./settings";
 
+import { ActiveTextDocuments } from '../activeTextDocuments';
 import { EAnalyzeOption, UCLanguageServerSettings } from '../configuration';
-import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
-import { UCDocument } from './document';
-import { DocumentCodeIndexer } from './documentCodeIndexer';
-import { Name, NameHash, toName } from './name';
+import { readTextByURI } from '../workspace';
 import {
     addHashedSymbol,
     ISymbol,
@@ -67,12 +65,19 @@ export const documentBuilt$ = new Subject<UCDocument>();
 /** Emits a document that has been indexed. */
 export const documentIndexed$ = new Subject<UCDocument>();
 
-/** Emits an array of documents have been post-indexed (code indexing). */
+/** Emits an array of documents that have been post-indexed (code indexing). */
 export const documentsCodeIndexed$ = new Subject<UCDocument[]>();
 
 export function indexDocument(document: UCDocument, text?: string): void {
     const buildStart = performance.now();
     let buildTime: number;
+
+    if (typeof text === 'undefined') {
+        // Let's fetch the text from the file system, but first see if we have an active text document (this ensures we retrieve the latest revision)
+        const textDocument = ActiveTextDocuments.get(document.uri);
+        text = textDocument?.getText() ?? readTextByURI(document.uri);
+    }
+
     try {
         document.build(text);
         document.hasBeenBuilt = true;
@@ -155,7 +160,7 @@ const sepRegex = RegExp(`\\${path.sep}`);
 export function parsePackageNameInDir(dir: string): string | undefined {
     const directories = dir.split(sepRegex);
     for (let i = directories.length - 1; i >= 0; --i) {
-        if (i > 0 && directories[i].toLowerCase() === 'classes') {
+        if (i > 0 && directories[i].match(/classes/i)) {
             return directories[i - 1];
         }
     }

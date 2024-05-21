@@ -55,7 +55,6 @@ import {
     DEFAULT_RANGE,
     INode,
     ISymbol,
-    IWithIndex,
     IWithInnerSymbols,
     IWithReference,
     Identifier,
@@ -200,16 +199,21 @@ export function typeKindToDisplayString(kind: UCTypeKind): string {
     return TypeKindToName.get(kind)!.text;
 }
 
-export interface ITypeSymbol extends ISymbol, IWithReference, IWithInnerSymbols, IWithIndex {
+export interface ITypeSymbol extends ISymbol, IWithReference, IWithInnerSymbols {
     getTypeText(): string;
     getTypeKind(): UCTypeKind;
     getSymbolAtPos(position: Position): ISymbol | undefined;
+
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo): void;
 }
 
 export function isTypeSymbol(symbol: ISymbol): symbol is ITypeSymbol {
     return symbol.kind === UCSymbolKind.Type;
 }
 
+/**
+ * A type to represent non user-defined types.
+ */
 export class UCTypeSymbol implements ITypeSymbol {
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
     readonly id = DEFAULT_IDENTIFIER;
@@ -218,6 +222,7 @@ export class UCTypeSymbol implements ITypeSymbol {
     declare nextInHash: undefined;
 
     constructor(
+        /** The UnrealScript type to represent. */
         readonly type: UCTypeKind,
         readonly range: Range = DEFAULT_RANGE
     ) { }
@@ -228,10 +233,6 @@ export class UCTypeSymbol implements ITypeSymbol {
 
     getHash(): number {
         throw new Error('Method not implemented.');
-    }
-
-    getRange(): Range {
-        return this.range;
     }
 
     getPath(): string {
@@ -251,7 +252,7 @@ export class UCTypeSymbol implements ITypeSymbol {
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
-        if (intersectsWithRange(position, this.getRange())) {
+        if (intersectsWithRange(position, this.range)) {
             return this;
         }
 
@@ -275,15 +276,44 @@ export class UCTypeSymbol implements ITypeSymbol {
     }
 }
 
+/**
+ * A type used to represent object references such as:
+ * 
+ * 1. An object that could either be a `UCClassSymbol` or a `UCScriptStructSymbol` or any other descendant of `UCObjectSymbol`
+ * usually represented by an identifier `Vector` or a qualified identifier `Object.Vector`
+ * <br/>
+ * 2. A class limitor such as `Class<MetaClass>`
+ * reference = Class
+ * baseType.reference = MetaClass
+ * <br/>
+ * 3. A delegate such as `Delegate<QualifiedIdentifier>`, see the more specific `UCDelegateTypeSymbol`
+ * <br/>
+ * 4. A symbol reference in any expression, such as `self.Name` where `Name` is wrapped with a `UCObjectTypeSymbol` and the reference is a `UCFieldSymbol`
+ * <br/>
+ * 5. An object literal such as `Class'Core.Object'`, the reference is the type of `Class` i.e. `UCClassSymbol` and the baseType is a `UCQualifiedTypeSymbol`, with the reference set to the symbol of `Core.Object`
+ * 
+ * @property baseType - The base type such as a `UCQualifiedTypeSymbol` when representing a qualified identifier type, or the inner type of an array etc.
+ * @property reference - A reference to the indexed symbol.
+ */
 export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> implements ITypeSymbol {
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
+
+    /**
+     * The resolved reference of this type.
+     */
     protected reference?: ISymbol = undefined;
 
+    /** 
+     * Any type that can be considered the base type, 
+     * or inner type such as an array's element type, 
+     * a class's meta class, 
+     * or the qualified type. 
+     **/
     public baseType?: TBaseType | undefined = undefined;
 
     constructor(
         readonly id: Identifier,
-        private readonly range: Range = id.range,
+        readonly range: Range = id.range,
         private expectedKind?: UCSymbolKind
     ) { }
 
@@ -299,12 +329,8 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
         throw new Error('Method not implemented.');
     }
 
-    getRange(): Range {
-        return this.range;
-    }
-
     getSymbolAtPos(position: Position): ISymbol | undefined {
-        if (!intersectsWith(this.getRange(), position)) {
+        if (!intersectsWith(this.range, position)) {
             return undefined;
         }
 
@@ -514,20 +540,26 @@ export class UCMapTypeSymbol extends UCObjectTypeSymbol {
 }
 
 /**
- * Represents a qualified identifier type reference such as "extends Core.Object",
- * -- where "Core" is assigned to @left and "Object" to @type.
+ * A type used to represent an object reference by a qualified identifier e.g. `Core.Object` and `Core.Object.Vector`
  */
 export class UCQualifiedTypeSymbol implements ITypeSymbol {
+    readonly range: Range;
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
     readonly id: Identifier;
 
+    /**
+     * A reference to the indexed symbol.
+     */
     protected reference?: ISymbol = undefined;
 
     constructor(
+        /** The actual type to work with, i.e. a `UCObjectTypeSymbol` with a reference to `Object` if the qualified type was parsed from `Core.Object' */
         public readonly type: UCObjectTypeSymbol,
-        public readonly left?: UCQualifiedTypeSymbol
+        /** the other type representing the left side of a qualified type, like `Core` or even a `UCQualifiedTypeSymbol` to `Core.Object` if the qualified type was parsed from `Core.Object.Vector` */
+        public readonly left?: UCQualifiedTypeSymbol,
     ) {
         this.id = type.id;
+        this.range = type.id.range;
     }
 
     static is(symbol: ISymbol): symbol is UCQualifiedTypeSymbol {
@@ -540,10 +572,6 @@ export class UCQualifiedTypeSymbol implements ITypeSymbol {
 
     getHash(): number {
         throw new Error('Method not implemented.');
-    }
-
-    getRange(): Range {
-        return this.id.range;
     }
 
     getPath(): string {
@@ -855,7 +883,7 @@ export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchF
         return false;
     }
 
-    if ((c & D) != 0 && (matchFlags & UCMatchFlags.T3D) != 0) {
+    if ((c & D) !== 0 && (matchFlags & UCMatchFlags.T3D) !== 0) {
         return true;
     }
 

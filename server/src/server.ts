@@ -735,7 +735,7 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
                     continue;
                 }
 
-                const symbol = new UCClassSymbol({ name: symbolName, range: DEFAULT_RANGE });
+                const symbol = new UCClassSymbol({ name: symbolName, range: DEFAULT_RANGE }, DEFAULT_RANGE);
                 symbol.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Generated;
                 if (value.extends) {
                     symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCSymbolKind.Class);
@@ -770,7 +770,7 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
                     continue;
                 }
 
-                const symbol = new UCMethodSymbol({ name: symbolName, range: DEFAULT_RANGE });
+                const symbol = new UCMethodSymbol({ name: symbolName, range: DEFAULT_RANGE }, DEFAULT_RANGE);
                 symbol.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Generated;
                 superStruct.addSymbol(symbol);
                 break;
@@ -789,7 +789,7 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
             IntrinsicArray.removeSymbol(randomizeOrderSymbol);
         }
     } else if (config.licensee === UELicensee.XCom) {
-        randomizeOrderSymbol = new UCMethodSymbol({ name: randomizeOrderName, range: DEFAULT_RANGE });
+        randomizeOrderSymbol = new UCMethodSymbol({ name: randomizeOrderName, range: DEFAULT_RANGE }, DEFAULT_RANGE);
         randomizeOrderSymbol.modifiers |= ModifierFlags.Intrinsic;
         IntrinsicArray.addSymbol(randomizeOrderSymbol);
     }

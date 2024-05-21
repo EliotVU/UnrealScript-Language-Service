@@ -1,18 +1,18 @@
 {
 	"CLASS_NAME_0_MUST_MATCH_DOCUMENT_NAME_1": {
-		"text": "Class name '{0}' must be equal to its file name '{1}'.",
+		"text": "Class name '{0}' must be equal to its file name '{1}'",
 		"code": "0",
 		"severity": 1
 	},
 
 	"ID_0_DOES_NOT_EXIST_ON_TYPE_1": {
-		"text": "'{0}' does not exist on type '{1}'.",
+		"text": "'{0}' does not exist on type '{1}'",
 		"code": "1",
 		"severity": 1
 	},
 
 	"COULDNT_FIND_0": {
-		"text": "Couldn't find '{0}'.",
+		"text": "Couldn't find '{0}'",
 		"code": "2",
 		"severity": 1
 	},
@@ -24,7 +24,7 @@
 	},
 
 	"TYPE_0_CANNOT_EXTEND_TYPE_OF_1": {
-		"text": "Type '{0}' cannot extend type of '{1}'.",
+		"text": "Type '{0}' cannot extend type of '{1}'",
 		"code": "4",
 		"severity": 1
 	},
@@ -42,19 +42,19 @@
 	},
 
     "IMPLEMENTS_IS_INCOMPATIBLE": {
-        "text": "'Implements' is not compatible with this UnrealScript generation (1, 2).",
+        "text": "'Implements' is not compatible with this UnrealScript generation (1, 2)",
 		"code": "7",
 		"severity": 2
     },
 
     "DELEGATE_IS_INCOMPATIBLE": {
-        "text": "The signature of '{0}' is not compatible with delegate '{1}'.",
+        "text": "The signature of '{0}' is not compatible with delegate '{1}'",
 		"code": "8",
 		"severity": 1
     },
 
     "ARGUMENT_IS_INCOMPATIBLE": {
-        "text": "Argument of type '{0}' is not assignable to parameter of type '{1}'.",
+        "text": "Argument of type '{0}' is not assignable to parameter of type '{1}'",
 		"code": "9",
 		"severity": 1
     },
@@ -72,7 +72,7 @@
 	},
 
     "ARGUMENT_CLASS_IS_INCOMPATIBLE": {
-        "text": "Argument of type Class '{0}' does not derive from the parameter of type Class '{1}'.",
+        "text": "Argument of type Class '{0}' does not derive from the parameter of type Class '{1}'",
 		"code": "12",
 		"severity": 1
     }

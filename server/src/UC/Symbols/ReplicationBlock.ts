@@ -1,6 +1,6 @@
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
-import { isClass, UCObjectSymbol, UCStructSymbol, UCSymbolKind } from './';
+import { UCStructSymbol, UCSymbolKind } from './';
 
 export class UCReplicationBlock extends UCStructSymbol {
     override kind = UCSymbolKind.ReplicationBlock;
@@ -10,8 +10,8 @@ export class UCReplicationBlock extends UCStructSymbol {
 		return this.getName().text;
 	}
 
-	override acceptCompletion(_document: UCDocument, context: UCObjectSymbol): boolean {
-		return isClass(context);
+    override index(_document: UCDocument, _context: UCStructSymbol) {
+        return;
 	}
 
 	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {

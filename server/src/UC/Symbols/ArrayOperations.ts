@@ -12,7 +12,7 @@ import {
 } from './';
 
 /** (defaultproperties) Acts as a template for array operations such as MyArray.Replace(item1, item2) etc.  */
-export const DefaultArray = new UCStructSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });
+export const DefaultArray = new UCStructSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 DefaultArray.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Keyword;
 
 const EmptyOperation = new UCMethodLikeSymbol(toName('Empty'));

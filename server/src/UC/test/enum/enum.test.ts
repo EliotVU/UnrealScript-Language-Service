@@ -16,7 +16,7 @@ import { assertBinaryOperatorExpressionMemberSymbol, assertExpressionStatement }
 import { assertDocumentValidFieldsAnalysis } from '../utils/diagnosticUtils';
 import { usingDocuments } from '../utils/utils';
 
-describe('Enum usage', () => {
+describe('EnumSymbol usage', () => {
     usingDocuments(__dirname, ['EnumTest.uc'], ([testDocument]) => {
         queueIndexDocument(testDocument);
         const documentClass = testDocument.class;

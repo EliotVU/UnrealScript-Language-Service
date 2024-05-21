@@ -1,7 +1,7 @@
 import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
-import { ContextKind, ISymbol, ModifierFlags, UCFieldSymbol, UCObjectSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
+import { ContextKind, ISymbol, ModifierFlags, UCFieldSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
     declare outer: UCStructSymbol;
@@ -76,11 +76,6 @@ export class UCScriptStructSymbol extends UCStructSymbol {
 			}
 		}
 		return symbols as C[];
-	}
-
-	override acceptCompletion(_document: UCDocument, context: UCObjectSymbol): boolean {
-        return true;
-		// return isProperty(context) || isFunction(context);
 	}
 
     override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind) {

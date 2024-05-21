@@ -61,7 +61,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<UC
 
 	override getCompletionContext(position: Position) {
 		for (let symbol = this.children; symbol; symbol = symbol.next) {
-			if (intersectsWith(symbol.getRange(), position)) {
+			if (intersectsWith(symbol.range, position)) {
 				const context = symbol.getCompletionContext(position);
 				if (context) {
 					return context;
@@ -171,7 +171,7 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<UC
 		}
     }
 
-    protected indexChildren(document: UCDocument) {
+    private indexChildren(document: UCDocument) {
         if (this.children) for (let child: undefined | UCFieldSymbol = this.children; child; child = child.next) {
 			try {
 				child.index(document, this);

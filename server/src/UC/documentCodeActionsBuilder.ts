@@ -60,7 +60,7 @@ export class DocumentCodeActionsBuilder extends DefaultSymbolWalker<undefined> {
                         'Inline constant',
                         CommandIdentifier.Inline, {
                             uri: documentUri,
-                            range: symbol.getRange(),
+                            range: symbol.range,
                             newText: evaluatedValue.toString()
                         } as InlineChangeCommand
                     ),

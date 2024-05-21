@@ -1,15 +1,11 @@
 import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver-types';
 
 export interface IDiagnosticNode {
-    getRange(): Range;
+    readonly range: Range;
 }
 
 export class ErrorDiagnostic implements IDiagnosticNode {
-    constructor(private range: Range, private error: string) {
-    }
-
-    getRange(): Range {
-        return this.range;
+    constructor(readonly range: Range, private error: string) {
     }
 
     toString(): string {

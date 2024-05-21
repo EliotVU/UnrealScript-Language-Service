@@ -45,7 +45,7 @@
                 "!${workspaceRoot}/out/vendor.js"
             ],
             "sourceMaps": true,
-            "smartStep": false,
+            "smartStep": true,
             "restart": true,
             "request": "attach",
             "type": "node",

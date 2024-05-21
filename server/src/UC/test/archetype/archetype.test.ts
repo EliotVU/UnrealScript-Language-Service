@@ -2,7 +2,7 @@ import { queueIndexDocument } from "../../indexer";
 import { usingDocuments } from "../utils/utils";
 import { assertDocumentValidSymbolAnalysis } from "../utils/diagnosticUtils";
 
-describe("Archetype", () => {
+describe("ArchetypeSymbol usage", () => {
     it("should have no problems", () => {
         usingDocuments(
             __dirname,

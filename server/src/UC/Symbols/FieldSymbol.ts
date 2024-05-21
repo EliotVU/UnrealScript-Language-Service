@@ -1,9 +1,8 @@
-import { Position, Range } from 'vscode-languageserver-types';
+import { Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { intersectsWith, intersectsWithRange } from '../helpers';
 import { indexDeclarationReference } from '../indexer';
-import { Identifier, isParamSymbol, ISymbol, ITypeSymbol, UCObjectSymbol, UCStructSymbol } from './';
+import { isParamSymbol, ISymbol, ITypeSymbol, UCObjectSymbol, UCStructSymbol } from './';
 
 export enum ModifierFlags {
 	None 				= 0x0000,
@@ -52,14 +51,6 @@ export abstract class UCFieldSymbol extends UCObjectSymbol {
 	public modifiers: ModifierFlags = ModifierFlags.None;
 	public next?: UCFieldSymbol = undefined;
 
-	constructor(id: Identifier, private readonly range: Range = id.range) {
-		super(id);
-	}
-
-	override getRange(): Range {
-		return this.range;
-	}
-
 	getType(): ITypeSymbol | undefined {
 		return undefined;
 	}
@@ -82,17 +73,6 @@ export abstract class UCFieldSymbol extends UCObjectSymbol {
 		return this.getPath();
 	}
 
-	override getSymbolAtPos(position: Position) {
-		if (!intersectsWith(this.getRange(), position)) {
-			return undefined;
-		}
-
-		if (intersectsWithRange(position, this.id.range)) {
-			return this;
-		}
-		return this.getContainedSymbolAtPos(position);
-	}
-
 	getCompletionContext(_position: Position): ISymbol | undefined {
 		return undefined;
 	}
@@ -107,10 +87,6 @@ export abstract class UCFieldSymbol extends UCObjectSymbol {
 	 */
 	isFixedArray(): boolean {
 		return (this.modifiers & ModifierFlags.WithDimension) === ModifierFlags.WithDimension;
-	}
-
-	override acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
-		return true;
 	}
 
 	override index(document: UCDocument, _context: UCStructSymbol) {

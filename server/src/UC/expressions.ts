@@ -9,7 +9,6 @@ import {
     INode,
     ISymbol,
     ITypeSymbol,
-    IWithIndex,
     IWithInnerSymbols,
     Identifier,
     IntrinsicClass,
@@ -79,27 +78,54 @@ import { config, getConstSymbol, getEnumMember } from './indexer';
 import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_STRUCT, NAME_VECTOR } from './names';
 import { SymbolWalker } from './symbolWalker';
 
-export interface IExpression extends INode, IWithIndex, IWithInnerSymbols {
-    getRange(): Range;
+export interface IExpression extends INode, IWithInnerSymbols {
+    /**
+     * Gets the symbol to best represent the expression.
+     * 
+     * For instance an expression such as `Array[0]` should return the symbol `Array`
+     */
     getMemberSymbol(): ISymbol | undefined;
-    // TODO: Refactor to never return undefined, always return a StaticErrorType instead.
+
+    /**
+     * Gets the type symbol to best represent the expression.
+     * 
+     * TODO: Refactor to never return undefined, always return a StaticErrorType instead.
+     */
     getType(): ITypeSymbol | undefined;
+
+    /**
+     * Gets a symbol within the expression that intersects with the position.
+     * 
+     * TODO: Displace with a visitor pattern and a general function for ISymbol.
+     */
     getSymbolAtPos(position: Position): ISymbol | undefined;
+
+    /**
+     * Evaluates the value for the expression.
+     * 
+     * @returns the evaluated value.
+     */
     getValue(): number | boolean | string | undefined;
 
-    // TODO: Consider using visitor pattern to index.
+    /**
+     * The second indexing pass, should index the referenced symbols.
+     * 
+     * TODO: Consider using visitor pattern to index.
+     * 
+     * @param document the document of the expression.
+     * @param context context to use for symbol lookups. e.g. a `UCStateSymbol` in state code.
+     * @param info context info such as a type hint.
+     */
     index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo): void;
+
     accept<Result>(visitor: SymbolWalker<Result>): Result | void;
 }
 
+// TODO: Deprecate
 export abstract class UCExpression implements IExpression {
-    kind = UCNodeKind.Expression;
+    readonly kind = UCNodeKind.Expression;
 
-    constructor(protected range: Range) {
-    }
-
-    getRange(): Range {
-        return this.range;
+    constructor(readonly range: Range) {
     }
 
     getMemberSymbol(): ISymbol | undefined {
@@ -111,7 +137,7 @@ export abstract class UCExpression implements IExpression {
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
-        if (!intersectsWith(this.getRange(), position)) {
+        if (!intersectsWith(this.range, position)) {
             return undefined;
         }
         const symbol = this.getContainedSymbolAtPos(position);
@@ -133,19 +159,15 @@ export abstract class UCExpression implements IExpression {
 }
 
 export class UCParenthesizedExpression implements IExpression {
-    kind = UCNodeKind.Expression;
+    readonly kind = UCNodeKind.Expression;
 
     public expression?: IExpression;
 
-    constructor(protected range: Range) {
-    }
-
-    getRange(): Range {
-        return this.range;
+    constructor(readonly range: Range) {
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
-        if (!intersectsWith(this.getRange(), position)) {
+        if (!intersectsWith(this.range, position)) {
             return undefined;
         }
         const symbol = this.getContainedSymbolAtPos(position);
@@ -178,19 +200,32 @@ export class UCParenthesizedExpression implements IExpression {
     }
 }
 
-export class UCArrayCountExpression extends UCExpression {
+export class UCArrayCountExpression implements IExpression {
+    readonly kind = UCNodeKind.Expression;
+
     public argument?: IExpression;
 
-    override getValue() {
+    constructor(readonly range: Range) {
+    }
+
+    getSymbolAtPos(position: Position): ISymbol | undefined {
+        if (!intersectsWith(this.range, position)) {
+            return undefined;
+        }
+        const symbol = this.getContainedSymbolAtPos(position);
+        return symbol;
+    }
+
+    getValue() {
         const symbol = this.argument?.getMemberSymbol();
         return symbol && isProperty(symbol) && symbol.getArrayDimSize() || undefined;
     }
 
-    override getMemberSymbol() {
+    getMemberSymbol() {
         return this.argument?.getMemberSymbol();
     }
 
-    override getType() {
+    getType() {
         return StaticIntType;
     }
 
@@ -199,8 +234,12 @@ export class UCArrayCountExpression extends UCExpression {
         return symbol;
     }
 
-    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+    index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
         this.argument?.index(document, context, info);
+    }
+
+    accept<Result>(visitor: SymbolWalker<Result>): void | Result {
+        return visitor.visitExpression(this);
     }
 }
 
@@ -1033,15 +1072,11 @@ export class UCNewExpression extends UCCallExpression {
 export abstract class UCLiteral implements IExpression {
     readonly kind = UCNodeKind.Expression;
 
-    constructor(protected range: Range, protected valueToken?: Token) {
-    }
-
-    getRange(): Range {
-        return this.range;
+    constructor(readonly range: Range, protected valueToken?: Token) {
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
-        if (!intersectsWith(this.getRange(), position)) {
+        if (!intersectsWith(this.range, position)) {
             return undefined;
         }
         const symbol = this.getContainedSymbolAtPos(position);

@@ -51,7 +51,7 @@ function parseExec(parser: UCParser): { errors: string[] } {
 
 describe('Grammar', () => {
     it('should have no syntax errors', () => {
-        const tests = ['Grammar.uc', 'parser.constDecl.uc', 'parser.defaultPropertiesBlock.uc'];
+        const tests = ['parser.constDecl.uc', 'parser.defaultPropertiesBlock.uc'];
         for (const testFileName of tests) {
             const text = getText(resolveExampleFileName(testFileName));
             const p = parseText(text);

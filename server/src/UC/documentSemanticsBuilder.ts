@@ -202,7 +202,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         } else {
             const symbols = document.enumerateSymbols();
             for (const symbol of symbols) {
-                if (!intersectsWithRange(symbol.getRange().start, this.range)) {
+                if (!intersectsWithRange(symbol.range.start, this.range)) {
                     continue;
                 }
                 symbol.accept(this);
@@ -308,7 +308,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
             expr.type?.accept(this);
             if (expr.type && expr instanceof UCIdentifierLiteralExpression) {
                 if (expr.type.getTypeKind() === UCTypeKind.Name) {
-                    this.pushRange(expr.getRange(),
+                    this.pushRange(expr.range,
                         TypeToTokenTypeIndexMap[UCTypeKind.String],
                         1 << TokenModifiersMap[SemanticTokenModifiers.static]
                     );

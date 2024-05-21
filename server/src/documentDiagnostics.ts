@@ -8,7 +8,7 @@ function diagnosticsFromNodes(nodes: IDiagnosticNode[]) {
     return nodes
         .map(node => {
             return Diagnostic.create(
-                node.getRange(),
+                node.range,
                 node.toString(),
                 undefined,
                 undefined,

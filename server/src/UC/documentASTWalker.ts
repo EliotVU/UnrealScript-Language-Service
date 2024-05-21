@@ -340,7 +340,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const macro = ctx._MACRO_SYMBOL;
         const identifier = createIdentifierFromToken(macro);
         // TODO: custom class
-        const symbol = new UCMacroSymbol(identifier);
+        const symbol = new UCMacroSymbol(identifier, rangeFromCtx(ctx));
         this.document.addSymbol(symbol);
 
         return symbol;
@@ -653,7 +653,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     visitEnumMember(ctx: UCGrammar.EnumMemberContext) {
         const identifier: Identifier = createIdentifier(ctx.identifier());
-        const symbol = new UCEnumMemberSymbol(identifier);
+        const symbol = new UCEnumMemberSymbol(identifier, identifier.range);
 
         this.declare(symbol, ctx);
         setEnumMember(symbol);
@@ -662,7 +662,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     visitStructDecl(ctx: UCGrammar.StructDeclContext) {
         const identifier: Identifier = createIdentifier(ctx.identifier());
-        const symbol = new UCScriptStructSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
+        const symbol = new UCScriptStructSymbol(identifier, rangeFromCtx(ctx));
 
         const modifierNodes = ctx.structModifier();
         for (const modifierNode of modifierNodes) {
@@ -822,7 +822,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 const typeSymbol = this.visitTypeDecl(ctx._returnParam.typeDecl());
                 const returnValueId: Identifier = {
                     name: NAME_RETURNVALUE,
-                    range: typeSymbol.getRange()
+                    range: typeSymbol.range
                 };
                 const returnValue = new UCParamSymbol(returnValueId, returnValueId.range, typeSymbol);
                 returnValue.modifiers |= paramModifiers;
@@ -917,7 +917,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const qualifiedNode = arrayDimNode.qualifiedIdentifier();
         if (qualifiedNode) {
             property.arrayDimRef = qualifiedNode.accept(this);
-            property.arrayDimRange = property.arrayDimRef?.getRange();
+            property.arrayDimRange = property.arrayDimRef?.range;
             return;
         }
 
@@ -1128,16 +1128,16 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
                     const valueExpr = new UCIdentifierLiteralExpression(valueId);
                     valueExpr.type = StaticNameType;
-                    
+
                     const propertyId = createIdentifierFromToken(objAttr._id);
                     const letType = new UCObjectTypeSymbol(propertyId);
-                    
+
                     const propertySymbol = OuterObjectsTable.getSymbol(Object_NamePropertyHash) ?? Object_NameProperty;
                     letType.setRef(propertySymbol, this.document);
 
                     const letExpr = new UCMemberExpression(propertyId);
                     letExpr.type = letType;
-                    
+
                     const expression = new UCObjectAttributeExpression(rangeFromBounds(ctx.start, ctx.stop));
                     expression.left = letExpr;
                     expression.right = valueExpr;
@@ -1152,7 +1152,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
                     const valueExpr = new UCIdentifierLiteralExpression(valueId);
                     valueExpr.type = classType;
-                    
+
                     const propertyId = createIdentifierFromToken(objAttr._id);
                     const letType = new UCObjectTypeSymbol(propertyId);
 
@@ -1276,8 +1276,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     // Directives can occur in a statement or declaration scope.
     // For the time being we don't want to run into analysis errors, so we transform directives into pseudo object symbols.
     visitDirective(ctx: UCGrammar.DirectiveContext) {
-        return new UCEmptySymbol({ name: NAME_NONE, range: rangeFromCtx(ctx) });
-        // return new UCEmptyStatement(rangeFromCtx(ctx));
+        const id = ctx.identifier();
+        if (typeof id === 'undefined') {
+            return undefined;
+        }
+
+        return new UCEmptySymbol(createIdentifier(id), rangeFromCtx(ctx));
     }
 
     visitAssignmentStatement(ctx: UCGrammar.AssignmentStatementContext) {

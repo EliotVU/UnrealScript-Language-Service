@@ -145,7 +145,7 @@ export class UCPackage extends UCObjectSymbol {
     override kind = UCSymbolKind.Package;
 
     constructor(name: Name) {
-        super({ name, range: DEFAULT_RANGE });
+        super({ name, range: DEFAULT_RANGE }, DEFAULT_RANGE);
     }
 
     override getTypeKind() {
