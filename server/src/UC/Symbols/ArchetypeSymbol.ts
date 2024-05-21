@@ -12,11 +12,14 @@ import {
 
 /**
  * Represents an instanced Archetype found within a defaultproperties block e.g. "begin object class=classID name=objectName".
+ * Also known as subobjects, in diagnostics (exposed to the end-user) we refer to subobjects as an 'Object declaration' and represent the symbol as a (archetype) type.
  */
 export class UCArchetypeSymbol extends UCStructSymbol {
     override kind = UCSymbolKind.Archetype;
     declare outer: UCObjectSymbol;
     override modifiers = ModifierFlags.ReadOnly;
+
+    public overriddenArchetype?: UCArchetypeSymbol;
 
     override getTypeKind() {
         return UCTypeKind.Object;
@@ -30,10 +33,10 @@ export class UCArchetypeSymbol extends UCStructSymbol {
         const text: Array<string | undefined> = ['(archetype)'];
 
         text.push(super.getTypeHint());
+        if (this.overriddenArchetype) {
+            text.push(`(override)`);
+        }
         if (this.super) {
-            if (!this.extendsType) {
-                text.push(`(override)`);
-            }
             text.push(`Class=${this.super?.getPath()}`);
         }
         text.push(`Name=${this.getPath()}`);

@@ -380,24 +380,25 @@ export abstract class DefaultSymbolWalker<T = undefined> implements SymbolWalker
         return this.visitStructBase(symbol);
     }
 
+    // By default never visit any statements.
     visitBlock(symbol: UCBlock) {
         return;
     }
 
-    visitReplicationBlock(symbol: UCReplicationBlock) {
-        return this.visitStructBase(symbol);
+    visitReplicationBlock(symbol: UCReplicationBlock): void | T {
+        return symbol.block?.accept(this);
     }
 
-    visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
-        if (symbol.block) {
-            symbol.block.accept(this);
-        }
+    visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock): void | T {
+        return symbol.block?.accept(this);
+
+        // Commented out, let's skip the symbol's children (archetype symbols), 
+        // -- because the block statements will handle the archetype symbols.
+        // return this.visitStructBase(symbol);
     }
 
     visitArchetypeSymbol(symbol: UCArchetypeSymbol) {
-        if (symbol.block) {
-            symbol.block.accept(this);
-        }
+        return;
     }
 
     visitStatement(stm: IStatement) {
@@ -474,7 +475,7 @@ export abstract class DefaultSymbolWalker<T = undefined> implements SymbolWalker
     }
 
     visitArchetypeBlockStatement(stm: UCArchetypeBlockStatement) {
-        stm.archetypeSymbol.accept(this);
+        stm.block?.accept(this);
     }
 
     visitExpression(expr: IExpression) {

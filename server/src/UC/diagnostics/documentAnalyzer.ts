@@ -75,6 +75,7 @@ import {
     UCMemberExpression,
     UCMetaClassExpression,
     UCNameOfExpression,
+    UCNewExpression,
     UCObjectAttributeExpression,
     UCObjectLiteral,
     UCParenthesizedExpression,
@@ -88,6 +89,7 @@ import { NAME_ENUMCOUNT, NAME_NONE, NAME_STATE, NAME_STRUCT } from '../names';
 import { UCGeneration } from '../settings';
 import {
     IStatement,
+    UCArchetypeBlockStatement,
     UCAssertStatement,
     UCBlock,
     UCCaseClause,
@@ -734,8 +736,29 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
+    override visitArchetypeBlockStatement(stm: UCArchetypeBlockStatement): void {
+        stm.archetypeSymbol.accept(this);
+
+        this.pushScope(stm.archetypeSymbol);
+        if (stm.block) {
+            stm.block.accept(this);
+        }
+        this.popScope();
+    }
+
     override visitArchetypeSymbol(symbol: UCArchetypeSymbol) {
-        this.pushScope(symbol.super ?? symbol);
+        if (config.generation === UCGeneration.UC1) {
+            this.diagnostics.add({
+                range: symbol.range,
+                message: {
+                    text: `Object declarations are not available in UC1.`,
+                    severity: DiagnosticSeverity.Error
+                }
+            });
+            
+            return;
+        }
+
         if (symbol.getName() === NAME_NONE) {
             this.diagnostics.add({
                 range: symbol.id.range,
@@ -744,13 +767,27 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     severity: DiagnosticSeverity.Error
                 }
             });
+        } else if (!symbol.extendsType) { // No class attribute or bad name?
+            if (config.generation === UCGeneration.UC3) {
+                if (!symbol.overriddenArchetype) {
+                    this.diagnostics.add({
+                        range: symbol.id.range,
+                        message: {
+                            text: `Couldn't find object to override of name '${symbol.getName().text}' or maybe you forgot to assign a class?`,
+                            severity: DiagnosticSeverity.Error
+                        }
+                    });
+                }
+            } else {
+                this.diagnostics.add({
+                    range: symbol.id.range,
+                    message: {
+                        text: `Object declaration is missing a class!`,
+                        severity: DiagnosticSeverity.Error
+                    }
+                });
+            }
         }
-        // Disabled because we don't want to analyze object children, because each child is already registered as a statement!
-        // super.visitStructBase(symbol);
-        if (symbol.block) {
-            symbol.block.accept(this);
-        }
-        this.popScope();
     }
 
     override visitBlock(symbol: UCBlock) {

@@ -10,7 +10,6 @@ import { ActiveTextDocuments } from '../activeTextDocuments';
 import { EAnalyzeOption, UCLanguageServerSettings } from '../configuration';
 import { readTextByURI } from '../workspace';
 import {
-    addHashedSymbol,
     ISymbol,
     ObjectsTable,
     SymbolReference,
@@ -19,7 +18,12 @@ import {
     UCEnumMemberSymbol,
     UCPackage,
     UCSymbolKind,
+    addHashedSymbol,
 } from './Symbols';
+import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
+import { UCDocument } from './document';
+import { DocumentCodeIndexer, DocumentSymbolIndexer } from './documentCodeIndexer';
+import { Name, NameHash, toName } from './name';
 
 // TODO: Re-work to hash documents by URI instead of file path, this would integrate easier with LSP events.
 export const documentsByPathMap = new Map<string, UCDocument>();
@@ -91,13 +95,10 @@ export function indexDocument(document: UCDocument, text?: string): void {
 
     const indexStart = performance.now();
     try {
+        const indexer = new DocumentSymbolIndexer(document);
         // We set this here to prevent any re-triggering within the following indexing process.
         document.hasBeenIndexed = true;
-        if (document.class) {
-            for (const symbol of document.enumerateSymbols()) {
-                symbol.index(document, document.class);
-            }
-        }
+        document.accept(indexer);
     } catch (err) {
         console.error(
             `(symbol index error) in document "${document.uri}"`,
@@ -114,7 +115,7 @@ export function indexDocument(document: UCDocument, text?: string): void {
 function postIndexDocument(document: UCDocument) {
     try {
         const indexer = new DocumentCodeIndexer(document);
-        indexer.visitDocument(document);
+        document.accept(indexer);
     } catch (err) {
         console.error(
             `(post-index error) in document "${document.uri}"`,

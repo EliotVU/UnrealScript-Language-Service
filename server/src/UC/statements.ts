@@ -120,12 +120,49 @@ export class UCBlock implements IStatement {
     }
 }
 
-export class UCArchetypeBlockStatement extends UCBlock {
+export class UCArchetypeBlockStatement implements IStatement {
+    readonly kind = UCNodeKind.Statement;
+
+    /** The generated symbol that is declared by this statement. */
     public archetypeSymbol: UCArchetypeSymbol;
 
-    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-        this.archetypeSymbol.index(document, context);
-        super.index(document, this.archetypeSymbol);
+    /** A block of statements. */
+    public block?: UCBlock;
+
+    constructor(readonly range: Range) {
+
+    }
+
+    getSymbolAtPos(position: Position): ISymbol | undefined {
+        return this.getContainedSymbolAtPos(position);
+    }
+
+    getContainedSymbolAtPos(position: Position) {
+        return this.block?.getSymbolAtPos(position);
+    }
+
+    index(document: UCDocument, _context: UCStructSymbol, info?: ContextInfo): void {
+        // Index the archetype class
+        this.archetypeSymbol.index(document, _context);
+
+        if (this.archetypeSymbol.id.name !== NAME_NONE) {
+            // Find the override if no class is specified (extendsType)
+            if (!this.archetypeSymbol.extendsType && !this.archetypeSymbol.super) {
+                const overriddenArchetype = ObjectsTable.getSymbol<UCArchetypeSymbol>(this.archetypeSymbol.id.name, UCSymbolKind.Archetype);
+                this.archetypeSymbol.overriddenArchetype = overriddenArchetype;
+                this.archetypeSymbol.super = overriddenArchetype;
+            }
+            
+            // Allow assignments to find this archetype (in order! If we were to pre-hash these we may incorrectly override the hash table assigned symbol)
+            addHashedSymbol(this.archetypeSymbol);
+        }
+
+        // Index the block's code in the context of the archetype symbol
+        this.block?.index(document, this.archetypeSymbol, info);
+    }
+
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitArchetypeBlockStatement(this);
     }
 }
 

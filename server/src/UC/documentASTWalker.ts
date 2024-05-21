@@ -92,6 +92,7 @@ import {
     hasNoKind,
     Identifier,
     IntrinsicObject,
+    isClass,
     isStatement,
     ISymbol,
     ISymbolContainer,
@@ -1112,9 +1113,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitObjectDecl(ctx: UCGrammar.ObjectDeclContext) {
-        const range = rangeFromBounds(ctx.start, ctx.stop);
-        const block = new UCArchetypeBlockStatement(range);
-
         let nameId: Identifier | undefined;
         let classType: UCObjectTypeSymbol | undefined;
 
@@ -1175,25 +1173,27 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             }
         }
 
-        const archId = nameId ?? { name: NAME_NONE, range };
-        const symbol = new UCArchetypeSymbol(archId, range);
+        const statementRange = rangeFromBounds(ctx.start, ctx.stop);
+        const archId = nameId ?? { name: NAME_NONE, range: statementRange };
+        const symbol = new UCArchetypeSymbol(archId, statementRange);
         if (classType) {
             symbol.extendsType = classType;
         }
-        block.archetypeSymbol = symbol;
-
+        
+        const statement = new UCArchetypeBlockStatement(statementRange);
+        statement.archetypeSymbol = symbol;
+        
         this.declare(symbol, ctx);
         this.push(symbol);
         try {
             const statementNodes = ctx.defaultStatement();
-            block.statements = hardcodedStatements
-                .concat(statementNodes
-                    .map(node => node.accept(this))
-                );
+            const block = new UCBlock(statementRange);
+            block.statements = hardcodedStatements.concat(statementNodes.map(node => node.accept(this)));
+            statement.block = block;
         } finally {
             this.pop();
         }
-        return block;
+        return statement;
     }
 
     visitDefaultStatement(ctx: UCGrammar.DefaultStatementContext) {
