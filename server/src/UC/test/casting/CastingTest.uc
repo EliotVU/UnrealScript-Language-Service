@@ -1,5 +1,5 @@
 // Test an ambiguous issue where a call looks like either a class casting or a function of the same name.
-class CastingTest dependson(InterfaceTest) implements (InterfaceTest);
+class CastingTest extends Object dependson(InterfaceTest) implements (InterfaceTest);
 
 struct Vector {};
 struct Rotator {};
@@ -155,6 +155,11 @@ function ShouldBeValidAssignmentTest()
     local Object obj;
     local CastingTest cc[2];
     local array<CastingTest> ca;
+    local InterfaceTest other;
+
+    // FIXME: (c) is picked up as a cast instead of a template reference
+    // Ensure it doesn't mistake this for a cast from `other` to `self.Class`
+    c = new (self) self.Class (other);
 
     c = new (none) Class'CastingTest';
     c = new (none) Class'CastingDerivative';

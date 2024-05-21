@@ -8,6 +8,7 @@ import {
     ITypeSymbol,
     IntrinsicClass,
     IntrinsicEnum,
+    IntrinsicNewConstructor,
     MethodFlags,
     ModifierFlags,
     StaticBoolType,
@@ -1474,10 +1475,15 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             expr.argument?.accept(this);
         } else if (expr instanceof UCSizeOfLiteral) {
             expr.argumentRef?.accept(this);
+        } else if (expr instanceof UCNewExpression) {
+            expr.arguments?.forEach(arg => arg.accept(this));
+            expr.expression.accept(this);
+
+            this.checkArguments(IntrinsicNewConstructor, expr);
         }
     }
 
-    private checkArguments(symbol: UCMethodSymbol, expr: UCCallExpression | UCDefaultMemberCallExpression, inferredType?: ITypeSymbol) {
+    private checkArguments(symbol: UCMethodSymbol, expr: UCCallExpression | UCDefaultMemberCallExpression | UCNewExpression, inferredType?: ITypeSymbol) {
         let i = 0;
         let passedArgumentsCount = 0; // excluding optional parameters.
 

@@ -920,7 +920,8 @@ primaryExpression
 	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 								#callExpression
 	| primaryExpression (OPEN_BRACKET arg=expression? CLOSE_BRACKET) 						#elementAccessExpression
 
-	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? expr=primaryExpression			#newExpression
+	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? expr=primaryExpression
+                    (OPEN_PARENS templateExpr=primaryExpression CLOSE_PARENS)?              #newExpression
 	| 'class' 		(LT identifier GT) (OPEN_PARENS expr=expression CLOSE_PARENS)			#metaClassExpression
 	| 'arraycount' 	(OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#arrayCountExpression
 	| 'nameof' 	    (OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#nameOfExpression

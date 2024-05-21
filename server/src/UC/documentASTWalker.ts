@@ -1736,12 +1736,18 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     visitNewExpression(ctx: UCGrammar.NewExpressionContext) {
         const expression = new UCNewExpression(rangeFromBounds(ctx.start, ctx.stop));
 
-        expression.expression = ctx._expr.accept(this);
-
         const exprArgumentNodes = ctx.arguments();
         if (exprArgumentNodes) {
             expression.arguments = exprArgumentNodes.accept(this);
         }
+
+        if (ctx._templateExpr) {
+            const templateExpr = ctx._templateExpr.accept(this);
+            (expression.arguments || (expression.arguments = [])).push(templateExpr);
+        }
+
+        expression.expression = ctx._expr.accept(this);
+        
         return expression;
     }
 

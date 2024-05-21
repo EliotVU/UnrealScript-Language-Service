@@ -71,6 +71,7 @@ import {
     IntrinsicRotatorHash,
     StaticDelegateType,
     UCDelegateSymbol,
+    IntrinsicNewConstructor,
 } from './Symbols';
 import { UCDocument } from './document';
 import { intersectsWith } from './helpers';
@@ -1052,21 +1053,106 @@ export class UCSuperExpression extends UCExpression {
     }
 }
 
-export class UCNewExpression extends UCCallExpression {
-    // TODO: Implement pseudo new operator for hover info?
+/**
+ * An expression to represent `new (Arguments)? Expression (TemplateExpression)?`
+ * 
+ * ```UnrealScript
+ * new (None) Class
+ * ```
+ */
+export class UCNewExpression implements IExpression {
+    readonly kind = UCNodeKind.Expression;
+
+    /** The arguments for `new` including the template expression */
+    public arguments?: Array<IExpression>;
+
+    /** The class expression. */
+    public expression: IExpression;
+
+    constructor(readonly range: Range) {
+    }
+
+    getMemberSymbol() {
+        return this.expression.getMemberSymbol();
+    }
 
     /**
      * Gets the type of the class expression
      * 
      * @returns The resolved type of the class expression
      */
-    override getType() {
+    getType() {
         const type = this.expression.getType();
         // We need to resolve the type to its `baseType`, because we expect expressions to work with the object reference instead.
         // e.g. assigning a new object of class type to Foo: `Foo = new (None) Class'MyClass'` 
         // in this example Foo needs to be an object reference with the class type `MyClass`
         return type && resolveType(type);
     }
+
+    getSymbolAtPos(position: Position): ISymbol | undefined {
+        if (!intersectsWith(this.range, position)) {
+            return undefined;
+        }
+        const symbol = this.getContainedSymbolAtPos(position);
+        return symbol;
+    }
+
+    getContainedSymbolAtPos(position: Position) {
+        if (this.arguments) for (const arg of this.arguments) {
+            const symbol = arg.getSymbolAtPos(position);
+            if (symbol) {
+                return symbol;
+            }
+        }
+
+        const symbol = this.expression.getSymbolAtPos(position);
+        if (symbol) {
+            return symbol;
+        }
+
+        // HACK: Redirect the completion context to the resolved type (the class) 
+        if (UCCallExpression.hack_getTypeIfNoSymbol) {
+            return this.getType();
+        }
+
+        // HACK: Redirect hover info to the 'New' operator.
+        return IntrinsicNewConstructor;
+    }
+
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+        if (this.arguments) {
+            const methodSymbol = IntrinsicNewConstructor;
+            const argInfo: ContextInfo = {
+                contextType: StaticErrorType,
+                inAssignment: false,
+            };
+            for (let i = 0; i < this.arguments.length; ++i) {
+                if (i < methodSymbol.params!.length) {
+                    const param = methodSymbol.params![i];
+                    argInfo.contextType = param.getType();
+                    argInfo.inAssignment = param.hasAnyModifierFlags(ModifierFlags.Out);
+                    this.arguments[i].index(document, context, argInfo);
+                } else {
+                    // * Excessive arguments, we will still index the arguments.
+                    this.arguments[i].index(document, context, {
+                        contextType: StaticErrorType,
+                        inAssignment: false
+                    });
+                }
+            }
+        }
+
+        this.expression.index(document, context);
+    }
+
+    getValue(): string | number | boolean | undefined {
+        return undefined;
+    }
+
+    accept<Result>(visitor: SymbolWalker<Result>): void | Result {
+        return visitor.visitExpression(this);
+    }
+
 }
 
 export abstract class UCLiteral implements IExpression {

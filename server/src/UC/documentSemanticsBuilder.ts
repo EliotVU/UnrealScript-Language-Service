@@ -21,6 +21,7 @@ import {
     UCMemberExpression,
     UCMetaClassExpression,
     UCNameOfExpression,
+    UCNewExpression,
     UCObjectLiteral,
     UCParenthesizedExpression,
     UCPredefinedAccessExpression,
@@ -335,6 +336,9 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
             expr.argument?.accept(this);
         } else if (expr instanceof UCSizeOfLiteral) {
             expr.argumentRef?.accept(this);
+        } else if (expr instanceof UCNewExpression) {
+            expr.arguments?.forEach(arg => arg.accept(this));
+            expr.expression.accept(this);
         }
         return super.visitExpression(expr);
     }

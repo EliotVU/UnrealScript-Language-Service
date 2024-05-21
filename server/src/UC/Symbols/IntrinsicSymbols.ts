@@ -1,3 +1,4 @@
+import { createToken } from '../Parser/TokenFactory';
 import { toName } from '../name';
 import { NAME_ARRAY, NAME_RETURNVALUE } from '../names';
 import {
@@ -8,14 +9,17 @@ import {
     StaticIntType,
     StaticMetaType,
     StaticNameType,
+    StaticObjectType,
     StaticRangeType,
     StaticRotatorType,
+    StaticStringType,
     StaticVectorType,
     UCMethodLikeSymbol,
     UCMethodSymbol,
     UCParamSymbol,
     UCPropertySymbol,
     UCStructSymbol,
+    UCSymbolKind,
 } from './';
 
 export * from './CoreSymbols';
@@ -153,3 +157,46 @@ IntrinsicRngLiteral.addSymbol(MaxParam);
 
 IntrinsicRngLiteral.params = [MinParam, MaxParam];
 
+/** Symbol to represent the `New` operator. */
+export const IntrinsicNewConstructor = new UCMethodLikeSymbol(toName('New'));
+IntrinsicNewConstructor.kind = UCSymbolKind.Operator;
+IntrinsicNewConstructor.modifiers |= ModifierFlags.Keyword;
+IntrinsicNewConstructor.description = createToken(`
+    Creates a new instanced object of the specified class.
+    
+    Syntax:
+    ${'`new [( [outer [, name [, flags]]] )] class [( template )]`'}
+
+    Usage:
+    ${'```unrealscript'}
+    ${`new (None, "MyObject", RF_Transient) Class'MyClass' (MyClass'MyTemplateObject')`}
+    ${'```'}
+    
+    ${'For *Unreal Engine 2* the event `Object.Created()` will be instigated during the construction.'}
+`);
+
+// TODO: meta type and coerce to the class's 'within' type?
+const OuterParam = new UCParamSymbol({ name: toName('Outer'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticObjectType);
+OuterParam.modifiers |= ModifierFlags.Optional | ModifierFlags.Coerce;
+OuterParam.description = createToken('Outer for the new object. The outer must be an object derived of the declared `within` class.');
+IntrinsicNewConstructor.addSymbol(OuterParam);
+
+// TODO: Name type for UC1, String type for UC2+
+const NameParam = new UCParamSymbol({ name: toName('Name'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticStringType);
+NameParam.modifiers |= ModifierFlags.Optional | ModifierFlags.Coerce;
+NameParam.description = createToken('Name for the new object.');
+IntrinsicNewConstructor.addSymbol(NameParam);
+
+// TODO: Int type for UC1+, QWORD type for UC3
+const FlagsParam = new UCParamSymbol({ name: toName('Flags'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
+FlagsParam.modifiers |= ModifierFlags.Optional;
+FlagsParam.description = createToken('Flags for the new object.');
+IntrinsicNewConstructor.addSymbol(FlagsParam);
+
+// TODO: Only for UC3+ and maybe remove it from parameters, because technically this param goes at the end of the 'new' expression.
+const TemplateParam = new UCParamSymbol({ name: toName('Template'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticObjectType);
+TemplateParam.modifiers |= ModifierFlags.Optional;
+TemplateParam.description = createToken('Template to use as base for the new object.');
+// IntrinsicNewConstructor.addSymbol(TemplateParam);
+
+IntrinsicNewConstructor.params = [OuterParam, NameParam, FlagsParam, /* TemplateParam */];
