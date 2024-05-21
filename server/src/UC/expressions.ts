@@ -53,7 +53,6 @@ import {
     findOverloadedPreOperator,
     findSuperStruct,
     getContext,
-    getOuter,
     getSymbolHash,
     getSymbolOuterHash,
     hasDefinedBaseType,
@@ -740,6 +739,11 @@ export class UCMemberExpression extends UCExpression {
     }
 
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+        if (this.type) {
+            this.type.index(document, context, info);
+            return;
+        }
+
         const id = this.id.name;
 
         const contextType = info?.contextType;
@@ -936,7 +940,7 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
                 break;
 
             case UCTypeKind.Delegate: {
-                const classContext = getOuter<UCClassSymbol>(context, UCSymbolKind.Class)!;
+                const classContext = document.class!;
                 // TODO: Use something else to find a function without the need to check its specification.
                 member = classContext.findSuperSymbol(name, UCSymbolKind.Function)
                     ?? classContext.findSuperSymbol(name, UCSymbolKind.Delegate)
@@ -954,10 +958,7 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
         // Fall back to a constants search within the current class or the subobject's class.
         // FIXME: Technically, we should also look for a constant even if we have a defined @member, if the defined member is also incompatible.
         if (!member && kind !== UCTypeKind.Delegate) {
-            const classContext = getOuter<UCClassSymbol>(context, UCSymbolKind.Class)!;
-            console.assert(classContext, 'No class context for defaultproperties block!', context.getPath());
-
-            member = classContext.findSuperSymbol(name, UCSymbolKind.Const);
+            member = document.class!.findSuperSymbol(name, UCSymbolKind.Const);
             // Search within the subobject's class
             if (!member && isArchetypeSymbol(context)) {
                 member = context.findSuperSymbol(name, UCSymbolKind.Const);

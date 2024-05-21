@@ -216,40 +216,44 @@
                             "type": "class",
                             "extends": "Actor"
                         },
+                        "Engine.LevelBase": {
+                            "type": "class",
+                            "extends": "Core.Object"
+                        },
                         "Engine.Level": {
                             "type": "class",
-                            "extends": "Object"
+                            "extends": "Engine.LevelBase"
                         },
                         "Engine.NetConnection": {
                             "type": "class",
-                            "extends": "Object"
+                            "extends": "Engine.Player"
                         },
                         "Engine.Viewport": {
                             "type": "class",
-                            "extends": "Object"
+                            "extends": "Engine.Player"
                         },
                         "Engine.Primitive": {
                             "type": "class",
-                            "extends": "Object"
+                            "extends": "Core.Object"
                         },
                         "Engine.Client": {
                             "type": "class",
-                            "extends": "Object"
+                            "extends": "Core.Object"
                         },
                         "Engine.AudioSubsystem": {
                             "type": "class",
-                            "extends": "Subsystem"
+                            "extends": "Core.Subsystem"
                         },
                         "Engine.RenderDevice": {
                             "type": "class",
-                            "extends": "Object"
+                            "extends": "Core.Subsystem"
                         }
                     }
                 },
                 "unrealscript.indexPackageExtensions": {
                     "scope": "resource",
                     "type": "array",
-                    "description": "A list of package (uc,upk) extensions to index.",
+                    "description": "A list of package (u,upk) extensions to index.",
                     "default": [
                         "u",
                         "upk"

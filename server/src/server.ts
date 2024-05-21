@@ -68,7 +68,7 @@ import {
     removeDocumentByPath,
 } from './UC/indexer';
 import { toName } from './UC/name';
-import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
+import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE, NAME_PROPERTY } from './UC/names';
 import { IntrinsicSymbolItemMap, UCGeneration, UELicensee } from './UC/settings';
 import {
     addHashedSymbol,
@@ -79,11 +79,14 @@ import {
     isField,
     ModifierFlags,
     ObjectsTable,
+    tryFindClassSymbol,
+    tryFindSymbolInPackage,
     UCClassSymbol,
     UCMethodSymbol,
     UCObjectSymbol,
     UCObjectTypeSymbol,
     UCPackage,
+    UCQualifiedTypeSymbol,
     UCStructSymbol,
     UCSymbolKind,
     UCTypeKind,
@@ -91,6 +94,7 @@ import {
 import { UnrealPackage } from './UPK/UnrealPackage';
 import { getFiles, isDocumentFileName } from './workspace';
 import { getWorkspaceSymbols } from './workspaceSymbol';
+import { createTypeFromQualifiedIdentifier } from './UC/documentASTWalker';
 
 /**
  * Emits true when the workspace is prepared and ready for indexing.
@@ -715,6 +719,7 @@ function clearIntrinsicSymbols() {
 }
 
 function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
+    const classSymbols = [];
     const intSymbols = Object.entries(intrinsicSymbols);
     for (const [key, value] of intSymbols) {
         const [pkgNameStr, symbolNameStr] = key.split('.');
@@ -738,11 +743,12 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
                 const symbol = new UCClassSymbol({ name: symbolName, range: DEFAULT_RANGE }, DEFAULT_RANGE);
                 symbol.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Generated;
                 if (value.extends) {
-                    symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCSymbolKind.Class);
+                    symbol.extendsType = createTypeFromQualifiedIdentifier(value.extends);
                 }
                 const pkg = createPackage(pkgNameStr);
                 symbol.outer = pkg;
                 addHashedSymbol(symbol);
+                classSymbols.push(symbol);
                 break;
             }
 
@@ -793,6 +799,23 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
         randomizeOrderSymbol.modifiers |= ModifierFlags.Intrinsic;
         IntrinsicArray.addSymbol(randomizeOrderSymbol);
     }
+
+    // Link classes to their parent class, so that we can run a proper inheritance analysis for classes that either link or extend intrinsic classes.
+    // FIXME: We cannot pass these to an indexer, because we need a document for that :(
+    classSymbols.forEach(symbol => {
+        if (symbol.extendsType) {
+            if (UCQualifiedTypeSymbol.is(symbol.extendsType)) {
+                const parentClassPackage = ObjectsTable.getSymbol<UCPackage>(symbol.extendsType.left!.getName(), UCSymbolKind.Package);
+                if (parentClassPackage) {
+                    const parentClass = tryFindSymbolInPackage(symbol.extendsType.type.getName(), parentClassPackage);
+                    symbol.extendsType.type.setRefNoIndex(parentClass);
+                }
+            } else if (symbol.extendsType instanceof UCObjectTypeSymbol) {
+                const parentClass = tryFindClassSymbol(symbol.extendsType.getName());
+                symbol.extendsType.setRefNoIndex(parentClass);
+            }
+        }
+    });
 }
 
 function setupFilePatterns(settings: UCLanguageServerSettings) {
