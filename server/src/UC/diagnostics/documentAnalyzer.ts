@@ -257,7 +257,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             this.diagnostics.add({
                 range: symbol.id.range,
                 message: diagnosticMessages.CLASS_NAME_0_MUST_MATCH_DOCUMENT_NAME_1,
-                args: [className.text, this.document.fileName]
+                args: [className.text, this.document.name.text]
             });
         }
     }
@@ -278,7 +278,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             this.diagnostics.add({
                 range: symbol.id.range,
                 message: diagnosticMessages.CLASS_NAME_0_MUST_MATCH_DOCUMENT_NAME_1,
-                args: [className.text, this.document.fileName]
+                args: [className.text, this.document.name.text]
             });
         }
 

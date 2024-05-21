@@ -50,9 +50,13 @@ export type DocumentParseData = {
 };
 
 export class UCDocument {
-    /** Parsed file name filtered of path and extension. */
+    /** File name and extension. */
     public readonly fileName: string;
+
+    /** Case-insensitive document name with the extension stripped off. */
     public readonly name: Name;
+
+    /** URI to the document file. */
     public readonly uri: DocumentUri;
 
     /** The current indexed TextDocument's version as reported by the client. */
@@ -72,8 +76,8 @@ export class UCDocument {
     private readonly scope = new SymbolsTable<UCObjectSymbol>();
 
     constructor(readonly filePath: string, public readonly classPackage: UCPackage) {
-        this.fileName = path.basename(filePath, '.uc');
-        this.name = toName(this.fileName);
+        this.fileName = path.basename(filePath);
+        this.name = toName(path.basename(this.fileName, path.extname(filePath)));
         this.uri = URI.file(filePath).toString();
     }
 
@@ -293,7 +297,8 @@ export function preprocessDocument(document: UCDocument, macroParser: UCPreproce
         applyMacroSymbols(config.macroSymbols);
     }
 
-    const classNameMacro = { text: document.fileName.substring(0, document.fileName.indexOf('.uc')) };
+    // Cannot use document.Name, because we need to preserve lowercases and uppercases
+    const classNameMacro = { text: path.basename(document.fileName, path.extname(document.fileName)) };
     macroParser.currentSymbols.set("classname", classNameMacro);
 
     const packageNameMacro = { text: document.classPackage.getName().text };
