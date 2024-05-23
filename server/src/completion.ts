@@ -23,6 +23,7 @@ import {
     UCMethodSymbol,
     UCObjectSymbol,
     UCObjectTypeSymbol,
+    UCPropertySymbol,
     UCQualifiedTypeSymbol,
     UCScriptStructSymbol,
     UCStateSymbol,
@@ -48,6 +49,7 @@ import {
 import { UCLexer } from './UC/antlr/generated/UCLexer';
 import { CallExpressionContext, ProgramContext, UCParser } from './UC/antlr/generated/UCParser';
 import { UCDocument } from './UC/document';
+import { getSymbolTags } from './UC/documentSymbolTagsBuilder';
 import { UCCallExpression } from './UC/expressions';
 import {
     backtrackFirstToken,
@@ -402,9 +404,9 @@ async function buildCompletionItems(
         parser: Parser,
         context: ProgramContext
     }): Promise<CompletionItem[] | undefined> {
-    function getContextSymbols(symbol: UCObjectSymbol, kinds: UCSymbolKind): ISymbol[] {
-        const symbolItems = symbol.getCompletionSymbols(document, ContextKind.DOT, kinds);
-        return symbolItems;
+    function getContextSymbols<T extends ISymbol = ISymbol>(symbol: UCObjectSymbol, kinds: UCSymbolKind): T[] {
+        const symbolItems = symbol.getCompletionSymbols<T>(document, ContextKind.DOT, kinds);
+        return symbolItems as T[];
     }
 
     const stream = data.parser.inputStream;
@@ -627,7 +629,7 @@ async function buildCompletionItems(
                                         if (config.generation === UCGeneration.UC3) {
                                             candidates.tokens.set(UCParser.KW_CONST, [UCParser.KW_CONST]);
                                         }
-                                        
+
                                         break;
                                     } else {
                                         //  FieldExpr.default.Identifier
@@ -640,29 +642,85 @@ async function buildCompletionItems(
                                         candidates.tokens.clear();
                                     }
 
-                                    const symbolItems = getContextSymbols(
-                                        resolvedReference,
-                                        1 << UCSymbolKind.Property
-                                        | 1 << UCSymbolKind.Function
-                                        | 1 << UCSymbolKind.Event
-                                        | 1 << UCSymbolKind.Delegate)
-                                        .filter(symbol => {
-                                            if (isFunction(symbol)) {
-                                                // Don't include the overriding methods
-                                                return symbol.super == null
-                                                    && ((symbol.modifiers & ModifierFlags.Private) == 0
-                                                        || (symbol.outer == scopeSymbol.outer));
-                                            }
-                                            return true;
-                                        });
+                                    switch (carretContextToken.type) {
+                                        // Filter out any concrete functions
+                                        case UCLexer.KW_STATIC: {
+                                            const symbolItems = getContextSymbols<UCMethodSymbol>(
+                                                resolvedReference,
+                                                // Include events and delegates too, doesn't make sense but they are allowed.
+                                                1 << UCSymbolKind.Function
+                                                | 1 << UCSymbolKind.Event
+                                                | 1 << UCSymbolKind.Delegate)
+                                                .filter(symbol => {
+                                                    // Don't include the overriding methods
+                                                    return symbol.specifiers & MethodFlags.Static
+                                                        && symbol.super == null
+                                                        && ((symbol.modifiers & ModifierFlags.Private) == 0
+                                                            || (symbol.outer == scopeSymbol.outer));
+                                                });
 
-                                    symbols.push(...symbolItems);
+                                            symbols.push(...symbolItems);
+
+                                            break;
+                                        }
+
+                                        case UCLexer.KW_DEFAULT: {
+                                            const symbolItems = getContextSymbols<UCPropertySymbol>(
+                                                resolvedReference,
+                                                1 << UCSymbolKind.Property)
+                                                .filter(symbol => {
+                                                    return ((symbol.modifiers & ModifierFlags.Private) == 0
+                                                        || (symbol.outer == scopeSymbol.outer));
+                                                });
+
+                                            symbols.push(...symbolItems);
+
+                                            break;
+                                        }
+
+                                        case UCLexer.KW_CONST: {
+                                            const symbolItems = getContextSymbols<UCConstSymbol>(
+                                                resolvedReference,
+                                                1 << UCSymbolKind.Const
+                                            );
+
+                                            symbols.push(...symbolItems);
+
+                                            break;
+                                        }
+
+                                        default: {
+                                            const symbolItems = getContextSymbols(
+                                                resolvedReference,
+                                                1 << UCSymbolKind.Property
+                                                | 1 << UCSymbolKind.Function
+                                                | 1 << UCSymbolKind.Event
+                                                | 1 << UCSymbolKind.Delegate)
+                                                .filter(symbol => {
+                                                    if (isFunction(symbol)) {
+                                                        // Don't include the overriding methods
+                                                        return symbol.super == null
+                                                            && ((symbol.modifiers & ModifierFlags.Private) == 0
+                                                                || (symbol.outer == scopeSymbol.outer));
+                                                    }
+
+                                                    return true;
+                                                });
+
+                                            symbols.push(...symbolItems);
+
+                                            break;
+                                        }
+                                    }
                                 }
+
                                 break;
                             }
                         }
 
                         // No context, include all scope symbols of all kinds.
+
+                        // TODO: Hide non-concrete symbols if we are working in a static function.
 
                         // Remove the "Class<id>(expr)" keyword here, because we are already including the intrinsic class symbol.
                         candidates.tokens.delete(UCParser.KW_CLASS);
@@ -1141,8 +1199,9 @@ function symbolToCompletionItem(symbol: ISymbol): CompletionItem {
     return {
         label: symbol.id.name.text,
         kind: kind,
+        tags: getSymbolTags(symbol),
         detail: symbol.getTooltip(),
-        data: symbol.id
+        data: symbol.id,
     };
 }
 
