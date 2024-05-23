@@ -2,6 +2,7 @@ import { UCDocument } from './document';
 import { UCArchetypeBlockStatement } from './statements';
 import {
     ContextInfo,
+    getContext,
     isParamSymbol,
     isStruct,
     UCArchetypeSymbol,
@@ -14,6 +15,7 @@ import {
     UCScriptStructSymbol,
     UCStateSymbol,
     UCStructSymbol,
+    UCSymbolKind,
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 
@@ -125,9 +127,10 @@ export class DocumentCodeIndexer extends DefaultSymbolWalker<undefined> {
         // this.visitStructBase(symbol);
 
         if (symbol.block) {
-            // index in the default context (i.e. the class or generated archetype)
-            console.assert(typeof symbol.default !== 'undefined', 'symbol.default is undefined');
-            symbol.block.index(this.document, symbol.default);
+            const classOuter = getContext<UCClassSymbol>(symbol, UCSymbolKind.Class)!;
+
+            // index in the defaults context (i.e. the class or generated archetype)
+            symbol.block.index(this.document, classOuter.defaults);
         }
     }
 

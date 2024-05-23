@@ -11,6 +11,7 @@ import {
     UCSymbolKind,
     getContext,
     hasModifiers,
+    isArchetypeSymbol,
     isClass,
     isField,
     supportsRef,
@@ -258,6 +259,11 @@ export function getSymbol(uri: DocumentUri, position: Position): ISymbol | undef
 
 export function getSymbolDocument(symbol: ISymbol): UCDocument | undefined {
     console.assert(typeof symbol !== 'undefined');
+
+    // An archetype's outer in UE3 resides in the package instead of the class, so we have to handle this special case.
+    if (isArchetypeSymbol(symbol)) {
+        return symbol.document;
+    }
 
     const documentClass = getContext<UCClassSymbol>(symbol, UCSymbolKind.Class);
     const document = documentClass && getDocumentById(documentClass.id.name);

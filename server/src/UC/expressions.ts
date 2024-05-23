@@ -801,6 +801,16 @@ export class UCDefaultAssignmentExpression extends UCAssignmentOperatorExpressio
     }
 }
 
+/**
+ * An expression to represent a property assignment in an object declaration i.e `Property=Expression`
+ * 
+ * e.g. in a 'object declaration' the part `Left=Right` is represented by this expression type
+ * 
+ * ```UnrealScript
+ * Begin Object Left=Right
+ * End Object
+ * ```
+ */
 export class UCObjectAttributeExpression extends UCDefaultAssignmentExpression {
 
 }

@@ -3,6 +3,7 @@ import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import {
     ModifierFlags,
+    UCClassSymbol,
     UCFieldSymbol,
     UCObjectSymbol,
     UCStructSymbol,
@@ -17,9 +18,11 @@ import {
 export class UCArchetypeSymbol extends UCStructSymbol {
     override kind = UCSymbolKind.Archetype;
     declare outer: UCObjectSymbol;
+    declare super?: UCClassSymbol;
     override modifiers = ModifierFlags.ReadOnly;
 
     public overriddenArchetype?: UCArchetypeSymbol;
+    public document: UCDocument;
 
     override getTypeKind() {
         return UCTypeKind.Object;

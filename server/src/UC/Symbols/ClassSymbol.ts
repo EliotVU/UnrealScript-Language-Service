@@ -1,13 +1,13 @@
 import { Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { intersectsWith, intersectsWithRange } from '../helpers';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import {
     ISymbol,
     ITypeSymbol,
     ModifierFlags,
+    UCArchetypeSymbol,
     UCFieldSymbol,
     UCObjectTypeSymbol,
     UCPackage,
@@ -22,7 +22,6 @@ export enum ClassModifierFlags {
     Interface = 1 << 0,
 }
 
-// TODO: Derive this class as UCInterfaceSymbol
 export class UCClassSymbol extends UCStructSymbol {
     static readonly allowedKindsMask = 1 << UCSymbolKind.Const
         | 1 << UCSymbolKind.Enum
@@ -45,6 +44,12 @@ export class UCClassSymbol extends UCStructSymbol {
 
     public dependsOnTypes?: UCObjectTypeSymbol[];
     public implementsTypes?: (UCQualifiedTypeSymbol | UCObjectTypeSymbol)[];
+
+    /**
+     * (UC3) A generated symbol to hold onto object declarations (archetypes)
+     * If archetypes are not available, it will be referencing the outer class or struct.
+     */
+    public defaults: UCStructSymbol | UCArchetypeSymbol;
 
     override getTypeKind() {
         return UCTypeKind.Object;

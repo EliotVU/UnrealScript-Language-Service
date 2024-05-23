@@ -89,6 +89,7 @@ import {
 import {
     addHashedSymbol,
     DEFAULT_RANGE,
+    getContext,
     hasNoKind,
     Identifier,
     IntrinsicObject,
@@ -555,6 +556,32 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                     break;
             }
         }
+
+        if (config.generation === UCGeneration.UC3) {
+            const defaultId: Identifier = {
+                name: toName(`Default__${identifier.name.text}`),
+                range: identifier.range
+            };
+
+            const defaults = new UCArchetypeSymbol(defaultId, identifier.range);
+            defaults.modifiers |= ModifierFlags.Generated;
+            // the archetype has this symbol as class !!
+            defaults.super = symbol;
+
+            // Don't register nor hash (in UE these objects are generated in the third pass)
+            // this.declare(defaults);
+
+            // The 'defaults' archetype is expected to reside in the class's package instead of the usual behavior i.e. the class.
+            defaults.outer = this.document.classPackage;
+
+            defaults.document = this.document;
+
+            symbol.defaults = defaults;
+        } else {
+            // point to self for UC1, UC2
+            symbol.defaults = symbol;
+        }
+
         return symbol;
     }
 
@@ -1064,7 +1091,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         };
         const range = rangeFromBounds(ctx.start, ctx.stop);
         const symbol = new UCDefaultPropertiesBlock(identifier, range);
-        symbol.default = this.scope<UCStructSymbol>();
 
         this.declare(symbol, ctx);
         this.push(symbol);
@@ -1073,6 +1099,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         } finally {
             this.pop();
         }
+
         return symbol;
     }
 
@@ -1085,30 +1112,17 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const symbol = new UCDefaultPropertiesBlock(identifier, range);
 
         this.declare(symbol, ctx);
-        this.push(symbol);
+
+        const classOuter = getContext<UCClassSymbol>(symbol, UCSymbolKind.Class)!;
+        console.debug(typeof classOuter !== 'undefined', 'expected defaultproperties to be declared in a class scope.');
+
+        this.push(classOuter.defaults);
         try {
-            let defaultObject: UCArchetypeSymbol | undefined;
-            if (config.generation === UCGeneration.UC3) {
-                const defaultId: Identifier = {
-                    name: toName(`Default__${this.document.name.text}`),
-                    range: identifier.range
-                };
-                defaultObject = new UCArchetypeSymbol(defaultId, range);
-                defaultObject.modifiers |= ModifierFlags.Generated;
-                defaultObject.outer = this.document.classPackage;
-                defaultObject.super = this.document.class;
-                this.declare(defaultObject);
-                symbol.default = defaultObject;
-            } else {
-                symbol.default = this.document.class!;
-            }
             symbol.block = createBlock(this, ctx.defaultStatement());
-            if (defaultObject) {
-                defaultObject.block = symbol.block;
-            }
         } finally {
             this.pop();
         }
+
         return symbol;
     }
 
@@ -1179,10 +1193,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         if (classType) {
             symbol.extendsType = classType;
         }
-        
+
+        symbol.document = this.document;
+
         const statement = new UCArchetypeBlockStatement(statementRange);
         statement.archetypeSymbol = symbol;
-        
+
         this.declare(symbol, ctx);
         this.push(symbol);
         try {
@@ -1193,6 +1209,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         } finally {
             this.pop();
         }
+
         return statement;
     }
 
@@ -1747,7 +1764,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         expression.expression = ctx._expr.accept(this);
-        
+
         return expression;
     }
 

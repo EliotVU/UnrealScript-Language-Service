@@ -1,18 +1,20 @@
 /* eslint-disable prefer-rest-params */
 /* eslint-disable prefer-spread */
-import { Position, Range } from 'vscode-languageserver';
+import { Location, Position, Range } from 'vscode-languageserver';
 
 import { UCDocument } from './document';
 import { IExpression } from './expressions';
 import { intersectsWith } from './helpers';
 import {
     addHashedSymbol,
-    ContextInfo, Identifier, INode, ISymbol, IWithInnerSymbols, ObjectsTable, StaticNameType,
-    UCArchetypeSymbol, UCNodeKind, UCObjectTypeSymbol, UCStructSymbol,
+    ContextInfo, getContext, Identifier, INode, isArchetypeSymbol, ISymbol, IWithInnerSymbols, ObjectsTable, StaticNameType,
+    UCArchetypeSymbol, UCClassSymbol, UCNodeKind, UCObjectTypeSymbol, UCStructSymbol,
     UCSymbolKind
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 import { NAME_NONE } from './names';
+import { config, indexDeclarationReference, indexReference } from './indexer';
+import { UCGeneration } from './settings';
 
 export interface IStatement extends INode, IWithInnerSymbols {
     getSymbolAtPos(position: Position): ISymbol | undefined;
@@ -134,26 +136,45 @@ export class UCArchetypeBlockStatement implements IStatement {
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
-        return this.getContainedSymbolAtPos(position);
+        return intersectsWith(this.range, position) 
+            ? this.getContainedSymbolAtPos(position) 
+            : undefined;
     }
 
-    getContainedSymbolAtPos(position: Position) {
-        return this.block?.getSymbolAtPos(position);
+    getContainedSymbolAtPos(position: Position): ISymbol | undefined {
+        return this.block?.getSymbolAtPos(position) ?? (intersectsWith(this.archetypeSymbol.id.range, position) ? this.archetypeSymbol : undefined);
     }
 
-    index(document: UCDocument, _context: UCStructSymbol, info?: ContextInfo): void {
-        // Index the archetype class
-        this.archetypeSymbol.index(document, _context);
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo): void {
+        // Index the archetype's super class
+        this.archetypeSymbol.index(document, context);
 
         if (this.archetypeSymbol.id.name !== NAME_NONE) {
             // Find the override if no class is specified (extendsType)
-            if (!this.archetypeSymbol.extendsType && !this.archetypeSymbol.super) {
-                const overriddenArchetype = ObjectsTable.getSymbol<UCArchetypeSymbol>(this.archetypeSymbol.id.name, UCSymbolKind.Archetype);
-                this.archetypeSymbol.overriddenArchetype = overriddenArchetype;
-                this.archetypeSymbol.super = overriddenArchetype;
+            if (config.generation === UCGeneration.UC3 
+                && !this.archetypeSymbol.extendsType 
+                && !this.archetypeSymbol.super) {
+                // expecting context to be the 'Defaults__ClassName' archetype, so let's use its 'super' which should be the class it was declared in.
+                const archetypeOuterClass = context.super && getContext<UCClassSymbol>(context.super, UCSymbolKind.Class);
+                if (archetypeOuterClass && isArchetypeSymbol(archetypeOuterClass.defaults)) {
+                    // Unlike the UnrealScript compiler
+                    // -- we cannot safely find the symbol by using the hash table
+                    // -- because that is sensitive to the compilation order of classes. 
+                    for (let parent = archetypeOuterClass.super; parent; parent = parent.super) {
+                        const overriddenArchetype = parent.defaults.getSymbol<UCArchetypeSymbol>(this.archetypeSymbol.id.name, UCSymbolKind.Archetype);
+                        if (overriddenArchetype) {
+                            this.archetypeSymbol.overriddenArchetype = overriddenArchetype;
+                            this.archetypeSymbol.super = overriddenArchetype.super;
+
+                            // Index a reference to the overriden archetype.
+                            indexReference(overriddenArchetype, document, Location.create(document.uri, this.archetypeSymbol.id.range));
+                            break;
+                        }
+                    }
+                }
             }
-            
-            // Allow assignments to find this archetype (in order! If we were to pre-hash these we may incorrectly override the hash table assigned symbol)
+
+            // Allow assignments to find this archetype (by identifier or an object literal)
             addHashedSymbol(this.archetypeSymbol);
         }
 
