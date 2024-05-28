@@ -4,7 +4,23 @@ options {
     tokenVocab = UCLexer;
 }
 
+@header {
+    export const enum Licensee {
+        Epic = 'Epic',
+        XCom = 'XCom'
+    }
+}
+
 @members {
+    /** Unreal Engine generation. */
+    generation: number = 3;
+
+    /** Unreal Engine build version. */
+    generationVersion: number = -1;
+
+    /** Licensee adoptation. */
+    licensee: Licensee = Licensee.Epic;
+
     getIndex(): number {
         return this._input.index;
     }
@@ -52,6 +68,8 @@ options {
 }
 
 // Class modifier keywords have been commented out, because we are not using them for parsing.
+// Any captured keyword MUST be listed as a possible identifer (other wise one cannot use the keyword as identifier)
+// AND any captured keyword must also have an equivalent in UCLexer.g4 such as 'const' and KW_CONST.
 identifier
     : ID
     | ('default'
@@ -151,23 +169,23 @@ identifier
 	| 'globalconfig'
 	| 'intrinsic'
 	| 'native'
-	// | 'nativereplication'
+	| 'nativereplication'
 	| 'nativeonly'
 	| 'export'
 	| 'abstract'
 	| 'perobjectconfig'
-	// | 'perobjectlocalized'
+	| 'perobjectlocalized'
 	| 'placeable'
 	| 'notplaceable'
-	// | 'nousercreate'
-	// | 'safereplace'
+	| 'nousercreate'
+	| 'safereplace'
 	| 'dependson'
-	// | 'showcategories'
-	// | 'hidecategories'
-	// | 'guid'
+	| 'showcategories'
+	| 'hidecategories'
+	| 'guid'
 	| 'long'
 	| 'transient'
-	// | 'nontransient'
+	| 'nontransient'
 	| 'cache'
 	| 'interp'
 	| 'repretry'
@@ -180,17 +198,17 @@ identifier
 	| 'automated'
 	| 'travel'
 	| 'input'
-	// | 'cacheexempt'
-	// | 'hidedropdown'
+	| 'cacheexempt'
+	| 'hidedropdown'
 	| 'instanced'
 	| 'databinding'
 	| 'duplicatetransient'
     | 'classredirect'
 	| 'parseconfig'
-	// | 'editinlinenew'
-	// | 'noteditinlinenew'
-	// | 'exportstructs'
-	// | 'dllbind'
+	| 'editinlinenew'
+	| 'noteditinlinenew'
+	| 'exportstructs'
+	| 'dllbind'
 	| 'deprecated'
 	| 'strictconfig'
 	| 'atomic'
@@ -205,16 +223,16 @@ identifier
 	| 'k2call'
 	| 'k2pure'
 	| 'k2override'
-	// | 'collapsecategories'
-	// | 'dontcollapsecategories'
+	| 'collapsecategories'
+	| 'dontcollapsecategories'
 	| 'implements'
-	// | 'classgroup'
-	// | 'autoexpandcategories'
-	// | 'autocollapsecategories'
-	// | 'dontautocollapsecategories'
-	// | 'dontsortcategories'
-	// | 'inherits'
-	// | 'forcescriptorder'
+	| 'classgroup'
+	| 'autoexpandcategories'
+	| 'autocollapsecategories'
+	| 'dontautocollapsecategories'
+	| 'dontsortcategories'
+	| 'inherits'
+	| 'forcescriptorder'
 	| 'begin'
 	| 'object'
 	| 'end'
@@ -235,6 +253,7 @@ identifier
 // Class / Field
 qualifiedIdentifier: left=identifier (DOT right=identifier)?;
 
+/** `#identifier TEXT \n` */
 directive
 	: SHARP { const i = this.getIndex(); } identifier? { this.skipLine(i); }
 	;
@@ -252,7 +271,7 @@ member
 	| functionDecl
 	| replicationBlock
 	| defaultPropertiesBlock
-	| cppText
+	| { this.generation >= 2 }? cppText
 	| directive
 	| SEMICOLON
 	;
@@ -280,12 +299,14 @@ signedNumericLiteral: (MINUS | PLUS)? DOT? (DECIMAL_LITERAL | INTEGER_LITERAL);
 // e.g. Class'Engine.Actor'.const.MEMBER or Texture'Textures.Group.Name'.default
 objectLiteral: classRef=identifier path=NAME_LITERAL;
 
+// Generally UC3+ but some UE2 games have this feature.
 interfaceDecl
     : 'interface' identifier
         qualifiedExtendsClause?
         interfaceModifier*
         SEMICOLON
     ;
+
 classDecl
 	: 'class' identifier
         qualifiedExtendsClause?
@@ -294,69 +315,79 @@ classDecl
 		SEMICOLON
 	;
 
-extendsClause: ('extends' | 'expands') id=identifier;
-qualifiedExtendsClause: ('extends' | 'expands') id=qualifiedIdentifier;
+extendsClause: ('extends' | { this.generation < 3 }? 'expands') id=identifier;
+qualifiedExtendsClause: ('extends' | { this.generation < 3 }? 'expands') id=qualifiedIdentifier;
 qualifiedWithinClause: 'within' id=qualifiedIdentifier;
 
 // UC3+
 interfaceModifier
-    : (KW_NATIVE modifierArgument?)                                                             #nativeInterfaceModifier
-	| (KW_NATIVEONLY modifierArgument?)                                                         #nativeOnlyInterfaceModifier
+    : 'native' (modifierArgument?)                                                                  #nativeInterfaceModifier
+	| 'nativeonly'                                                                                  #nativeonlyInterfaceModifier
 
-    // | KW_EDITINLINENEW
-	| (KW_DEPENDSON OPEN_PARENS identifierArguments CLOSE_PARENS)                               #dependsOnInterfaceModifier
-    | (identifier modifierArguments?)                                                           #unidentifiedInterfaceModifier
+    | 'editinlinenew'                                                                               #editinlinenewInterfaceModifier
+	| 'dependson' (OPEN_PARENS identifierArguments CLOSE_PARENS)                                    #dependsOnInterfaceModifier
+    | (identifier modifierArguments?)                                                               #unidentifiedInterfaceModifier
     ;
 
 classModifier
-    : // in UC3 a class can have a custom native name.
-	(KW_NATIVE modifierArgument?)                                                               #nativeModifier
-	// | KW_NATIVEREPLICATION
-	// | KW_LOCALIZED // UC1
-	| KW_ABSTRACT                                                                               #abstractModifier
-	| KW_PEROBJECTCONFIG                                                                        #perobjectconfigModifier
-	| KW_TRANSIENT                                                                              #transientModifier
-	| KW_EXPORT                                                                                 #exportModifier
-	// | KW_NOEXPORT
-	// | KW_NOUSERCREATE
-	// | KW_SAFEREPLACE
-	// | (KW_CONFIG modifierArgument?)
+    : ('native' | { this.generation < 3 }? 'intrinsic')
+        // in UC3 a class can have a custom native name.
+        ({ this.generation === 3 }? modifierArgument)?                                              #nativeModifier
+	| 'nativereplication'                                                                           #nativereplicationModifier
+	| 'abstract'                                                                                    #abstractModifier
+	| 'perobjectconfig'                                                                             #perobjectconfigModifier
+	| 'transient'                                                                                   #transientModifier
+	| 'config' modifierArgument?                                                                    #configModifier
+    // Unreal 1 (error in UT99)
+	| { this.generation === 1 }? 'localized'                                                        #localizedModifier
+	| { this.generation === 1 }? 'nousercreate'                                                     #nousercreateModifier
+	| { this.generation === 3 }? 'nontransient'                                                     #nontransientModifier
+	| { this.generation >= 2 }? 'export'                                                            #exportModifier
+	| { this.generation >= 2 }? 'noexport'                                                          #noexportModifier
 	// // UC2+
-	| KW_PLACEABLE                                                                              #placeableModifier
-	| KW_NOTPLACEABLE                                                                           #notplaceableModifier
-	// | KW_CACHEEXEMPT // UT2004
-	// | KW_HIDEDROPDOWN
-	// | KW_EXPORTSTRUCTS
-	// | KW_INSTANCED
-	// | KW_PARSECONFIG
-	// | KW_EDITINLINENEW
-	// | KW_NOTEDITINLINENEW
-	| (KW_DEPENDSON OPEN_PARENS identifierArguments CLOSE_PARENS)                               #dependsOnModifier
-	// | (KW_COLLAPSECATEGORIES modifierArguments)
-	// | (KW_DONTCOLLAPSECATEGORIES modifierArguments?)
-	// | (KW_SHOWCATEGORIES modifierArguments)
-	// | (KW_HIDECATEGORIES modifierArguments)
-	// | (KW_GUID (LPAREN INTEGER COMMA INTEGER COMMA INTEGER COMMA INTEGER RPAREN))
+    | { this.generation >= 2 }? 'placeable'                                                         #placeableModifier
+	| { this.generation >= 2 }? 'notplaceable'                                                      #notplaceableModifier
+    // UT2004
+	| { this.generation === 2 }? 'cacheexempt'                                                      #cacheexemptModifier
+	| { this.generation === 2 }? 'instanced'                                                        #instancedModifier
+	| { this.generation === 2 }? 'parseconfig'                                                      #parseconfigModifier
+	| { this.generation >= 2 }? 'hidedropdown'                                                      #hidedropdownModifier
+	| { this.generation >= 2 }? 'exportstructs'                                                     #exportstructsModifier
+	| { this.generation >= 2 }? 'editinlinenew'                                                     #editinlinenewModifier
+	| { this.generation >= 2 }? 'noteditinlinenew'                                                  #noteditinlinenewModifier
+	| { this.generation >= 2 }? 'dependson'
+        // Multiple arguments starting with UC3
+        (OPEN_PARENS identifierArguments CLOSE_PARENS)                                              #dependsOnModifier
+	| { this.generation >= 2 }? 'collapsecategories' modifierArguments                              #collapsecategoriesModifier
+	| { this.generation >= 2 }? 'dontcollapsecategories' modifierArguments?                         #dontcollapsecategoriesModifier
+	| { this.generation >= 2 }? 'showcategories' modifierArguments                                  #showcategoriesModifier
+	| { this.generation >= 2 }? 'hidecategories' modifierArguments                                  #hidecategoriesModifier
+	| { this.generation < 3 }? 'guid'
+        (OPEN_PARENS modifierValue COMMA modifierValue COMMA modifierValue COMMA modifierValue CLOSE_PARENS)
+                                                                                                    #guidModifier
+    // (error in UC3)
+	| { this.generation < 3 }? 'safereplace'                                                        #safereplaceModifier
     // UC2+
     // | 'Interface'
     // | 'NoPropertySort'
 	// // UC3+
-	// | KW_NONTRANSIENT
-	// | KW_PEROBJECTLOCALIZED
-	// | KW_DEPRECATED
-	// | (KW_CLASSREDIRECT OPEN_PARENS identifierArguments CLOSE_PARENS)
-	// | (KW_DLLBIND modifierArgument)
-	| (KW_IMPLEMENTS OPEN_PARENS qualifiedIdentifierArguments CLOSE_PARENS)                     #implementsModifier
-	// | (KW_CLASSGROUP modifierArguments)
-	// | (KW_AUTOEXPANDCATEGORIES modifierArguments)
-	// | (KW_AUTOCOLLAPSECATEGORIES modifierArguments)
-	// | (KW_DONTAUTOCOLLAPSECATEGORIES modifierArguments)
-	// | (KW_DONTSORTCATEGORIES modifierArguments)
-	// | (KW_INHERITS modifierArguments)
+	| { this.generation === 3 }? 'nativeonly'                                                       #nativeonlyModifier
+	| { this.generation === 3 }? 'perobjectlocalized'                                               #perobjectlocalizedModifier
+	| { this.generation === 3 }? 'deprecated'                                                       #deprecatedModifier
+	| { this.generation === 3 }? 'classredirect' (OPEN_PARENS identifierArguments CLOSE_PARENS)     #classredirectModifier
+	| { this.generation === 3 }? 'dllbind' modifierArgument                                         #dllbindModifier
+	| { this.generation === 3 }? 'implements'
+        (OPEN_PARENS qualifiedIdentifierArguments CLOSE_PARENS)                                     #implementsModifier
+	| { this.generation === 3 }? 'classgroup' modifierArguments                                     #classgroupModifier
+	| { this.generation === 3 }? 'autoexpandcategories' modifierArguments                           #autoexpandcategoriesModifier
+	| { this.generation === 3 }? 'autocollapsecategories' modifierArguments                         #autocollapsecategoriesModifier
+	| { this.generation === 3 }? 'dontautocollapsecategories' modifierArguments                     #dontautocollapsecategoriesModifier
+	| { this.generation === 3 }? 'dontsortcategories' modifierArguments                             #dontsortcategoriesModifier
+	| { this.generation === 3 }? 'inherits' modifierArguments                                       #inheritsModifier
 	// // true/false only
-	// | (KW_FORCESCRIPTORDER modifierArgument)
-	// ; //ID (LPARENT ID (COMMA ID)* RPARENT)?
-    | (identifier modifierArguments?)                                                           #unidentifiedModifier
+	| { this.generation === 3 }? 'forcescriptorder' modifierArgument                                #forcescriptorderModifier
+    // Any unrecognized modifier, too often licensees add custom modifiers, let's not bitch about these!
+    | identifier modifierArguments?                                                                 #unidentifiedModifier
     ;
 
 modifierValue
@@ -391,10 +422,10 @@ constValue
 	| objectLiteral
     | structLiteral
     // <=UC1
-    // | enumCountToken
+    // | { this.generation === 1 }? enumCountToken
 	| arrayCountToken
     // UC3+
-	| nameOfToken
+	| { this.generation === 3 }? nameOfToken
 	| sizeOfToken
 	;
 
@@ -427,18 +458,20 @@ sizeOfToken
 	;
 
 enumDecl:
-	'enum' identifier metaData?
+	'enum' identifier ({ this.generation === 3 }? metaData)?
 	OPEN_BRACE
 		(enumMember (COMMA enumMember)* COMMA?)?
 	CLOSE_BRACE
 	;
 
 enumMember
-	: identifier metaData? COMMA?
+	: identifier ({ this.generation === 3 }? metaData)?
+        // = value (in some licensee games)
+        COMMA?
 	;
 
 structDecl
-	:	'struct' exportBlockText? structModifier* identifier qualifiedExtendsClause?
+	:	'struct' ({ this.generation === 3 }? exportBlockText)? structModifier* identifier qualifiedExtendsClause?
 		OPEN_BRACE
 			structMember*
 		CLOSE_BRACE
@@ -449,25 +482,24 @@ structMember
 	| (enumDecl SEMICOLON)
 	| (structDecl SEMICOLON)
 	| varDecl
-	| structDefaultPropertiesBlock
+	| { this.generation === 3 }? structDefaultPropertiesBlock
 	| structCppText
 	| directive
 	| SEMICOLON
 	;
 
 structModifier
-	// UC2+
+	// UC2+ (Backported in some UE1 games)
 	: 'native'
 	| 'transient'
 	| 'export'
 	| 'init'
-	| 'long'
-	// UC3+
-	| 'strictconfig'
-	| 'atomic'
-	| 'atomicwhencooked'
-	| 'immutable'
-	| 'immutablewhencooked'
+	| { this.generation === 2 }? 'long'                      // 2.5
+	| { this.generation === 3 }? 'strictconfig'
+	| { this.generation === 3 }? 'atomic'
+	| { this.generation === 3 }? 'atomicwhencooked'
+	| { this.generation === 3 }? 'immutable'
+	| { this.generation === 3 }? 'immutablewhencooked'
 	;
 
 arrayDimRefer
@@ -486,8 +518,9 @@ varDecl
 // id[5] {DWORD} <Order=1> "PI:Property Two:Game:1:60:Check"
 variable
 	: identifier (OPEN_BRACKET arrayDim=arrayDimRefer? CLOSE_BRACKET)?
-	(exportBlockText? metaData?) // UC3+
-    (optionText?) // UC2 (UT2004+, used in Pariah)
+	({ this.generation === 3 }? exportBlockText)?
+    ({ this.generation === 3 }? metaData)?
+    ({ this.generation < 3 }? optionText)? // UC2 (UT2004+, used in Pariah)
 	;
 
 optionText: STRING_LITERAL;
@@ -515,55 +548,54 @@ categoryList
 
 variableModifier
 	: ('localized'
-	| 'native'
-    | 'intrinsic'
 	| 'const'
 	| 'editconst'
 	| 'globalconfig'
 	| 'transient'
-	| 'travel'
 	| 'input'
-	// UC2
 	| 'export'
-	| 'noexport'
-	| 'noimport'
-	| 'cache'
-	| 'automated'
-	| 'editinline'
-	| 'editinlinenotify'
-	| 'editinlineuse'
-	| 'editconstarray'
-	| 'edfindable'
+	| 'native'
+    | { this.generation < 3 }? 'intrinsic'
+	| { this.generation < 3 }? 'travel'
+	| { this.generation >= 2 }? 'deprecated'
+	| { this.generation >= 2 }? 'noexport'
+	| { this.generation >= 2 }? 'editinline'
+	| { this.generation >= 2 }? 'editinlineuse'
+	| { this.generation === 2 }? 'editconstarray'
+	| { this.generation === 2 }? 'editinlinenotify'      // 2.5
+	| { this.generation === 2 }? 'cache'                 // 2.5
+	| { this.generation === 2 }? 'automated'             // 2.5
+	| { this.generation === 2 }? 'edfindable'
     // UC2+
     // | 'nonlocalized'
-	// UC3
-	| 'init'
-	| 'edithide'
-	| 'editfixedsize'
-	| 'editoronly'
-	| 'editortextbox'
-	| 'noclear'
-	| 'serializetext'
-	| 'nontransactional'
-	| 'instanced'
-	| 'databinding'
-	| 'duplicatetransient'
-	| 'repretry'
-	| 'repnotify'
-	| 'interp'
-	| 'deprecated'
-	| 'notforconsole'
-	| 'archetype'
-	| 'crosslevelactive'
-	| 'crosslevelpassive'
-	| 'allowabstract')
+	| { this.generation === 3 }? 'init'
+	| { this.generation === 3 }? 'edithide'
+	| { this.generation === 3 }? 'editfixedsize'
+	| { this.generation === 3 }? 'editoronly'
+	| { this.generation === 3 }? 'editortextbox'
+	| { this.generation === 3 }? 'noclear'
+	| { this.generation === 3 }? 'noimport'
+	| { this.generation === 3 }? 'serializetext'
+	| { this.generation === 3 }? 'nontransactional'
+	| { this.generation === 3 }? 'instanced'
+	| { this.generation === 3 }? 'databinding'
+	| { this.generation === 3 }? 'duplicatetransient'
+	| { this.generation === 3 }? 'repretry'
+	| { this.generation === 3 }? 'repnotify'
+	| { this.generation === 3 }? 'interp'
+	| { this.generation === 3 }? 'notforconsole'
+	| { this.generation === 3 }? 'archetype'
+	| { this.generation === 3 }? 'crosslevelactive'
+	| { this.generation === 3 }? 'crosslevelpassive'
+	| { this.generation === 3 }? 'allowabstract'
+    )
 	// I have only attested this in XCOM2, but could possibly be a late UC3+ feature
-	| ('config' (OPEN_PARENS identifier CLOSE_PARENS)? )
-	| ('public' exportBlockText?)
-	| ('protected' exportBlockText?)
-	| ('protectedwrite' exportBlockText?)
-	| ('private' exportBlockText?)
-	| ('privatewrite' exportBlockText?)
+	| 'config'             ({ this.generation === 3 }? (OPEN_PARENS identifier CLOSE_PARENS))?
+	| 'public'             ({ this.generation === 3 }? exportBlockText)?
+	| 'protected'          ({ this.generation === 3 }? exportBlockText)?
+	| 'private'            ({ this.generation === 3 }? exportBlockText)?
+	| { this.generation === 3 }? 'protectedwrite'      exportBlockText?
+	| { this.generation === 3 }? 'privatewrite'        exportBlockText?
 	;
 
 varType
@@ -575,7 +607,7 @@ typeDecl
     | stringType
 	| classType
 	| arrayType
-	| delegateType
+	| { this.generation === 3 }? delegateType
 	| mapType
 	| enumDecl 		// Only allowed as a top-scope member.
 	| structDecl 	// Only allowed as a top-scope member.
@@ -588,8 +620,8 @@ primitiveType
 	| 'float'
 	| 'bool'
 	| 'name'
-	| 'pointer'
-	| 'button' // alias for a string with an input modifier
+	| { this.generation === 2 }? 'pointer'      // pointer became a struct type in UE3
+	| { this.generation === 2 }? 'button'       // alias for a string with an input modifier
 	;
 
 stringType
@@ -610,7 +642,7 @@ delegateType
 	; // TODO: qualifiedIdentifier is hardcoded to 2 identifiers MAX.
 
 mapType
-	: 'map' exportBlockText
+	: 'map' ({ this.generation === 3 }? exportBlockText)?
 	;
 
 cppText
@@ -618,7 +650,8 @@ cppText
 	;
 
 structCppText
-	: ('structcpptext' | 'cppstruct') exportBlockText
+	: ({ this.generation === 3 }? 'structcpptext' | { this.generation === 2 }? 'cppstruct')
+        exportBlockText
 	;
 
 // UnrealScriptBug: Anything WHATSOEVER can be written after this closing brace as long as it's on the same line!
@@ -649,7 +682,7 @@ replicationStatement
  */
 functionDecl
 	: functionSpecifier+ returnParam=functionReturnParam?
-	  functionName (OPEN_PARENS params=parameters? CLOSE_PARENS) 'const'?
+	  functionName (OPEN_PARENS params=parameters? CLOSE_PARENS) ({ this.generation === 3 }? 'const')?
 	  functionBody?
 	;
 
@@ -682,33 +715,32 @@ functionSpecifier
 	| 'exec'
 	| 'final'
 	| 'event'
-	| 'delegate'
 	| 'preoperator'
 	| 'postoperator'
 	| 'latent'
 	| 'singular'
 	| 'iterator'
-	// UC3
-	| 'const'
-	| 'noexport'
-	| 'noexportheader'
-	| 'virtual'
-	| 'reliable'
-	| 'unreliable'
-	| 'server'
-	| 'client'
-	| 'dllimport'
-	| 'demorecording'
-    | 'transient'
-	| 'k2call'
-	| 'k2pure'
-	| 'k2override')
-	| ('native' (OPEN_PARENS nativeToken=INTEGER_LITERAL CLOSE_PARENS)?)
-	| ('intrinsic' (OPEN_PARENS nativeToken=INTEGER_LITERAL CLOSE_PARENS)?)
-	| ('operator' (OPEN_PARENS operatorPrecedence=INTEGER_LITERAL CLOSE_PARENS))
-	| ('public' exportBlockText?)
-	| ('protected' exportBlockText?)
-	| ('private' exportBlockText?)
+	| { this.generation >= 2 }? 'delegate'
+	| { this.generation === 3 }? 'const'
+	| { this.generation === 3 }? 'noexport'
+	| { this.generation === 3 }? 'noexportheader'
+	| { this.generation === 3 }? 'virtual'
+	| { this.generation === 3 }? 'reliable'
+	| { this.generation === 3 }? 'unreliable'
+	| { this.generation === 3 }? 'server'
+	| { this.generation === 3 }? 'client'
+	| { this.generation === 3 }? 'dllimport'
+	| { this.generation === 3 }? 'demorecording'
+    | { this.generation === 3 }? 'transient'
+	| { this.generation === 3 }? 'k2call'
+	| { this.generation === 3 }? 'k2pure'
+	| { this.generation === 3 }? 'k2override')
+	| 'native'                             (OPEN_PARENS nativeToken=INTEGER_LITERAL CLOSE_PARENS)?
+	| { this.generation < 3 }? 'intrinsic' (OPEN_PARENS nativeToken=INTEGER_LITERAL CLOSE_PARENS)?
+	| 'operator'       (OPEN_PARENS operatorPrecedence=INTEGER_LITERAL CLOSE_PARENS)
+	| 'public'         ({ this.generation === 3 }? exportBlockText)?
+	| 'protected'      ({ this.generation === 3 }? exportBlockText)?
+	| 'private'        ({ this.generation === 3 }? exportBlockText)?
 	;
 
 functionName: identifier | operatorName;
@@ -722,12 +754,12 @@ returnTypeModifier
 
 paramModifier
 	: 'out'
-	| 'ref'	// XCom or late UC3+ (Seen in other licenseed games).
 	| 'optional'
-	| 'init'
-	| 'skip'
 	| 'coerce'
-	| 'const'
+	| 'skip'
+	| { this.generation === 3 }? 'const'
+	| { this.generation === 3 }? 'init'
+    | { this.licensee === Licensee.XCom }? 'ref' // XCom or late UC3+ (Seen in other licenseed games).
 	;
 
 localDecl
@@ -748,7 +780,7 @@ stateModifier
 	;
 
 stateMember
-	: localDecl
+	: { this.generation === 3 }? localDecl // 3, late UDK
 	| constDecl
 	| ignoresDecl
 	| functionDecl
@@ -924,8 +956,9 @@ primaryExpression
                     (OPEN_PARENS templateExpr=primaryExpression CLOSE_PARENS)?              #newExpression
 	| 'class' 		(LT identifier GT) (OPEN_PARENS expr=expression CLOSE_PARENS)			#metaClassExpression
 	| 'arraycount' 	(OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#arrayCountExpression
-	| 'nameof' 	    (OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#nameOfExpression
 	| 'super' 		(OPEN_PARENS identifier CLOSE_PARENS)?									#superExpression
+	| { this.generation === 3 }?
+      'nameof'      (OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#nameOfExpression
 
 	| left=primaryExpression id=INCR 														#postOperatorExpression
 	| left=primaryExpression id=DECR 														#postOperatorExpression
@@ -941,10 +974,10 @@ primaryExpression
 	| id=SHARP right=primaryExpression														#preOperatorExpression
 	| id=DOLLAR right=primaryExpression														#preOperatorExpression
 	| id=AT right=primaryExpression															#preOperatorExpression
-    // | { this.isPreOperator() }? id=identifier right=primaryExpression                       #preNamedOperatorExpression  
+    // | { this.isPreOperator() }? id=identifier right=primaryExpression                       #preNamedOperatorExpression
 
     // precedence: 16
-	| left=primaryExpression { this.isBinaryOperator() }? 
+	| left=primaryExpression { this.isBinaryOperator() }?
       id=identifier right=primaryExpression                                                 #binaryNamedOperatorExpression
 
 	| left=primaryExpression id=EXP right=primaryExpression 								#binaryOperatorExpression
@@ -959,9 +992,9 @@ primaryExpression
 	| left=primaryExpression id=OR right=primaryExpression 									#binaryOperatorExpression
 
     // TODO: Only valid if the conditional resolves to a boolean type.
-	| <assoc=right> 
-      cond=primaryExpression INTERR 
-      left=primaryExpression COLON 
+	| <assoc=right>
+      cond=primaryExpression INTERR
+      left=primaryExpression COLON
       right=primaryExpression	                                                            #conditionalExpression
 
     // precedence: 34
@@ -1001,7 +1034,8 @@ primaryExpression
 classPropertyAccessSpecifier
 	: 'default'
 	| 'static'
-	| 'const'
+    // Also in Spellborn, and perhaps bioshock?
+	| { this.generation === 3 }? 'const'
 	;
 
 argument: expression;
@@ -1036,8 +1070,8 @@ structDefaultPropertiesBlock
 // TODO: Perhaps do what we do in the directive rule, just skip until we hit a new line or a "|".
 defaultStatement
 	: defaultAssignmentExpression
-	| defaultMemberCallExpression
-    | objectDecl
+	| { this.generation === 3 }? defaultMemberCallExpression
+    | { this.generation >= 2 }? objectDecl
 
 	// "command chaining", e.g. "IntA=1|IntB=2" is valid code,
 	// -- but if the | were a space, the second variable will be ignored (by the compiler).

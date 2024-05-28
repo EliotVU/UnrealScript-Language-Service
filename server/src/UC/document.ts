@@ -22,7 +22,7 @@ import {
     removeHashedSymbol,
 } from './Symbols';
 import { UCLexer } from './antlr/generated/UCLexer';
-import { ProgramContext, UCParser } from './antlr/generated/UCParser';
+import { Licensee, ProgramContext, UCParser } from './antlr/generated/UCParser';
 import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
 import { IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentASTWalker } from './documentASTWalker';
@@ -127,6 +127,11 @@ export class UCDocument {
 
         let context: ProgramContext | undefined;
         const parser = new UCParser(tokens);
+        parser.generation = config.generation === '3'
+            ? 3 : config.generation === '2'
+                ? 2 : config.generation === '1'
+                    ? 1 : 3;
+        parser.licensee = config.licensee as unknown as Licensee;
         try {
             parser.interpreter.setPredictionMode(PredictionMode.SLL);
             parser.errorHandler = ERROR_STRATEGY;
@@ -153,7 +158,7 @@ export class UCDocument {
 
     public build(text: string): DocumentParseData {
         console.assert(typeof text !== 'undefined', `text cannot be undefined`);
-        
+
         console.log(`building document "${this.fileName}"`);
         const inputStream = UCInputStream.fromString(text);
         const lexer = new UCLexer(inputStream);
@@ -185,6 +190,11 @@ export class UCDocument {
 
         let context: ProgramContext | undefined;
         const parser = new UCParser(tokenStream);
+        parser.generation = config.generation === '3'
+            ? 3 : config.generation === '2'
+                ? 2 : config.generation === '1'
+                    ? 1 : 3;
+        parser.licensee = config.licensee as unknown as Licensee;
         try {
             parser.interpreter.setPredictionMode(PredictionMode.SLL);
             parser.errorHandler = ERROR_STRATEGY;
