@@ -1,8 +1,9 @@
 import { Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { indexDeclarationReference } from '../indexer';
+import { config, indexDeclarationReference } from '../indexer';
 import { isParamSymbol, ISymbol, ITypeSymbol, UCObjectSymbol, UCStructSymbol } from './';
+import { UCGeneration } from '../settings';
 
 export enum ModifierFlags {
 	None 				= 0x0000,
@@ -105,7 +106,7 @@ export abstract class UCFieldSymbol extends UCObjectSymbol {
             text.push('protected');
         } else if (modifiers & ModifierFlags.Private) {
             text.push('private');
-        } else {
+        } else if (config.generation !== UCGeneration.UC1) {
             text.push('public');
         }
 

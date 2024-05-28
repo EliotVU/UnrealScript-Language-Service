@@ -111,6 +111,7 @@ KW_IF: 'if';
 KW_IGNORES: 'ignores';
 KW_UNRELIABLE: 'unreliable';
 KW_RELIABLE: 'reliable';
+KW_ALWAYS: 'always';
 KW_CPPTEXT: 'cpptext';
 KW_STRUCTCPPTEXT: 'structcpptext';
 KW_CPPSTRUCT: 'cppstruct';

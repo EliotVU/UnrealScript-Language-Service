@@ -111,6 +111,7 @@ identifier
 	| 'ignores'
 	| 'unreliable'
 	| 'reliable'
+    | 'always'
 	| 'cpptext'
 	| 'cppstruct'
 	| 'structcpptext'
@@ -471,6 +472,7 @@ enumMember
 	;
 
 structDecl
+    // UE1 doesn't support qualified 'expands'
 	:	'struct' ({ this.generation === 3 }? exportBlockText)? structModifier* identifier qualifiedExtendsClause?
 		OPEN_BRACE
 			structMember*
@@ -673,8 +675,11 @@ replicationModifier
 	;
 
 replicationStatement
-	: replicationModifier? 'if' (OPEN_PARENS expr=expression CLOSE_PARENS)
-		identifier (COMMA identifier)* SEMICOLON
+	: replicationModifier?
+        // Unreal 1
+        ({ this.generation === 1 }? 'always')?
+        'if' (OPEN_PARENS expr=expression CLOSE_PARENS)
+		    identifier (COMMA identifier)* SEMICOLON
 	;
 
 /* Parses:

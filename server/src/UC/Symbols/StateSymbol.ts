@@ -37,6 +37,14 @@ export class UCStateSymbol extends UCStructSymbol {
 		return 'state';
 	}
 
+    public buildModifiers(modifiers = this.modifiers): string[] {
+		const text: string[] = [];
+
+        // none tracked yet
+
+		return text;
+	}
+
 	override getTooltip(): string {
 		const text: Array<string | undefined> = [];
 

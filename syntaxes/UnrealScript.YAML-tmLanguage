@@ -474,7 +474,7 @@ repository:
           '3':
             name: entity.name.type.class.uc
 
-      - match: \b((?i)abstract|export|exportstructs|noexport|noexportheader|nativereplication|nativeonly|deprecated|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|parseconfig|hidedropdown|editinlinenew|noteditinlinenew|cacheexempt|perobjectconfig|perobjectlocalized|forcescriptorder|instanced)\b
+      - match: \b((?i)abstract|export|exportstructs|noexport|noexportheader|nativereplication|nativeonly|deprecated|transient|nontransient|nousercreate|notplaceable|placeable|safereplace|parseconfig|hidedropdown|editinlinenew|noteditinlinenew|cacheexempt|perobjectconfig|perobjectlocalized|forcescriptorder|instanced|localized)\b
         name: storage.modifier.uc
 
       # modifiers with optional params
@@ -588,7 +588,7 @@ repository:
       - name: storage.modifier.uc
         match: \b((?i)native|intrinsic|transient|export|strictconfig|atomic|atomicwhencooked|immutable|immutablewhencooked|init|long)\b
 
-      - match: (\w+)\s*(?:((?i)extends)\b\s*(\w+))?
+      - match: (\w+)\s*(?:((?i)extends|expands)\b\s*(\w+))?
         captures:
           '0':
             name: entity.name.type.struct.uc
@@ -874,7 +874,7 @@ repository:
 
   state-declaration:
     name: meta.state.declaration.uc
-    begin: \b((?i)state)\b(\s*\(\s*\))?\s*(\w+)(?:\s*((?i)extends)\s*(\w+))?
+    begin: \b((?i)state)\b(\s*\(\s*\))?\s*(\w+)(?:\s*((?i)extends|expands)\s*(\w+))?
     beginCaptures:
       '1':
         name: storage.type.state.uc
@@ -963,11 +963,13 @@ repository:
             name: punctuation.curlybrace.open.uc
         patterns:
           - include: '#comment'
-          - begin: \b((?i)unreliable|reliable)?\s*((?i)if)?
+          - begin: \b((?i)unreliable|reliable)?\s*((?i)always\s*)?((?i)if)?
             beginCaptures:
               '1':
                 name: keyword.other.modifier.uc
               '2':
+                name: keyword.other.modifier.uc
+              '3':
                 name: keyword.control.conditional.uc
             patterns:
               - include: '#comment'
