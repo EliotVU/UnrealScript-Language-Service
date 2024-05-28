@@ -11,6 +11,10 @@ var private InterfaceTest InterfaceProperty;
 
 var array< Class<CastingTest> > TestClasses;
 
+var struct CastingTestStruct {
+    var Class<CastingTest> TestClass;
+} CastingTestStruct;
+
 private delegate DelegateFunction();
 
 // Verify that we can match a function over a package of the same name.
@@ -170,6 +174,10 @@ function ShouldBeValidAssignmentTest()
 
     ca[0] = c;
     ca[0] = new (none) Class'CastingDerivative';
+
+    // Test array (class) element assignment
+    TestClasses[0] = Class'CastingTest';
+    TestClasses[0] = Class'CastingDerivative';
 }
 
 function ShouldBeInvalidAssignmentTest()
@@ -247,4 +255,9 @@ defaultproperties
 {
     TestClasses.Add(Class'CastingTest')
     TestClasses.Add(Class'CastingDerivative')
+
+    TestClasses(0)=Class'CastingTest'
+    TestClasses(1)=Class'CastingDerivative'
+
+    CastingTestStruct=(TestClass=Class'CastingTest')
 }

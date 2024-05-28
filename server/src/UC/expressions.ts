@@ -455,18 +455,16 @@ export class UCElementAccessExpression extends UCExpression {
     override getType() {
         const type = this.expression?.getType();
         if (type && UCArrayTypeSymbol.is(type)) {
-            // Resolve metaclass class<Actor> to Actor
-            if (hasDefinedBaseType(type) && hasDefinedBaseType(type.baseType)) {
-                return type.baseType.baseType;
-            }
+            // the actual array type `MyType` e.g. `Array<MyType>`
             return type.baseType;
-        } else {
-            const symbol = this.getMemberSymbol();
-            if (symbol && isProperty(symbol) && symbol.isFixedArray()) {
-                // metaclass is resolved in @UCMemberExpression's .getType
-                return type;
-            }
         }
+
+        const symbol = this.getMemberSymbol();
+        if (symbol && isProperty(symbol) && symbol.isFixedArray()) {
+            // metaclass is resolved in @UCMemberExpression's .getType
+            return type;
+        }
+
         return undefined;
     }
 
@@ -475,7 +473,7 @@ export class UCElementAccessExpression extends UCExpression {
     }
 
     override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
-        this.expression?.index(document, context, info);
+        this.expression.index(document, context, info);
         this.argument?.index(document, context, info);
     }
 }

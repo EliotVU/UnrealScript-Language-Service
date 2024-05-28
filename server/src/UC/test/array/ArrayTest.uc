@@ -10,6 +10,9 @@ function ShouldBeValidArrayIteratorTest()
     // ! UC3 "Type 'Array' cannot be iterated. Expected an iterator function."
     foreach array(s, i);
 
+    // ! index should be optional
+    foreach array(s);
+
     array[0] = "";
     array[0.0] = "";
 }

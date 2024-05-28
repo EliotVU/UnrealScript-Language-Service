@@ -89,11 +89,9 @@ import {
 import {
     addHashedSymbol,
     DEFAULT_RANGE,
-    getContext,
+    getOuter,
     hasNoKind,
     Identifier,
-    IntrinsicObject,
-    isClass,
     isStatement,
     ISymbol,
     ISymbolContainer,
@@ -104,11 +102,9 @@ import {
     Object_ClassPropertyHash,
     Object_NameProperty,
     Object_NamePropertyHash,
-    ObjectsTable,
     OuterObjectsTable,
     StaticErrorType,
     StaticNameType,
-    StaticObjectType,
     UCArchetypeSymbol,
     UCArrayTypeSymbol,
     UCBinaryOperatorSymbol,
@@ -1093,6 +1089,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const symbol = new UCDefaultPropertiesBlock(identifier, range);
 
         this.declare(symbol, ctx);
+
         this.push(symbol);
         try {
             symbol.block = createBlock(this, ctx.defaultStatement());
@@ -1113,8 +1110,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
         this.declare(symbol, ctx);
 
-        const classOuter = getContext<UCClassSymbol>(symbol, UCSymbolKind.Class)!;
-        console.debug(typeof classOuter !== 'undefined', 'expected defaultproperties to be declared in a class scope.');
+        const classOuter = getOuter<UCClassSymbol>(symbol, UCSymbolKind.Class)!;
+        console.assert(typeof classOuter !== 'undefined', 'expected defaultproperties to be declared in a class scope.');
 
         this.push(classOuter.defaults);
         try {

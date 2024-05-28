@@ -3,7 +3,11 @@ import { UCArchetypeBlockStatement } from './statements';
 import {
     ContextInfo,
     getContext,
+    getOuter,
+    isClass,
+    isClassSymbol,
     isParamSymbol,
+    isScriptStructSymbol,
     isStruct,
     UCArchetypeSymbol,
     UCClassSymbol,
@@ -127,10 +131,17 @@ export class DocumentCodeIndexer extends DefaultSymbolWalker<undefined> {
         // this.visitStructBase(symbol);
 
         if (symbol.block) {
-            const classOuter = getContext<UCClassSymbol>(symbol, UCSymbolKind.Class)!;
-
-            // index in the defaults context (i.e. the class or generated archetype)
-            symbol.block.index(this.document, classOuter.defaults);
+            const outer = symbol.outer;
+            if (outer) {
+                if (isClassSymbol(outer)) {
+                    // index in the defaults context (i.e. the class or generated archetype)
+                    symbol.block.index(this.document, outer.defaults);
+                } else if (isScriptStructSymbol(outer)) {
+                    symbol.block.index(this.document, outer);
+                } else { // classless document?
+                    symbol.block.index(this.document, symbol);
+                }
+            }
         }
     }
 

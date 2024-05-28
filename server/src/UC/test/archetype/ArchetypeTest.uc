@@ -4,6 +4,17 @@ const ArchetypeConst = "test";
 
 var ArchetypeTemplate MyArchetype;
 
+// Also test defaultproperties in a struct
+struct DefaultStruct
+{
+    var name NameVariable;
+
+    structdefaultproperties
+    {
+        NameVariable=none
+    }
+};
+
 defaultproperties
 {
 	begin object name=ArchetypeTemplate0 class=ArchetypeTemplate
