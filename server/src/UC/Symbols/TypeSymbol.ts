@@ -3,7 +3,7 @@ import { Location, Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { IExpression } from '../expressions';
 import { intersectsWith, intersectsWithRange } from '../helpers';
-import { config, indexReference } from '../indexer';
+import { indexReference } from '../indexer';
 import { Name } from '../name';
 import {
     NAME_ARCHETYPE,
@@ -46,7 +46,6 @@ import {
     NAME_TYPE,
     NAME_VECTOR,
 } from '../names';
-import { UCGeneration } from '../settings';
 import { IStatement } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
@@ -392,25 +391,32 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
         const id = this.getName();
         let symbol: ISymbol | undefined;
         switch (this.expectedKind) {
+            // class Foo extends id.Foo;
             case UCSymbolKind.Package:
                 symbol = ObjectsTable.getSymbol<UCPackage>(id, UCSymbolKind.Package);
                 break;
 
+            // Class Foo extends id
+            // var id.Foo MyClassVar;
+            // dependsOn/implements(id)
             case UCSymbolKind.Class:
             case UCSymbolKind.Interface:
                 symbol = tryFindClassSymbol(id);
                 break;
 
-            case UCSymbolKind.Enum:
-                symbol = ObjectsTable.getSymbol<UCStructSymbol>(id, UCSymbolKind.Enum);
-                break;
+            // Not applicable
+            // case UCSymbolKind.Enum:
+            //     symbol = ObjectsTable.getSymbol<UCStructSymbol>(id, UCSymbolKind.Enum);
+            //     break;
 
+            // Struct Foo extends context?.id
             case UCSymbolKind.ScriptStruct:
                 // Prioritize parent-inherited structs first
                 symbol = context.findSuperSymbol<UCStructSymbol>(id, UCSymbolKind.ScriptStruct)
                     ?? ObjectsTable.getSymbol<UCStructSymbol>(id, UCSymbolKind.ScriptStruct);
                 break;
 
+            // State Foo extends context?.id
             case UCSymbolKind.State:
                 symbol = context.findSuperSymbol<UCStructSymbol>(id, UCSymbolKind.State);
                 break;
@@ -426,7 +432,8 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
                 break;
             }
 
-            // i.e. "var Class.FieldTypeHere Name;"
+            // We expect a 'field' by a qualified identifier e.g. Object.Vector or Actor.ENetMode
+            // Note Object/Actor here is represented as @context
             case UCSymbolKind.Field: {
                 // e.g. "local Actor.Vector vector;" should also be able to pickup the inherited struct type.
                 // Note: Only if the context type is of type class, but we should probably report an error during the analysis stage instead.
@@ -437,25 +444,26 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
                 break;
             }
 
-            // Either a global class, or a (inherited if < UE3) struct or enum
-            // i.e. "var ClassOrFieldTypeHere Name;"
+            // We expect a non-qualified 'type' that is to say a class, enum, or a script struct in that order.
             case UCSymbolKind.Type: {
-                symbol = config.generation < UCGeneration.UC3
-                    ? tryFindClassSymbol(id)
-                    ?? context.findSuperSymbol(id, UCSymbolKind.Enum)
-                    ?? context.findSuperSymbol(id, UCSymbolKind.ScriptStruct)
-                    : tryFindClassSymbol(id)
+                // UC3 looks up types by using a global objects table
+                // -- where as UE2 or earlier looks up the type in the outer most class repeatedly for each 'super' of the context.
+                // -- but for our purposes let us always use the objects table approach (faster)
+                // -- instead perform a re-lookup using the inhertiance (and within class) approach to report diagnostics.
+                symbol = tryFindClassSymbol(id)
                     ?? ObjectsTable.getSymbol(id, UCSymbolKind.Enum)
                     ?? ObjectsTable.getSymbol(id, UCSymbolKind.ScriptStruct)
-                    // TODO: Search within the class's "within" class
                     ;
                 break;
             }
 
+            // No expected type, let's do a general (inheritance based) lookup
             default:
+                // Ensure we are working with a valid context, bad user or incomplete code may give us an unsuitable context.
                 if (isStruct(context)) {
                     symbol = context.findSuperSymbol(id);
                 } else if (context as unknown instanceof UCPackage) {
+                    console.debug('UCPackage context', id, context);
                     symbol = tryFindSymbolInPackage(id, context);
                 }
                 break;
@@ -998,6 +1006,10 @@ export function isStateSymbol(symbol: ISymbol): symbol is UCStateSymbol {
 
 export function isClass(symbol: ISymbol | undefined): symbol is UCClassSymbol {
     return symbol instanceof UCClassSymbol;
+}
+
+export function isClassSymbol(symbol: ISymbol): symbol is UCClassSymbol {
+    return symbol.kind === UCSymbolKind.Class;
 }
 
 export function isArchetypeSymbol(symbol: ISymbol): symbol is UCArchetypeSymbol {

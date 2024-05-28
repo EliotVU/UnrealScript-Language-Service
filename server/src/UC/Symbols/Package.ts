@@ -165,6 +165,8 @@ export const TRANSIENT_PACKAGE = new UCPackage(NAME_NONE);
 
 /**
  * A symbols table of kinds such as UPackage, UClass, UStruct, and UEnums.
+ * 
+ * Note: Most kinds are not indexed such as UProperty, UConst, etc.
  */
 export const ObjectsTable = new SymbolsTable<UCObjectSymbol>();
 export const OuterObjectsTable = new SymbolsTable<UCObjectSymbol>();
@@ -203,14 +205,24 @@ export function removeHashedSymbol(symbol: UCObjectSymbol) {
     return key;
 }
 
+/**
+ * Finds a registered document by name. 
+ * 
+ * if the document had not been indexed yet, the indexing will begin and end before returning the class symbol.
+ * 
+ * @param id document name (without the extension)
+ * @returns the class symbol if any, when undefined the document is either not registered or the document is missing a class declaration.
+ */
 export function findOrIndexClassSymbol(id: Name): UCClassSymbol | undefined {
     const document = getDocumentById(id);
     if (document) {
         if (!document.hasBeenIndexed) {
             indexDocument(document);
         }
+
         return document.class;
     }
+
     return undefined;
 }
 

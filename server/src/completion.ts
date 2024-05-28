@@ -12,6 +12,9 @@ import {
     Identifier,
     IntrinsicArray,
     IntrinsicClass,
+    IntrinsicRngLiteral,
+    IntrinsicRotator,
+    IntrinsicVector,
     MethodFlags,
     ModifierFlags,
     ObjectsTable,
@@ -35,12 +38,14 @@ import {
     findOrIndexClassSymbol,
     getSymbolDebugInfo,
     isClass,
+    isConstSymbol,
     isDelegateSymbol,
     isEnumSymbol,
     isField,
     isFunction,
     isMethodSymbol,
     isPackage,
+    isProperty,
     isStruct,
     isTypeSymbol,
     resolveType,
@@ -66,7 +71,7 @@ import {
 } from './UC/helpers';
 import { config, getDocumentByURI } from './UC/indexer';
 import { toName } from './UC/name';
-import { UCGeneration, UELicensee } from './UC/settings';
+import { UCGeneration } from './UC/settings';
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { UCLanguageServerSettings } from './configuration';
 
@@ -148,6 +153,12 @@ const GlobalCastSymbolKinds = 1 << UCSymbolKind.Class
 const MethodSymbolKinds = 1 << UCSymbolKind.Function
     | 1 << UCSymbolKind.Event;
 
+const enum CarretMode {
+    Any,
+    Context,
+    Assignment
+}
+
 export async function getCompletionItems(uri: DocumentUri, position: Position): Promise<CompletionItem[] | undefined> {
     // Do a fresh parse (but no indexing or transforming, we'll use the cached AST instead).
     const text = ActiveTextDocuments.get(uri)?.getText();
@@ -222,11 +233,7 @@ function getCallableMethods(document: UCDocument, contextSymbol: UCStructSymbol)
 }
 
 function insertOverridableMethods(document: UCDocument, contextSymbol: UCStructSymbol, items: CompletionItem[]) {
-    if (!contextSymbol.super) {
-        return;
-    }
-
-    const symbolItems = getOverridableMethods(document, contextSymbol.super)
+    const symbolItems = getOverridableMethods(document, contextSymbol)
         .map(method => {
             const item = symbolToCompletionItem(method);
             item.insertText = insertTextForFunction(method);
@@ -431,6 +438,7 @@ async function buildCompletionItems(
     }
 
     let leadingToken = carretToken;
+    // Skip ahead one token for any of these tokens
     if (leadingToken.type === UCLexer.OPEN_PARENS
         || leadingToken.type === UCLexer.OPEN_BRACE
         || leadingToken.type === UCLexer.OPEN_BRACKET
@@ -443,6 +451,7 @@ async function buildCompletionItems(
         leadingToken = stream.get(leadingToken.tokenIndex + 1);
     }
 
+    // Skip by any invisible tokens
     while (leadingToken.channel === UCLexer.HIDDEN
         || leadingToken.channel === UCLexer.COMMENTS_CHANNEL) {
         leadingToken = stream.get(leadingToken.tokenIndex + 1);
@@ -500,13 +509,15 @@ async function buildCompletionItems(
     // }
 
     /**
-     * Resolves to a symbol that contains the current context. 
+     * Resolves to a symbol that contains the current context.
      * For example in a function this will always resolve to the UCMethodSymbol that we are working in.
      **/
     const scopeSymbol = getDocumentContext(document, position);
     console.info(
         'completion::scopeSymbol'.padEnd(42),
         getSymbolDebugInfo(scopeSymbol));
+
+    let carretMode: CarretMode = CarretMode.Any;
 
     /**
      * Resolves to a symbol that is either at the left of a "." or "=".
@@ -523,11 +534,15 @@ async function buildCompletionItems(
             UCCallExpression.hack_getTypeIfNoSymbol = true;
             carretContextSymbol = scopeSymbol.block?.getContainedSymbolAtPos(rangeFromBound(carretContextToken).start);
             UCCallExpression.hack_getTypeIfNoSymbol = false;
+
+            carretMode = CarretMode.Context;
         } else if ((carretContextToken = backtrackFirstTokenOfType(stream, UCParser.ASSIGNMENT, carretToken.tokenIndex))
             && (carretContextToken = backtrackFirstToken(stream, carretContextToken.tokenIndex))) {
             UCCallExpression.hack_getTypeIfNoSymbol = true;
             carretContextSymbol = scopeSymbol.getContainedSymbolAtPos(rangeFromBound(carretContextToken).start);
             UCCallExpression.hack_getTypeIfNoSymbol = false;
+
+            carretMode = CarretMode.Assignment;
         }
 
         carretSymbol = scopeSymbol.getSymbolAtPos(position);
@@ -545,11 +560,17 @@ async function buildCompletionItems(
     const symbols: ISymbol[] = [];
     let globalTypes: UCSymbolKind = UCSymbolKind.None;
     let shouldIncludeTokenKeywords = true;
+    let shouldIncludeStructConstructors = false;
 
-    if (candidates.rules.has(UCParser.RULE_member) || carretRuleContext?.ruleIndex == UCParser.RULE_program) {
-        if (isStruct(scopeSymbol)) {
-            insertOverridableMethods(document, scopeSymbol, items);
-            insertOverridableStates(document, scopeSymbol, symbols);
+    if (isStruct(scopeSymbol)) {
+        if (candidates.rules.has(UCParser.RULE_member) || carretRuleContext?.ruleIndex === UCParser.RULE_program) {
+            if (scopeSymbol.super) {
+                insertOverridableMethods(document, scopeSymbol.super, items);
+                insertOverridableStates(document, scopeSymbol.super, symbols);
+            }
+        } else if (carretRuleContext?.ruleIndex === UCParser.RULE_stateDecl) {
+            // FIXME: code below is adding stateBody symbols, giving us duplicates :/
+            // insertOverridableMethods(document, scopeSymbol, items);
         }
     }
 
@@ -587,11 +608,14 @@ async function buildCompletionItems(
             }
 
             case UCParser.RULE_primaryExpression: {
-                if (carretContextToken) {
+                // No globals in a context.
+                if (carretMode === CarretMode.Context) {
                     break;
                 }
+
                 // casting
                 globalTypes |= GlobalCastSymbolKinds;
+                shouldIncludeStructConstructors = true;
             }
         }
 
@@ -608,18 +632,66 @@ async function buildCompletionItems(
             if (isWithin(UCParser.RULE_statement)) {
                 switch (rule) {
                     case UCParser.RULE_identifier: {
-                        if (carretContextToken) {
+                        if (carretContextToken && carretMode === CarretMode.Context) {
+                            // Delete all (non-context) candidates that were gathered from the general 'primaryExpression'
+                            // Maybe just clear all and re-add individually? less things to keep up with.
                             candidates.tokens.delete(UCParser.KW_SELF);
                             candidates.tokens.delete(UCParser.KW_ROT);
                             candidates.tokens.delete(UCParser.KW_RNG);
                             candidates.tokens.delete(UCParser.KW_VECT);
+
+                            candidates.tokens.delete(UCParser.KW_NAMEOF);
+                            candidates.tokens.delete(UCParser.KW_ARRAYCOUNT);
+                            candidates.tokens.delete(UCParser.KW_NEW);
+
+                            candidates.tokens.delete(UCParser.KW_CLASS);
+                            candidates.tokens.delete(UCParser.KW_GLOBAL);
+                            candidates.tokens.delete(UCParser.KW_SUPER);
+                            candidates.tokens.delete(UCParser.NONE_LITERAL);
+
+                            // HACK: Unresolved member, perhaps we are within a context like `ObjectRef.default.WE_ARE_HERE`
+                            // -- this issue does not occur in a context like `default.WE_ARE_HERE`
+                            // TODO: Re-work the class specifier expression so that we don't have to perform this dirty logic.
+                            if (!carretContextSymbol) {
+                                // Let's perform a backtracking hack, and then further down verify that we are indeed in a valid object type context.
+                                if (carretContextToken.type === UCParser.KW_DEFAULT ||
+                                    carretContextToken.type === UCParser.KW_STATIC ||
+                                    carretContextToken.type === UCParser.KW_CONST) {
+
+                                    candidates.tokens.delete(UCParser.KW_DEFAULT);
+                                    candidates.tokens.delete(UCParser.KW_STATIC);
+                                    candidates.tokens.delete(UCParser.KW_CONST);
+
+                                    let precedingContextToken: Token | undefined;
+                                    // get the first dot preceding one of the class specifier keywords
+                                    if ((precedingContextToken = backtrackFirstTokenOfType(stream, UCParser.DOT, carretContextToken.tokenIndex))
+                                        // the actual context preceding the dot
+                                        && (precedingContextToken = backtrackFirstToken(stream, precedingContextToken.tokenIndex))) {
+                                        // FIXME: Hacky and assuming for this to only return a typeSymbol in the particular circumstances of this context.
+                                        UCCallExpression.hack_getTypeIfNoSymbol = true;
+                                        carretContextSymbol = scopeSymbol.block?.getContainedSymbolAtPos(rangeFromBound(precedingContextToken).start);
+                                        UCCallExpression.hack_getTypeIfNoSymbol = false;
+
+                                        // Resolve to inner type (baseType) (replicating what UCMemberExpression does)
+                                        if (carretContextSymbol instanceof UCObjectTypeSymbol && carretContextSymbol.getRef()) {
+                                            if (isProperty(carretContextSymbol.getRef()!)) {
+                                                carretContextSymbol = resolveType(carretContextSymbol.getRef<UCPropertySymbol>()!.getType());
+                                            } else if (isConstSymbol(carretContextSymbol.getRef()!)) {
+                                                carretContextSymbol = resolveType(carretContextSymbol.getRef<UCPropertySymbol>()!.getType());
+                                            } else {
+                                                carretContextSymbol = resolveType(carretContextSymbol);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 
                             // Only object types are allowed
                             if (carretContextSymbol instanceof UCObjectTypeSymbol) {
                                 const resolvedReference = carretContextSymbol.getRef();
                                 if (isField(resolvedReference)) {
                                     const fieldType = resolvedReference.getType();
-                                    // static class access? Either a property resolving to Class'Class'.Identifier or Class<MetaClass>.Identifier   
+                                    // static class access? Either a property resolving to Class'Class'.Identifier or Class<MetaClass>.Identifier
                                     if (resolvedReference === IntrinsicClass
                                         && carretContextSymbol.baseType instanceof UCObjectTypeSymbol
                                         && isClass(carretContextSymbol.baseType.getRef())) {
@@ -949,6 +1021,30 @@ async function buildCompletionItems(
                         }
                         break;
                     }
+
+                    case UCParser.RULE_ignoresDecl: {
+                        if (isStruct(scopeSymbol)) {
+                            const symbolItems = scopeSymbol.getCompletionSymbols<UCMethodSymbol>(
+                                document,
+                                ContextKind.None,
+                                1 << UCSymbolKind.Function |
+                                1 << UCSymbolKind.Event |
+                                1 << UCSymbolKind.Delegate
+                            )
+                                .filter(symbol => {
+                                    if (symbol.specifiers & MethodFlags.Final) {
+                                        return false;
+                                    }
+
+                                    // Don't include the overriding methods
+                                    return symbol.super == null;
+                                });
+
+                            symbols.push(...symbolItems);
+                        }
+
+                        break;
+                    }
                 }
                 break;
             }
@@ -1096,6 +1192,13 @@ async function buildCompletionItems(
     if (globalTypes !== UCSymbolKind.None) {
         const typeItems = Array
             .from(ObjectsTable.enumerateKinds(globalTypes))
+            .map(symbol => symbolToCompletionItem(symbol));
+
+        items.push(...typeItems);
+    }
+
+    if (shouldIncludeStructConstructors) {
+        const typeItems = [IntrinsicVector, IntrinsicRotator, IntrinsicRngLiteral]
             .map(symbol => symbolToCompletionItem(symbol));
 
         items.push(...typeItems);

@@ -12,18 +12,22 @@ import {
     IWithInnerSymbols,
     Identifier,
     IntrinsicClass,
+    IntrinsicNewConstructor,
     IntrinsicObject,
     IntrinsicRngLiteral,
     IntrinsicRotLiteral,
     IntrinsicRotator,
+    IntrinsicRotatorHash,
     IntrinsicScriptStruct,
     IntrinsicVectLiteral,
     IntrinsicVector,
+    IntrinsicVectorHash,
     ModifierFlags,
     ObjectsTable,
     OuterObjectsTable,
     StaticBoolType,
     StaticByteType,
+    StaticDelegateType,
     StaticErrorType,
     StaticFloatType,
     StaticIntType,
@@ -37,6 +41,7 @@ import {
     UCArrayTypeSymbol,
     UCBaseOperatorSymbol,
     UCClassSymbol,
+    UCDelegateSymbol,
     UCEnumSymbol,
     UCMethodSymbol,
     UCNodeKind,
@@ -48,6 +53,7 @@ import {
     UCSymbolKind,
     UCTypeKind,
     UCTypeSymbol,
+    areIdentityMatch,
     findOverloadedBinaryOperator,
     findOverloadedPostOperator,
     findOverloadedPreOperator,
@@ -56,7 +62,6 @@ import {
     getSymbolHash,
     getSymbolOuterHash,
     hasDefinedBaseType,
-    areIdentityMatch,
     isArchetypeSymbol,
     isConstSymbol,
     isFunction,
@@ -66,11 +71,6 @@ import {
     isStruct,
     resolveType,
     tryFindClassSymbol,
-    IntrinsicVectorHash,
-    IntrinsicRotatorHash,
-    StaticDelegateType,
-    UCDelegateSymbol,
-    IntrinsicNewConstructor,
 } from './Symbols';
 import { UCDocument } from './document';
 import { intersectsWith } from './helpers';
@@ -443,6 +443,17 @@ export class UCCallExpression extends UCExpression {
     }
 }
 
+/**
+ * An expression to represent an element access i.e `Expression[Argument]`
+ * 
+ * ```UnrealScript
+ * var Class<Object> Classes[2];
+ * var Array<Class<Object> > ClassesArray;
+ * 
+ * Classes[0];
+ * self.Classes[0];
+ * ```
+ */
 export class UCElementAccessExpression extends UCExpression {
     public expression: IExpression;
     public argument?: IExpression;
@@ -469,7 +480,12 @@ export class UCElementAccessExpression extends UCExpression {
     }
 
     getContainedSymbolAtPos(position: Position) {
-        return this.expression?.getSymbolAtPos(position) ?? this.argument?.getSymbolAtPos(position);
+        return this.expression.getSymbolAtPos(position)
+            ?? this.argument?.getSymbolAtPos(position)
+            // HACK: temporary workaround for a situation like `MyClassArray[index].WE_ARE_HERE` symbol `index` would be retrieved instead of `MyClassArray`
+            ?? UCCallExpression.hack_getTypeIfNoSymbol
+            ? this.getType()
+            : undefined;
     }
 
     override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
@@ -478,11 +494,14 @@ export class UCElementAccessExpression extends UCExpression {
     }
 }
 
+/**
+ * An expression to represent an element access i.e `Expression[Argument] | Expression(Argument)`
+ */
 export class UCDefaultElementAccessExpression extends UCElementAccessExpression {
     declare expression: UCMemberExpression;
 
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-        this.expression?.index(document, context, info);
+        this.expression.index(document, context, info);
         // this.argument?.index(document, context, info);
 
         if (this.argument && this.argument instanceof UCIdentifierLiteralExpression) {
@@ -497,6 +516,9 @@ export class UCDefaultElementAccessExpression extends UCElementAccessExpression 
     }
 }
 
+/**
+ * An expression to represent a property access i.e `Expression.Identifier` as `left.member`
+ */
 export class UCPropertyAccessExpression extends UCExpression {
     public left: IExpression;
     public member: UCMemberExpression | undefined;
@@ -531,6 +553,9 @@ export class UCPropertyAccessExpression extends UCExpression {
     }
 }
 
+/**
+ * An expression to represent a conditional operator i.e `Expression ? Expression? : Expression?` as `condition ? true? : false?`
+ */
 export class UCConditionalExpression extends UCExpression {
     public condition!: IExpression;
     public true?: IExpression;
@@ -800,7 +825,7 @@ export class UCDefaultAssignmentExpression extends UCAssignmentOperatorExpressio
 }
 
 /**
- * An expression to represent a property assignment in an object declaration i.e `Property=Expression`
+ * An expression to represent a property assignment in an object declaration i.e `Identifier=Expression` as `left=right`
  * 
  * e.g. in a 'object declaration' the part `Left=Right` is represented by this expression type
  * 
@@ -814,8 +839,13 @@ export class UCObjectAttributeExpression extends UCDefaultAssignmentExpression {
 }
 
 /**
- * Resembles "propertyMember.operationMember(arguments)"".
+ * An expression to represent a property operation i.e. `Identifier.Identifier (Arguments)?` as `propertyMember.operationMember (arguments)`
  *
+ * ```UnrealScript
+ * MyArray.Clear
+ * MyArray.Add (MyStaticElement)
+ * ```
+ * 
  * @method getMemberSymbol will always return the instance of "operationMember".
  * @method getType will always return the type of instance "propertyMember", because our array operations have no return type.
  */
@@ -1303,7 +1333,17 @@ export class UCByteLiteral extends UCLiteral {
     }
 }
 
-/** Represents an expression like: ClassName'ObjectReferencePath' e.g. Class'Core.Object', Struct'Core.Object.Vector' */
+/** 
+ * Represents an expression `Identifier'QualifiedIdentifier'` as `classRef'classRef.baseType'` 
+ * 
+ * e.g. 
+ * ```UnrealScript
+ * Package'Core'
+ * Class'Core.Object'
+ * Struct'Core.Object.Vector' 
+ * Property'Core.Object.Vector.X' 
+ * ```
+ **/
 export class UCObjectLiteral extends UCLiteral {
     /** 
      * The class specifier in the literal, i.e. Class for Class'MyClass'.
@@ -1474,7 +1514,6 @@ export class UCSizeOfLiteral extends UCLiteral {
     }
 
     override index(document: UCDocument, context?: UCStructSymbol) {
-        super.index(document, context);
         this.argumentRef?.index(document, context!);
     }
 }
