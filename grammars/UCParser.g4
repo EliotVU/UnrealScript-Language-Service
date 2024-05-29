@@ -622,7 +622,8 @@ primitiveType
 	| 'float'
 	| 'bool'
 	| 'name'
-	| { this.generation === 2 }? 'pointer'      // pointer became a struct type in UE3
+    // Attested in UT99 v469b, UT2004 (generally a UE2 feature?)
+	| { this.generation < 3 }? 'pointer'        // pointer became a struct type in UE3
 	| { this.generation === 2 }? 'button'       // alias for a string with an input modifier
 	;
 
