@@ -14,7 +14,7 @@ describe('Indexer', () => {
 
     it('parsePackageNameInDir should return package name', () => {
         expect(parsePackageNameInDir(path.join('workspace', 'Core', 'Object.uc')))
-            .to.be.undefined;
+            .to.equal('Core');
 
         expect(parsePackageNameInDir(path.join('workspace', 'Core', 'Classes', 'Object.uc')))
             .to.equal('Core');

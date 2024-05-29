@@ -165,7 +165,9 @@ export function parsePackageNameInDir(dir: string): string | undefined {
             return directories[i - 1];
         }
     }
-    return undefined;
+
+    // Use the first directory (from right to left) as the package name.
+    return path.basename(path.dirname(dir));
 }
 
 export function createPackageByDir(dir: string): UCPackage {
