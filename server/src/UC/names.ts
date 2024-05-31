@@ -66,6 +66,8 @@ export const NAME_OUTER = toName('Outer');
 
 export const NAME_RETURNVALUE = toName('ReturnValue');
 export const NAME_SPAWN = toName('Spawn');
+export const NAME_CREATEDATAOBJECT = toName('CreateDataObject');
+export const NAME_LOADDATAOBJECT = toName('LoadDataObject');
 
 // Internal
 export const NAME_ERROR = toName('Error');
