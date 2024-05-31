@@ -4,7 +4,7 @@ const gulp = require('gulp');
 const path = require('path');
 const { exec } = require('child_process');
 
-const SYNTAX_TASK = (function () {
+const SYNTAX_TASK = (() => {
     const TASK_NAME = 'compileSyntax';
 
     const dir = 'syntaxes/';
@@ -26,11 +26,11 @@ const SYNTAX_TASK = (function () {
             return gulp.task(TASK_NAME)(cb);
         });
     }
-    
+
     return TASK_NAME;
 })();
 
-const GRAMMAR_TASK = (function () {
+const GRAMMAR_TASK = (() => {
     const TASK_NAME = 'buildGrammar';
 
     const dir = 'grammars/';
@@ -63,4 +63,25 @@ const GRAMMAR_TASK = (function () {
     return TASK_NAME;
 })();
 
-gulp.task('default', gulp.series([GRAMMAR_TASK, SYNTAX_TASK]));
+// Copy all the UnrealScript presets to the 'out' directory
+const PRESETS_TASK = (() => {
+    const TASK_NAME = 'copy presets';
+    const filesGlob = 'server/src/presets/**/*.uc';
+
+    gulp.task(TASK_NAME, (done) => {
+        return gulp
+            .src(filesGlob)
+            .pipe(gulp.dest(path.join(__dirname, 'out', 'presets/')));
+    });
+
+    if (process.env.NODE_ENV === 'development') {
+        const FILES_TO_WATCH = [filesGlob];
+        gulp.watch(FILES_TO_WATCH, (cb) => {
+            return gulp.task(TASK_NAME)(cb);
+        });
+    }
+
+    return TASK_NAME;
+})();
+
+gulp.task('default', gulp.series([GRAMMAR_TASK, SYNTAX_TASK, PRESETS_TASK]));

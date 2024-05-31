@@ -188,65 +188,9 @@
                     "type": "object",
                     "description": "A map of intrinsic(C++) symbols that have no reflected source code.",
                     "default": {
-                        "Engine.Model": {
+                        "Core.PointerProperty": {
                             "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.Mesh": {
-                            "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.MeshInstance": {
-                            "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.MeshAnimation": {
-                            "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.StaticMesh": {
-                            "type": "class",
-                            "extends": "Actor"
-                        },
-                        "Engine.StaticMeshInstance": {
-                            "type": "class",
-                            "extends": "Actor"
-                        },
-                        "Engine.ConvexVolume": {
-                            "type": "class",
-                            "extends": "Actor"
-                        },
-                        "Engine.LevelBase": {
-                            "type": "class",
-                            "extends": "Core.Object"
-                        },
-                        "Engine.Level": {
-                            "type": "class",
-                            "extends": "Engine.LevelBase"
-                        },
-                        "Engine.NetConnection": {
-                            "type": "class",
-                            "extends": "Engine.Player"
-                        },
-                        "Engine.Viewport": {
-                            "type": "class",
-                            "extends": "Engine.Player"
-                        },
-                        "Engine.Primitive": {
-                            "type": "class",
-                            "extends": "Core.Object"
-                        },
-                        "Engine.Client": {
-                            "type": "class",
-                            "extends": "Core.Object"
-                        },
-                        "Engine.AudioSubsystem": {
-                            "type": "class",
-                            "extends": "Core.Subsystem"
-                        },
-                        "Engine.RenderDevice": {
-                            "type": "class",
-                            "extends": "Core.Subsystem"
+                            "extends": "Core.Property"
                         }
                     }
                 },

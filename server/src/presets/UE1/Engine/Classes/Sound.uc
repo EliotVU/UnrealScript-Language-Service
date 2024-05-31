@@ -1,2 +1,3 @@
 class Sound extends Core.Object
-    native;
+    native
+    safereplace;

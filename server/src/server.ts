@@ -40,6 +40,7 @@ import { getDocumentSemanticTokens } from './documentTokenSemantics';
 import { getReferences, getSymbolReferences } from './references';
 import { CommandIdentifier, CommandsList, InlineChangeCommand } from './UC/commands';
 import { UCDocument } from './UC/document';
+import { createTypeFromQualifiedIdentifier } from './UC/documentASTWalker';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
 import {
     getDocumentDefinition,
@@ -68,7 +69,7 @@ import {
     removeDocumentByPath,
 } from './UC/indexer';
 import { toName } from './UC/name';
-import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE, NAME_PROPERTY } from './UC/names';
+import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
 import { IntrinsicSymbolItemMap, UCGeneration, UELicensee } from './UC/settings';
 import {
     addHashedSymbol,
@@ -94,7 +95,6 @@ import {
 import { UnrealPackage } from './UPK/UnrealPackage';
 import { getFiles, isDocumentFileName } from './workspace';
 import { getWorkspaceSymbols } from './workspaceSymbol';
-import { createTypeFromQualifiedIdentifier } from './UC/documentASTWalker';
 
 /**
  * Emits true when the workspace is prepared and ready for indexing.
@@ -119,6 +119,11 @@ let packageFileGlobPattern = "**/*.{u,upk}";
 type WorkspaceFiles = {
     documentFiles: string[];
     packageFiles: string[];
+};
+
+type WorkspaceContent = {
+    documents: UCDocument[];
+    packages: UnrealPackage[];
 };
 
 async function getWorkspaceFiles(folders: WorkspaceFolder[], reason: string): Promise<WorkspaceFiles> {
@@ -184,18 +189,14 @@ async function parsePackageFile(filePath: string): Promise<UnrealPackage> {
     return packageFile;
 }
 
-function registerWorkspaceFiles(workspace: WorkspaceFiles) {
-    if (workspace.packageFiles) {
-        const packages = workspace.packageFiles
-            .map(parsePackageFile);
-        Promise.all(packages);
-    }
+async function registerWorkspaceFiles(workspace: WorkspaceFiles): Promise<WorkspaceContent> {
+    const packages = await Promise.all(workspace.packageFiles.map(parsePackageFile));
+    const documents = registerDocuments(workspace.documentFiles);
 
-    if (workspace.documentFiles) {
-        const documents = registerDocuments(workspace.documentFiles);
-        // re-queue all old and new documents.
-        pendingDocuments$.next(Array.from(enumerateDocuments()).concat(documents));
-    }
+    return {
+        documents,
+        packages
+    };
 }
 
 function unregisterWorkspaceFiles(workspace: WorkspaceFiles) {
@@ -204,16 +205,20 @@ function unregisterWorkspaceFiles(workspace: WorkspaceFiles) {
     }
 }
 
-async function registerWorkspace(folders: WorkspaceFolder[] | null): Promise<void> {
+async function registerWorkspace(folders: WorkspaceFolder[] | null): Promise<WorkspaceContent | undefined> {
     if (folders) {
         const getStartTime = performance.now();
-        const workspace = await getWorkspaceFiles(folders, 'initialize');
+        const workspaceFiles = await getWorkspaceFiles(folders, 'initialize');
         connection.console.log(`Found workspace files in ${(performance.now() - getStartTime) / 1000} seconds!`);
 
         const registerStartTime = performance.now();
-        registerWorkspaceFiles(workspace);
+        const workspaceContent = await registerWorkspaceFiles(workspaceFiles);
         connection.console.log(`Registered workspace files in ${(performance.now() - registerStartTime) / 1000} seconds!`);
+
+        return workspaceContent;
     }
+
+    return undefined;
 }
 
 function invalidatePendingDocuments() {
@@ -402,7 +407,7 @@ connection.onInitialized((params) => {
                 }
 
                 if (source === 'change' && textDocument.version !== document.indexedVersion) {
-                    // we are gonna wait 50ms before indexing the changes, 
+                    // we are gonna wait 50ms before indexing the changes,
                     // therefore we want to ensure that any observers will receive this document as incomplete before the 50ms elapses.
                     document.hasBeenBuilt = false;
                     document.hasBeenIndexed = false;
@@ -485,6 +490,9 @@ connection.onInitialized((params) => {
                 }
             }
 
+            // Add all the presets before continueing
+            await registerPresetsWorkspace(config.generation, config.licensee);
+
             const indexStartTime = performance.now();
             const work = await connection.window.createWorkDoneProgress();
             work.begin(
@@ -550,6 +558,9 @@ connection.onInitialized((params) => {
                 return registerWorkspace(workspaceFolders);
             })
             .then(() => {
+                // re-queue
+                pendingDocuments$.next(Array.from(enumerateDocuments()));
+
                 isIndexReady$.next(true);
             });
 
@@ -560,15 +571,18 @@ connection.onInitialized((params) => {
     if (hasWorkspaceFolderCapability) {
         connection.workspace.onDidChangeWorkspaceFolders(async (event) => {
             if (event.added.length) {
-                const workspace = await getWorkspaceFiles(event.added, 'workspace files added');
-                registerWorkspaceFiles(workspace);
+                const workspaceFiles = await getWorkspaceFiles(event.added, 'workspace files added');
+                registerWorkspaceFiles(workspaceFiles);
             }
 
             // FIXME: Doesn't clean up any implicit created packages, nor names.
             if (event.removed.length) {
-                const workspace = await getWorkspaceFiles(event.removed, 'workspace files removed');
-                unregisterWorkspaceFiles(workspace);
+                const workspaceFiles = await getWorkspaceFiles(event.removed, 'workspace files removed');
+                unregisterWorkspaceFiles(workspaceFiles);
             }
+
+            // re-queue
+            pendingDocuments$.next(Array.from(enumerateDocuments()));
         });
 
         connection.workspace.onDidCreateFiles(params => {
@@ -701,8 +715,8 @@ function tryAutoDetectGeneration(): UCGeneration | undefined {
 
     // Okay we have a Commandlet.uc document (UT99)
     if (document.classPackage === CORE_PACKAGE) {
-        document = getDocumentById(toName('HelpCommandlet'));
-        if (document?.classPackage === CORE_PACKAGE) {
+        if (getDocumentById(toName('HelpCommandlet'))?.classPackage === CORE_PACKAGE ||
+            getDocumentById(toName('HelloWorldCommandlet'))?.classPackage === CORE_PACKAGE) {
             return UCGeneration.UC1;
         }
 
@@ -712,6 +726,51 @@ function tryAutoDetectGeneration(): UCGeneration | undefined {
 
     // Failed auto
     return undefined;
+}
+
+/**
+ * Register the presets workspace for the given generation and licensee.
+ */
+async function registerPresetsWorkspace(generation: UCGeneration, licensee: UELicensee): Promise<WorkspaceContent | undefined> {
+    function pathToWorkspaceFolder(folderPath: string): WorkspaceFolder {
+        return {
+            uri: url.pathToFileURL(folderPath).toString(),
+            name: path.basename(folderPath)
+        };
+    }
+
+    // Always include the 'Shared' presets
+    const presetsPath = path.join(__dirname, 'presets');
+    const folders: WorkspaceFolder[] = [
+        pathToWorkspaceFolder(path.join(presetsPath, 'Shared'))
+    ];
+
+    switch (generation) {
+        case UCGeneration.UC1:
+            folders.push(pathToWorkspaceFolder(path.join(presetsPath, 'UE1')));
+            break;
+
+        case UCGeneration.UC2:
+            folders.push(pathToWorkspaceFolder(path.join(presetsPath, 'UE2')));
+            break;
+
+        case UCGeneration.UC3:
+            folders.push(pathToWorkspaceFolder(path.join(presetsPath, 'UE3')));
+            break;
+    }
+
+    // Maybe automate this by using the licensee string as the folder name of presets?
+    switch (licensee) {
+        case UELicensee.XCom:
+            // no presets that we have, but feel free to add of course!!
+            break;
+    }
+
+    // blob search all the files in the presets folder!
+    const workspaceFiles = await getWorkspaceFiles(folders, 'presets');
+
+    // create and register the documents
+    return registerWorkspaceFiles(workspaceFiles);
 }
 
 function clearIntrinsicSymbols() {

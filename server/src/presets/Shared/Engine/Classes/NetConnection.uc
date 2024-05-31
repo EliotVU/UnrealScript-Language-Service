@@ -1,2 +1,3 @@
 class NetConnection extends Engine.Player
-    native;
+    native
+    transient;
