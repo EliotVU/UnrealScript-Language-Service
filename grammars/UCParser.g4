@@ -1010,17 +1010,17 @@ primaryExpression
     | ASSIGNMENT_OR
     | ASSIGNMENT_STAR
     | ASSIGNMENT_CARET
-    | ASSIGNMENT_DIV) right=primaryExpression											    #binaryOperatorExpression
+    | ASSIGNMENT_DIV) right=primaryExpression											    #assignmentOperatorExpression
 
     // precedence: 40 ($, @) string operators
 	| left=primaryExpression id=(DOLLAR|AT) right=primaryExpression 						#binaryOperatorExpression
 
     // precedence: 44 ($=, @=) string operators
-    | left=primaryExpression id=(ASSIGNMENT_DOLLAR|ASSIGNMENT_AT) right=primaryExpression   #binaryOperatorExpression
+    | left=primaryExpression id=(ASSIGNMENT_DOLLAR|ASSIGNMENT_AT) right=primaryExpression   #assignmentOperatorExpression
 
     // precedence: 45 (-=) string operator
     // Leaving out because it is semantic dependant.
-    // | left=primaryExpression id=(ASSIGNMENT_DECR) right=primaryExpression                   #binaryOperatorExpression
+    // | left=primaryExpression id=(ASSIGNMENT_DECR) right=primaryExpression                   #assignmentOperatorExpression
 
 	| 'self'																				#selfReferenceExpression
 	| 'default'																				#defaultReferenceExpression

@@ -1489,7 +1489,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         return statement;
     }
 
-    visitAssignmentExpression(ctx: UCGrammar.AssignmentExpressionContext) {
+    visitAssignmentExpression(ctx: UCGrammar.AssignmentExpressionContext | UCGrammar.AssignmentOperatorExpressionContext) {
         const expression = new UCAssignmentOperatorExpression(rangeFromBounds(ctx.start, ctx.stop));
 
         const operatorNode = ctx._id;
@@ -1513,6 +1513,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         return expression;
+    }
+
+    visitAssignmentOperatorExpression(ctx: UCGrammar.AssignmentOperatorExpressionContext) {
+        return this.visitAssignmentExpression(ctx);
     }
 
     visitConditionalExpression(ctx: UCGrammar.ConditionalExpressionContext) {
