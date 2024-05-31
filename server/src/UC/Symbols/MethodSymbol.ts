@@ -2,8 +2,10 @@ import { Location, Position } from 'vscode-languageserver-types';
 
 import { Token } from 'antlr4ts/Token';
 import { UCDocument } from '../document';
+import { config } from '../indexer';
 import { Name } from '../name';
-import { NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
+import { NAME_ACTOR, NAME_CREATEDATAOBJECT, NAME_ENGINE, NAME_LOADDATAOBJECT, NAME_SPAWN } from '../names';
+import { UCGeneration } from '../settings';
 import { SymbolWalker } from '../symbolWalker';
 import {
     ContextKind,
@@ -157,9 +159,13 @@ export class UCMethodSymbol extends UCStructSymbol {
             this.returnValue.index(document, context);
 
             // For UC1 and UC2 we have to hardcode the "coerce" modifier for the Spawn's return type.
-            if (this.getName() === NAME_SPAWN
-                && this.outer?.getName() === NAME_ACTOR
-                && this.outer.outer?.getName() === NAME_ENGINE) {
+            if (config.generation !== UCGeneration.UC3
+                && this.getName() === NAME_SPAWN) {
+                this.returnValue.modifiers |= ModifierFlags.Coerce;
+            }
+
+            if (config.generation === UCGeneration.UC2
+                && (this.getName() === NAME_CREATEDATAOBJECT || this.getName() === NAME_LOADDATAOBJECT)) {
                 this.returnValue.modifiers |= ModifierFlags.Coerce;
             }
         }
