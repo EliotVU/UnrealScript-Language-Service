@@ -38,6 +38,7 @@ import {
     StaticRotatorType,
     StaticStringType,
     StaticVectorType,
+    SymbolReferenceFlags,
     UCArrayTypeSymbol,
     UCBaseOperatorSymbol,
     UCClassSymbol,
@@ -75,7 +76,7 @@ import {
 import { UCDocument } from './document';
 import { intersectsWith } from './helpers';
 import { config, getConstSymbol, getEnumMember } from './indexer';
-import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_STRUCT, NAME_VECTOR } from './names';
+import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_SPAWN, NAME_STRUCT, NAME_VECTOR } from './names';
 import { SymbolWalker } from './symbolWalker';
 
 export interface IExpression extends INode, IWithInnerSymbols {
@@ -297,11 +298,11 @@ export class UCCallExpression extends UCExpression {
                 // Coerce the return type to match that of the first passed argument, e.g. "coerce Object Spawn(class'Actor' actor);"
                 if (returnValue.hasAnyModifierFlags(ModifierFlags.Coerce) && this.arguments && this.arguments.length > 0) {
                     const firstArgumentType = this.arguments[0].getType();
+                    // Resolve Class'Actor' to Actor or Class<Actor> to Actor
                     return firstArgumentType && resolveType(firstArgumentType);
                 }
 
-                const returnValueType = returnValue.getType();
-                return returnValueType;
+                return returnValue.getType();
             }
 
             return undefined;
@@ -483,9 +484,10 @@ export class UCElementAccessExpression extends UCExpression {
         return this.expression.getSymbolAtPos(position)
             ?? this.argument?.getSymbolAtPos(position)
             // HACK: temporary workaround for a situation like `MyClassArray[index].WE_ARE_HERE` symbol `index` would be retrieved instead of `MyClassArray`
-            ?? UCCallExpression.hack_getTypeIfNoSymbol
-            ? this.getType()
-            : undefined;
+            ?? (UCCallExpression.hack_getTypeIfNoSymbol
+                ? this.getType()
+                : undefined
+            );
     }
 
     override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
@@ -810,8 +812,8 @@ export class UCMemberExpression extends UCExpression {
         if (member) {
             const type = new UCObjectTypeSymbol(this.id);
             const symbolRef = type.setRef(member, document)!;
-            if (info) {
-                symbolRef.inAssignment = info.inAssignment;
+            if (info?.inAssignment) {
+                symbolRef.flags |= SymbolReferenceFlags.Assignment;
             }
             this.type = type;
         }
@@ -1010,8 +1012,8 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
 
         const type = new UCObjectTypeSymbol(this.id);
         const ref = type.setRef(member, document)!;
-        if (info) {
-            ref.inAssignment = info.inAssignment;
+        if (info?.inAssignment) {
+            ref.flags |= SymbolReferenceFlags.Assignment;
         }
         this.type = type;
     }

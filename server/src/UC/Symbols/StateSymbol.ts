@@ -5,7 +5,7 @@ import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ModifierFlags, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
+    ModifierFlags, SymbolReferenceFlags, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
 } from './';
 
 export class UCStateSymbol extends UCStructSymbol {
@@ -105,7 +105,8 @@ export class UCStateSymbol extends UCStructSymbol {
 			const symbolOverride = context.super.findSuperSymbol<UCStateSymbol>(this.getName(), UCSymbolKind.State);
 			if (symbolOverride) {
 				document.indexReference(symbolOverride, {
-					location: Location.create(document.uri, this.id.range)
+					location: Location.create(document.uri, this.id.range),
+                    flags: SymbolReferenceFlags.Override
 				});
 				this.overriddenState = symbolOverride;
 				this.super = symbolOverride;

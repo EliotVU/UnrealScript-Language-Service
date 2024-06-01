@@ -30,7 +30,7 @@ export function unregisterDocuments(baseDir: string, fileNames: string[]): void 
  */
 export function usingDocuments(baseDir: string, fileNames: string[], exec: (documents: UCDocument[]) => void): void {
     // HACK: Ensure we always have a core UObject to work with in tests.
-    createDocumentByPath(path.resolve(__dirname, '../UnrealScriptTests/Classes/Object.uc'), CORE_PACKAGE);
+    createDocumentByPath(path.resolve(__dirname, '../UnrealScriptTests/Core/Classes/Object.uc'), CORE_PACKAGE);
 
     const documents = registerDocuments(baseDir, fileNames);
     try {
@@ -44,4 +44,15 @@ export function assertDocument(documentName: string): UCDocument {
     const document = getDocumentById(toName(documentName))!;
     expect(document, `Missing '${documentName}' file`).to.not.be.undefined;
     return document;
+}
+
+export function usingDocumentWithText(document: UCDocument, text: string, exec: (document: UCDocument) => void): void {
+    document.invalidate(true);
+    
+    try {
+        document.build(text);
+        exec(document);
+    } finally {
+        document.invalidate(true);
+    }
 }

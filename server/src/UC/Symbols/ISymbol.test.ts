@@ -7,7 +7,7 @@ import { DEFAULT_RANGE, getContext, getOuter, StaticNoneType, UCClassSymbol, UCP
 describe('Test ISymbol utilities', () => {
     const packageSymbol = new UCPackage(NAME_PACKAGE);
 
-    const classSymbol = new UCClassSymbol({ name: NAME_CLASS, range: DEFAULT_RANGE });
+    const classSymbol = new UCClassSymbol({ name: NAME_CLASS, range: DEFAULT_RANGE }, DEFAULT_RANGE);
     classSymbol.outer = packageSymbol;
 
     const propertySymbol = new UCPropertySymbol({

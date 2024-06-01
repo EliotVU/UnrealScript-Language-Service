@@ -12,20 +12,17 @@ import {
     ErrorCodes,
     FileOperationRegistrationOptions,
     InitializeParams,
-    Position,
     ProposedFeatures,
     Range,
     ResponseError,
     TextDocumentIdentifier,
     TextDocumentSyncKind,
-    TextEdit,
-    WorkspaceChange,
-    WorkspaceEdit,
     WorkspaceFolder,
 } from 'vscode-languageserver/node';
 
+import { getDocumentRenameEdit } from 'rename';
 import { ActiveTextDocuments } from './activeTextDocuments';
-import { buildCodeActions } from './codeActions';
+import { getDocumentCodeActions } from './codeActions';
 import {
     getCompletionItems,
     getFullCompletionItem,
@@ -37,8 +34,7 @@ import { getDocumentDiagnostics } from './documentDiagnostics';
 import { getDocumentHighlights } from './documentHighlight';
 import { getDocumentSymbols } from './documentSymbol';
 import { getDocumentSemanticTokens } from './documentTokenSemantics';
-import { getReferences, getSymbolReferences } from './references';
-import { CommandIdentifier, CommandsList, InlineChangeCommand } from './UC/commands';
+import { getReferences } from './references';
 import { UCDocument } from './UC/document';
 import { createTypeFromQualifiedIdentifier } from './UC/documentASTWalker';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
@@ -46,7 +42,6 @@ import {
     getDocumentDefinition,
     getDocumentTooltip,
     getSymbol,
-    getSymbolDefinition,
     resolveSymbolToRef,
     VALID_ID_REGEXP,
 } from './UC/helpers';
@@ -95,6 +90,7 @@ import {
 import { UnrealPackage } from './UPK/UnrealPackage';
 import { getFiles, isDocumentFileName } from './workspace';
 import { getWorkspaceSymbols } from './workspaceSymbol';
+import { CommandIdentifier, executeCommand, getCommand, getCommands } from 'commands';
 
 /**
  * Emits true when the workspace is prepared and ready for indexing.
@@ -352,7 +348,7 @@ connection.onInitialize((params: InitializeParams) => {
                 dataSupport: true
             },
             executeCommandProvider: {
-                commands: CommandsList
+                commands: getCommands()
             },
             semanticTokensProvider: {
                 documentSelector: null,
@@ -907,7 +903,7 @@ connection.onDefinition(async (e) => {
     return undefined;
 });
 
-connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
+connection.onReferences((e) => getReferences(e.textDocument.uri, e.position, e.context));
 connection.onDocumentSymbol(async (e) => {
     const document = await awaitDocumentBuilt(e.textDocument.uri);
     if (document) {
@@ -927,6 +923,7 @@ connection.onCompletion((e) => {
             return getCompletionItems(e.textDocument.uri, e.position);
         });
     }
+
     return getCompletionItems(e.textDocument.uri, e.position);
 });
 connection.onCompletionResolve(getFullCompletionItem);
@@ -936,10 +933,11 @@ connection.onSignatureHelp((e) => {
             return getSignatureHelp(e.textDocument.uri, e.position);
         });
     }
+
     return getSignatureHelp(e.textDocument.uri, e.position);
 });
 
-connection.onPrepareRename(async (e) => {
+connection.onPrepareRename((e) => {
     const symbol = getSymbol(e.textDocument.uri, e.position);
     if (!symbol) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
@@ -974,62 +972,46 @@ connection.onPrepareRename(async (e) => {
     return symbol.id.range;
 });
 
-connection.onRenameRequest(async (e) => {
+connection.onRenameRequest((e) => {
     if (!VALID_ID_REGEXP.test(e.newName)) {
         throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid identifier!');
     }
 
-    const symbol = getSymbolDefinition(e.textDocument.uri, e.position);
-    if (!symbol) {
-        return undefined;
+    return getDocumentRenameEdit(e.textDocument.uri, e.position, e.newName);
+});
+
+connection.onCodeAction(e => getDocumentCodeActions(e.textDocument.uri, e.range));
+
+connection.onExecuteCommand(async e => {
+    const command = getCommand(e.command);
+    if (!command) {
+        throw new Error('Unknown command');
     }
 
-    const references = getSymbolReferences(symbol);
-    if (!references) {
-        return undefined;
+    const change = executeCommand(command, e.arguments);
+    if (!change) {
+        return;
     }
 
-    const changes: { [uri: DocumentUri]: TextEdit[] } = {};
-    references.forEach(l => {
-        const ranges = changes[l.uri] || (changes[l.uri] = []);
-        ranges.push(TextEdit.replace(l.range, e.newName));
+    const result = await connection.workspace.applyEdit({
+        label: e.command,
+        edit: change.edit
     });
-    const result: WorkspaceEdit = { changes };
-    return result;
-});
 
-connection.onCodeAction(e => {
-    return buildCodeActions(e.textDocument.uri, e.range);
-});
-
-connection.onExecuteCommand(e => {
-    switch (e.command) {
-        case CommandIdentifier.CreateClass: {
-            const uri = e.arguments![0] as DocumentUri;
-            const className = e.arguments![1] as string;
-            const change = new WorkspaceChange();
-            change.createFile(uri, { ignoreIfExists: true });
-            change.getTextEditChange({ uri, version: 1 })
-                .add({
-                    newText: `class ${className} extends Object;`,
-                    range: Range.create(Position.create(0, 0), Position.create(0, 0))
-                });
-            connection.workspace.applyEdit(change.edit);
-            // TODO: Need to refresh the document that invoked this command.
-            break;
-        }
-
-        case CommandIdentifier.Inline: {
-            const args = e.arguments![0] as InlineChangeCommand;
-
-            const change = new WorkspaceChange();
-            change.getTextEditChange({ uri: args.uri, version: null })
-                .replace(
-                    args.range,
-                    args.newText
-                );
-            connection.workspace.applyEdit(change.edit);
-            break;
-        }
+    if (!result.applied) {
+        return;
     }
+
+    // Re-index after edit
+    // This doesn't work because the edit is pending 'save' :/
+    // if (e.command === CommandIdentifier.CreateClass
+    //     && e.arguments
+    //     && e.arguments.length > 0
+    //     && typeof e.arguments[0].uri === 'string') {
+    //     const document = getDocumentByURI(e.arguments[0].uri);
+    //     if (document) {
+    //         document.invalidate();
+    //         indexDocument(document);
+    //     }
+    // }
 });

@@ -6,3 +6,4 @@ client/out
 server/out
 *.tsbuildinfo
 *.vsix
+.vscode-test

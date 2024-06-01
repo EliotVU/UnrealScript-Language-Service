@@ -33,6 +33,7 @@ import { intersectsWithRange } from './helpers';
 import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from './statements';
 import {
     Identifier,
+    isClass,
     isField,
     isFunction,
     ISymbol,
@@ -203,10 +204,18 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         } else {
             const symbols = document.enumerateSymbols();
             for (const symbol of symbols) {
-                if (!intersectsWithRange(symbol.range.start, this.range)) {
-                    continue;
+                if (intersectsWithRange(symbol.range.start, this.range)) {
+                    symbol.accept(this);
                 }
-                symbol.accept(this);
+
+                // class's symbols are not included in the document symbols and they are also outside of the class's declaration range.
+                if (isClass(symbol)) {
+                    for (let child = symbol.children; child; child = child.next) {
+                        if (intersectsWithRange(symbol.range.start, child.range)) {
+                            child.accept(this);
+                        }
+                    }
+                }
             }
         }
         

@@ -14,6 +14,7 @@ import {
     isArchetypeSymbol,
     isClass,
     isField,
+    isStruct,
     supportsRef,
 } from './Symbols';
 import { UCLexer } from './antlr/generated/UCLexer';
@@ -146,7 +147,7 @@ export function getDocumentSymbol(document: UCDocument, position: Position): ISy
             return child;
         }
 
-        if (isClass(symbol) && (child = symbol.getChildSymbolAtPos(position))) {
+        if (isStruct(symbol) && (child = symbol.getChildSymbolAtPos(position))) {
             return child;
         }
     }

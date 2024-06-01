@@ -13,6 +13,7 @@ import {
     ISymbol,
     ObjectsTable,
     SymbolReference,
+    SymbolReferenceFlags,
     TRANSIENT_PACKAGE,
     UCConstSymbol,
     UCEnumMemberSymbol,
@@ -236,7 +237,10 @@ export function getIndexedReferences(hash: NameHash) {
 }
 
 export function indexReference(symbol: ISymbol, document: UCDocument, location: Location): SymbolReference {
-    const ref: SymbolReference = { location };
+    const ref: SymbolReference = { 
+        location,
+        flags: SymbolReferenceFlags.None
+    };
     document.indexReference(symbol, ref);
     return ref;
 }
@@ -244,7 +248,7 @@ export function indexReference(symbol: ISymbol, document: UCDocument, location: 
 export function indexDeclarationReference(symbol: ISymbol, document: UCDocument): SymbolReference {
     const ref: SymbolReference = {
         location: Location.create(document.uri, symbol.id.range),
-        inAssignment: true
+        flags: SymbolReferenceFlags.Declaration
     };
     document.indexReference(symbol, ref);
     return ref;

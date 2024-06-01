@@ -9,7 +9,7 @@ import { DEFAULT_RANGE, getSymbolHash, SymbolsTable, UCClassSymbol, UCObjectSymb
 describe('ObjectsTable', () => {
     const testName = toName('SYMBOL_HASH_COLLISION');
     const globalTable = new SymbolsTable<UCObjectSymbol>();
-    const classSymbol = new UCClassSymbol({ name: testName, range: DEFAULT_RANGE });
+    const classSymbol = new UCClassSymbol({ name: testName, range: DEFAULT_RANGE }, DEFAULT_RANGE);
     const packageSymbol = new UCPackage(testName);
 
     const classHash = globalTable.addSymbol(classSymbol);

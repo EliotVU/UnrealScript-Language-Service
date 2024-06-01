@@ -4,18 +4,16 @@ import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
 import {
     DEFAULT_RANGE,
-    isStruct,
     ISymbol,
     ISymbolContainer,
     UCClassSymbol,
-    UCFieldSymbol,
     UCObjectSymbol,
     UCSymbolKind,
     UCTypeKind,
 } from './';
 
 export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
-    protected symbols = new Map<NameHash, T>();
+    protected readonly symbols = new Map<NameHash, T>();
 
     count() {
         return this.symbols.size;
@@ -120,24 +118,7 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
     }
 
     clear(): void {
-        // naive implementation, what if two classes have an identical named struct?
-        const removeObjects = (child?: UCFieldSymbol) => {
-            for (; child; child = child.next) {
-                if (isStruct(child)) {
-                    if (child.children) {
-                        removeObjects(child.children);
-                    }
-                }
-                this.removeSymbol(child as unknown as T);
-            }
-        };
-
-        for (const [key, symbol] of this.symbols) {
-            if (isStruct(symbol)) {
-                removeObjects(symbol.children);
-                this.removeKey(key, symbol);
-            }
-        }
+        this.symbols.clear();
     }
 }
 
@@ -165,7 +146,7 @@ export const TRANSIENT_PACKAGE = new UCPackage(NAME_NONE);
 
 /**
  * A symbols table of kinds such as UPackage, UClass, UStruct, and UEnums.
- * 
+ *
  * Note: Most kinds are not indexed such as UProperty, UConst, etc.
  */
 export const ObjectsTable = new SymbolsTable<UCObjectSymbol>();
@@ -206,10 +187,10 @@ export function removeHashedSymbol(symbol: UCObjectSymbol) {
 }
 
 /**
- * Finds a registered document by name. 
- * 
+ * Finds a registered document by name.
+ *
  * if the document had not been indexed yet, the indexing will begin and end before returning the class symbol.
- * 
+ *
  * @param id document name (without the extension)
  * @returns the class symbol if any, when undefined the document is either not registered or the document is missing a class declaration.
  */

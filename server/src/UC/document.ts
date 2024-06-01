@@ -18,6 +18,8 @@ import {
     UCPackage,
     UCStructSymbol,
     UCSymbolKind,
+    isArchetypeSymbol,
+    isClassSymbol,
     isStruct,
     removeHashedSymbol,
 } from './Symbols';
@@ -33,15 +35,30 @@ import { SymbolWalker } from './symbolWalker';
 
 function removeChildren(scope: UCStructSymbol) {
     for (let child = scope.children; child; child = child.next) {
-        if (isStruct(child)) {
-            removeChildren(child);
-        }
-        if (child.kind === UCSymbolKind.ScriptStruct
-            || child.kind === UCSymbolKind.Enum
-            || child.kind === UCSymbolKind.Archetype) {
-            removeHashedSymbol(child);
+        switch (child.kind) {
+            case UCSymbolKind.Enum:
+                removeHashedSymbol(child);
+                break;
+
+            case UCSymbolKind.ScriptStruct:
+                // inner structs...
+                removeChildren(child as UCStructSymbol);
+                removeHashedSymbol(child);
+                break;
+
+            case UCSymbolKind.Archetype:
+                // inner archetypes...
+                removeChildren(child as UCStructSymbol);
+                removeHashedSymbol(child);
+                break;
         }
     }
+
+    if (isClassSymbol(scope) && isArchetypeSymbol(scope.defaults)) {
+        removeChildren(scope.defaults);
+    }
+
+    removeHashedSymbol(scope);
 }
 
 export type DocumentParseData = {
@@ -235,13 +252,13 @@ export class UCDocument {
     }
 
     public invalidate(cleanup = true) {
+        // const startCleaning = performance.now();
         if (cleanup) {
             // Remove hashed objects from the global objects table.
             // This however does not invoke any invalidation calls to dependencies.
             // TODO: Merge this with scope.clear();
             if (this.class) {
                 removeChildren(this.class);
-                removeHashedSymbol(this.class);
             }
         }
         this.class = undefined;
@@ -260,6 +277,7 @@ export class UCDocument {
             }
         }
         this.indexReferencesMade.clear();
+        // console.info(`${this.fileName}: cleaning time ${performance.now() - startCleaning}`);
     }
 
     indexReference(symbol: ISymbol, ref: SymbolReference) {
