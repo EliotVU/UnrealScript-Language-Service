@@ -9,6 +9,7 @@
             ],
             "outFiles": [
                 "${workspaceRoot}/out/extension.js",
+                "${workspaceRoot}/out/server.js",
             ],
             "sourceMaps": true,
             "autoAttachChildProcesses": true,
@@ -30,7 +31,6 @@
                 "${workspaceRoot}/out/server.js",
             ],
             "sourceMaps": true,
-            "smartStep": true,
             "autoAttachChildProcesses": true,
             "preLaunchTask": {
                 "type": "npm",
