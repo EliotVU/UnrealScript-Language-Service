@@ -277,7 +277,7 @@ export class UCTypeSymbol implements ITypeSymbol {
 
 /**
  * A type used to represent object references such as:
- * 
+ *
  * 1. An object that could either be a `UCClassSymbol` or a `UCScriptStructSymbol` or any other descendant of `UCObjectSymbol`
  * usually represented by an identifier `Vector` or a qualified identifier `Object.Vector`
  * <br/>
@@ -290,7 +290,7 @@ export class UCTypeSymbol implements ITypeSymbol {
  * 4. A symbol reference in any expression, such as `self.Name` where `Name` is wrapped with a `UCObjectTypeSymbol` and the reference is a `UCFieldSymbol`
  * <br/>
  * 5. An object literal such as `Class'Core.Object'`, the reference is the type of `Class` i.e. `UCClassSymbol` and the baseType is a `UCQualifiedTypeSymbol`, with the reference set to the symbol of `Core.Object`
- * 
+ *
  * @property baseType - The base type such as a `UCQualifiedTypeSymbol` when representing a qualified identifier type, or the inner type of an array etc.
  * @property reference - A reference to the indexed symbol.
  */
@@ -302,11 +302,11 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
      */
     protected reference?: ISymbol = undefined;
 
-    /** 
-     * Any type that can be considered the base type, 
-     * or inner type such as an array's element type, 
-     * a class's meta class, 
-     * or the qualified type. 
+    /**
+     * Any type that can be considered the base type,
+     * or inner type such as an array's element type,
+     * a class's meta class,
+     * or the qualified type.
      **/
     public baseType?: TBaseType | undefined = undefined;
 
@@ -449,7 +449,7 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
                 // UC3 looks up types by using a global objects table
                 // -- where as UE2 or earlier looks up the type in the outer most class repeatedly for each 'super' of the context.
                 // -- but for our purposes let us always use the objects table approach (faster)
-                // -- instead perform a re-lookup using the inhertiance (and within class) approach to report diagnostics.
+                // -- instead perform a re-lookup using the inheritance (and within class) approach to report diagnostics.
                 symbol = tryFindClassSymbol(id)
                     ?? ObjectsTable.getSymbol(id, UCSymbolKind.Enum)
                     ?? ObjectsTable.getSymbol(id, UCSymbolKind.ScriptStruct)
@@ -718,7 +718,10 @@ const TypeConversionFlagsTable: Readonly<{ [key: number]: number[] }> = [
 ];
 /** @formatter:on */
 
-export function getTypeConversionFlags(inputTypeKind: UCTypeKind, destTypeKind: UCTypeKind): number {
+export function getTypeConversionFlags(
+    inputTypeKind: UCTypeKind,
+    destTypeKind: UCTypeKind
+): number {
     return TypeConversionFlagsTable[destTypeKind][inputTypeKind];
 }
 
@@ -743,7 +746,10 @@ export const enum UCConversionCost {
     Illegal = 0x7FFFFFFF,
 }
 
-export function getConversionCost(inputType: ITypeSymbol, destType: ITypeSymbol): UCConversionCost {
+export function getConversionCost(
+    inputType: ITypeSymbol,
+    destType: ITypeSymbol
+): UCConversionCost {
     const inputTypeKind = resolveTypeKind(inputType);
     const destTypeKind = resolveTypeKind(destType);
 
@@ -813,7 +819,11 @@ export const enum UCMatchFlags {
 /**
  * (dest) SomeObject = (input) none;
  */
-export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchFlags: UCMatchFlags = UCMatchFlags.None): boolean {
+export function typesMatch(
+    inputType: ITypeSymbol,
+    destType: ITypeSymbol,
+    matchFlags: UCMatchFlags = UCMatchFlags.None
+): boolean {
     // Ignore types with no reference (Error)
     let inputTypeKind = inputType.getTypeKind();
     if (inputTypeKind === UCTypeKind.Error) {
@@ -839,7 +849,7 @@ export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchF
                 // Resolves Class<destMetaClass>
                 const destMetaClass = hasDefinedBaseType(destType) && destType.baseType.getRef<UCClassSymbol>();
                 if (destMetaClass) {
-                    const inputMetaClass = hasDefinedBaseType(inputType) 
+                    const inputMetaClass = hasDefinedBaseType(inputType)
                         ? inputType.baseType.getRef<UCClassSymbol>()
                         // e.g. a MyClass as input to destination of Class<MyClass>
                         : inputType.getRef<UCClassSymbol>();
@@ -852,8 +862,8 @@ export function typesMatch(inputType: ITypeSymbol, destType: ITypeSymbol, matchF
 
                 // Any class derivative is compatible with the intrinsic class object.
                 return isClass(inputType.getRef());
-            } 
-            
+            }
+
             // e.g. "var AClassName", see if the input class is a derivative of "AClassName"
             if (areDescendants(destType.getRef<UCStructSymbol>()!, inputType.getRef<UCStructSymbol>()!)) {
                 return true;
@@ -903,15 +913,27 @@ export function resolveType(type: ITypeSymbol): ITypeSymbol {
     return hasDefinedBaseType(type) ? type.baseType : type;
 }
 
-export function hasDefinedBaseType(type: ITypeSymbol & { baseType?: ITypeSymbol | undefined }): type is UCObjectTypeSymbol & { baseType: ITypeSymbol } {
+export function hasDefinedBaseType(
+    type: ITypeSymbol & { baseType?: ITypeSymbol | undefined }
+): type is UCObjectTypeSymbol & { baseType: ITypeSymbol } {
     return typeof type.baseType !== 'undefined';
 }
 
-export function hasDefinedSuper(symbol: ISymbol & { super?: UCStructSymbol | undefined }): symbol is UCStructSymbol & { super: UCStructSymbol } {
+export function hasDefinedSuper(
+    symbol: ISymbol & { super?: UCStructSymbol | undefined }
+): symbol is UCStructSymbol & { super: UCStructSymbol } {
     return typeof symbol.super !== 'undefined';
 }
 
-export function areDescendants(parentSymbol: ISymbol & { super?: UCStructSymbol | undefined }, derivedSymbol: ISymbol & { super?: UCStructSymbol | undefined }): boolean {
+export function areDescendants(
+    parentSymbol: ISymbol & { super?: UCStructSymbol | undefined },
+    derivedSymbol: ISymbol & { super?: UCStructSymbol | undefined }
+): boolean {
+    // shortcut
+    if (parentSymbol === derivedSymbol) {
+        return true;
+    }
+
     let other: ISymbol & { super?: UCStructSymbol | undefined } | undefined = derivedSymbol;
 
     // We compare by hash, because we could be working with multiple and outdated instances of the same object.
@@ -927,7 +949,9 @@ export function areDescendants(parentSymbol: ISymbol & { super?: UCStructSymbol 
     return false;
 }
 
-export function hasModifiers(symbol: (ISymbol & { modifiers?: ModifierFlags })): symbol is ISymbol & { modifiers: ModifierFlags } {
+export function hasModifiers(
+    symbol: (ISymbol & { modifiers?: ModifierFlags })
+): symbol is ISymbol & { modifiers: ModifierFlags } {
     return typeof symbol.modifiers !== 'undefined';
 }
 
@@ -939,7 +963,9 @@ export function isPackage(symbol: ISymbol): symbol is UCPackage {
     return symbol.kind === UCSymbolKind.Package;
 }
 
-export function isField(symbol: (ISymbol & { modifiers?: ModifierFlags }) | undefined): symbol is UCFieldSymbol {
+export function isField(
+    symbol: (ISymbol & { modifiers?: ModifierFlags }) | undefined
+): symbol is UCFieldSymbol {
     return symbol instanceof UCFieldSymbol;
 }
 

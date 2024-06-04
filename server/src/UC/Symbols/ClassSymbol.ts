@@ -19,6 +19,8 @@ import {
 
 export enum ClassModifierFlags {
     None,
+
+    /** The class is declared as an 'interface' */
     Interface = 1 << 0,
 }
 
@@ -134,7 +136,7 @@ export class UCClassSymbol extends UCStructSymbol {
     }
 
     override findSuperSymbolPredicate<T extends UCFieldSymbol>(predicate: (symbol: UCFieldSymbol) => boolean): T | undefined {
-        return this.findSymbolPredicate<T>(predicate) 
+        return this.findSymbolPredicate<T>(predicate)
             ?? this.super?.findSuperSymbolPredicate<T>(predicate)
             ?? this.within?.findSuperSymbolPredicate<T>(predicate);
     }

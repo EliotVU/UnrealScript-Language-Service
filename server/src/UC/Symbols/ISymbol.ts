@@ -63,7 +63,6 @@ export interface ISymbolContainer<T extends ISymbol> {
 export type ContextInfo = {
     contextType?: ITypeSymbol;
     inAssignment?: boolean;
-    hasArguments?: boolean;
     isQualified?: boolean;
 };
 

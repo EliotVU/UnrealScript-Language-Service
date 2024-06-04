@@ -11,7 +11,7 @@ describe('Overloading', () => {
     it('should have no problems', () => {
         usingDocuments(__dirname, ['Overloads.uc', 'OverloadingTest.uc'], ([, testDocument]) => {
             queueIndexDocument(testDocument);
-            assertDocumentValidFieldsAnalysis(testDocument, /\bShould/);
+            assertDocumentValidFieldsAnalysis(testDocument, /\bShould(?!BeInvalid)/i);
             assertDocumentInvalidFieldsAnalysis(testDocument, /\bInvalid/);
         });
     });

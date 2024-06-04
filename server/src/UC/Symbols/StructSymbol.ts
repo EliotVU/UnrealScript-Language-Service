@@ -198,7 +198,7 @@ export function findSuperStruct(context: UCStructSymbol, id: Name): UCStructSymb
 	return undefined;
 }
 
-export function getOperatorsByName<T extends UCBaseOperatorSymbol>(context: UCStructSymbol, name: Name): T[] {
+export function getOperatorsByName<T extends UCBaseOperatorSymbol>(context: UCStructSymbol | undefined, name: Name): T[] {
     let scope: UCStructSymbol | undefined = isFunction(context)
         ? context.outer as UCStructSymbol
         : context;

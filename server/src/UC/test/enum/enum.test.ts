@@ -4,7 +4,6 @@ import {
     UCDefaultPropertiesBlock,
     UCEnumMemberSymbol,
     UCEnumSymbol,
-    UCMethodSymbol,
     UCPropertySymbol,
     UCSymbolKind,
 } from '../../Symbols';
@@ -13,7 +12,7 @@ import { queueIndexDocument } from '../../indexer';
 import { toName } from '../../name';
 import { NAME_DEFAULTPROPERTIES, NAME_ENUMCOUNT } from '../../names';
 import { assertBinaryOperatorExpressionMemberSymbol, assertExpressionStatement } from '../utils/codeAsserts';
-import { assertDocumentValidFieldsAnalysis } from '../utils/diagnosticUtils';
+import { assertDocumentInvalidFieldsAnalysis, assertDocumentValidFieldsAnalysis, assertDocumentValidSymbolAnalysis } from '../utils/diagnosticUtils';
 import { usingDocuments } from '../utils/utils';
 
 describe('EnumSymbol usage', () => {
@@ -23,7 +22,9 @@ describe('EnumSymbol usage', () => {
 
         it('should have no problems', () => {
             queueIndexDocument(testDocument);
-            assertDocumentValidFieldsAnalysis(testDocument);
+            assertDocumentValidFieldsAnalysis(testDocument, /\bShould(?!BeInvalid)/i);
+            assertDocumentInvalidFieldsAnalysis(testDocument, /\bInvalid/);
+            assertDocumentValidSymbolAnalysis(testDocument, testDocument.class!.getSymbol(NAME_DEFAULTPROPERTIES));
         });
 
         it('Enum EEnumTest is declared', () => {
@@ -61,21 +62,6 @@ describe('EnumSymbol usage', () => {
                 .to.equal(enumTestSymbol);
             // TODO: Support
             // expect(documentClass.getSymbol<UCPropertySymbol>(toName('MyQualifiedEnumBasedDimProperty')).arrayDimRef.getRef().outer).to.equal(enumSymbol);
-        });
-
-        it('Usage in Methods', () => {
-            const enumTestSymbol = documentClass.getSymbol<UCEnumSymbol>(toName('EEnumTest'));
-            const symbol = documentClass.getSymbol<UCMethodSymbol>(toName('EnumHintTest'));
-            expect(symbol, 'symbol')
-                .to.not.be.undefined;
-
-            expect(symbol.returnValue.getType().getRef())
-                .is.equal(enumTestSymbol);
-
-            expect(symbol.params[0].getType().getRef())
-                .to.equal(enumTestSymbol);
-            expect(symbol.params[0].defaultExpression.getType().getRef())
-                .to.equal(enumTestSymbol.getSymbol(toName('ET_Max')));
         });
 
         it('Usage in DefaultProperties', () => {

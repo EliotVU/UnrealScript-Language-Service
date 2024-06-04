@@ -139,6 +139,18 @@ export function intersectsWithRange(position: Position, range: Range): boolean {
         && position.character <= range.end.character;
 }
 
+export function areRangesIntersecting(a: Range, b: Range): boolean {
+    if (a.end.line < b.start.line || (a.end.line === b.start.line && a.end.character <= b.start.character)) {
+        return false;
+    }
+
+    if (b.end.line < a.start.line || (b.end.line === a.start.line && b.end.character <= a.start.character)) {
+        return false;
+    }
+
+    return true;
+}
+
 export function getDocumentSymbol(document: UCDocument, position: Position): ISymbol | undefined {
     const symbols = document.enumerateSymbols();
     for (const symbol of symbols) {
@@ -216,9 +228,9 @@ export function getSymbolDocumentation(symbol: ISymbol): string[] | undefined {
     return undefined;
 }
 
-/** 
- * Returns a location that represents the definition at a given position within the document. 
- * 
+/**
+ * Returns a location that represents the definition at a given position within the document.
+ *
  * If a symbol is found at the position, then the symbol's definition location will be returned instead.
  **/
 export function getDocumentDefinition(document: UCDocument, position: Position): Location | undefined {
@@ -243,7 +255,7 @@ export function getSymbolDefinition(uri: DocumentUri, position: Position): ISymb
     return symbol && resolveSymbolToRef(symbol);
 }
 
-/** 
+/**
  * Resolves to the symbol's contained reference if the symbol kind supports it.
  * e.g. A symbol that implements the interface ITypeSymbol.
  */

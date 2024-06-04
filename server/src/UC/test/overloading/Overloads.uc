@@ -17,3 +17,7 @@ static final operator(20) int           +   (int A, int B);
 static final operator(20) float         +   (float A, float B);
 static final operator(20) StructOne     +   (StructOne A, StructOne B);
 static final operator(20) StructTwo     +   (StructTwo A, StructTwo B);
+
+
+static final operator(34) StructOne     +=  (StructOne A, float B);
+static final operator(34) float         +=  (float A, StructOne B);

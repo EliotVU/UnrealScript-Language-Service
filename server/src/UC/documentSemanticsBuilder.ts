@@ -29,9 +29,10 @@ import {
     UCSizeOfLiteral,
     UCSuperExpression,
 } from './expressions';
-import { intersectsWithRange } from './helpers';
+import { areRangesIntersecting } from './helpers';
 import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from './statements';
 import {
+    DEFAULT_RANGE,
     Identifier,
     isClass,
     isField,
@@ -39,8 +40,18 @@ import {
     ISymbol,
     MethodFlags,
     ModifierFlags,
+    UCClassSymbol,
+    UCConstSymbol,
+    UCEnumSymbol,
+    UCFieldSymbol,
+    UCInterfaceSymbol,
     UCMethodSymbol,
     UCObjectTypeSymbol,
+    UCParamSymbol,
+    UCPropertySymbol,
+    UCScriptStructSymbol,
+    UCStateSymbol,
+    UCStructSymbol,
     UCSymbolKind,
     UCTypeKind,
 } from './Symbols';
@@ -148,6 +159,9 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
 
     private pushIdentifier(id: Identifier, type: number, modifiers: number): void {
         const range = id.range;
+        if (range === DEFAULT_RANGE) {
+            return;
+        }
         this.semanticTokensBuilder.push(
             range.start.line,
             range.start.character,
@@ -158,6 +172,9 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
     }
 
     private pushRange(range: Range, type: number, modifiers: number): void {
+        if (range === DEFAULT_RANGE) {
+            return;
+        }
         this.semanticTokensBuilder.push(
             range.start.line,
             range.start.character,
@@ -204,30 +221,103 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         } else {
             const symbols = document.enumerateSymbols();
             for (const symbol of symbols) {
-                if (intersectsWithRange(symbol.range.start, this.range)) {
-                    symbol.accept(this);
-                }
-
-                // class's symbols are not included in the document symbols and they are also outside of the class's declaration range.
-                if (isClass(symbol)) {
-                    for (let child = symbol.children; child; child = child.next) {
-                        if (intersectsWithRange(symbol.range.start, child.range)) {
-                            child.accept(this);
-                        }
-                    }
-                }
+                symbol.accept(this);
             }
         }
-        
+
         return this.getTokens();
     }
 
-    override visitMethod(symbol: UCMethodSymbol): void {
+    override visitStructBase(symbol: UCStructSymbol) {
+        if (symbol.children) {
+            const symbols: ISymbol[] = Array(symbol.childrenCount());
+
+            for (let child: UCFieldSymbol | undefined = symbol.children, i = 0; child; child = child.next, ++i) {
+                symbols[i] = child;
+            }
+
+            for (let i = symbols.length - 1; i >= 0; --i) {
+                if (this.range && !areRangesIntersecting(symbol.range, this.range)) {
+                    continue;
+                }
+
+                symbols[i].accept(this);
+            }
+        }
+
+        if (symbol.block) {
+            symbol.block.accept(this);
+        }
+    }
+
+    override visitClass(symbol: UCClassSymbol): void {
         this.pushSymbol(symbol, symbol.id);
+
+        super.visitClass(symbol);
+    }
+
+    override visitInterface(symbol: UCInterfaceSymbol): void {
+        this.pushSymbol(symbol, symbol.id);
+
+        super.visitInterface(symbol);
+    }
+
+    override visitConst(symbol: UCConstSymbol): void {
+        this.pushSymbol(symbol, symbol.id);
+
+        super.visitConst(symbol);
+    }
+
+    override visitEnum(symbol: UCEnumSymbol): void {
+        this.pushSymbol(symbol, symbol.id);
+
+        super.visitEnum(symbol);
+    }
+
+    override visitScriptStruct(symbol: UCScriptStructSymbol): void {
+        this.pushSymbol(symbol, symbol.id);
+
+        super.visitScriptStruct(symbol);
+    }
+
+    override visitProperty(symbol: UCPropertySymbol): void {
+        if (symbol.type) {
+            symbol.type.accept(this);
+        }
+
+        if ((symbol.modifiers & ModifierFlags.ReturnParam) === 0) {
+            this.pushSymbol(symbol, symbol.id);
+        }
+
+        if (symbol.arrayDimRef) {
+            symbol.arrayDimRef.accept(this);
+        }
+
+        // super.visitProperty(symbol);
+    }
+
+    override visitMethod(symbol: UCMethodSymbol): void {
+        // Skip ahead to the type, because we have no identifier to highlight for this property.
+        if (symbol.returnValue?.getType()) {
+            symbol.returnValue.getType().accept(this);
+        }
+
+        this.pushSymbol(symbol, symbol.id);
+
         super.visitMethod(symbol);
     }
 
+    override visitState(symbol: UCStateSymbol): void {
+        this.pushSymbol(symbol, symbol.id);
+
+        super.visitState(symbol);
+    }
+
     override visitBlock(symbol: UCBlock) {
+        if (this.range && !areRangesIntersecting(symbol.range, this.range)) {
+            return;
+        }
+
         for (const statement of symbol.statements) {
             if (statement) {
                 statement.accept(this);

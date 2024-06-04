@@ -2,9 +2,6 @@ import { UCDocument } from './document';
 import { UCArchetypeBlockStatement } from './statements';
 import {
     ContextInfo,
-    getContext,
-    getOuter,
-    isClass,
     isClassSymbol,
     isParamSymbol,
     isScriptStructSymbol,
@@ -19,7 +16,6 @@ import {
     UCScriptStructSymbol,
     UCStateSymbol,
     UCStructSymbol,
-    UCSymbolKind,
 } from './Symbols';
 import { DefaultSymbolWalker } from './symbolWalker';
 

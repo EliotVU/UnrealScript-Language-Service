@@ -14,7 +14,6 @@ import {
     ObjectsTable,
     SymbolReference,
     SymbolReferenceFlags,
-    TRANSIENT_PACKAGE,
     UCConstSymbol,
     UCEnumMemberSymbol,
     UCPackage,
@@ -159,7 +158,7 @@ export function getPendingDocumentsCount(): number {
 }
 
 const sepRegex = RegExp(`\\${path.sep}`);
-export function parsePackageNameInDir(dir: string): string | undefined {
+export function parsePackageNameInDir(dir: string): string {
     const directories = dir.split(sepRegex);
     for (let i = directories.length - 1; i >= 0; --i) {
         if (i > 0 && directories[i].match(/classes/i)) {
@@ -172,11 +171,7 @@ export function parsePackageNameInDir(dir: string): string | undefined {
 }
 
 export function createPackageByDir(dir: string): UCPackage {
-    const pkgNameStr = parsePackageNameInDir(dir);
-    if (typeof pkgNameStr === 'undefined') {
-        return TRANSIENT_PACKAGE;
-    }
-    return createPackage(pkgNameStr);
+    return createPackage(parsePackageNameInDir(dir));
 }
 
 export function createPackage(pkgNameStr: string): UCPackage {
@@ -237,7 +232,7 @@ export function getIndexedReferences(hash: NameHash) {
 }
 
 export function indexReference(symbol: ISymbol, document: UCDocument, location: Location): SymbolReference {
-    const ref: SymbolReference = { 
+    const ref: SymbolReference = {
         location,
         flags: SymbolReferenceFlags.None
     };

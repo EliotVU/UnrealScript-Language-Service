@@ -32,9 +32,13 @@ function ShouldOverload()
 
     // Should pick Overloads.==(Object,Object)
     classOne == classTwo;
+
+    // Should pick Overloads.+(StructOne,StructOne)
+    structOne = (structOne += 1.0);
+    floatOne = (1.0 += structOne);
 }
 
-function InvalidOverload()
+function ShouldBeInvalidOverload()
 {
     local StructOne structOne;
     local StructTwo structTwo;
@@ -42,4 +46,13 @@ function InvalidOverload()
     // FIXME: Diagnostic for missmatching overloads, (not added yet because we have false positives)
     // structOne + structTwo;
     // structTwo + structOne;
+}
+
+function ShouldBeInvalidOperator()
+{
+    // ! '~=' is not defined in Overloads.uc
+    "" ~= "";
+
+    // ! 'dot' is not defined in Overloads.uc
+    vect(0,0,0) dot vect(0,0,0);
 }

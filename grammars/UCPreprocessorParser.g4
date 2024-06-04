@@ -97,7 +97,7 @@ macro returns[isActive: boolean, evaluatedTokens?: Token[]]
 		$isActive = this.peekCurrentState();
 		this.currentState.pop();
 	} #macroEndIf
-	| MACRO_INCLUDE
+	| MACRO_INCLUDE OPEN_PARENS path=MACRO_TEXT CLOSE_PARENS
 	{
 		$isActive = this.getCurrentState();
 	} #macroInclude

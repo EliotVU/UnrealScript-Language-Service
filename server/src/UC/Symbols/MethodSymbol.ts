@@ -12,6 +12,7 @@ import {
     DEFAULT_RANGE,
     ISymbol,
     ModifierFlags,
+    SymbolReferenceFlags,
     UCFieldSymbol,
     UCObjectSymbol,
     UCParamSymbol,
@@ -24,16 +25,31 @@ import {
 export enum MethodFlags {
     None = 0x0000,
 
+    /** The method is declared as 'function' */
     Function = 1 << 0,
+
+    /** The method is declared as 'operator' */
     Operator = 1 << 1,
+
+    /** The method is declared as 'preoperator' */
     PreOperator = 1 << 2,
+
+    /** The method is declared as 'postoperator' */
     PostOperator = 1 << 3,
+
+    /** The method is declared as 'event' */
     Event = 1 << 4,
+
+    /** The method is declared as 'delegate' */
     Delegate = 1 << 5,
+
+    /** The method is marked as 'iterator' */
     Iterator = 1 << 6,
 
-    // Implies Final
-    Static = 1 << 7,
+    /** The method is marked as 'static', and implicitally as 'final' */
+    Static = 1 << 7, // Implies Final
+
+    /** The method is marked as 'final' */
     Final = 1 << 8,
 
     OperatorKind = Operator | PreOperator | PostOperator,
@@ -180,7 +196,8 @@ export class UCMethodSymbol extends UCStructSymbol {
                 // Never override a private method
                 && !symbolOverride.hasAnyModifierFlags(ModifierFlags.Private)) {
                 document.indexReference(symbolOverride, {
-                    location: Location.create(document.uri, this.id.range)
+                    location: Location.create(document.uri, this.id.range),
+                    flags: SymbolReferenceFlags.Override,
                 });
                 this.overriddenMethod = symbolOverride;
                 this.super = symbolOverride;

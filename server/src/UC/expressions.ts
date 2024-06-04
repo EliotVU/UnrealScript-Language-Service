@@ -82,37 +82,37 @@ import { SymbolWalker } from './symbolWalker';
 export interface IExpression extends INode, IWithInnerSymbols {
     /**
      * Gets the symbol to best represent the expression.
-     * 
+     *
      * For instance an expression such as `Array[0]` should return the symbol `Array`
      */
     getMemberSymbol(): ISymbol | undefined;
 
     /**
      * Gets the type symbol to best represent the expression.
-     * 
+     *
      * TODO: Refactor to never return undefined, always return a StaticErrorType instead.
      */
     getType(): ITypeSymbol | undefined;
 
     /**
      * Gets a symbol within the expression that intersects with the position.
-     * 
+     *
      * TODO: Displace with a visitor pattern and a general function for ISymbol.
      */
     getSymbolAtPos(position: Position): ISymbol | undefined;
 
     /**
      * Evaluates the value for the expression.
-     * 
+     *
      * @returns the evaluated value.
      */
     getValue(): number | boolean | string | undefined;
 
     /**
      * The second indexing pass, should index the referenced symbols.
-     * 
+     *
      * TODO: Consider using visitor pattern to index.
-     * 
+     *
      * @param document the document of the expression.
      * @param context context to use for symbol lookups. e.g. a `UCStateSymbol` in state code.
      * @param info context info such as a type hint.
@@ -346,6 +346,7 @@ export class UCCallExpression extends UCExpression {
         let type: ITypeSymbol | undefined;
         if (this.expression instanceof UCMemberExpression) {
             const name = this.expression.id.name;
+            // primitive type?
             if ((type = CastTypeSymbolMap.get(name))) {
                 this.expression.type = type;
             } else if (name === NAME_VECTOR) {
@@ -446,11 +447,11 @@ export class UCCallExpression extends UCExpression {
 
 /**
  * An expression to represent an element access i.e `Expression[Argument]`
- * 
+ *
  * ```UnrealScript
  * var Class<Object> Classes[2];
  * var Array<Class<Object> > ClassesArray;
- * 
+ *
  * Classes[0];
  * self.Classes[0];
  * ```
@@ -828,9 +829,9 @@ export class UCDefaultAssignmentExpression extends UCAssignmentOperatorExpressio
 
 /**
  * An expression to represent a property assignment in an object declaration i.e `Identifier=Expression` as `left=right`
- * 
+ *
  * e.g. in a 'object declaration' the part `Left=Right` is represented by this expression type
- * 
+ *
  * ```UnrealScript
  * Begin Object Left=Right
  * End Object
@@ -847,7 +848,7 @@ export class UCObjectAttributeExpression extends UCDefaultAssignmentExpression {
  * MyArray.Clear
  * MyArray.Add (MyStaticElement)
  * ```
- * 
+ *
  * @method getMemberSymbol will always return the instance of "operationMember".
  * @method getType will always return the type of instance "propertyMember", because our array operations have no return type.
  */
@@ -971,7 +972,7 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
             }
 
             case UCTypeKind.Int:
-                // UE3 behavior, a name can match with any object outside of the current scope. 
+                // UE3 behavior, a name can match with any object outside of the current scope.
                 member = getConstSymbol(name) ?? getEnumMember(name);
                 break;
 
@@ -1096,7 +1097,7 @@ export class UCSuperExpression extends UCExpression {
 
 /**
  * An expression to represent `new (Arguments)? Expression (TemplateExpression)?`
- * 
+ *
  * ```UnrealScript
  * new (None) Class
  * ```
@@ -1119,13 +1120,13 @@ export class UCNewExpression implements IExpression {
 
     /**
      * Gets the type of the class expression
-     * 
+     *
      * @returns The resolved type of the class expression
      */
     getType() {
         const type = this.expression.getType();
         // We need to resolve the type to its `baseType`, because we expect expressions to work with the object reference instead.
-        // e.g. assigning a new object of class type to Foo: `Foo = new (None) Class'MyClass'` 
+        // e.g. assigning a new object of class type to Foo: `Foo = new (None) Class'MyClass'`
         // in this example Foo needs to be an object reference with the class type `MyClass`
         return type && resolveType(type);
     }
@@ -1151,7 +1152,7 @@ export class UCNewExpression implements IExpression {
             return symbol;
         }
 
-        // HACK: Redirect the completion context to the resolved type (the class) 
+        // HACK: Redirect the completion context to the resolved type (the class)
         if (UCCallExpression.hack_getTypeIfNoSymbol) {
             return this.getType();
         }
@@ -1335,21 +1336,21 @@ export class UCByteLiteral extends UCLiteral {
     }
 }
 
-/** 
- * Represents an expression `Identifier'QualifiedIdentifier'` as `classRef'classRef.baseType'` 
- * 
- * e.g. 
+/**
+ * Represents an expression `Identifier'QualifiedIdentifier'` as `classRef'classRef.baseType'`
+ *
+ * e.g.
  * ```UnrealScript
  * Package'Core'
  * Class'Core.Object'
- * Struct'Core.Object.Vector' 
- * Property'Core.Object.Vector.X' 
+ * Struct'Core.Object.Vector'
+ * Property'Core.Object.Vector.X'
  * ```
  **/
 export class UCObjectLiteral extends UCLiteral {
-    /** 
+    /**
      * The class specifier in the literal, i.e. Class for Class'MyClass'.
-     * @property classRef.baseType should represent the object reference. 
+     * @property classRef.baseType should represent the object reference.
      **/
     public classRef: UCObjectTypeSymbol<UCQualifiedTypeSymbol | UCObjectTypeSymbol>;
 

@@ -1,5 +1,5 @@
 // Test an ambiguous issue where a call looks like either a class casting or a function of the same name.
-class CastingTest extends Object dependson(InterfaceTest) implements (InterfaceTest);
+class CastingTest extends Core.Object dependson (InterfaceTest, CastingActor) implements (InterfaceTest);
 
 struct Vector {};
 struct Rotator {};
@@ -14,6 +14,9 @@ var array< Class<CastingTest> > TestClasses;
 var struct CastingTestStruct {
     var Class<CastingTest> TestClass;
 } CastingTestStruct;
+
+var Actor Actor;
+var Class<CastingActor> ActorClass;
 
 private delegate DelegateFunction();
 
@@ -46,7 +49,7 @@ function CastingTest ShouldCastFromInterfaceTest()
 function CastingTest.CastingTest ShouldCastToEnumTest()
 {
     local byte b;
-    
+
     // Should resolve to enum 'CastingTest'
     return CastingTest(b);
 }
@@ -73,7 +76,7 @@ function ShouldBeInvalidCastingTest()
     // float(EEnum.E_1);
 
     // Zero cost conversions:
-    
+
     string("");
     byte(byte(0)); // 0 is an int internally, so ensure we are trying to cast a byte to byte by double casting.
     int(0xFFFFFFFF);
@@ -160,8 +163,9 @@ function ShouldBeValidAssignmentTest()
     local CastingTest cc[2];
     local array<CastingTest> ca;
     local InterfaceTest other;
+    local CastingActor castingActor;
 
-    // FIXME: (c) is picked up as a cast instead of a template reference
+    // FIXME: `self.Class (other)` is picked up as a cast instead of a template reference
     // Ensure it doesn't mistake this for a cast from `other` to `self.Class`
     c = new (self) self.Class (other);
 
@@ -178,6 +182,13 @@ function ShouldBeValidAssignmentTest()
     // Test array (class) element assignment
     TestClasses[0] = Class'CastingTest';
     TestClasses[0] = Class'CastingDerivative';
+
+    // Expect CastingActor to be compatible with local `castingActor`
+    castingActor = Actor.Spawn(Class'CastingActor');
+    castingActor = Actor.Spawn(ActorClass);
+
+    // Expect `Data` to exist.
+    Actor.Spawn(Class'CastingActor').Data;
 }
 
 function ShouldBeInvalidAssignmentTest()
@@ -213,6 +224,7 @@ function ShouldBeValidTypesInSwitchStatementTest()
 
 private function AcceptClass(Class cls);
 private function AcceptClassLimitor(Class<CastingTest> cls);
+private function AcceptObject(Object obj);
 
 function ShouldBeValidClassArgumentTest()
 {
@@ -234,6 +246,10 @@ function ShouldBeValidClassArgumentTest()
     AcceptClass(Class'Class');
     AcceptClass(c);
     AcceptClass(cls);
+
+    // Any object
+    AcceptObject(self.Class); // coerced type
+    AcceptObject(Class'Class');
 }
 
 function ShouldBeInvalidClassArgumentTest()

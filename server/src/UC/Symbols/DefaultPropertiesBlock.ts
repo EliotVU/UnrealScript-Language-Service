@@ -13,7 +13,7 @@ export class UCDefaultPropertiesBlock extends UCStructSymbol {
         if (outerClass?.defaults && isArchetypeSymbol(outerClass.defaults)) {
             return `(${this.id.name.text.toLowerCase()}) ${outerClass.getTooltip()}`;
         }
-        
+
         return `(${this.id.name.text.toLowerCase()})`;
     }
 

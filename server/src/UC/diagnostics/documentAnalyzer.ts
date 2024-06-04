@@ -25,7 +25,6 @@ import {
     UCDelegateTypeSymbol,
     UCEnumMemberSymbol,
     UCEnumSymbol,
-    UCFieldSymbol,
     UCInterfaceSymbol,
     UCMatchFlags,
     UCMethodSymbol,
@@ -42,7 +41,7 @@ import {
     areIdentityMatch,
     areMethodsCompatibleWith,
     getConversionCost,
-    hasDefinedBaseType,
+    getOperatorsByName,
     isClass,
     isDelegateSymbol,
     isEnumSymbol,
@@ -432,7 +431,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
         super.visitProperty(symbol);
 
-        // Not an user-defined dimension. 
+        // Not an user-defined dimension.
         if (!symbol.arrayDimRange) {
             return;
         }
@@ -755,7 +754,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     severity: DiagnosticSeverity.Error
                 }
             });
-            
+
             return;
         }
 
@@ -826,17 +825,21 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
     }
 
     override visitIfStatement(stm: UCIfStatement) {
+        this.pushNest(stm);
         super.visitIfStatement(stm);
 
         this.verifyStatementExpression(stm);
         this.verifyStatementBooleanCondition(stm);
+        this.popNest();
     }
 
     override visitWhileStatement(stm: UCWhileStatement) {
+        this.pushNest(stm);
         super.visitWhileStatement(stm);
 
         this.verifyStatementExpression(stm);
         this.verifyStatementBooleanCondition(stm);
+        this.popNest();
     }
 
     override visitSwitchStatement(stm: UCSwitchStatement) {
@@ -860,15 +863,19 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
     }
 
     override visitDoUntilStatement(stm: UCDoUntilStatement) {
+        this.pushNest(stm);
         super.visitDoUntilStatement(stm);
 
         this.verifyStatementExpression(stm);
         this.verifyStatementBooleanCondition(stm);
+        this.popNest();
     }
 
     // TODO: Test if any of the three expression can be omitted?
     override visitForStatement(stm: UCForStatement) {
+        this.pushNest(stm);
         super.visitForStatement(stm);
+        this.popNest();
 
         if (stm.init) {
             // TODO: Check if the operator has an "out" parameter?
@@ -929,8 +936,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
 
     // TODO: Verify we have an iterator function or array(UC3+).
     override visitForEachStatement(stm: UCForEachStatement) {
-        super.visitForEachStatement(stm);
+        this.pushNest(stm);
+        // handled below, necessary so we can skip the analysis if we are iterating on a dynamic array.
+        // super.visitForEachStatement(stm);
         this.verifyStatementExpression(stm);
+        this.popNest();
 
         if (!stm.expression) {
             return;
@@ -940,10 +950,11 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             this.diagnostics.add({
                 range: stm.expression.range,
                 message: {
-                    text: `Expression does not evaluate to an iteratable.`,
+                    text: `Expression does not evaluate to an iteratable, did you forget to specify arguments?`,
                     severity: DiagnosticSeverity.Error
                 }
             });
+
             return;
         } else if (!stm.expression.arguments) {
             this.diagnostics.add({
@@ -953,11 +964,12 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     severity: DiagnosticSeverity.Error
                 }
             });
+
             return;
         }
 
-        const symbol = stm.expression?.getMemberSymbol();
-        if (symbol) {
+        const symbol = stm.expression.getMemberSymbol();
+        if (symbol && isField(symbol)) {
             // Cannot iterate on the return result of a function expression.
             if (isFunction(symbol)) {
                 if ((symbol.specifiers & MethodFlags.Iterator) == 0) {
@@ -969,31 +981,48 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                         }
                     });
                 }
-            } else if (config.checkTypes) {
+
+                // Diagnose the arguments for additional errors
+                stm.expression.accept(this);
+                return;
+            }
+
+            if (config.checkTypes && stm.expression.getType()) {
+                const type = stm.expression.getType()!;
+
                 if (config.generation != UCGeneration.UC3) {
                     this.diagnostics.add({
                         range: stm.expression.range,
                         message: {
-                            text: `Type '${typeKindToDisplayString(stm.expression.getType()!.getTypeKind())}' cannot be iterated. Expected an iterator function.`,
+                            text: `Type '${typeKindToDisplayString(type.getTypeKind())}' cannot be iterated. Expected an iterator function.`,
                             severity: DiagnosticSeverity.Error
                         }
                     });
+
+                    // Diagnose the arguments for additional errors
+                    stm.expression.accept(this);
                     return;
                 }
 
-                if (stm.expression.getType()?.getTypeKind() !== UCTypeKind.Array) {
+                if (type.getTypeKind() === UCTypeKind.Array) {
+                    // check the arguments against our intrinsic ArrayIterator.
+                    const arrayInnerType = (symbol.getType() as UCArrayTypeSymbol).baseType;
+                    this.checkArguments(ArrayIterator, stm.expression, arrayInnerType);
+
+                    // Skip analysis below
+                    return;
+                } else if (type.getTypeKind() !== UCTypeKind.Error) {
                     this.diagnostics.add({
                         range: stm.expression.range,
                         message: {
-                            text: `Type '${typeKindToDisplayString(stm.expression.getType()!.getTypeKind())}' cannot be iterated. Expected an iterator function or dynamic array.`,
+                            text: `Type '${typeKindToDisplayString(type.getTypeKind())}' cannot be iterated. Expected an iterator function or dynamic array.`,
                             severity: DiagnosticSeverity.Error
                         }
                     });
-                } else {
-                    // check intrinsic arguments
-                    const arrayInnerType = ((symbol as UCFieldSymbol).getType() as UCArrayTypeSymbol).baseType;
-                    this.checkArguments(ArrayIterator, stm.expression, arrayInnerType);
                 }
+
+                // Diagnose the arguments for additional errors
+                stm.expression.accept(this);
             }
         }
     }
@@ -1062,9 +1091,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             expr.expression?.accept(this);
             // TODO: verify class type by inheritance
         } else if (expr instanceof UCCallExpression) {
-            this.state.hasArguments = true;
             expr.expression.accept(this);
-            this.state.hasArguments = false;
             expr.arguments?.forEach(arg => arg.accept(this));
 
             const destType = expr.expression.getType();
@@ -1227,14 +1254,19 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             expr.expression.accept(this);
             const operatorSymbol = expr.operator.getRef();
             if (!operatorSymbol) {
-                this.diagnostics.add({
-                    range: expr.operator.range,
-                    message: {
-                        text: `Invalid unary operator '{0}'.`,
-                        severity: DiagnosticSeverity.Error
-                    },
-                    args: [expr.operator.getName().text]
-                });
+                const candidates = getOperatorsByName(this.document.class, expr.operator.getName());
+                if (candidates.length === 0) {
+                    this.diagnostics.add({
+                        range: expr.operator.range,
+                        message: {
+                            text: `Couldn't find unary operator '{0}'`,
+                            severity: DiagnosticSeverity.Error
+                        },
+                        args: [expr.operator.id.name.text]
+                    });
+                }
+
+                // TODO: No overload error?
             }
         } else if (expr instanceof UCBinaryOperatorExpression) {
             if (expr.left) {
@@ -1253,12 +1285,22 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                 return;
             }
 
-            if (!expr.operator) {
-                // TODO: Loop over potential matching operators and report the incompatible inputs.
-                // this.pushError(expr.range, "No compatible operator found!");
+            // Defined but not indexed? (undefined for the '=' assignment)
+            if (expr.operator && !expr.operator.getRef()) {
+                const candidates = getOperatorsByName(this.document.class, expr.operator.getName());
+                if (candidates.length === 0) {
+                    this.pushError(expr.operator.range, `Couldn't find operator '${expr.operator.id.name.text}'`);
+                }
+                // TODO: 'else' Suggest candidates?
             }
 
             if (!(expr instanceof UCAssignmentOperatorExpression || expr instanceof UCDefaultAssignmentExpression)) {
+                return;
+            }
+
+            // Apply type checking below only for the intrinsic '=' (which has an undefined 'operator')
+            if (expr.operator) {
+                // TODO: Still must present non-compatible overloading diagnostics
                 return;
             }
 
@@ -1349,48 +1391,47 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             }
 
             if (config.checkTypes) {
-                if (expr instanceof UCAssignmentOperatorExpression) {
-                    if (letType.getTypeKind() === UCTypeKind.Delegate) {
-                        // TODO: Cleanup duplicate code when binary-operator types are resolved properly.
-                        if (typesMatch(valueType, StaticDelegateType)) {
-                            const letTypeRef = resolveType(letType).getRef<UCDelegateSymbol>();
-                            const valueTypeRef = resolveType(valueType).getRef<UCMethodSymbol>();
-                            if (letTypeRef && isDelegateSymbol(letTypeRef)
-                                && valueTypeRef && isFunction(valueTypeRef)
-                                && !areMethodsCompatibleWith(letTypeRef, valueTypeRef)) {
-                                this.diagnostics.add({
-                                    range: expr.right.range,
-                                    message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
-                                    args: [valueTypeRef.getPath(), letSymbol.getPath()]
-                                });
-                            }
-                        } else {
+                if (letType.getTypeKind() === UCTypeKind.Delegate) {
+                    // TODO: Cleanup duplicate code when binary-operator types are resolved properly.
+                    if (typesMatch(valueType, StaticDelegateType)) {
+                        const letTypeRef = resolveType(letType).getRef<UCDelegateSymbol>();
+                        const valueTypeRef = resolveType(valueType).getRef<UCMethodSymbol>();
+                        if (letTypeRef && isDelegateSymbol(letTypeRef)
+                            && valueTypeRef && isFunction(valueTypeRef)
+                            && !areMethodsCompatibleWith(letTypeRef, valueTypeRef)) {
                             this.diagnostics.add({
                                 range: expr.right.range,
-                                message: createTypeCannotBeAssignedToMessage(UCTypeKind.Delegate, valueTypeKind),
+                                message: diagnosticMessages.DELEGATE_IS_INCOMPATIBLE,
+                                args: [valueTypeRef.getPath(), letSymbol.getPath()]
                             });
                         }
-                    } else if (!typesMatch(valueType, letType, matchFlags)) {
-                        // Produce a more specific warning for incompatible classes.
-                        if (letType.getTypeKind() === UCTypeKind.Object && valueType.getTypeKind() === UCTypeKind.Object) {
-                            this.diagnostics.add({
-                                range: expr.range,
-                                message: {
-                                    text: `Cannot assign type Class '{0}' to '{1}' because it does not derive from type Class '{2}'`,
-                                    severity: DiagnosticSeverity.Error
-                                },
-                                args: [
-                                    resolveType(valueType).getRef()!.getPath(),
-                                    letSymbol.getName().text,
-                                    resolveType(letType).getRef()!.getPath(),
-                                ]
-                            });
-                        } else {
-                            this.diagnostics.add({
-                                range: expr.right.range,
-                                message: createTypeCannotBeAssignedToMessage(letType.getTypeKind(), valueTypeKind),
-                            });
-                        }
+                    } else {
+                        this.diagnostics.add({
+                            range: expr.right.range,
+                            message: createTypeCannotBeAssignedToMessage(UCTypeKind.Delegate, valueTypeKind),
+                        });
+                    }
+                } else if (!typesMatch(valueType, letType, matchFlags)) {
+                    // Produce a more specific warning for incompatible classes.
+                    // TODO: interface type
+                    if (letType.getTypeKind() === UCTypeKind.Object && valueType.getTypeKind() === UCTypeKind.Object) {
+                        this.diagnostics.add({
+                            range: expr.range,
+                            message: {
+                                text: `Cannot assign type Class '{0}' to '{1}' because it does not derive from type Class '{2}'`,
+                                severity: DiagnosticSeverity.Error
+                            },
+                            args: [
+                                resolveType(valueType).getRef()!.getPath(),
+                                letSymbol.getName().text,
+                                resolveType(letType).getRef()!.getPath(),
+                            ]
+                        });
+                    } else {
+                        this.diagnostics.add({
+                            range: expr.right.range,
+                            message: createTypeCannotBeAssignedToMessage(letType.getTypeKind(), valueTypeKind),
+                        });
                     }
                 }
             }
@@ -1616,7 +1657,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                 this.diagnostics.add({
                     range: arg.range,
                     message: diagnosticMessages.ARGUMENT_CLASS_IS_INCOMPATIBLE,
-                    args: [argType.getRef()!.getPath(), paramType.getRef()!.getPath()]
+                    args: [resolveType(argType).getRef()!.getPath(), resolveType(paramType).getRef()!.getPath()]
                 });
             } else {
                 this.diagnostics.add({

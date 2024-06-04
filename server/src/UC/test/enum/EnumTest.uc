@@ -1,6 +1,6 @@
-class EnumTest;
+class EnumTest extends Core.Object;
 
-enum EEnumTest 
+enum EEnumTest
 {
     ET_None,
     ET_Other
@@ -21,9 +21,15 @@ function EnumObjectTest2(Object object);
 function EnumByteTest(int b);
 function EnumIntTest(int i);
 
-/* Test all kind of situations where we need a byte/int hint to resolve an identifier to an enum tag. */
-function EEnumTest EnumHintTest(EEnumTest p1 = ET_Max) 
+private function EEnumTest EnumHintTest(EEnumTest p1 = ET_MAX)
 {
+    return p1;
+}
+
+/* Test all kind of situations where we need a byte/int hint to resolve an identifier to an enum tag. */
+function EEnumTest ShouldHintEnumTest()
+{
+    local EEnumTest p1;
     local byte b1;
 
     // in assignments
@@ -49,7 +55,7 @@ function EEnumTest EnumHintTest(EEnumTest p1 = ET_Max)
     if (EnumHintTest(0) != ET_Other) {
         return 0;
     }
-    
+
     // in literals
     EnumObjectTest(Enum'EEnumTest');
     EnumObjectTest2(Enum'EEnumTest');
@@ -69,8 +75,7 @@ function EEnumTest EnumHintTest(EEnumTest p1 = ET_Max)
     return ET_Max;
 }
 
-// FIXME: Missing enum hint, and type coercing is broken.
-function EEnumTest EnumConditionalHintTest(bool bOther) 
+function EEnumTest ShouldHintConditionalTest(bool bOther)
 {
     return bOther == true
         ? ET_Other

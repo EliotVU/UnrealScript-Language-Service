@@ -13,7 +13,7 @@ import {
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
 import { NAME_NONE } from './names';
-import { config, indexDeclarationReference, indexReference } from './indexer';
+import { config, indexReference } from './indexer';
 import { UCGeneration } from './settings';
 
 export interface IStatement extends INode, IWithInnerSymbols {
@@ -21,9 +21,9 @@ export interface IStatement extends INode, IWithInnerSymbols {
 
     /**
      * The second indexing pass, should index the referenced symbols.
-     * 
+     *
      * TODO: Consider using visitor pattern to index.
-     * 
+     *
      * @param document the document of the statement.
      * @param context context to use for symbol lookups. e.g. a `UCStateSymbol` in state code.
      * @param info context info such as a type hint.
@@ -136,8 +136,8 @@ export class UCArchetypeBlockStatement implements IStatement {
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
-        return intersectsWith(this.range, position) 
-            ? this.getContainedSymbolAtPos(position) 
+        return intersectsWith(this.range, position)
+            ? this.getContainedSymbolAtPos(position)
             : undefined;
     }
 
@@ -151,15 +151,15 @@ export class UCArchetypeBlockStatement implements IStatement {
 
         if (this.archetypeSymbol.id.name !== NAME_NONE) {
             // Find the override if no class is specified (extendsType)
-            if (config.generation === UCGeneration.UC3 
-                && !this.archetypeSymbol.extendsType 
+            if (config.generation === UCGeneration.UC3
+                && !this.archetypeSymbol.extendsType
                 && !this.archetypeSymbol.super) {
                 // expecting context to be the 'Defaults__ClassName' archetype, so let's use its 'super' which should be the class it was declared in.
                 const archetypeOuterClass = context.super && getContext<UCClassSymbol>(context.super, UCSymbolKind.Class);
                 if (archetypeOuterClass && isArchetypeSymbol(archetypeOuterClass.defaults)) {
                     // Unlike the UnrealScript compiler
                     // -- we cannot safely find the symbol by using the hash table
-                    // -- because that is sensitive to the compilation order of classes. 
+                    // -- because that is sensitive to the compilation order of classes.
                     for (let parent = archetypeOuterClass.super; parent; parent = parent.super) {
                         const overriddenArchetype = parent.defaults.getSymbol<UCArchetypeSymbol>(this.archetypeSymbol.id.name, UCSymbolKind.Archetype);
                         if (overriddenArchetype) {

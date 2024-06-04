@@ -1,9 +1,10 @@
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
-import { UCStructSymbol, UCSymbolKind } from './';
+import { ModifierFlags, UCStructSymbol, UCSymbolKind } from './';
 
 export class UCReplicationBlock extends UCStructSymbol {
     override kind = UCSymbolKind.ReplicationBlock;
+    override modifiers = ModifierFlags.NoDeclaration;
 
 	// Just return the keyword identifier.
 	override getTooltip(): string {

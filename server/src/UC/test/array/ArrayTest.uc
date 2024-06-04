@@ -29,15 +29,17 @@ function ShouldBeInvalidArrayIteratorTest()
 
     // ! Expected "Missing iterator arguments."
     foreach array();
+    // ! Expected "Expression does not evaluate to an iteratable."
+    foreach array;
 
-    // Wrong order
+    // ! Wrong argument order
     foreach array(i, s);
 
-    // ! "An element access expression should take an argument."
+    // ! Expected "An element access expression should take an argument."
     array[];
 
-    // ! "Type of 'None.ArrayTest.ShouldBeInvalidArrayIteratorTest.B' is not a valid array."
-    b[0];
+    // ! Expected "Type of 'None.ArrayTest.ShouldBeInvalidArrayIteratorTest.B' is not a valid array."
+    s[0];
 
-    b[""];
+    s[""];
 }
