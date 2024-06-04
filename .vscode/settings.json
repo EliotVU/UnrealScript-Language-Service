@@ -29,4 +29,7 @@
         "Intrinsics",
         "Vect"
     ],
+    "editor.renderWhitespace": "trailing",
+    "files.trimTrailingWhitespace": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
 }

@@ -17,7 +17,10 @@
         "vscode-languageclient": "9.0.1"
     },
     "devDependencies": {
-        "@types/vscode": "^1.86.0",
-        "@vscode/test-electron": "^2.3.9"
+        "@types/vscode": "^1.89.0",
+        "@vscode/test-electron": "^2.4.0"
+    },
+    "scripts": {
+        "test": "ts-node ./src/extension.test.ts"
     }
 }
