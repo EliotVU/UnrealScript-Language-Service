@@ -746,7 +746,8 @@ export const enum UCConversionCost {
 
 export function getConversionCost(
     inputType: ITypeSymbol,
-    destType: ITypeSymbol
+    destType: ITypeSymbol,
+    matchFlags: UCMatchFlags = UCMatchFlags.None
 ): UCConversionCost {
     const inputTypeKind = resolveTypeKind(inputType);
     const destTypeKind = resolveTypeKind(destType);
@@ -800,6 +801,11 @@ export function getConversionCost(
     }
 
     if (flags & E) {
+        return UCConversionCost.Expansion;
+    }
+
+    if ((flags & Y) === (matchFlags & UCMatchFlags.Coerce)) {
+        // FIXME: What kind of cost should a coerced 'Object' to 'String' be?
         return UCConversionCost.Expansion;
     }
 

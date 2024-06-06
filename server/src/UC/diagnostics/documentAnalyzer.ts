@@ -1252,21 +1252,28 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             expr.false?.accept(this);
         } else if (expr instanceof UCBaseOperatorExpression) {
             expr.expression.accept(this);
-            const operatorSymbol = expr.operator.getRef();
-            if (!operatorSymbol) {
+            // Not indexed?
+            if (!expr.operator.getRef()) {
+                const operandType = expr.expression.getType();
                 const candidates = getOperatorsByName(this.document.class, expr.operator.getName());
                 if (candidates.length === 0) {
+                    this.pushError(expr.operator.range, `Couldn't find unary operator '${expr.operator.id.name.text}'`);
+                } else if (config.checkTypes && operandType && operandType.getTypeKind() !== UCTypeKind.Error) {
+                    // TODO: 'else' Suggest candidates?
+                    // TODO: No overload error?
                     this.diagnostics.add({
-                        range: expr.operator.range,
+                        range: expr.range,
                         message: {
-                            text: `Couldn't find unary operator '{0}'`,
+                            // TODO: List all incompatible types
+                            text: `Type '{0}' is incompatible with operator '{1}'.`,
                             severity: DiagnosticSeverity.Error
                         },
-                        args: [expr.operator.id.name.text]
+                        args: [
+                            typeKindToDisplayString(operandType.getTypeKind()),
+                            expr.operator.id.name.text
+                        ]
                     });
                 }
-
-                // TODO: No overload error?
             }
         } else if (expr instanceof UCBinaryOperatorExpression) {
             if (expr.left) {
@@ -1287,9 +1294,27 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
 
             // Defined but not indexed? (undefined for the '=' assignment)
             if (expr.operator && !expr.operator.getRef()) {
+                const leftOperandType = expr.left.getType();
+                const rightOperandType = expr.right.getType();
+
                 const candidates = getOperatorsByName(this.document.class, expr.operator.getName());
                 if (candidates.length === 0) {
                     this.pushError(expr.operator.range, `Couldn't find operator '${expr.operator.id.name.text}'`);
+                } else if (config.checkTypes
+                    && leftOperandType && leftOperandType.getTypeKind() !== UCTypeKind.Error
+                    && rightOperandType && rightOperandType.getTypeKind() !== UCTypeKind.Error) {
+                    this.diagnostics.add({
+                        range: expr.range,
+                        message: {
+                            text: `Type '{0}' and '{1}' are incompatible with operator '{2}'`,
+                            severity: DiagnosticSeverity.Error
+                        },
+                        args: [
+                            typeKindToDisplayString(leftOperandType.getTypeKind()),
+                            typeKindToDisplayString(rightOperandType.getTypeKind()),
+                            expr.operator.id.name.text
+                        ]
+                    });
                 }
                 // TODO: 'else' Suggest candidates?
             }
@@ -1314,7 +1339,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                 return;
             }
 
-            const valueTypeKind = valueType.getTypeKind();
             const letSymbol = expr.left.getMemberSymbol();
             if (!letSymbol) {
                 this.pushError(
@@ -1391,6 +1415,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             }
 
             if (config.checkTypes) {
+                const valueTypeKind = valueType.getTypeKind();
                 if (letType.getTypeKind() === UCTypeKind.Delegate) {
                     // TODO: Cleanup duplicate code when binary-operator types are resolved properly.
                     if (typesMatch(valueType, StaticDelegateType)) {

@@ -8,6 +8,12 @@ enum EnumOne {
 struct StructOne {};
 struct StructTwo {};
 
+static final preoperator  byte          ++  (out byte A);
+static final preoperator  int           ++  (out int A);
+
+static final postoperator byte          ++  (out byte A);
+static final postoperator int           ++  (out int A);
+
 static final operator(24) bool          ==  (bool A, bool B);
 static final operator(24) bool          ==  (int A, int B);
 
@@ -21,3 +27,5 @@ static final operator(20) StructTwo     +   (StructTwo A, StructTwo B);
 
 static final operator(34) StructOne     +=  (StructOne A, float B);
 static final operator(34) float         +=  (float A, StructOne B);
+
+static final operator(40) string        $   (coerce string A, coerce string B);

@@ -3,6 +3,7 @@ class OverloadingTest extends Overloads;
 
 function ShouldOverload()
 {
+    local byte byteOne;
     local int intOne;
     local float floatOne;
     local StructOne structOne;
@@ -11,6 +12,9 @@ function ShouldOverload()
     local Class classOne, classTwo;
 
     true == true;
+
+    // Should pick Overloads.+(Byte,Byte), cast to byte should work if the int operator was picked.
+    byte(1 + 1);
 
     // Should pick Overloads.+(Int,Int), cast to float should work if the int operator was picked.
     float(1 + 1);
@@ -33,19 +37,33 @@ function ShouldOverload()
     // Should pick Overloads.==(Object,Object)
     classOne == classTwo;
 
-    // Should pick Overloads.+(StructOne,StructOne)
+    // Should pick Overloads.+=(StructOne,Float)
     structOne = (structOne += 1.0);
+    // Should pick Overloads.+=(Float,StructOne)
     floatOne = (1.0 += structOne);
+
+    ++byteOne;
+    ++intOne;
+
+    self $ "string";
+    "string" $ self;
+    "string" $ "string";
 }
 
 function ShouldBeInvalidOverload()
 {
     local StructOne structOne;
     local StructTwo structTwo;
+    local float floatOne;
 
     // FIXME: Diagnostic for missmatching overloads, (not added yet because we have false positives)
     // structOne + structTwo;
     // structTwo + structOne;
+
+    // Can be cast to int but the compiler will find two matches of the same "best cost" and thus report an incompatible type error.
+    ++floatOne;
+
+    none $ "string";
 }
 
 function ShouldBeInvalidOperator()

@@ -43,3 +43,24 @@ function ShouldBeInvalidArrayIteratorTest()
 
     s[""];
 }
+
+private final iterator function IteratorFunc(Class<Object> byClass, out Object obj);
+
+function ShouldBeValidFunctionIteratorTest()
+{
+    local Object obj;
+
+    foreach IteratorFunc(Class'Object', obj);
+}
+
+function ShouldBeInvalidFunctionIteratorTest()
+{
+    local Object obj;
+
+    // ! Expected "Function is not an iterator."
+    foreach ShouldBeInvalidFunctionIteratorTest(obj, obj);
+
+    // Invalid type
+    foreach IteratorFunc(obj, obj);
+    foreach IteratorFunc(ShouldBeInvalidFunctionIteratorTest, obj);
+}

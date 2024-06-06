@@ -181,6 +181,10 @@ export class UCParenthesizedExpression implements IExpression {
 
     getContainedSymbolAtPos(position: Position) {
         const symbol = this.expression?.getSymbolAtPos(position);
+        /// ugh... FIXME: Ugly completion hack for when a context is requested at ')'
+        if (!symbol && UCCallExpression.hack_getTypeIfNoSymbol) {
+            return this.getType();
+        }
         return symbol;
     }
 
@@ -615,7 +619,8 @@ export abstract class UCBaseOperatorExpression extends UCExpression {
 
 export class UCPostOperatorExpression extends UCBaseOperatorExpression {
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-        super.index(document, context, info);
+        // FIXME: Should check for 'out' before passing 'inAssignment' as true
+        super.index(document, context, { inAssignment: true });
         if (this.operator && this.expression) {
             const inputType = this.expression.getType();
             if (inputType) {
@@ -631,7 +636,8 @@ export class UCPostOperatorExpression extends UCBaseOperatorExpression {
 
 export class UCPreOperatorExpression extends UCBaseOperatorExpression {
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-        super.index(document, context, info);
+        // FIXME: Should check for 'out' before passing 'inAssignment' as true
+        super.index(document, context, { inAssignment: true });
         if (this.operator && this.expression) {
             const inputType = this.expression.getType();
             if (inputType) {
@@ -647,6 +653,7 @@ export class UCPreOperatorExpression extends UCBaseOperatorExpression {
 
 export class UCBinaryOperatorExpression extends UCExpression {
     public left?: IExpression;
+    /** Operator symbol, undefined for intrinsic operator '=' */
     public operator?: UCObjectTypeSymbol;
     public right?: IExpression;
 
@@ -702,19 +709,7 @@ export class UCBinaryOperatorExpression extends UCExpression {
 
 export class UCAssignmentOperatorExpression extends UCBinaryOperatorExpression {
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-        let leftType: ITypeSymbol;
-        if (this.left) {
-            this.left.index(document, context, { inAssignment: true });
-            leftType = getExpressionTypeSafe(this.left);
-        } else {
-            leftType = StaticErrorType;
-        }
-
-        if (this.right) {
-            this.right.index(document, context, {
-                contextType: leftType
-            });
-        }
+        super.index(document, context, { inAssignment: true });
     }
 }
 

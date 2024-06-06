@@ -156,6 +156,14 @@ function ShouldBeValidCastingTest()
     Rotator("");
 }
 
+function ShouldBeValidCoerceTest()
+{
+    // Object to String
+    CoerceToString(self);
+}
+
+private function CoerceToString(coerce string s);
+
 function ShouldBeValidAssignmentTest()
 {
     local CastingTest c;
@@ -248,6 +256,7 @@ function ShouldBeValidClassArgumentTest()
     AcceptClass(cls);
 
     // Any object
+    AcceptObject(self); // coerced type
     AcceptObject(self.Class); // coerced type
     AcceptObject(Class'Class');
 }
@@ -258,6 +267,7 @@ function ShouldBeInvalidClassArgumentTest()
     local CastingDerivative c;
     local Object obj;
 
+    // FIXME: Not producing any problems
     AcceptClassLimitor(Class'Class');
     // Invalid derivative
     AcceptClassLimitor(Class<Object>(cls));
