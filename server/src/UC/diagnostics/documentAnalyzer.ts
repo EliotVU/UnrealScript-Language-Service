@@ -950,7 +950,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             this.diagnostics.add({
                 range: stm.expression.range,
                 message: {
-                    text: `Expression does not evaluate to an iteratable, did you forget to specify arguments?`,
+                    text: `Expression does not evaluate to an iterable, did you forget to specify arguments?`,
                     severity: DiagnosticSeverity.Error
                 }
             });
