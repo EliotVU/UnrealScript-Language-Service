@@ -1,0 +1,193 @@
+{
+    "Const Declaration": {
+        "prefix": "const",
+        "body": [
+            "const ${1:Name} = ${2:value};"
+        ],
+        "description": "Const Declaration"
+    },
+    "Enum Declaration": {
+        "prefix": "enum",
+        "body": [
+            "enum E${1:Name}",
+            "{",
+            "\t$0",
+            "};"
+        ],
+        "description": "Enum Declaration"
+    },
+    "Struct Declaration": {
+        "prefix": "struct",
+        "body": [
+            "struct ${1:Name}",
+            "{",
+            "\t$TM_SELECTED_TEXT$0",
+            "};"
+        ],
+        "description": "Struct Declaration"
+    },
+    "Var Declaration": {
+        "prefix": "var",
+        "body": [
+            "var ${2:type} ${1:name};"
+        ],
+        "description": "Var Declaration"
+    },
+    "Replication Block": {
+        "prefix": "replication",
+        "body": [
+            "replication",
+            "{",
+            "\treliable if (${1:condition})",
+            "\t\t$0;",
+            "}"
+        ],
+        "description": "Replication Block"
+    },
+    "Function Declaration": {
+        "prefix": "function",
+        "body": [
+            "/**",
+            " * ${1:Name}",
+            " */",
+            "function ${2:type} ${1:Name}(${3:params})",
+            "{",
+            "\t$0",
+            "}"
+        ],
+        "description": "Function Declaration"
+    },
+    "Local Declaration": {
+        "prefix": "local",
+        "body": [
+            "local ${2:type} ${1:name};"
+        ],
+        "description": "Local Declaration"
+    },
+    "For Loop": {
+        "prefix": "for",
+        "body": [
+            "for (${1:index} = 0; ${1:index} < ${2:array}.length; ${1:index}++)",
+            "{",
+            "\t$TM_SELECTED_TEXT$0",
+            "}"
+        ],
+        "description": "For Loop"
+    },
+    "ForEach Loop": {
+        "prefix": "foreach",
+        "body": [
+            "foreach ${1:expression}(${2:params})",
+            "{",
+            "\t$TM_SELECTED_TEXT$0",
+            "}"
+        ],
+        "description": "ForEach Loop"
+    },
+    "If Statement": {
+        "prefix": "if",
+        "body": [
+            "if (${1:condition})",
+            "{",
+            "\t$TM_SELECTED_TEXT$0",
+            "}"
+        ],
+        "description": "If Statement"
+    },
+    "If-Else Statement": {
+        "prefix": "ifelse",
+        "body": [
+            "if (${1:condition})",
+            "{",
+            "\t$TM_SELECTED_TEXT$0",
+            "}",
+            "else",
+            "{",
+            "\t",
+            "}"
+        ],
+        "description": "If-Else Statement"
+    },
+    "Switch Statement": {
+        "prefix": "switch",
+        "body": [
+            "switch (${1:key})",
+            "{",
+            "\tcase ${2:value}:",
+            "\t\t$0",
+            "\t\tbreak;",
+            "",
+            "\tdefault:",
+            "\t\tbreak;",
+            "}"
+        ],
+        "description": "Switch Statement"
+    },
+    "While Statement": {
+        "prefix": "while",
+        "body": [
+            "while (${1:condition})",
+            "{",
+            "\t$TM_SELECTED_TEXT$0",
+            "}"
+        ],
+        "description": "While Statement"
+    },
+    "Do-Until Statement": {
+        "prefix": "dountil",
+        "body": [
+            "do",
+            "{",
+            "\t$TM_SELECTED_TEXT$0",
+            "} until (${1:condition});"
+        ],
+        "description": "Do-Until Statement"
+    },
+    "New Expression": {
+        "prefix": "new",
+        "body": [
+            "new (${2:outer}, ${3:name}, ${4:flags}) ${1:class} ${5:template}"
+        ],
+        "description": "New Expression"
+    },
+    "State Declaration": {
+        "prefix": "state",
+        "body": [
+            "state ${1:Name}",
+            "{",
+            "begin:",
+            "\t$TM_SELECTED_TEXT$0",
+            "}"
+        ],
+        "description": "State Declaration"
+    },
+    "DefaultProperties Block": {
+        "prefix": "defaultproperties",
+        "body": [
+            "defaultproperties",
+            "{",
+            "\t$TM_SELECTED_TEXT$0",
+            "}"
+        ],
+        "description": "DefaultProperties Block"
+    },
+    "StructDefaultProperties Block": {
+        "prefix": "structdefaultproperties",
+        "body": [
+            "structdefaultproperties",
+            "{",
+            "\t$TM_SELECTED_TEXT$0",
+            "}"
+        ],
+        "description": "StructDefaultProperties Block"
+    },
+    "Archetype Block": {
+        "prefix": "begin object",
+        "body": [
+            "begin object name=${1:Name} class=${2:class}",
+            "\t$TM_SELECTED_TEXT$0",
+            "end object"
+        ],
+        "description": "Archetype Block"
+    }
+}

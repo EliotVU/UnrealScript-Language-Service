@@ -1107,7 +1107,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const classOuter = getOuter<UCClassSymbol>(symbol, UCSymbolKind.Class)!;
         console.assert(typeof classOuter !== 'undefined', 'expected defaultproperties to be declared in a class scope.');
 
-        this.push(classOuter.defaults);
+        this.push(classOuter ? classOuter.defaults : this.defaultScope);
         try {
             symbol.block = createBlock(this, ctx.defaultStatement());
         } finally {
@@ -1768,12 +1768,19 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
         const classIdNode = ctx.identifier();
         if (classIdNode) {
-            expression.classRef = new UCObjectTypeSymbol(createIdentifier(classIdNode), undefined, UCSymbolKind.Class);
+            const classReferenceType = new UCObjectTypeSymbol<UCObjectTypeSymbol>(
+                createIdentifierFromToken(ctx.KW_CLASS()._symbol),
+                undefined,
+                UCSymbolKind.Class
+            );
+            classReferenceType.baseType = createObjectType(classIdNode, UCSymbolKind.Class);
+            expression.classRef = classReferenceType;
         }
 
         if (ctx._expr) {
             expression.expression = ctx._expr.accept(this);
         }
+
         return expression;
     }
 
@@ -1785,6 +1792,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         if (superIdNode) {
             expression.structTypeRef = new UCObjectTypeSymbol(createIdentifier(superIdNode));
         }
+
         return expression;
     }
 

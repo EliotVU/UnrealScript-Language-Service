@@ -123,7 +123,7 @@ export abstract class UCFieldSymbol extends UCObjectSymbol {
 		return this.getPath();
 	}
 
-	getCompletionContext(_position: Position): ISymbol | undefined {
+	getCompletionContext(_position: Position): UCStructSymbol | undefined {
 		return undefined;
 	}
 

@@ -25,12 +25,20 @@ import {
     UCSymbolKind,
 } from './';
 
-export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<UCObjectSymbol> {
+export interface ISuperSymbol {
+    super?: UCStructSymbol | undefined;
+}
+
+export type SuperSymbol = ISymbol & {
+    super?: UCStructSymbol | undefined;
+};
+
+export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<UCObjectSymbol>, ISuperSymbol {
 	public extendsType?: UCObjectTypeSymbol | UCQualifiedTypeSymbol;
-	public super?: UCStructSymbol;
-	public children?: UCFieldSymbol;
+	public super?: UCStructSymbol | undefined;
+	public children?: UCFieldSymbol | undefined;
     // TODO: Map operators by param types
-	public operators?: UCFieldSymbol;
+	public operators?: UCFieldSymbol | undefined;
 	public block?: UCBlock;
     public labels?: { [key: number]: Identifier };
 

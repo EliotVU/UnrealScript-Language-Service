@@ -542,16 +542,14 @@ export class UCPropertyAccessExpression extends UCExpression {
         // DO NOT PASS @info, only our right expression needs access to @info.
         this.left.index(document, context);
 
-        if (this.member) {
-            const leftType = this.left.getType();
-            // Resolve meta class
-            const ref = leftType?.getRef<UCStructSymbol>();
-            const memberContext = (ref === IntrinsicClass)
-                ? resolveType(leftType!).getRef<UCStructSymbol>()
-                : ref;
-            if (memberContext && isStruct(memberContext)) {
-                this.member.index(document, memberContext, info);
-            }
+        if (!this.member) {
+            return;
+        }
+
+        const leftType = this.left.getType();
+        const structContext = leftType?.getRef<UCStructSymbol>();
+        if (isStruct(structContext)) {
+            this.member.index(document, structContext, info);
         }
     }
 }
@@ -1027,7 +1025,7 @@ export class UCPredefinedAccessExpression extends UCExpression {
     }
 
     override getMemberSymbol() {
-        return this.typeRef?.getRef();
+        return this.typeRef;
     }
 
     override getType() {
@@ -1038,14 +1036,31 @@ export class UCPredefinedAccessExpression extends UCExpression {
         return this.typeRef.getRef() && this.typeRef;
     }
 
-    override index(document: UCDocument, _context?: UCStructSymbol) {
+    override index(document: UCDocument, _context?: UCStructSymbol, info?: ContextInfo) {
         this.typeRef.setRefNoIndex(document.class);
     }
 }
 
 // Resolves the context for predefined specifiers such as (default, static, and const).
 export class UCPropertyClassAccessExpression extends UCPropertyAccessExpression {
+    // override getMemberSymbol() {
+    //     return this.member?.getType();
+    // }
 
+    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+        // DO NOT PASS @info, only our right expression needs access to @info.
+        this.left.index(document, context);
+
+        if (!this.member) {
+            return;
+        }
+
+        const leftType = this.left.getType();
+        const structContext = leftType && resolveType(leftType).getRef<UCStructSymbol>();
+        if (isStruct(structContext)) {
+            this.member.index(document, structContext, info);
+        }
+    }
 }
 
 export class UCSuperExpression extends UCExpression {
@@ -1355,7 +1370,7 @@ export class UCObjectLiteral extends UCLiteral {
     public classRef: UCObjectTypeSymbol<UCQualifiedTypeSymbol | UCObjectTypeSymbol>;
 
     override getMemberSymbol() {
-        return this.classRef.baseType?.getRef() ?? this.classRef.getRef();
+        return this.classRef;
     }
 
     override getType() {
@@ -1526,7 +1541,7 @@ export class UCMetaClassExpression extends UCExpression {
     public expression?: IExpression;
 
     override getMemberSymbol() {
-        return this.classRef?.getRef();
+        return this.classRef;
     }
 
     override getType() {
@@ -1534,8 +1549,8 @@ export class UCMetaClassExpression extends UCExpression {
     }
 
     getContainedSymbolAtPos(position: Position) {
-        const subSymbol = this.classRef?.getSymbolAtPos(position) as UCObjectTypeSymbol;
-        return this.expression?.getSymbolAtPos(position) ?? (subSymbol?.getRef() && this.classRef);
+        return this.classRef?.getContainedSymbolAtPos(position)
+            ?? this.expression?.getSymbolAtPos(position);
     }
 
     override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {

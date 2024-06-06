@@ -1415,6 +1415,12 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     // Produce a more specific warning for incompatible classes.
                     // TODO: interface type
                     if (letType.getTypeKind() === UCTypeKind.Object && valueType.getTypeKind() === UCTypeKind.Object) {
+                        if (resolveType(letType).getTypeKind() === UCTypeKind.Error ||
+                            resolveType(valueType).getTypeKind() === UCTypeKind.Error) {
+                            // be silent for unresolved classes.
+                            return;
+                        }
+
                         this.diagnostics.add({
                             range: expr.range,
                             message: {
@@ -1654,11 +1660,15 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             const inputArgumentTypeKind = argType.getTypeKind();
             const classTypesToCheck = 1 << UCTypeKind.Object | 1 << UCTypeKind.Interface;
             if ((1 << inputArgumentTypeKind & classTypesToCheck) & (1 << destTypeKind & classTypesToCheck)) {
-                this.diagnostics.add({
-                    range: arg.range,
-                    message: diagnosticMessages.ARGUMENT_CLASS_IS_INCOMPATIBLE,
-                    args: [resolveType(argType).getRef()!.getPath(), resolveType(paramType).getRef()!.getPath()]
-                });
+                // be silent for unresolved classes.
+                if (resolveType(paramType).getTypeKind() === UCTypeKind.Error ||
+                    resolveType(argType).getTypeKind() === UCTypeKind.Error) {
+                    this.diagnostics.add({
+                        range: arg.range,
+                        message: diagnosticMessages.ARGUMENT_CLASS_IS_INCOMPATIBLE,
+                        args: [resolveType(argType).getRef()!.getPath(), resolveType(paramType).getRef()!.getPath()]
+                    });
+                }
             } else {
                 this.diagnostics.add({
                     range: arg.range,

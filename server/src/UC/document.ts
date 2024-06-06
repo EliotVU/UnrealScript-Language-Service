@@ -62,7 +62,7 @@ function removeChildren(scope: UCStructSymbol) {
 }
 
 export type DocumentParseData = {
-    context?: ProgramContext;
+    context: ProgramContext;
     parser: UCParser;
 };
 
@@ -170,7 +170,7 @@ export class UCDocument {
             }
         }
         tokens.release(tokens.mark());
-        return { context, parser };
+        return { context: context, parser };
     }
 
     public build(text: string): DocumentParseData {
@@ -248,7 +248,7 @@ export class UCDocument {
         }
         tokenStream.release(tokenStream.mark());
         this.nodes = this.nodes.concat(errorListener.nodes);
-        return { context, parser };
+        return { context: context, parser };
     }
 
     public invalidate(cleanup = true) {

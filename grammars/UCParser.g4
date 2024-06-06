@@ -513,8 +513,9 @@ arrayDimRefer
 // MODIFIER TYPE
 // VARIABLE, VARIABLE...;
 varDecl
-	: 'var' (OPEN_PARENS categoryList? CLOSE_PARENS)? varType
-	   variable (COMMA variable)* SEMICOLON
+	: 'var' (OPEN_PARENS categoryList? CLOSE_PARENS)?
+       varType (variable (COMMA variable)*)
+       SEMICOLON
 	;
 
 // id[5] {DWORD} <Order=1> "PI:Property Two:Game:1:60:Check"

@@ -53,6 +53,7 @@ import {
     DEFAULT_IDENTIFIER,
     DEFAULT_RANGE,
     INode,
+    SuperSymbol,
     ISymbol,
     IWithInnerSymbols,
     IWithReference,
@@ -204,10 +205,6 @@ export interface ITypeSymbol extends ISymbol, IWithReference, IWithInnerSymbols 
     getSymbolAtPos(position: Position): ISymbol | undefined;
 
     index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo): void;
-}
-
-export function isTypeSymbol(symbol: ISymbol): symbol is ITypeSymbol {
-    return symbol.kind === UCSymbolKind.Type;
 }
 
 /**
@@ -492,6 +489,7 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
 export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
     override reference = IntrinsicArray;
 
+    /** @deprecated */
     static is(symbol: ISymbol): symbol is UCArrayTypeSymbol {
         return symbol.getTypeKind() === UCTypeKind.Array;
     }
@@ -920,21 +918,21 @@ export function hasDefinedBaseType(
 }
 
 export function hasDefinedSuper(
-    symbol: ISymbol & { super?: UCStructSymbol | undefined }
-): symbol is UCStructSymbol & { super: UCStructSymbol } {
+    symbol: SuperSymbol
+): symbol is SuperSymbol & { super: UCStructSymbol } {
     return typeof symbol.super !== 'undefined';
 }
 
 export function areDescendants(
-    parentSymbol: ISymbol & { super?: UCStructSymbol | undefined },
-    derivedSymbol: ISymbol & { super?: UCStructSymbol | undefined }
+    parentSymbol: SuperSymbol,
+    derivedSymbol: SuperSymbol
 ): boolean {
     // shortcut
     if (parentSymbol === derivedSymbol) {
         return true;
     }
 
-    let other: ISymbol & { super?: UCStructSymbol | undefined } | undefined = derivedSymbol;
+    let other: SuperSymbol | undefined = derivedSymbol;
 
     // We compare by hash, because we could be working with multiple and outdated instances of the same object.
     const hash = parentSymbol.getHash();
@@ -1048,4 +1046,16 @@ export function isStatement(symbol: INode): symbol is IStatement {
 
 export function isExpression(symbol: INode): symbol is IExpression {
     return symbol.kind === UCNodeKind.Expression;
+}
+
+export function isTypeSymbol(symbol: ISymbol): symbol is ITypeSymbol {
+    return symbol.kind === UCSymbolKind.Type;
+}
+
+export function isArrayTypeSymbol(symbol: ISymbol): symbol is UCArrayTypeSymbol {
+    return symbol.getTypeKind() === UCTypeKind.Array;
+}
+
+export function isQualifiedType(symbol?: ISymbol): symbol is UCQualifiedTypeSymbol {
+    return symbol instanceof UCQualifiedTypeSymbol;
 }

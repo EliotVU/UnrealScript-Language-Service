@@ -8,6 +8,7 @@ import {
     ModifierFlags,
     UCClassSymbol,
     UCObjectSymbol,
+    UCStructSymbol,
     UCSymbolKind,
     getContext,
     hasModifiers,
@@ -170,7 +171,7 @@ export function getDocumentSymbol(document: UCDocument, position: Position): ISy
 /**
  * Returns the deepest UCStructSymbol that is intersecting with @param position
  **/
-export function getDocumentContext(document: UCDocument, position: Position): ISymbol | undefined {
+export function getDocumentContext(document: UCDocument, position: Position): UCStructSymbol | undefined {
     const symbols = document.enumerateSymbols();
     for (const symbol of symbols) {
         if (isField(symbol)) {
@@ -283,23 +284,6 @@ export function getSymbolDocument(symbol: ISymbol): UCDocument | undefined {
     return document;
 }
 
-export function getIntersectingContext(context: ParserRuleContext, position: Position): ParserRuleContext | undefined {
-    if (!intersectsWith(rangeFromCtx(context), position)) {
-        return undefined;
-    }
-
-    if (context.children) for (const child of context.children) {
-        if (child instanceof ParserRuleContext) {
-            const ctx = getIntersectingContext(child, position);
-            if (ctx) {
-                return ctx;
-            }
-        }
-    }
-
-    return context;
-}
-
 export function getCaretTokenFromStream(stream: TokenStream, caret: Position): Token | undefined {
     // ANTLR lines begin at 1
     const carretLine = caret.line + 1;
@@ -318,32 +302,33 @@ export function getCaretTokenFromStream(stream: TokenStream, caret: Position): T
     return undefined;
 }
 
-export function backtrackFirstToken(stream: TokenStream, startTokenIndex: number): Token | undefined {
-    if (startTokenIndex >= stream.size) {
+export function backtrackFirstToken(stream: TokenStream, index: number): Token | undefined {
+    if (index >= stream.size) {
         return undefined;
     }
 
-    let i = startTokenIndex;
+    let i = index;
     while (--i) {
         const token = stream.get(i);
         if (token.channel !== UCLexer.DEFAULT_TOKEN_CHANNEL) {
             continue;
         }
+
         return token;
     }
 
     return undefined;
 }
 
-export function backtrackFirstTokenOfType(stream: TokenStream, type: number, startTokenIndex: number): Token | undefined {
-    if (startTokenIndex >= stream.size) {
+export function backtrackFirstTokenOfType(stream: TokenStream, type: number, index: number): Token | undefined {
+    if (index >= stream.size) {
         return undefined;
     }
 
-    let i = startTokenIndex + 1;
+    let i = index + 1;
     while (--i) {
         const token = stream.get(i);
-        if (token.type <= UCLexer.ID) {
+        if (token.channel !== UCLexer.DEFAULT_TOKEN_CHANNEL) {
             continue;
         }
 
