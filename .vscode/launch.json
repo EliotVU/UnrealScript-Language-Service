@@ -2,25 +2,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Client (Build)",
-            "runtimeExecutable": "${execPath}",
-            "args": [
-                "--extensionDevelopmentPath=${workspaceRoot}"
-            ],
-            "outFiles": [
-                "${workspaceRoot}/out/extension.js",
-                "${workspaceRoot}/out/server.js",
-            ],
-            "sourceMaps": true,
-            "autoAttachChildProcesses": true,
-            "preLaunchTask": {
-                "type": "npm",
-                "script": "build",
-            },
-            "request": "launch",
-            "type": "extensionHost",
-        },
-        {
             "name": "Launch Client (Watch)",
             "runtimeExecutable": "${execPath}",
             "args": [
@@ -29,6 +10,9 @@
             "outFiles": [
                 "${workspaceRoot}/out/extension.js",
                 "${workspaceRoot}/out/server.js",
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
             ],
             "sourceMaps": true,
             "autoAttachChildProcesses": true,
@@ -40,16 +24,21 @@
             "type": "extensionHost",
         },
         {
-            "name": "Attach to Server",
-            "port": 6010,
-            "outFiles": [
-                "${workspaceRoot}/out/server.js",
-                "!${workspaceRoot}/out/vendor.js"
+            "name": "Gulp (Watch)",
+            "program": "${workspaceFolder}/node_modules/gulp/bin/gulp.js",
+            "env": {
+                "NODE_ENV": "development"
+            },
+            "args": [
+                "default"
             ],
-            "sourceMaps": true,
-            "smartStep": true,
-            "restart": true,
-            "request": "attach",
+            "outFiles": [
+                "${workspaceRoot}/gulpfile.js",
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "request": "launch",
             "type": "node",
         },
         {
@@ -73,14 +62,14 @@
             "visualParseTree": true,
             "request": "launch",
             "type": "antlr-debug",
-        },
+        }
     ],
     "compounds": [
         {
-            "name": "Client + Server",
+            "name": "Extension Development",
             "configurations": [
                 "Launch Client (Watch)",
-                "Attach to Server"
+                "Gulp (Watch)"
             ]
         }
     ]
