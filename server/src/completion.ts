@@ -695,6 +695,8 @@ async function buildCompletionItems(
                     globalTypes |= GlobalCastSymbolKinds;
                     preselectSymbolKinds |= 1 << UCSymbolKind.Property | 1 << UCSymbolKind.Function;
                     shouldIncludeStructConstructors = true;
+
+                    break;
                 }
 
                 // `member.defaultPropertiesBlock.defaultStatement.defaultAssignmentExpression.defaultExpression`
@@ -730,6 +732,8 @@ async function buildCompletionItems(
                             break;
                         }
                     }
+
+                    break;
                 }
             }
 
@@ -1117,6 +1121,8 @@ async function buildCompletionItems(
                                 symbols.push(...symbolItems);
                             }
                         }
+
+                        break;
                     }
                 }
             }
