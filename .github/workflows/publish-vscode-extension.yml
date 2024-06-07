@@ -1,6 +1,7 @@
 name: Publish Visual Studio Code Extension
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'Release-*'
