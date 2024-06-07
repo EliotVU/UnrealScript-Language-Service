@@ -330,14 +330,14 @@ async function buildSignatureHelp(document: UCDocument, position: Position, data
     if (!carretToken) {
         console.warn(`No carret token at ${position.line}:${position.character}`);
         // throw new Error(`No carret token at ${position}`);
-        return;
+        return undefined;
     }
     console.info(
         'signatureHelp::carretToken'.padEnd(42),
         getTokenDebugInfo(carretToken, data.parser));
 
     if (carretToken.channel === UCLexer.COMMENTS_CHANNEL || carretToken.channel === UCLexer.STRING_LITERAL) {
-        return;
+        return undefined;
     }
 
     const carretRuleContext = getIntersectingContext(data.context, position) ?? data.context;
@@ -488,20 +488,21 @@ async function buildCompletionItems(
     if (!carretToken) {
         console.warn(`No carret token at ${position.line}:${position.character}`);
         // throw new Error(`No carret token at ${position}`);
-        return;
+        return undefined;
     }
+
     console.info(
         'completion::carretToken'.padEnd(42),
         getTokenDebugInfo(carretToken, data.parser));
 
     if (carretToken.channel === UCLexer.COMMENTS_CHANNEL) {
         // TODO: In this case we could suggest parameters based on the scope symbol we can retrieve from the @leadingToken.
-        return;
+        return undefined;
     }
 
     if (carretToken.type === UCLexer.STRING_LITERAL) {
         // TODO: We could suggest objects if used as an Object Literal (in a T3D context)
-        return;
+        return undefined;
     }
 
     let leadingToken = carretToken;
@@ -518,21 +519,23 @@ async function buildCompletionItems(
         leadingToken = stream.get(leadingToken.tokenIndex + 1);
     }
 
-    if (leadingToken.type === UCLexer.EOF) {
-        leadingToken = stream.get(leadingToken.tokenIndex - 1);
-    }
-
     // Skip by any invisible tokens
     while (leadingToken.channel === UCLexer.HIDDEN
         || leadingToken.channel === UCLexer.COMMENTS_CHANNEL) {
         leadingToken = stream.get(leadingToken.tokenIndex + 1);
     }
 
+    if (leadingToken.type === UCLexer.EOF) {
+        // leadingToken = stream.get(leadingToken.tokenIndex - 1);
+        return undefined;
+    }
+
     if (!leadingToken) {
         console.warn(`No leading carret token at ${position.line}:${position.character}`);
         // throw new Error(`No carret token at ${position}`);
-        return;
+        return undefined;
     }
+
     console.info(
         'completion::leadingToken'.padEnd(42),
         getTokenDebugInfo(leadingToken, data.parser));
@@ -562,15 +565,37 @@ async function buildCompletionItems(
     cc.translateRulesTopDown = false;
     cc.ignoredTokens = currentIgnoredTokensSet;
     cc.preferredRules = PreferredRulesSet;
-    let candidates = cc.collectCandidates(leadingToken.tokenIndex, scopeRuleContext);
-    if (candidates.rules.size === 0 && scopeRuleContext !== carretRuleContext) {
-        candidates = cc.collectCandidates(leadingToken.tokenIndex, carretRuleContext);
-        if (candidates.rules.size === 0) {
-            candidates.rules.set(carretRuleContext.ruleIndex, {
-                startTokenIndex: leadingToken.tokenIndex,
-                ruleList: [scopeRuleContext.ruleIndex, carretRuleContext.ruleIndex]
+
+    let candidates: c3.CandidatesCollection;
+    try {
+        const timeOut = setTimeout(() => {
+            throw new Error('c3 timeout');
+        }, 300);
+
+        candidates = await new Promise<c3.CandidatesCollection>((resolve, reject) => {
+            setImmediate(() => {
+                let candidates = cc.collectCandidates(leadingToken.tokenIndex, scopeRuleContext);
+                if (candidates.rules.size === 0 && scopeRuleContext !== carretRuleContext) {
+                    candidates = cc.collectCandidates(leadingToken.tokenIndex, carretRuleContext);
+                    if (candidates.rules.size === 0) {
+                        candidates.rules.set(carretRuleContext.ruleIndex, {
+                            startTokenIndex: leadingToken.tokenIndex,
+                            ruleList: [scopeRuleContext.ruleIndex, carretRuleContext.ruleIndex]
+                        });
+                    }
+                }
+
+                resolve(candidates);
             });
-        }
+        });
+
+        clearTimeout(timeOut);
+    } catch (err) {
+        console.error('c3 collecting candidates error %s', err);
+        candidates = {
+            rules: new Map(),
+            tokens: new Map()
+        };
     }
     // if (process.env.NODE_ENV === 'development') {
     //     console.debug('completion::tokens', Array

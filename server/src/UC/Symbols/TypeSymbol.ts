@@ -460,7 +460,6 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
                 if (isStruct(context)) {
                     symbol = context.findSuperSymbol(id);
                 } else if (context as unknown instanceof UCPackage) {
-                    console.debug('UCPackage context', id, context);
                     symbol = tryFindSymbolInPackage(id, context);
                 }
                 break;

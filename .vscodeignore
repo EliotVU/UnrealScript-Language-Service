@@ -8,6 +8,7 @@ packages/
 scripts/
 server/
 syntaxes/
+unlens/
 
 **/*.ts
 **/*.d.ts

@@ -1,5 +1,5 @@
 # UnrealScript
-  
+
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/last-updated/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/d/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
@@ -11,10 +11,13 @@ This is a work-in-progress extension for Visual Studio Code, its goal is to brin
 So far the extension has implemented support for the following features:
 
 * Semantic Syntax Highlighting
-* Diagnostics (linting)
+* Document Symbol Highlighting (Write, Read)
 * Go to Definition, Peek Definition
-* Auto-Completion
-* Code-Actions (create new class)
+* Context Auto-Completion
+* Code-Actions
+  * Create class
+  * Inline constant
+* Diagnostics (linting)
 
 ### Quick Info
 
@@ -22,17 +25,26 @@ So far the extension has implemented support for the following features:
 
 ### Find All References
 
+Enable `Index All Documents` to find references for the entire workspace.
+
 ![GIF](./docs/media/references.gif)
 
 ### Symbol Renaming
+
+Enable `Index All Documents` to rename symbols for the entire workspace.
 
 ![GIF](./docs/media/renaming.gif)
 
 ### Symbol Searching
 
+Enable `Index All Documents` to search symbols for the entire workspace.
+
 ![PNG](./docs/media/workspaceSymbols.png)
 
-Beware, for *Symbol Renaming* and *Find All References* it is recommended to enable *Index All Documents*
+## Advice
+
+For the best results it is advised to work from within a `workspace` and to add all the project dependencies to the workspace, such as the root path for `Core/Classes` and `Engine/Classes`
+And even better, add the scripts `.u` and `.upk` content folders to the `workspace` this will make the extension aware of such packages in indexing and auto completion (but not its contents yet)
 
 ## Contribution
 

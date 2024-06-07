@@ -52,9 +52,11 @@ function EEnumTest ShouldHintEnumTest()
     }
 
     // in binary operators
-    if (EnumHintTest(0) != ET_Other) {
-        return 0;
-    }
+    // FIXME: This only occurs in this test (not in a workspace)
+    // -- "Type 'Enum' and 'Byte' are incompatible with operator '!='"
+    if (b1 != ET_Other);
+    if (p1 != ET_Other);
+    if (EnumHintTest(0). != ET_Other);
 
     // in literals
     EnumObjectTest(Enum'EEnumTest');
