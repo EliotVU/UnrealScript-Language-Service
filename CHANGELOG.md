@@ -27,7 +27,7 @@
   - Fixed missing `Write` document highlighting of variables that are assigned by operators (other than '=')
   - Fixed marked the `Index` parameter of an array iterator as `optional`
   - Fixed missing coercing of return types for (UT2004) `CreateDataObject` and `LoadDataObject`, also unrestricted `Spawn` to coerce for any function named `Spawn` just like the compiler.
-  - Fixed Coercing of `Object` properties `Outer` and `Class` ['Name' Does not exist on type 'Core.Class'](https://github.com/EliotVU/UnrealScript-Language-Service/issues/16)
+  - Fixed coercing of `Object` properties `Outer` and `Class` ['Name' Does not exist on type 'Core.Class'](https://github.com/EliotVU/UnrealScript-Language-Service/issues/16)
   - Fixed [Expression does not evaluate to an iteratable](https://github.com/EliotVU/UnrealScript-Language-Service/issues/164)
   - Fixed [Type not found when assigning to a sub object if using an object literal](https://github.com/EliotVU/UnrealScript-Language-Service/issues/168)
   - Fixed [Objects and Subobjects show errors in defaultproperties](https://github.com/EliotVU/UnrealScript-Language-Service/issues/170)
