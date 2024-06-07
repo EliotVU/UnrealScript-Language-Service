@@ -6,23 +6,26 @@ import { Location } from 'vscode-languageserver';
 import { DocumentUri } from 'vscode-languageserver-textdocument';
 import { UCGeneration, UELicensee } from "./settings";
 
+import { ActiveTextDocuments } from '../activeTextDocuments';
 import { EAnalyzeOption, UCLanguageServerSettings } from '../configuration';
-import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
-import { UCDocument } from './document';
-import { DocumentCodeIndexer } from './documentCodeIndexer';
-import { Name, NameHash, toName } from './name';
+import { readTextByURI } from '../workspace';
 import {
-    addHashedSymbol,
     ISymbol,
     ObjectsTable,
     SymbolReference,
-    TRANSIENT_PACKAGE,
+    SymbolReferenceFlags,
     UCConstSymbol,
     UCEnumMemberSymbol,
     UCPackage,
     UCSymbolKind,
+    addHashedSymbol,
 } from './Symbols';
+import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
+import { UCDocument } from './document';
+import { DocumentCodeIndexer, DocumentSymbolIndexer } from './documentCodeIndexer';
+import { Name, NameHash, toName } from './name';
 
+// TODO: Re-work to hash documents by URI instead of file path, this would integrate easier with LSP events.
 export const documentsByPathMap = new Map<string, UCDocument>();
 export const documentsMap = new Map<NameHash, UCDocument>();
 
@@ -66,12 +69,19 @@ export const documentBuilt$ = new Subject<UCDocument>();
 /** Emits a document that has been indexed. */
 export const documentIndexed$ = new Subject<UCDocument>();
 
-/** Emits an array of documents have been post-indexed (code indexing). */
+/** Emits an array of documents that have been post-indexed (code indexing). */
 export const documentsCodeIndexed$ = new Subject<UCDocument[]>();
 
 export function indexDocument(document: UCDocument, text?: string): void {
     const buildStart = performance.now();
     let buildTime: number;
+
+    if (typeof text === 'undefined') {
+        // Let's fetch the text from the file system, but first see if we have an active text document (this ensures we retrieve the latest revision)
+        const textDocument = ActiveTextDocuments.get(document.uri);
+        text = textDocument?.getText() ?? readTextByURI(document.uri);
+    }
+
     try {
         document.build(text);
         document.hasBeenBuilt = true;
@@ -85,13 +95,10 @@ export function indexDocument(document: UCDocument, text?: string): void {
 
     const indexStart = performance.now();
     try {
+        const indexer = new DocumentSymbolIndexer(document);
         // We set this here to prevent any re-triggering within the following indexing process.
         document.hasBeenIndexed = true;
-        if (document.class) {
-            for (const symbol of document.enumerateSymbols()) {
-                symbol.index(document, document.class);
-            }
-        }
+        document.accept(indexer);
     } catch (err) {
         console.error(
             `(symbol index error) in document "${document.uri}"`,
@@ -108,7 +115,7 @@ export function indexDocument(document: UCDocument, text?: string): void {
 function postIndexDocument(document: UCDocument) {
     try {
         const indexer = new DocumentCodeIndexer(document);
-        indexer.visitDocument(document);
+        document.accept(indexer);
     } catch (err) {
         console.error(
             `(post-index error) in document "${document.uri}"`,
@@ -151,22 +158,20 @@ export function getPendingDocumentsCount(): number {
 }
 
 const sepRegex = RegExp(`\\${path.sep}`);
-export function parsePackageNameInDir(dir: string): string | undefined {
+export function parsePackageNameInDir(dir: string): string {
     const directories = dir.split(sepRegex);
     for (let i = directories.length - 1; i >= 0; --i) {
-        if (i > 0 && directories[i].toLowerCase() === 'classes') {
+        if (i > 0 && directories[i].match(/classes/i)) {
             return directories[i - 1];
         }
     }
-    return undefined;
+
+    // Use the first directory (from right to left) as the package name.
+    return path.basename(path.dirname(dir));
 }
 
 export function createPackageByDir(dir: string): UCPackage {
-    const pkgNameStr = parsePackageNameInDir(dir);
-    if (typeof pkgNameStr === 'undefined') {
-        return TRANSIENT_PACKAGE;
-    }
-    return createPackage(pkgNameStr);
+    return createPackage(parsePackageNameInDir(dir));
 }
 
 export function createPackage(pkgNameStr: string): UCPackage {
@@ -192,17 +197,18 @@ export function createDocumentByPath(filePath: string, pkg: UCPackage) {
     return document;
 }
 
-export function removeDocumentByPath(filePath: string) {
+export function removeDocumentByPath(filePath: string): boolean {
     const filePathLowerCase = filePath.toLowerCase();
     const document = documentsByPathMap.get(filePathLowerCase);
     if (!document) {
-        return;
+        return false;
     }
 
     // TODO: Re-index dependencies? (blocked by lack of a dependencies tree!)
     document.invalidate();
     documentsByPathMap.delete(filePathLowerCase);
     documentsMap.delete(document.name.hash);
+    return true;
 }
 
 export function getDocumentByURI(uri: DocumentUri): UCDocument | undefined {
@@ -226,7 +232,10 @@ export function getIndexedReferences(hash: NameHash) {
 }
 
 export function indexReference(symbol: ISymbol, document: UCDocument, location: Location): SymbolReference {
-    const ref: SymbolReference = { location };
+    const ref: SymbolReference = {
+        location,
+        flags: SymbolReferenceFlags.None
+    };
     document.indexReference(symbol, ref);
     return ref;
 }
@@ -234,7 +243,7 @@ export function indexReference(symbol: ISymbol, document: UCDocument, location: 
 export function indexDeclarationReference(symbol: ISymbol, document: UCDocument): SymbolReference {
     const ref: SymbolReference = {
         location: Location.create(document.uri, symbol.id.range),
-        inAssignment: true
+        flags: SymbolReferenceFlags.Declaration
     };
     document.indexReference(symbol, ref);
     return ref;

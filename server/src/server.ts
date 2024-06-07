@@ -12,20 +12,17 @@ import {
     ErrorCodes,
     FileOperationRegistrationOptions,
     InitializeParams,
-    Position,
     ProposedFeatures,
     Range,
     ResponseError,
     TextDocumentIdentifier,
     TextDocumentSyncKind,
-    TextEdit,
-    WorkspaceChange,
-    WorkspaceEdit,
     WorkspaceFolder,
 } from 'vscode-languageserver/node';
 
+import { getDocumentRenameEdit } from 'rename';
 import { ActiveTextDocuments } from './activeTextDocuments';
-import { buildCodeActions } from './codeActions';
+import { getDocumentCodeActions } from './codeActions';
 import {
     getCompletionItems,
     getFullCompletionItem,
@@ -37,15 +34,14 @@ import { getDocumentDiagnostics } from './documentDiagnostics';
 import { getDocumentHighlights } from './documentHighlight';
 import { getDocumentSymbols } from './documentSymbol';
 import { getDocumentSemanticTokens } from './documentTokenSemantics';
-import { getReferences, getSymbolReferences } from './references';
-import { CommandIdentifier, CommandsList, InlineChangeCommand } from './UC/commands';
+import { getReferences } from './references';
 import { UCDocument } from './UC/document';
+import { createTypeFromQualifiedIdentifier } from './UC/documentASTWalker';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
 import {
     getDocumentDefinition,
     getDocumentTooltip,
     getSymbol,
-    getSymbolDefinition,
     resolveSymbolToRef,
     VALID_ID_REGEXP,
 } from './UC/helpers';
@@ -79,11 +75,14 @@ import {
     isField,
     ModifierFlags,
     ObjectsTable,
+    tryFindClassSymbol,
+    tryFindSymbolInPackage,
     UCClassSymbol,
     UCMethodSymbol,
     UCObjectSymbol,
     UCObjectTypeSymbol,
     UCPackage,
+    UCQualifiedTypeSymbol,
     UCStructSymbol,
     UCSymbolKind,
     UCTypeKind,
@@ -91,6 +90,7 @@ import {
 import { UnrealPackage } from './UPK/UnrealPackage';
 import { getFiles, isDocumentFileName } from './workspace';
 import { getWorkspaceSymbols } from './workspaceSymbol';
+import { CommandIdentifier, executeCommand, getCommand, getCommands } from 'commands';
 
 /**
  * Emits true when the workspace is prepared and ready for indexing.
@@ -115,6 +115,11 @@ let packageFileGlobPattern = "**/*.{u,upk}";
 type WorkspaceFiles = {
     documentFiles: string[];
     packageFiles: string[];
+};
+
+type WorkspaceContent = {
+    documents: UCDocument[];
+    packages: UnrealPackage[];
 };
 
 async function getWorkspaceFiles(folders: WorkspaceFolder[], reason: string): Promise<WorkspaceFiles> {
@@ -180,18 +185,14 @@ async function parsePackageFile(filePath: string): Promise<UnrealPackage> {
     return packageFile;
 }
 
-function registerWorkspaceFiles(workspace: WorkspaceFiles) {
-    if (workspace.packageFiles) {
-        const packages = workspace.packageFiles
-            .map(parsePackageFile);
-        Promise.all(packages);
-    }
+async function registerWorkspaceFiles(workspace: WorkspaceFiles): Promise<WorkspaceContent> {
+    const packages = await Promise.all(workspace.packageFiles.map(parsePackageFile));
+    const documents = registerDocuments(workspace.documentFiles);
 
-    if (workspace.documentFiles) {
-        const documents = registerDocuments(workspace.documentFiles);
-        // re-queue all old and new documents.
-        pendingDocuments$.next(Array.from(enumerateDocuments()).concat(documents));
-    }
+    return {
+        documents,
+        packages
+    };
 }
 
 function unregisterWorkspaceFiles(workspace: WorkspaceFiles) {
@@ -200,16 +201,20 @@ function unregisterWorkspaceFiles(workspace: WorkspaceFiles) {
     }
 }
 
-async function registerWorkspace(folders: WorkspaceFolder[] | null): Promise<void> {
+async function registerWorkspace(folders: WorkspaceFolder[] | null): Promise<WorkspaceContent | undefined> {
     if (folders) {
         const getStartTime = performance.now();
-        const workspace = await getWorkspaceFiles(folders, 'initialize');
+        const workspaceFiles = await getWorkspaceFiles(folders, 'initialize');
         connection.console.log(`Found workspace files in ${(performance.now() - getStartTime) / 1000} seconds!`);
 
         const registerStartTime = performance.now();
-        registerWorkspaceFiles(workspace);
+        const workspaceContent = await registerWorkspaceFiles(workspaceFiles);
         connection.console.log(`Registered workspace files in ${(performance.now() - registerStartTime) / 1000} seconds!`);
+
+        return workspaceContent;
     }
+
+    return undefined;
 }
 
 function invalidatePendingDocuments() {
@@ -343,7 +348,7 @@ connection.onInitialize((params: InitializeParams) => {
                 dataSupport: true
             },
             executeCommandProvider: {
-                commands: CommandsList
+                commands: getCommands()
             },
             semanticTokensProvider: {
                 documentSelector: null,
@@ -398,7 +403,7 @@ connection.onInitialized((params) => {
                 }
 
                 if (source === 'change' && textDocument.version !== document.indexedVersion) {
-                    // we are gonna wait 50ms before indexing the changes, 
+                    // we are gonna wait 50ms before indexing the changes,
                     // therefore we want to ensure that any observers will receive this document as incomplete before the 50ms elapses.
                     document.hasBeenBuilt = false;
                     document.hasBeenIndexed = false;
@@ -481,6 +486,9 @@ connection.onInitialized((params) => {
                 }
             }
 
+            // Add all the presets before continueing
+            await registerPresetsWorkspace(config.generation, config.licensee);
+
             const indexStartTime = performance.now();
             const work = await connection.window.createWorkDoneProgress();
             work.begin(
@@ -546,6 +554,9 @@ connection.onInitialized((params) => {
                 return registerWorkspace(workspaceFolders);
             })
             .then(() => {
+                // re-queue
+                pendingDocuments$.next(Array.from(enumerateDocuments()));
+
                 isIndexReady$.next(true);
             });
 
@@ -556,15 +567,18 @@ connection.onInitialized((params) => {
     if (hasWorkspaceFolderCapability) {
         connection.workspace.onDidChangeWorkspaceFolders(async (event) => {
             if (event.added.length) {
-                const workspace = await getWorkspaceFiles(event.added, 'workspace files added');
-                registerWorkspaceFiles(workspace);
+                const workspaceFiles = await getWorkspaceFiles(event.added, 'workspace files added');
+                registerWorkspaceFiles(workspaceFiles);
             }
 
             // FIXME: Doesn't clean up any implicit created packages, nor names.
             if (event.removed.length) {
-                const workspace = await getWorkspaceFiles(event.removed, 'workspace files removed');
-                unregisterWorkspaceFiles(workspace);
+                const workspaceFiles = await getWorkspaceFiles(event.removed, 'workspace files removed');
+                unregisterWorkspaceFiles(workspaceFiles);
             }
+
+            // re-queue
+            pendingDocuments$.next(Array.from(enumerateDocuments()));
         });
 
         connection.workspace.onDidCreateFiles(params => {
@@ -697,8 +711,8 @@ function tryAutoDetectGeneration(): UCGeneration | undefined {
 
     // Okay we have a Commandlet.uc document (UT99)
     if (document.classPackage === CORE_PACKAGE) {
-        document = getDocumentById(toName('HelpCommandlet'));
-        if (document?.classPackage === CORE_PACKAGE) {
+        if (getDocumentById(toName('HelpCommandlet'))?.classPackage === CORE_PACKAGE ||
+            getDocumentById(toName('HelloWorldCommandlet'))?.classPackage === CORE_PACKAGE) {
             return UCGeneration.UC1;
         }
 
@@ -710,11 +724,57 @@ function tryAutoDetectGeneration(): UCGeneration | undefined {
     return undefined;
 }
 
+/**
+ * Register the presets workspace for the given generation and licensee.
+ */
+async function registerPresetsWorkspace(generation: UCGeneration, licensee: UELicensee): Promise<WorkspaceContent | undefined> {
+    function pathToWorkspaceFolder(folderPath: string): WorkspaceFolder {
+        return {
+            uri: url.pathToFileURL(folderPath).toString(),
+            name: path.basename(folderPath)
+        };
+    }
+
+    // Always include the 'Shared' presets
+    const presetsPath = path.join(__dirname, 'presets');
+    const folders: WorkspaceFolder[] = [
+        pathToWorkspaceFolder(path.join(presetsPath, 'Shared'))
+    ];
+
+    switch (generation) {
+        case UCGeneration.UC1:
+            folders.push(pathToWorkspaceFolder(path.join(presetsPath, 'UE1')));
+            break;
+
+        case UCGeneration.UC2:
+            folders.push(pathToWorkspaceFolder(path.join(presetsPath, 'UE2')));
+            break;
+
+        case UCGeneration.UC3:
+            folders.push(pathToWorkspaceFolder(path.join(presetsPath, 'UE3')));
+            break;
+    }
+
+    // Maybe automate this by using the licensee string as the folder name of presets?
+    switch (licensee) {
+        case UELicensee.XCom:
+            // no presets that we have, but feel free to add of course!!
+            break;
+    }
+
+    // blob search all the files in the presets folder!
+    const workspaceFiles = await getWorkspaceFiles(folders, 'presets');
+
+    // create and register the documents
+    return registerWorkspaceFiles(workspaceFiles);
+}
+
 function clearIntrinsicSymbols() {
     // TODO: Implement
 }
 
 function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
+    const classSymbols = [];
     const intSymbols = Object.entries(intrinsicSymbols);
     for (const [key, value] of intSymbols) {
         const [pkgNameStr, symbolNameStr] = key.split('.');
@@ -735,14 +795,15 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
                     continue;
                 }
 
-                const symbol = new UCClassSymbol({ name: symbolName, range: DEFAULT_RANGE });
+                const symbol = new UCClassSymbol({ name: symbolName, range: DEFAULT_RANGE }, DEFAULT_RANGE);
                 symbol.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Generated;
                 if (value.extends) {
-                    symbol.extendsType = new UCObjectTypeSymbol({ name: toName(value.extends), range: DEFAULT_RANGE }, undefined, UCSymbolKind.Class);
+                    symbol.extendsType = createTypeFromQualifiedIdentifier(value.extends);
                 }
                 const pkg = createPackage(pkgNameStr);
                 symbol.outer = pkg;
                 addHashedSymbol(symbol);
+                classSymbols.push(symbol);
                 break;
             }
 
@@ -770,7 +831,7 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
                     continue;
                 }
 
-                const symbol = new UCMethodSymbol({ name: symbolName, range: DEFAULT_RANGE });
+                const symbol = new UCMethodSymbol({ name: symbolName, range: DEFAULT_RANGE }, DEFAULT_RANGE);
                 symbol.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Generated;
                 superStruct.addSymbol(symbol);
                 break;
@@ -789,10 +850,27 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
             IntrinsicArray.removeSymbol(randomizeOrderSymbol);
         }
     } else if (config.licensee === UELicensee.XCom) {
-        randomizeOrderSymbol = new UCMethodSymbol({ name: randomizeOrderName, range: DEFAULT_RANGE });
+        randomizeOrderSymbol = new UCMethodSymbol({ name: randomizeOrderName, range: DEFAULT_RANGE }, DEFAULT_RANGE);
         randomizeOrderSymbol.modifiers |= ModifierFlags.Intrinsic;
         IntrinsicArray.addSymbol(randomizeOrderSymbol);
     }
+
+    // Link classes to their parent class, so that we can run a proper inheritance analysis for classes that either link or extend intrinsic classes.
+    // FIXME: We cannot pass these to an indexer, because we need a document for that :(
+    classSymbols.forEach(symbol => {
+        if (symbol.extendsType) {
+            if (UCQualifiedTypeSymbol.is(symbol.extendsType)) {
+                const parentClassPackage = ObjectsTable.getSymbol<UCPackage>(symbol.extendsType.left!.getName(), UCSymbolKind.Package);
+                if (parentClassPackage) {
+                    const parentClass = tryFindSymbolInPackage(symbol.extendsType.type.getName(), parentClassPackage);
+                    symbol.extendsType.type.setRefNoIndex(parentClass);
+                }
+            } else if (symbol.extendsType instanceof UCObjectTypeSymbol) {
+                const parentClass = tryFindClassSymbol(symbol.extendsType.getName());
+                symbol.extendsType.setRefNoIndex(parentClass);
+            }
+        }
+    });
 }
 
 function setupFilePatterns(settings: UCLanguageServerSettings) {
@@ -825,7 +903,7 @@ connection.onDefinition(async (e) => {
     return undefined;
 });
 
-connection.onReferences((e) => getReferences(e.textDocument.uri, e.position));
+connection.onReferences((e) => getReferences(e.textDocument.uri, e.position, e.context));
 connection.onDocumentSymbol(async (e) => {
     const document = await awaitDocumentBuilt(e.textDocument.uri);
     if (document) {
@@ -845,6 +923,7 @@ connection.onCompletion((e) => {
             return getCompletionItems(e.textDocument.uri, e.position);
         });
     }
+
     return getCompletionItems(e.textDocument.uri, e.position);
 });
 connection.onCompletionResolve(getFullCompletionItem);
@@ -854,10 +933,11 @@ connection.onSignatureHelp((e) => {
             return getSignatureHelp(e.textDocument.uri, e.position);
         });
     }
+
     return getSignatureHelp(e.textDocument.uri, e.position);
 });
 
-connection.onPrepareRename(async (e) => {
+connection.onPrepareRename((e) => {
     const symbol = getSymbol(e.textDocument.uri, e.position);
     if (!symbol) {
         throw new ResponseError(ErrorCodes.InvalidRequest, 'You cannot rename this element!');
@@ -892,62 +972,46 @@ connection.onPrepareRename(async (e) => {
     return symbol.id.range;
 });
 
-connection.onRenameRequest(async (e) => {
+connection.onRenameRequest((e) => {
     if (!VALID_ID_REGEXP.test(e.newName)) {
         throw new ResponseError(ErrorCodes.InvalidParams, 'Invalid identifier!');
     }
 
-    const symbol = getSymbolDefinition(e.textDocument.uri, e.position);
-    if (!symbol) {
-        return undefined;
+    return getDocumentRenameEdit(e.textDocument.uri, e.position, e.newName);
+});
+
+connection.onCodeAction(e => getDocumentCodeActions(e.textDocument.uri, e.range));
+
+connection.onExecuteCommand(async e => {
+    const command = getCommand(e.command);
+    if (!command) {
+        throw new Error('Unknown command');
     }
 
-    const references = getSymbolReferences(symbol);
-    if (!references) {
-        return undefined;
+    const change = executeCommand(command, e.arguments);
+    if (!change) {
+        return;
     }
 
-    const changes: { [uri: DocumentUri]: TextEdit[] } = {};
-    references.forEach(l => {
-        const ranges = changes[l.uri] || (changes[l.uri] = []);
-        ranges.push(TextEdit.replace(l.range, e.newName));
+    const result = await connection.workspace.applyEdit({
+        label: e.command,
+        edit: change.edit
     });
-    const result: WorkspaceEdit = { changes };
-    return result;
-});
 
-connection.onCodeAction(e => {
-    return buildCodeActions(e.textDocument.uri, e.range);
-});
-
-connection.onExecuteCommand(e => {
-    switch (e.command) {
-        case CommandIdentifier.CreateClass: {
-            const uri = e.arguments![0] as DocumentUri;
-            const className = e.arguments![1] as string;
-            const change = new WorkspaceChange();
-            change.createFile(uri, { ignoreIfExists: true });
-            change.getTextEditChange({ uri, version: 1 })
-                .add({
-                    newText: `class ${className} extends Object;`,
-                    range: Range.create(Position.create(0, 0), Position.create(0, 0))
-                });
-            connection.workspace.applyEdit(change.edit);
-            // TODO: Need to refresh the document that invoked this command.
-            break;
-        }
-
-        case CommandIdentifier.Inline: {
-            const args = e.arguments![0] as InlineChangeCommand;
-
-            const change = new WorkspaceChange();
-            change.getTextEditChange({ uri: args.uri, version: null })
-                .replace(
-                    args.range,
-                    args.newText
-                );
-            connection.workspace.applyEdit(change.edit);
-            break;
-        }
+    if (!result.applied) {
+        return;
     }
+
+    // Re-index after edit
+    // This doesn't work because the edit is pending 'save' :/
+    // if (e.command === CommandIdentifier.CreateClass
+    //     && e.arguments
+    //     && e.arguments.length > 0
+    //     && typeof e.arguments[0].uri === 'string') {
+    //     const document = getDocumentByURI(e.arguments[0].uri);
+    //     if (document) {
+    //         document.invalidate();
+    //         indexDocument(document);
+    //     }
+    // }
 });

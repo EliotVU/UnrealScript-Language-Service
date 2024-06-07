@@ -1,9 +1,7 @@
 import { CommonTokenStream } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
-import * as fs from 'fs';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
-import * as url from 'url';
 import { DocumentUri } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 
@@ -20,11 +18,13 @@ import {
     UCPackage,
     UCStructSymbol,
     UCSymbolKind,
+    isArchetypeSymbol,
+    isClassSymbol,
     isStruct,
     removeHashedSymbol,
 } from './Symbols';
 import { UCLexer } from './antlr/generated/UCLexer';
-import { ProgramContext, UCParser } from './antlr/generated/UCParser';
+import { Licensee, ProgramContext, UCParser } from './antlr/generated/UCParser';
 import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
 import { IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentASTWalker } from './documentASTWalker';
@@ -35,26 +35,45 @@ import { SymbolWalker } from './symbolWalker';
 
 function removeChildren(scope: UCStructSymbol) {
     for (let child = scope.children; child; child = child.next) {
-        if (isStruct(child)) {
-            removeChildren(child);
-        }
-        if (child.kind === UCSymbolKind.ScriptStruct
-            || child.kind === UCSymbolKind.Enum
-            || child.kind === UCSymbolKind.Archetype) {
-            removeHashedSymbol(child);
+        switch (child.kind) {
+            case UCSymbolKind.Enum:
+                removeHashedSymbol(child);
+                break;
+
+            case UCSymbolKind.ScriptStruct:
+                // inner structs...
+                removeChildren(child as UCStructSymbol);
+                removeHashedSymbol(child);
+                break;
+
+            case UCSymbolKind.Archetype:
+                // inner archetypes...
+                removeChildren(child as UCStructSymbol);
+                removeHashedSymbol(child);
+                break;
         }
     }
+
+    if (isClassSymbol(scope) && isArchetypeSymbol(scope.defaults)) {
+        removeChildren(scope.defaults);
+    }
+
+    removeHashedSymbol(scope);
 }
 
 export type DocumentParseData = {
-    context?: ProgramContext;
+    context: ProgramContext;
     parser: UCParser;
 };
 
 export class UCDocument {
-    /** Parsed file name filtered of path and extension. */
+    /** File name and extension. */
     public readonly fileName: string;
+
+    /** Case-insensitive document name with the extension stripped off. */
     public readonly name: Name;
+
+    /** URI to the document file. */
     public readonly uri: DocumentUri;
 
     /** The current indexed TextDocument's version as reported by the client. */
@@ -74,8 +93,8 @@ export class UCDocument {
     private readonly scope = new SymbolsTable<UCObjectSymbol>();
 
     constructor(readonly filePath: string, public readonly classPackage: UCPackage) {
-        this.fileName = path.basename(filePath, '.uc');
-        this.name = toName(this.fileName);
+        this.fileName = path.basename(filePath);
+        this.name = toName(path.basename(this.fileName, path.extname(filePath)));
         this.uri = URI.file(filePath).toString();
     }
 
@@ -89,6 +108,10 @@ export class UCDocument {
 
     public hasSymbols(): boolean {
         return this.scope.count() > 0;
+    }
+
+    public getSymbol<T extends UCObjectSymbol>(name: Name): T {
+        return this.scope.getSymbol(name.hash) as T;
     }
 
     public parse(text: string): DocumentParseData {
@@ -121,6 +144,11 @@ export class UCDocument {
 
         let context: ProgramContext | undefined;
         const parser = new UCParser(tokens);
+        parser.generation = config.generation === '3'
+            ? 3 : config.generation === '2'
+                ? 2 : config.generation === '1'
+                    ? 1 : 3;
+        parser.licensee = config.licensee as unknown as Licensee;
         try {
             parser.interpreter.setPredictionMode(PredictionMode.SLL);
             parser.errorHandler = ERROR_STRATEGY;
@@ -142,12 +170,13 @@ export class UCDocument {
             }
         }
         tokens.release(tokens.mark());
-        return { context, parser };
+        return { context: context, parser };
     }
 
-    public build(text: string = this.readText()): DocumentParseData {
-        console.log(`building document "${this.fileName}"`);
+    public build(text: string): DocumentParseData {
+        console.assert(typeof text !== 'undefined', `text cannot be undefined`);
 
+        console.log(`building document "${this.fileName}"`);
         const inputStream = UCInputStream.fromString(text);
         const lexer = new UCLexer(inputStream);
         const errorListener = new UCErrorListener();
@@ -178,6 +207,11 @@ export class UCDocument {
 
         let context: ProgramContext | undefined;
         const parser = new UCParser(tokenStream);
+        parser.generation = config.generation === '3'
+            ? 3 : config.generation === '2'
+                ? 2 : config.generation === '1'
+                    ? 1 : 3;
+        parser.licensee = config.licensee as unknown as Licensee;
         try {
             parser.interpreter.setPredictionMode(PredictionMode.SLL);
             parser.errorHandler = ERROR_STRATEGY;
@@ -214,23 +248,17 @@ export class UCDocument {
         }
         tokenStream.release(tokenStream.mark());
         this.nodes = this.nodes.concat(errorListener.nodes);
-        return { context, parser };
-    }
-
-    public readText(): string {
-        const filePath = url.fileURLToPath(this.uri);
-        const text = fs.readFileSync(filePath).toString();
-        return text;
+        return { context: context, parser };
     }
 
     public invalidate(cleanup = true) {
+        // const startCleaning = performance.now();
         if (cleanup) {
             // Remove hashed objects from the global objects table.
             // This however does not invoke any invalidation calls to dependencies.
             // TODO: Merge this with scope.clear();
             if (this.class) {
                 removeChildren(this.class);
-                removeHashedSymbol(this.class);
             }
         }
         this.class = undefined;
@@ -249,6 +277,7 @@ export class UCDocument {
             }
         }
         this.indexReferencesMade.clear();
+        // console.info(`${this.fileName}: cleaning time ${performance.now() - startCleaning}`);
     }
 
     indexReference(symbol: ISymbol, ref: SymbolReference) {
@@ -296,7 +325,8 @@ export function preprocessDocument(document: UCDocument, macroParser: UCPreproce
         applyMacroSymbols(config.macroSymbols);
     }
 
-    const classNameMacro = { text: document.fileName.substring(0, document.fileName.indexOf('.uc')) };
+    // Cannot use document.Name, because we need to preserve lowercases and uppercases
+    const classNameMacro = { text: path.basename(document.fileName, path.extname(document.fileName)) };
     macroParser.currentSymbols.set("classname", classNameMacro);
 
     const packageNameMacro = { text: document.classPackage.getName().text };

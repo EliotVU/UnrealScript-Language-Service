@@ -4,7 +4,7 @@ import { DocumentUri } from 'vscode-languageserver-textdocument';
 import { UCDocument } from './UC/document';
 import { getDocumentSymbol, resolveSymbolToRef } from './UC/helpers';
 import { getDocumentByURI } from './UC/indexer';
-import { ISymbol, SymbolReference } from './UC/Symbols';
+import { ISymbol, SymbolReference, SymbolReferenceFlags } from './UC/Symbols';
 
 export async function getDocumentHighlights(uri: DocumentUri, position: Position): Promise<DocumentHighlight[] | undefined> {
     const document = getDocumentByURI(uri);
@@ -17,7 +17,7 @@ export async function getDocumentHighlights(uri: DocumentUri, position: Position
     if (!symbolRef) {
         return undefined;
     }
-    
+
     return getSymbolDocumentHighlights(document, symbolRef);
 }
 
@@ -34,7 +34,7 @@ export function getSymbolDocumentHighlights(document: UCDocument, symbol: ISymbo
     function toDocumentHighlight(ref: SymbolReference): DocumentHighlight {
         return DocumentHighlight.create(
             ref.location.range,
-            ref.inAssignment
+            (ref.flags & (SymbolReferenceFlags.Assignment | SymbolReferenceFlags.Declaration))
                 ? DocumentHighlightKind.Write
                 : DocumentHighlightKind.Read
         );

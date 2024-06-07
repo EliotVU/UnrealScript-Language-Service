@@ -38,14 +38,14 @@ export class UCEnumSymbol extends UCStructSymbol {
         return `${this.getTypeKeyword()} ${this.getPath()}`;
     }
 
-    override getCompletionSymbols<C extends ISymbol>(document: UCDocument, _context: ContextKind, _kinds?: UCSymbolKind): C[] {
+    override getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: ContextKind, _kinds?: UCSymbolKind): C[] {
         const symbols: ISymbol[] = [];
         for (let child = this.children; child; child = child.next) {
             if (child.acceptCompletion(document, this)) {
                 symbols.push(child);
             }
         }
-        symbols.push(this.enumCountMember);
+        if (context === ContextKind.DOT) symbols.push(this.enumCountMember);
         return symbols as C[];
     }
 

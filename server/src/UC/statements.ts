@@ -1,21 +1,35 @@
 /* eslint-disable prefer-rest-params */
 /* eslint-disable prefer-spread */
-import { Position, Range } from 'vscode-languageserver';
+import { Location, Position, Range } from 'vscode-languageserver';
 
 import { UCDocument } from './document';
 import { IExpression } from './expressions';
 import { intersectsWith } from './helpers';
 import {
-    ContextInfo, Identifier, INode, ISymbol, IWithIndex, IWithInnerSymbols, StaticNameType,
-    UCArchetypeSymbol, UCNodeKind, UCObjectTypeSymbol, UCStructSymbol
+    addHashedSymbol,
+    ContextInfo, getContext, Identifier, INode, isArchetypeSymbol, ISymbol, IWithInnerSymbols, ObjectsTable, StaticNameType,
+    UCArchetypeSymbol, UCClassSymbol, UCNodeKind, UCObjectTypeSymbol, UCStructSymbol,
+    UCSymbolKind
 } from './Symbols';
 import { SymbolWalker } from './symbolWalker';
+import { NAME_NONE } from './names';
+import { config, indexReference } from './indexer';
+import { UCGeneration } from './settings';
 
-export interface IStatement extends INode, IWithIndex, IWithInnerSymbols {
-    getRange(): Range;
+export interface IStatement extends INode, IWithInnerSymbols {
     getSymbolAtPos(position: Position): ISymbol | undefined;
 
+    /**
+     * The second indexing pass, should index the referenced symbols.
+     *
+     * TODO: Consider using visitor pattern to index.
+     *
+     * @param document the document of the statement.
+     * @param context context to use for symbol lookups. e.g. a `UCStateSymbol` in state code.
+     * @param info context info such as a type hint.
+     */
     index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo): void;
+
     accept<Result>(visitor: SymbolWalker<Result>): Result | void;
 }
 
@@ -24,12 +38,8 @@ export class UCExpressionStatement implements IStatement {
 
     expression?: IExpression;
 
-    constructor(protected range: Range) {
+    constructor(readonly range: Range) {
 
-    }
-
-    getRange(): Range {
-        return this.range;
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
@@ -70,19 +80,15 @@ export class UCBlock implements IStatement {
 
     statements: Array<IStatement | undefined>;
 
-    constructor(protected range: Range) {
+    constructor(readonly range: Range) {
 
-    }
-
-    getRange(): Range {
-        return this.range;
     }
 
     getSymbolAtPos(position: Position) {
         if (!intersectsWith(this.range, position)) {
             return undefined;
         }
-        
+
         const symbol = this.getContainedSymbolAtPos(position);
         return symbol;
     }
@@ -116,12 +122,68 @@ export class UCBlock implements IStatement {
     }
 }
 
-export class UCArchetypeBlockStatement extends UCBlock {
+export class UCArchetypeBlockStatement implements IStatement {
+    readonly kind = UCNodeKind.Statement;
+
+    /** The generated symbol that is declared by this statement. */
     public archetypeSymbol: UCArchetypeSymbol;
 
-    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+    /** A block of statements. */
+    public block?: UCBlock;
+
+    constructor(readonly range: Range) {
+
+    }
+
+    getSymbolAtPos(position: Position): ISymbol | undefined {
+        return intersectsWith(this.range, position)
+            ? this.getContainedSymbolAtPos(position)
+            : undefined;
+    }
+
+    getContainedSymbolAtPos(position: Position): ISymbol | undefined {
+        return this.block?.getSymbolAtPos(position) ?? (intersectsWith(this.archetypeSymbol.id.range, position) ? this.archetypeSymbol : undefined);
+    }
+
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo): void {
+        // Index the archetype's super class
         this.archetypeSymbol.index(document, context);
-        super.index(document, this.archetypeSymbol);
+
+        if (this.archetypeSymbol.id.name !== NAME_NONE) {
+            // Find the override if no class is specified (extendsType)
+            if (config.generation === UCGeneration.UC3
+                && !this.archetypeSymbol.extendsType
+                && !this.archetypeSymbol.super) {
+                // expecting context to be the 'Defaults__ClassName' archetype, so let's use its 'super' which should be the class it was declared in.
+                const archetypeOuterClass = context.super && getContext<UCClassSymbol>(context.super, UCSymbolKind.Class);
+                if (archetypeOuterClass && isArchetypeSymbol(archetypeOuterClass.defaults)) {
+                    // Unlike the UnrealScript compiler
+                    // -- we cannot safely find the symbol by using the hash table
+                    // -- because that is sensitive to the compilation order of classes.
+                    for (let parent = archetypeOuterClass.super; parent; parent = parent.super) {
+                        const overriddenArchetype = parent.defaults.getSymbol<UCArchetypeSymbol>(this.archetypeSymbol.id.name, UCSymbolKind.Archetype);
+                        if (overriddenArchetype) {
+                            this.archetypeSymbol.overriddenArchetype = overriddenArchetype;
+                            this.archetypeSymbol.super = overriddenArchetype.super;
+
+                            // Index a reference to the overriden archetype.
+                            indexReference(overriddenArchetype, document, Location.create(document.uri, this.archetypeSymbol.id.range));
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Allow assignments to find this archetype (by identifier or an object literal)
+            addHashedSymbol(this.archetypeSymbol);
+        }
+
+        // Index the block's code in the context of the archetype symbol
+        this.block?.index(document, this.archetypeSymbol, info);
+    }
+
+    accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitArchetypeBlockStatement(this);
     }
 }
 
@@ -265,16 +327,12 @@ export class UCForEachStatement extends UCThenStatement {
 }
 
 export class UCLabeledStatement implements IStatement {
-    kind = UCNodeKind.Statement;
+    readonly kind = UCNodeKind.Statement;
 
     label?: Identifier;
 
-    constructor(protected range: Range) {
+    constructor(readonly range: Range) {
 
-    }
-
-    getRange(): Range {
-        return this.range;
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
@@ -319,12 +377,8 @@ export class UCGotoStatement extends UCExpressionStatement {
 export class UCControlStatement implements IStatement {
     readonly kind = UCNodeKind.Statement;
 
-    constructor(protected range: Range) {
+    constructor(readonly range: Range) {
 
-    }
-
-    getRange(): Range {
-        return this.range;
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
@@ -347,12 +401,8 @@ export class UCControlStatement implements IStatement {
 export class UCEmptyStatement implements IStatement {
     readonly kind = UCNodeKind.Statement;
 
-    constructor(protected range: Range) {
+    constructor(readonly range: Range) {
 
-    }
-
-    getRange(): Range {
-        return this.range;
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {

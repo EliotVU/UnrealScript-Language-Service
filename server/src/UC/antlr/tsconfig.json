@@ -2,7 +2,9 @@
     "extends": "../../../tsconfig.json",
     "compilerOptions": {
         "noImplicitOverride": false,
-        "noImplicitReturns": false
+        "noImplicitReturns": false,
+        "noImplicitAny": false,
+        "strictNullChecks": false
     },
     "include": [
         "./generated/*.ts"

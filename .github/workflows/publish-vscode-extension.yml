@@ -6,8 +6,6 @@ on:
       - 'Release-*'
       - 'Hotfix-*'
       - 'pre-release-*'
-    branches:
-      - master
     
 jobs:
   publish:

@@ -1,20 +1,28 @@
 import { Location, Position, Range } from 'vscode-languageserver-types';
 
-import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
-import { ITypeSymbol, UCNodeKind, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
+import { ITypeSymbol, UCNodeKind, UCSymbolKind, UCTypeKind, typeKindToDisplayString } from './';
 
 export type Identifier = Readonly<{
     readonly name: Name;
     readonly range: Range;
 }>;
 
-export interface INode {
+export interface IRange {
+    /**
+     * Encompassing range of the node in a document.
+     *
+     * TODO: Flatten and simplify boundaries.
+     **/
+    readonly range: Range;
+}
+
+export interface INode extends IRange {
     readonly kind: UCNodeKind;
 }
 
-export interface ISymbol {
+export interface ISymbol extends IRange {
     readonly kind: UCSymbolKind;
     readonly id: Identifier;
 
@@ -31,7 +39,6 @@ export interface ISymbol {
     getName(): Name;
     getHash(): number;
 
-    getRange(): Range;
     /**
      * Returns a path presented in a qualified identifier format.
      * e.g. "Core.Object.Outer".
@@ -56,9 +63,22 @@ export interface ISymbolContainer<T extends ISymbol> {
 export type ContextInfo = {
     contextType?: ITypeSymbol;
     inAssignment?: boolean;
-    hasArguments?: boolean;
     isQualified?: boolean;
 };
+
+export enum SymbolReferenceFlags {
+    None,
+
+    // Reference is in an assignment operator or is passed as an argument to a parameter that is marked as 'out'
+    Assignment = 1 << 0,
+
+    // The symbol reference is made by the declaration e.g. `class MyClassSymbol extends Foo;`
+    Declaration = 1 << 1,
+
+    Override = 1 << 2,
+
+    All = 0xFFFFFFFF
+}
 
 export type SymbolReference = {
     /**
@@ -67,8 +87,10 @@ export type SymbolReference = {
      */
     location: Location;
 
-    // Context was referred by an assignment operator.
-    inAssignment?: boolean;
+    /**
+     * Various flags to tell more precisely why this reference is made.
+     */
+    flags: SymbolReferenceFlags;
 };
 
 export interface IWithReference {
@@ -83,10 +105,19 @@ export interface IWithInnerSymbols {
     getSymbolAtPos(position: Position): ISymbol | undefined;
 }
 
-export interface IWithIndex {
-    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo): void;
-}
-
+/**
+ * Returns the outer of a symbol that matches the kind.
+ *
+ * Be carefull when using it against a context symbol to get a ClassSymbol e.g.
+ * ```typescript
+ * getOuter<UCSymbolClass>(MyContextSymbolThatMightBeAClassSymbol, UCSymbolKind.Class)
+ * ```
+ * will return `undefined` if the symbol is of type UCSymbolClass, if undesired, use `getContext` instead.
+ *
+ * @param symbol the symbol to check against.
+ * @param kind the kind to check against.
+ * @returns the outer.
+ **/
 export function getOuter<T extends ISymbol = ISymbol>(symbol: ISymbol, kind: UCSymbolKind): T | undefined {
     let outer: ISymbol | undefined;
     for (
@@ -94,19 +125,44 @@ export function getOuter<T extends ISymbol = ISymbol>(symbol: ISymbol, kind: UCS
         outer && outer.kind !== kind;
         outer = outer.outer
     );
-    return outer as T | undefined;
+
+    return outer as T;
+}
+
+/**
+ * Returns the symbol or outer of a symbol that matches the kind.
+ *
+ * The context is determined by the symbol's outer just like `getOuter` but assumes that the passed symbol may also be desired as a result.
+ *
+ * @param symbol the symbol to check against.
+ * @param kind the kind to check against.
+ * @returns the symbol or outer.
+ **/
+export function getContext<T extends ISymbol = ISymbol>(symbol: ISymbol, kind: UCSymbolKind): T | undefined {
+    return symbol.kind == kind ? symbol as T : getOuter<T>(symbol, kind);
+}
+
+/**
+ * Checks if both symbols have a matching identity (the hash).
+ *
+ * Useful to compare against intrinsic classes that also may have an UnrealScript counter part, such as the UObject.
+ *
+ * @returns true if both have an identical reference, or if both have a matching identity (the hash)
+ */
+export function areIdentityMatch(symbol: ISymbol, other: ISymbol): boolean {
+    return symbol === other || symbol.getHash() === other.getHash();
 }
 
 export function hasNoKind(symbol: { kind: UCNodeKind }): boolean {
     return typeof symbol.kind === 'undefined';
 }
 
-export function getDebugSymbolInfo(symbol?: ISymbol): string {
+export function getSymbolDebugInfo(symbol?: ISymbol): string {
     if (typeof symbol === 'undefined') {
         return 'null';
     }
 
-    const range = symbol.getRange();
+    const range = symbol.range;
     const path = symbol.getName().text;
-    return `(${range.start.line + 1}:${range.start.character} - ${range.end.line + 1}:${range.end.character}) [${path}]`;
+    return `(${range.start.line + 1}:${range.start.character} - ${range.end.line + 1}:${range.end.character}) [${path}]: ${typeKindToDisplayString(symbol.getTypeKind())}`;
 }

@@ -8,10 +8,14 @@ import {
     ModifierFlags,
     UCClassSymbol,
     UCObjectSymbol,
+    UCStructSymbol,
     UCSymbolKind,
-    getOuter,
+    getContext,
     hasModifiers,
+    isArchetypeSymbol,
+    isClass,
     isField,
+    isStruct,
     supportsRef,
 } from './Symbols';
 import { UCLexer } from './antlr/generated/UCLexer';
@@ -136,11 +140,27 @@ export function intersectsWithRange(position: Position, range: Range): boolean {
         && position.character <= range.end.character;
 }
 
+export function areRangesIntersecting(a: Range, b: Range): boolean {
+    if (a.end.line < b.start.line || (a.end.line === b.start.line && a.end.character <= b.start.character)) {
+        return false;
+    }
+
+    if (b.end.line < a.start.line || (b.end.line === a.start.line && b.end.character <= a.start.character)) {
+        return false;
+    }
+
+    return true;
+}
+
 export function getDocumentSymbol(document: UCDocument, position: Position): ISymbol | undefined {
     const symbols = document.enumerateSymbols();
     for (const symbol of symbols) {
-        const child = symbol.getSymbolAtPos(position);
+        let child = UCObjectSymbol.getSymbolAtPos(symbol, position);
         if (child) {
+            return child;
+        }
+
+        if (isStruct(symbol) && (child = symbol.getChildSymbolAtPos(position))) {
             return child;
         }
     }
@@ -151,7 +171,7 @@ export function getDocumentSymbol(document: UCDocument, position: Position): ISy
 /**
  * Returns the deepest UCStructSymbol that is intersecting with @param position
  **/
-export function getDocumentContext(document: UCDocument, position: Position): ISymbol | undefined {
+export function getDocumentContext(document: UCDocument, position: Position): UCStructSymbol | undefined {
     const symbols = document.enumerateSymbols();
     for (const symbol of symbols) {
         if (isField(symbol)) {
@@ -209,9 +229,9 @@ export function getSymbolDocumentation(symbol: ISymbol): string[] | undefined {
     return undefined;
 }
 
-/** 
- * Returns a location that represents the definition at a given position within the document. 
- * 
+/**
+ * Returns a location that represents the definition at a given position within the document.
+ *
  * If a symbol is found at the position, then the symbol's definition location will be returned instead.
  **/
 export function getDocumentDefinition(document: UCDocument, position: Position): Location | undefined {
@@ -236,7 +256,7 @@ export function getSymbolDefinition(uri: DocumentUri, position: Position): ISymb
     return symbol && resolveSymbolToRef(symbol);
 }
 
-/** 
+/**
  * Resolves to the symbol's contained reference if the symbol kind supports it.
  * e.g. A symbol that implements the interface ITypeSymbol.
  */
@@ -252,29 +272,16 @@ export function getSymbol(uri: DocumentUri, position: Position): ISymbol | undef
 }
 
 export function getSymbolDocument(symbol: ISymbol): UCDocument | undefined {
-    const documentClass = symbol && (symbol.kind === UCSymbolKind.Class
-        ? (symbol as UCClassSymbol)
-        : getOuter<UCClassSymbol>(symbol, UCSymbolKind.Class));
+    console.assert(typeof symbol !== 'undefined');
 
+    // An archetype's outer in UE3 resides in the package instead of the class, so we have to handle this special case.
+    if (isArchetypeSymbol(symbol)) {
+        return symbol.document;
+    }
+
+    const documentClass = getContext<UCClassSymbol>(symbol, UCSymbolKind.Class);
     const document = documentClass && getDocumentById(documentClass.id.name);
     return document;
-}
-
-export function getIntersectingContext(context: ParserRuleContext, position: Position): ParserRuleContext | undefined {
-    if (!intersectsWith(rangeFromCtx(context), position)) {
-        return undefined;
-    }
-
-    if (context.children) for (const child of context.children) {
-        if (child instanceof ParserRuleContext) {
-            const ctx = getIntersectingContext(child, position);
-            if (ctx) {
-                return ctx;
-            }
-        }
-    }
-
-    return context;
 }
 
 export function getCaretTokenFromStream(stream: TokenStream, caret: Position): Token | undefined {
@@ -295,32 +302,33 @@ export function getCaretTokenFromStream(stream: TokenStream, caret: Position): T
     return undefined;
 }
 
-export function backtrackFirstToken(stream: TokenStream, startTokenIndex: number): Token | undefined {
-    if (startTokenIndex >= stream.size) {
+export function backtrackFirstToken(stream: TokenStream, index: number): Token | undefined {
+    if (index >= stream.size) {
         return undefined;
     }
 
-    let i = startTokenIndex;
+    let i = index;
     while (--i) {
         const token = stream.get(i);
         if (token.channel !== UCLexer.DEFAULT_TOKEN_CHANNEL) {
             continue;
         }
+
         return token;
     }
 
     return undefined;
 }
 
-export function backtrackFirstTokenOfType(stream: TokenStream, type: number, startTokenIndex: number): Token | undefined {
-    if (startTokenIndex >= stream.size) {
+export function backtrackFirstTokenOfType(stream: TokenStream, type: number, index: number): Token | undefined {
+    if (index >= stream.size) {
         return undefined;
     }
 
-    let i = startTokenIndex + 1;
+    let i = index + 1;
     while (--i) {
         const token = stream.get(i);
-        if (token.type <= UCLexer.ID) {
+        if (token.channel !== UCLexer.DEFAULT_TOKEN_CHANNEL) {
             continue;
         }
 

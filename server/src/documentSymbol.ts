@@ -62,7 +62,7 @@ export function getDocumentSymbols(document: UCDocument): DocumentSymbol[] | und
             buildDocumentSymbols(symbol, children);
         }
 
-        const symbolRange = symbol.getRange();
+        const symbolRange = symbol.range;
         const selectionRange = symbol.id.range;
 
         const documentSymbol: DocumentSymbol = {

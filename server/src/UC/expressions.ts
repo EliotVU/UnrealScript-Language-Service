@@ -1,44 +1,33 @@
 import { Position, Range } from 'vscode-languageserver';
 
-import { UCDocument } from './document';
-import { intersectsWith } from './helpers';
-import { config, getConstSymbol, getEnumMember } from './indexer';
+import { Token } from 'antlr4ts/Token';
 import {
+    CORE_PACKAGE,
     CastTypeSymbolMap,
     ContextInfo,
-    CORE_PACKAGE,
     DefaultArray,
-    findOrIndexClassSymbol,
-    findOverloadedOperator,
-    findSuperStruct,
-    getConversionCost,
-    getOuter,
-    getSymbolHash,
-    getSymbolOuterHash,
-    hasDefinedBaseType,
-    Identifier,
     INode,
-    IntrinsicClass,
-    IntrinsicRngLiteral,
-    IntrinsicRotLiteral,
-    IntrinsicVectLiteral,
-    isArchetypeSymbol,
-    isConstSymbol,
-    isFunction,
-    isOperator,
-    isProperty,
-    isStateSymbol,
-    isStruct,
     ISymbol,
     ITypeSymbol,
-    IWithIndex,
     IWithInnerSymbols,
+    Identifier,
+    IntrinsicClass,
+    IntrinsicNewConstructor,
+    IntrinsicObject,
+    IntrinsicRngLiteral,
+    IntrinsicRotLiteral,
+    IntrinsicRotator,
+    IntrinsicRotatorHash,
+    IntrinsicScriptStruct,
+    IntrinsicVectLiteral,
+    IntrinsicVector,
+    IntrinsicVectorHash,
     ModifierFlags,
     ObjectsTable,
     OuterObjectsTable,
-    resolveType,
     StaticBoolType,
     StaticByteType,
+    StaticDelegateType,
     StaticErrorType,
     StaticFloatType,
     StaticIntType,
@@ -49,10 +38,11 @@ import {
     StaticRotatorType,
     StaticStringType,
     StaticVectorType,
-    tryFindClassSymbol,
+    SymbolReferenceFlags,
     UCArrayTypeSymbol,
+    UCBaseOperatorSymbol,
     UCClassSymbol,
-    UCConversionCost,
+    UCDelegateSymbol,
     UCEnumSymbol,
     UCMethodSymbol,
     UCNodeKind,
@@ -64,30 +54,79 @@ import {
     UCSymbolKind,
     UCTypeKind,
     UCTypeSymbol,
+    areIdentityMatch,
+    findOverloadedBinaryOperator,
+    findOverloadedPostOperator,
+    findOverloadedPreOperator,
+    findSuperStruct,
+    getContext,
+    getSymbolHash,
+    getSymbolOuterHash,
+    hasDefinedBaseType,
+    isArchetypeSymbol,
+    isConstSymbol,
+    isFunction,
+    isOperator,
+    isProperty,
+    isStateSymbol,
+    isStruct,
+    resolveType,
+    tryFindClassSymbol,
 } from './Symbols';
+import { UCDocument } from './document';
+import { intersectsWith } from './helpers';
+import { config, getConstSymbol, getEnumMember } from './indexer';
+import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_SPAWN, NAME_STRUCT, NAME_VECTOR } from './names';
 import { SymbolWalker } from './symbolWalker';
 
-export interface IExpression extends INode, IWithIndex, IWithInnerSymbols {
-    getRange(): Range;
+export interface IExpression extends INode, IWithInnerSymbols {
+    /**
+     * Gets the symbol to best represent the expression.
+     *
+     * For instance an expression such as `Array[0]` should return the symbol `Array`
+     */
     getMemberSymbol(): ISymbol | undefined;
-    // TODO: Refactor to never return undefined, always return a StaticErrorType instead.
-    getType(): ITypeSymbol | undefined;
-    getSymbolAtPos(position: Position): ISymbol | undefined;
-    getValue(): number | undefined;
 
-    // TODO: Consider using visitor pattern to index.
+    /**
+     * Gets the type symbol to best represent the expression.
+     *
+     * TODO: Refactor to never return undefined, always return a StaticErrorType instead.
+     */
+    getType(): ITypeSymbol | undefined;
+
+    /**
+     * Gets a symbol within the expression that intersects with the position.
+     *
+     * TODO: Displace with a visitor pattern and a general function for ISymbol.
+     */
+    getSymbolAtPos(position: Position): ISymbol | undefined;
+
+    /**
+     * Evaluates the value for the expression.
+     *
+     * @returns the evaluated value.
+     */
+    getValue(): number | boolean | string | undefined;
+
+    /**
+     * The second indexing pass, should index the referenced symbols.
+     *
+     * TODO: Consider using visitor pattern to index.
+     *
+     * @param document the document of the expression.
+     * @param context context to use for symbol lookups. e.g. a `UCStateSymbol` in state code.
+     * @param info context info such as a type hint.
+     */
     index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo): void;
+
     accept<Result>(visitor: SymbolWalker<Result>): Result | void;
 }
 
+// TODO: Deprecate
 export abstract class UCExpression implements IExpression {
-    kind = UCNodeKind.Expression;
+    readonly kind = UCNodeKind.Expression;
 
-    constructor(protected range: Range) {
-    }
-
-    getRange(): Range {
-        return this.range;
+    constructor(readonly range: Range) {
     }
 
     getMemberSymbol(): ISymbol | undefined {
@@ -99,7 +138,7 @@ export abstract class UCExpression implements IExpression {
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
-        if (!intersectsWith(this.getRange(), position)) {
+        if (!intersectsWith(this.range, position)) {
             return undefined;
         }
         const symbol = this.getContainedSymbolAtPos(position);
@@ -121,19 +160,15 @@ export abstract class UCExpression implements IExpression {
 }
 
 export class UCParenthesizedExpression implements IExpression {
-    kind = UCNodeKind.Expression;
+    readonly kind = UCNodeKind.Expression;
 
     public expression?: IExpression;
 
-    constructor(protected range: Range) {
-    }
-
-    getRange(): Range {
-        return this.range;
+    constructor(readonly range: Range) {
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
-        if (!intersectsWith(this.getRange(), position)) {
+        if (!intersectsWith(this.range, position)) {
             return undefined;
         }
         const symbol = this.getContainedSymbolAtPos(position);
@@ -146,6 +181,10 @@ export class UCParenthesizedExpression implements IExpression {
 
     getContainedSymbolAtPos(position: Position) {
         const symbol = this.expression?.getSymbolAtPos(position);
+        /// ugh... FIXME: Ugly completion hack for when a context is requested at ')'
+        if (!symbol && UCCallExpression.hack_getTypeIfNoSymbol) {
+            return this.getType();
+        }
         return symbol;
     }
 
@@ -166,19 +205,32 @@ export class UCParenthesizedExpression implements IExpression {
     }
 }
 
-export class UCArrayCountExpression extends UCExpression {
+export class UCArrayCountExpression implements IExpression {
+    readonly kind = UCNodeKind.Expression;
+
     public argument?: IExpression;
 
-    override getValue() {
+    constructor(readonly range: Range) {
+    }
+
+    getSymbolAtPos(position: Position): ISymbol | undefined {
+        if (!intersectsWith(this.range, position)) {
+            return undefined;
+        }
+        const symbol = this.getContainedSymbolAtPos(position);
+        return symbol;
+    }
+
+    getValue() {
         const symbol = this.argument?.getMemberSymbol();
         return symbol && isProperty(symbol) && symbol.getArrayDimSize() || undefined;
     }
 
-    override getMemberSymbol() {
+    getMemberSymbol() {
         return this.argument?.getMemberSymbol();
     }
 
-    override getType() {
+    getType() {
         return StaticIntType;
     }
 
@@ -187,8 +239,12 @@ export class UCArrayCountExpression extends UCExpression {
         return symbol;
     }
 
-    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+    index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
         this.argument?.index(document, context, info);
+    }
+
+    accept<Result>(visitor: SymbolWalker<Result>): void | Result {
+        return visitor.visitExpression(this);
     }
 }
 
@@ -214,7 +270,7 @@ export class UCNameOfExpression extends UCExpression {
 }
 
 export class UCEmptyArgument extends UCExpression {
-    getContainedSymbolAtPos(_position: Position) {
+    getContainedSymbolAtPos(_position: Position): undefined {
         return undefined;
     }
 }
@@ -229,20 +285,33 @@ export class UCCallExpression extends UCExpression {
 
     override getType() {
         const type = this.expression.getType();
-        const symbol = type?.getRef();
+        if (!type) {
+            return undefined;
+        }
+
+        let symbol = type.getRef();
+        // HACK: Resolve to baseType's reference for delegate property calls
+        // Not sure why this was designed in such a way, let's deal with that later.
+        if (symbol === StaticDelegateType && hasDefinedBaseType(type)) {
+            symbol = type.baseType.getRef<UCDelegateSymbol>();
+        }
+
         if (symbol && isFunction(symbol)) {
             const returnValue = symbol.returnValue;
             if (returnValue) {
                 // Coerce the return type to match that of the first passed argument, e.g. "coerce Object Spawn(class'Actor' actor);"
-                if (returnValue.hasAnyModifierFlags(ModifierFlags.Coerce) && this.arguments) {
-                    const firstArgumentType = this.arguments[0]?.getType();
-                    return firstArgumentType;
+                if (returnValue.hasAnyModifierFlags(ModifierFlags.Coerce) && this.arguments && this.arguments.length > 0) {
+                    const firstArgumentType = this.arguments[0].getType();
+                    // Resolve Class'Actor' to Actor or Class<Actor> to Actor
+                    return firstArgumentType && resolveType(firstArgumentType);
                 }
-                const returnValueType = returnValue.getType();
-                return returnValueType;
+
+                return returnValue.getType();
             }
+
             return undefined;
         }
+
         return type;
     }
 
@@ -268,46 +337,71 @@ export class UCCallExpression extends UCExpression {
         return undefined;
     }
 
-    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+    override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         if (!this.arguments?.length) {
             this.expression.index(document, context);
             return;
         }
 
-        /**
-         * The compiler has a hacky implementation for casts/function calls.
-         * 
-         * It will first check if the name could be a reference to a class.
-         * If it's a match, then the first argument is compiled, 
-         * if the argument is not an Object type or hit another argument, then it assumes it's a function call.
-         */
-        if (this.arguments.length == 1 && this.expression instanceof UCMemberExpression) {
-            const member = this.expression;
-            const name = member.id.name;
+        // Let's perform the indexing of the UCMemberExpression ourselves if some parameters are met.
+        // 1. Match a primitive (int, byte, etc) or vector/rotator cast regardless of the total count of arguments and type.
+        // 2. If false, try match a class, and verify that we have only one argument that is also of type 'Object'
+        // 3. If false, try match an enum and verify that we have only one argument that is also of type 'Byte'
+        let type: ITypeSymbol | undefined;
+        if (this.expression instanceof UCMemberExpression) {
+            const name = this.expression.id.name;
+            // primitive type?
+            if ((type = CastTypeSymbolMap.get(name))) {
+                this.expression.type = type;
+            } else if (name === NAME_VECTOR) {
+                type = new UCObjectTypeSymbol(this.expression.id);
+                // Try work with the declared native struct instead of the intrinsic struct. (so that Vector(MyVec).X will resolve properly, as well as go to definition)
+                // Fall back to the intrinsic struct for situations where we have no Object.uc in the workspace.
+                const nativeStruct = OuterObjectsTable.getSymbol(IntrinsicVectorHash, UCSymbolKind.ScriptStruct) ?? IntrinsicVector;
+                (type as UCObjectTypeSymbol).setRef(nativeStruct, document);
+                this.expression.type = type;
+            } else if (name === NAME_ROTATOR) {
+                type = new UCObjectTypeSymbol(this.expression.id);
+                const nativeStruct = OuterObjectsTable.getSymbol(IntrinsicRotatorHash, UCSymbolKind.ScriptStruct) ?? IntrinsicRotator;
+                (type as UCObjectTypeSymbol).setRef(nativeStruct, document);
+                this.expression.type = type;
+            } else if (name === NAME_STRUCT) {
+                type = new UCObjectTypeSymbol(this.expression.id);
+                (type as UCObjectTypeSymbol).setRef(IntrinsicScriptStruct, document);
+                this.expression.type = type;
+            } else if (this.arguments.length === 1) {
+                this.arguments[0].index(document, context, {
+                    contextType: StaticErrorType,
+                    inAssignment: false
+                });
 
-            // Casting to a int, byte, bool? etc...
-            // TODO: Handle this in the parser.
-            const primitiveType = CastTypeSymbolMap.get(name);
-            if (primitiveType) {
-                member.type = primitiveType;
-            } else {
-                // Casting to a Class, Struct, or Enum?
-                // TODO: Check first argument type, because if it's not a valid object, a function call must be assumed
-                const structSymbol = tryFindClassSymbol(name) ?? ObjectsTable.getSymbol(name);
-                if (structSymbol) {
-                    const type = new UCObjectTypeSymbol(member.id);
-                    type.setRef(structSymbol, document);
-                    member.type = type;
-                } else { // Maybe a function
-                    const funcSymbol = isStruct(context) && context.findSuperSymbol<UCMethodSymbol>(name);
-                    if (funcSymbol) {
-                        const type = new UCObjectTypeSymbol(member.id);
-                        type.setRef(funcSymbol, document);
-                        member.type = type;
+                const sourceTypeKind = this.arguments[0].getType()?.getTypeKind();
+                switch (sourceTypeKind) {
+                    case UCTypeKind.Object: {
+                        const classSymbol = tryFindClassSymbol(name);
+                        if (classSymbol) {
+                            type = new UCObjectTypeSymbol(this.expression.id);
+                            (type as UCObjectTypeSymbol).setRef(classSymbol, document);
+                            this.expression.type = type;
+                        }
+                        break;
+                    }
+
+                    case UCTypeKind.Byte: {
+                        const enumSymbol = ObjectsTable.getSymbol<UCEnumSymbol>(name, UCSymbolKind.Enum);
+                        if (enumSymbol) {
+                            type = new UCObjectTypeSymbol(this.expression.id);
+                            (type as UCObjectTypeSymbol).setRef(enumSymbol, document);
+                            this.expression.type = type;
+                        }
+                        break;
                     }
                 }
             }
-        } else { // default binding
+        }
+
+        // Could still be a valid function call, so fallback to the default indexing behavior.
+        if (typeof type === 'undefined') {
             this.expression.index(document, context);
         }
 
@@ -326,7 +420,7 @@ export class UCCallExpression extends UCExpression {
                         argInfo.inAssignment = param.hasAnyModifierFlags(ModifierFlags.Out);
                         this.arguments[i].index(document, context, argInfo);
                     } else {
-                        // * Excessive arguments, we will still index the arguements.
+                        // * Excessive arguments, we will still index the arguments.
                         this.arguments[i].index(document, context, {
                             contextType: StaticErrorType,
                             inAssignment: false
@@ -334,7 +428,7 @@ export class UCCallExpression extends UCExpression {
                     }
                 }
             } else {
-                // * Excessive arguments, we will still index the arguements.
+                // * Excessive arguments, we will still index the arguments.
                 for (let i = 0; i < this.arguments.length; ++i) {
                     this.arguments[i].index(document, context, {
                         contextType: StaticErrorType,
@@ -355,6 +449,17 @@ export class UCCallExpression extends UCExpression {
     }
 }
 
+/**
+ * An expression to represent an element access i.e `Expression[Argument]`
+ *
+ * ```UnrealScript
+ * var Class<Object> Classes[2];
+ * var Array<Class<Object> > ClassesArray;
+ *
+ * Classes[0];
+ * self.Classes[0];
+ * ```
+ */
 export class UCElementAccessExpression extends UCExpression {
     public expression: IExpression;
     public argument?: IExpression;
@@ -367,36 +472,43 @@ export class UCElementAccessExpression extends UCExpression {
     override getType() {
         const type = this.expression?.getType();
         if (type && UCArrayTypeSymbol.is(type)) {
-            // Resolve metaclass class<Actor> to Actor
-            if (hasDefinedBaseType(type) && hasDefinedBaseType(type.baseType)) {
-                return type.baseType.baseType;
-            }
+            // the actual array type `MyType` e.g. `Array<MyType>`
             return type.baseType;
-        } else {
-            const symbol = this.getMemberSymbol();
-            if (symbol && isProperty(symbol) && symbol.isFixedArray()) {
-                // metaclass is resolved in @UCMemberExpression's .getType
-                return type;
-            }
         }
+
+        const symbol = this.getMemberSymbol();
+        if (symbol && isProperty(symbol) && symbol.isFixedArray()) {
+            // metaclass is resolved in @UCMemberExpression's .getType
+            return type;
+        }
+
         return undefined;
     }
 
     getContainedSymbolAtPos(position: Position) {
-        return this.expression?.getSymbolAtPos(position) ?? this.argument?.getSymbolAtPos(position);
+        return this.expression.getSymbolAtPos(position)
+            ?? this.argument?.getSymbolAtPos(position)
+            // HACK: temporary workaround for a situation like `MyClassArray[index].WE_ARE_HERE` symbol `index` would be retrieved instead of `MyClassArray`
+            ?? (UCCallExpression.hack_getTypeIfNoSymbol
+                ? this.getType()
+                : undefined
+            );
     }
 
     override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
-        this.expression?.index(document, context, info);
+        this.expression.index(document, context, info);
         this.argument?.index(document, context, info);
     }
 }
 
+/**
+ * An expression to represent an element access i.e `Expression[Argument] | Expression(Argument)`
+ */
 export class UCDefaultElementAccessExpression extends UCElementAccessExpression {
     declare expression: UCMemberExpression;
 
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-        this.expression?.index(document, context, info);
+        this.expression.index(document, context, info);
         // this.argument?.index(document, context, info);
 
         if (this.argument && this.argument instanceof UCIdentifierLiteralExpression) {
@@ -411,6 +523,9 @@ export class UCDefaultElementAccessExpression extends UCElementAccessExpression 
     }
 }
 
+/**
+ * An expression to represent a property access i.e `Expression.Identifier` as `left.member`
+ */
 export class UCPropertyAccessExpression extends UCExpression {
     public left: IExpression;
     public member: UCMemberExpression | undefined;
@@ -431,20 +546,21 @@ export class UCPropertyAccessExpression extends UCExpression {
         // DO NOT PASS @info, only our right expression needs access to @info.
         this.left.index(document, context);
 
-        if (this.member) {
-            const leftType = this.left.getType();
-            // Resolve meta class
-            const ref = leftType?.getRef<UCStructSymbol>();
-            const memberContext = (ref === IntrinsicClass)
-                ? resolveType(leftType!).getRef<UCStructSymbol>()
-                : ref;
-            if (memberContext && isStruct(memberContext)) {
-                this.member.index(document, memberContext, info);
-            }
+        if (!this.member) {
+            return;
+        }
+
+        const leftType = this.left.getType();
+        const structContext = leftType?.getRef<UCStructSymbol>();
+        if (isStruct(structContext)) {
+            this.member.index(document, structContext, info);
         }
     }
 }
 
+/**
+ * An expression to represent a conditional operator i.e `Expression ? Expression? : Expression?` as `condition ? true? : false?`
+ */
 export class UCConditionalExpression extends UCExpression {
     public condition!: IExpression;
     public true?: IExpression;
@@ -503,16 +619,13 @@ export abstract class UCBaseOperatorExpression extends UCExpression {
 
 export class UCPostOperatorExpression extends UCBaseOperatorExpression {
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-        super.index(document, context, info);
+        // FIXME: Should check for 'out' before passing 'inAssignment' as true
+        super.index(document, context, { inAssignment: true });
         if (this.operator && this.expression) {
-            const type = this.expression.getType();
-            if (type) {
-                const opId = this.operator.getName();
-                const operatorSymbol = findOverloadedOperator(context, opId, (
-                    symbol => symbol.isPostOperator()
-                        && symbol.params?.length === 1
-                        && getConversionCost(type, symbol.params[0].getType()) !== UCConversionCost.Negative
-                ));
+            const inputType = this.expression.getType();
+            if (inputType) {
+                const operatorName = this.operator.getName();
+                const operatorSymbol = findOverloadedPostOperator(context, operatorName, inputType);
                 if (operatorSymbol) {
                     this.operator.setRef(operatorSymbol, document);
                 }
@@ -523,16 +636,13 @@ export class UCPostOperatorExpression extends UCBaseOperatorExpression {
 
 export class UCPreOperatorExpression extends UCBaseOperatorExpression {
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-        super.index(document, context, info);
+        // FIXME: Should check for 'out' before passing 'inAssignment' as true
+        super.index(document, context, { inAssignment: true });
         if (this.operator && this.expression) {
-            const type = this.expression.getType();
-            if (type) {
-                const opId = this.operator.getName();
-                const operatorSymbol = findOverloadedOperator(context, opId, (
-                    symbol => symbol.isPreOperator()
-                        && symbol.params?.length === 1
-                        && getConversionCost(type, symbol.params[0].getType()) !== UCConversionCost.Negative
-                ));
+            const inputType = this.expression.getType();
+            if (inputType) {
+                const operatorName = this.operator.getName();
+                const operatorSymbol = findOverloadedPreOperator(context, operatorName, inputType);
                 if (operatorSymbol) {
                     this.operator.setRef(operatorSymbol, document);
                 }
@@ -543,11 +653,12 @@ export class UCPreOperatorExpression extends UCBaseOperatorExpression {
 
 export class UCBinaryOperatorExpression extends UCExpression {
     public left?: IExpression;
+    /** Operator symbol, undefined for intrinsic operator '=' */
     public operator?: UCObjectTypeSymbol;
     public right?: IExpression;
 
-    override getMemberSymbol() {
-        return this.operator?.getRef();
+    override getMemberSymbol(): UCBaseOperatorSymbol | undefined {
+        return this.operator?.getRef<UCBaseOperatorSymbol>();
     }
 
     override getType() {
@@ -588,12 +699,7 @@ export class UCBinaryOperatorExpression extends UCExpression {
 
         if (this.operator) {
             const opId = this.operator.getName();
-            const operatorSymbol = findOverloadedOperator(context, opId, (
-                symbol => symbol.isBinaryOperator()
-                    && symbol.params?.length === 2
-                    && getConversionCost(leftType, symbol.params[0].getType()) !== UCConversionCost.Negative
-                    && getConversionCost(rightType, symbol.params[1].getType()) !== UCConversionCost.Negative
-            ));
+            const operatorSymbol = findOverloadedBinaryOperator(context, opId, leftType, rightType);
             if (operatorSymbol) {
                 this.operator.setRef(operatorSymbol, document);
             }
@@ -603,34 +709,31 @@ export class UCBinaryOperatorExpression extends UCExpression {
 
 export class UCAssignmentOperatorExpression extends UCBinaryOperatorExpression {
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
-        let leftType: ITypeSymbol;
-        if (this.left) {
-            this.left.index(document, context, { inAssignment: true });
-            leftType = getExpressionTypeSafe(this.left);
-        } else {
-            leftType = StaticErrorType;
-        }
-
-        if (this.right) {
-            this.right.index(document, context, {
-                contextType: leftType
-            });
-        }
+        super.index(document, context, { inAssignment: true });
     }
 }
 
 export class UCMemberExpression extends UCExpression {
     public type?: ITypeSymbol;
+    private coercedType?: ITypeSymbol;
 
     constructor(readonly id: Identifier) {
         super(id.range);
     }
 
     override getMemberSymbol() {
+        if (this.coercedType) {
+            return this.coercedType.getRef();
+        }
+
         return this.type?.getRef();
     }
 
     override getType() {
+        if (this.coercedType) {
+            return this.coercedType;
+        }
+
         const symbol = this.type?.getRef();
         // We resolve UCMethodSymbols in UCCallExpression, because we don't want to return the function's type in assignment expressions...
         if (symbol) {
@@ -646,11 +749,20 @@ export class UCMemberExpression extends UCExpression {
     }
 
     getContainedSymbolAtPos(_position: Position) {
+        if (this.coercedType) {
+            return this.coercedType;
+        }
+
         // Only return if we have a RESOLVED reference.
         return this.type?.getRef() && this.type;
     }
 
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+        if (this.type) {
+            this.type.index(document, context, info);
+            return;
+        }
+
         const id = this.id.name;
 
         const contextType = info?.contextType;
@@ -681,13 +793,21 @@ export class UCMemberExpression extends UCExpression {
             } else {
                 member = getEnumMember(id);
             }
+        } else if (member.getName() === NAME_CLASS && areIdentityMatch(member.outer, IntrinsicObject)) {
+            const classContext = getContext<UCClassSymbol>(context, UCSymbolKind.Class)!;
+            const coercedType = new UCObjectTypeSymbol(this.id);
+            coercedType.setRefNoIndex(classContext);
+            this.coercedType = coercedType;
+        } else if (member.getName() === NAME_OUTER && areIdentityMatch(member.outer, IntrinsicObject)) {
+            const classContext = getContext<UCClassSymbol>(context, UCSymbolKind.Class)!;
+            this.coercedType = classContext.withinType;
         }
 
         if (member) {
             const type = new UCObjectTypeSymbol(this.id);
             const symbolRef = type.setRef(member, document)!;
-            if (info) {
-                symbolRef.inAssignment = info.inAssignment;
+            if (info?.inAssignment) {
+                symbolRef.flags |= SymbolReferenceFlags.Assignment;
             }
             this.type = type;
         }
@@ -695,13 +815,32 @@ export class UCMemberExpression extends UCExpression {
 }
 
 export class UCDefaultAssignmentExpression extends UCAssignmentOperatorExpression {
-    override getType() {
+    override getType(): undefined {
         return undefined;
     }
 }
 
 /**
- * Resembles "propertyMember.operationMember(arguments)"".
+ * An expression to represent a property assignment in an object declaration i.e `Identifier=Expression` as `left=right`
+ *
+ * e.g. in a 'object declaration' the part `Left=Right` is represented by this expression type
+ *
+ * ```UnrealScript
+ * Begin Object Left=Right
+ * End Object
+ * ```
+ */
+export class UCObjectAttributeExpression extends UCDefaultAssignmentExpression {
+
+}
+
+/**
+ * An expression to represent a property operation i.e. `Identifier.Identifier (Arguments)?` as `propertyMember.operationMember (arguments)`
+ *
+ * ```UnrealScript
+ * MyArray.Clear
+ * MyArray.Add (MyStaticElement)
+ * ```
  *
  * @method getMemberSymbol will always return the instance of "operationMember".
  * @method getType will always return the type of instance "propertyMember", because our array operations have no return type.
@@ -719,9 +858,10 @@ export class UCDefaultMemberCallExpression extends UCExpression {
         const type = this.propertyMember.getType();
         if (type && UCArrayTypeSymbol.is(type)) {
             // Resolve metaclass class<Actor> to Actor
-            if (hasDefinedBaseType(type) && hasDefinedBaseType(type.baseType)) {
-                return type.baseType.baseType;
-            }
+            // Commented out because it was causing issues with type compatibility checks, TODO: Figure out if this resolve matters anymore.
+            // if (hasDefinedBaseType(type) && hasDefinedBaseType(type.baseType)) {
+            //     return type.baseType.baseType;
+            // }
             return type.baseType;
         }
         return type;
@@ -825,7 +965,7 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
             }
 
             case UCTypeKind.Int:
-                // UE3 behavior, a name can match with any object outside of the current scope. 
+                // UE3 behavior, a name can match with any object outside of the current scope.
                 member = getConstSymbol(name) ?? getEnumMember(name);
                 break;
 
@@ -834,7 +974,7 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
                 break;
 
             case UCTypeKind.Delegate: {
-                const classContext = getOuter<UCClassSymbol>(context, UCSymbolKind.Class)!;
+                const classContext = document.class!;
                 // TODO: Use something else to find a function without the need to check its specification.
                 member = classContext.findSuperSymbol(name, UCSymbolKind.Function)
                     ?? classContext.findSuperSymbol(name, UCSymbolKind.Delegate)
@@ -852,10 +992,7 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
         // Fall back to a constants search within the current class or the subobject's class.
         // FIXME: Technically, we should also look for a constant even if we have a defined @member, if the defined member is also incompatible.
         if (!member && kind !== UCTypeKind.Delegate) {
-            const classContext = getOuter<UCClassSymbol>(context, UCSymbolKind.Class)!;
-            console.assert(classContext, 'No class context for defaultproperties block!', context.getPath());
-
-            member = classContext.findSuperSymbol(name, UCSymbolKind.Const);
+            member = document.class!.findSuperSymbol(name, UCSymbolKind.Const);
             // Search within the subobject's class
             if (!member && isArchetypeSymbol(context)) {
                 member = context.findSuperSymbol(name, UCSymbolKind.Const);
@@ -869,8 +1006,8 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
 
         const type = new UCObjectTypeSymbol(this.id);
         const ref = type.setRef(member, document)!;
-        if (info) {
-            ref.inAssignment = info.inAssignment;
+        if (info?.inAssignment) {
+            ref.flags |= SymbolReferenceFlags.Assignment;
         }
         this.type = type;
     }
@@ -883,7 +1020,7 @@ export class UCPredefinedAccessExpression extends UCExpression {
     }
 
     override getMemberSymbol() {
-        return this.typeRef?.getRef();
+        return this.typeRef;
     }
 
     override getType() {
@@ -894,14 +1031,31 @@ export class UCPredefinedAccessExpression extends UCExpression {
         return this.typeRef.getRef() && this.typeRef;
     }
 
-    override index(document: UCDocument, _context?: UCStructSymbol) {
+    override index(document: UCDocument, _context?: UCStructSymbol, info?: ContextInfo) {
         this.typeRef.setRefNoIndex(document.class);
     }
 }
 
 // Resolves the context for predefined specifiers such as (default, static, and const).
 export class UCPropertyClassAccessExpression extends UCPropertyAccessExpression {
+    // override getMemberSymbol() {
+    //     return this.member?.getType();
+    // }
 
+    override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
+        // DO NOT PASS @info, only our right expression needs access to @info.
+        this.left.index(document, context);
+
+        if (!this.member) {
+            return;
+        }
+
+        const leftType = this.left.getType();
+        const structContext = leftType && resolveType(leftType).getRef<UCStructSymbol>();
+        if (isStruct(structContext)) {
+            this.member.index(document, structContext, info);
+        }
+    }
 }
 
 export class UCSuperExpression extends UCExpression {
@@ -951,22 +1105,116 @@ export class UCSuperExpression extends UCExpression {
     }
 }
 
-export class UCNewExpression extends UCCallExpression {
-    // TODO: Implement pseudo new operator for hover info?
+/**
+ * An expression to represent `new (Arguments)? Expression (TemplateExpression)?`
+ *
+ * ```UnrealScript
+ * new (None) Class
+ * ```
+ */
+export class UCNewExpression implements IExpression {
+    readonly kind = UCNodeKind.Expression;
+
+    /** The arguments for `new` including the template expression */
+    public arguments?: Array<IExpression>;
+
+    /** The class expression. */
+    public expression: IExpression;
+
+    constructor(readonly range: Range) {
+    }
+
+    getMemberSymbol() {
+        return this.expression.getMemberSymbol();
+    }
+
+    /**
+     * Gets the type of the class expression
+     *
+     * @returns The resolved type of the class expression
+     */
+    getType() {
+        const type = this.expression.getType();
+        // We need to resolve the type to its `baseType`, because we expect expressions to work with the object reference instead.
+        // e.g. assigning a new object of class type to Foo: `Foo = new (None) Class'MyClass'`
+        // in this example Foo needs to be an object reference with the class type `MyClass`
+        return type && resolveType(type);
+    }
+
+    getSymbolAtPos(position: Position): ISymbol | undefined {
+        if (!intersectsWith(this.range, position)) {
+            return undefined;
+        }
+        const symbol = this.getContainedSymbolAtPos(position);
+        return symbol;
+    }
+
+    getContainedSymbolAtPos(position: Position) {
+        if (this.arguments) for (const arg of this.arguments) {
+            const symbol = arg.getSymbolAtPos(position);
+            if (symbol) {
+                return symbol;
+            }
+        }
+
+        const symbol = this.expression.getSymbolAtPos(position);
+        if (symbol) {
+            return symbol;
+        }
+
+        // HACK: Redirect the completion context to the resolved type (the class)
+        if (UCCallExpression.hack_getTypeIfNoSymbol) {
+            return this.getType();
+        }
+
+        // HACK: Redirect hover info to the 'New' operator.
+        return IntrinsicNewConstructor;
+    }
+
+    index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
+        if (this.arguments) {
+            const methodSymbol = IntrinsicNewConstructor;
+            const argInfo: ContextInfo = {
+                contextType: StaticErrorType,
+                inAssignment: false,
+            };
+            for (let i = 0; i < this.arguments.length; ++i) {
+                if (i < methodSymbol.params!.length) {
+                    const param = methodSymbol.params![i];
+                    argInfo.contextType = param.getType();
+                    argInfo.inAssignment = param.hasAnyModifierFlags(ModifierFlags.Out);
+                    this.arguments[i].index(document, context, argInfo);
+                } else {
+                    // * Excessive arguments, we will still index the arguments.
+                    this.arguments[i].index(document, context, {
+                        contextType: StaticErrorType,
+                        inAssignment: false
+                    });
+                }
+            }
+        }
+
+        this.expression.index(document, context);
+    }
+
+    getValue(): string | number | boolean | undefined {
+        return undefined;
+    }
+
+    accept<Result>(visitor: SymbolWalker<Result>): void | Result {
+        return visitor.visitExpression(this);
+    }
+
 }
 
 export abstract class UCLiteral implements IExpression {
     readonly kind = UCNodeKind.Expression;
 
-    constructor(protected range: Range) {
-    }
-
-    getRange(): Range {
-        return this.range;
+    constructor(readonly range: Range, protected valueToken?: Token) {
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
-        if (!intersectsWith(this.getRange(), position)) {
+        if (!intersectsWith(this.range, position)) {
             return undefined;
         }
         const symbol = this.getContainedSymbolAtPos(position);
@@ -985,7 +1233,7 @@ export abstract class UCLiteral implements IExpression {
         return undefined;
     }
 
-    getValue(): number | undefined {
+    getValue(): number | boolean | string | undefined {
         return undefined;
     }
 
@@ -1003,18 +1251,28 @@ export class UCNoneLiteral extends UCLiteral {
         return StaticNoneType;
     }
 
-    override toString() {
+    override getValue() {
         return 'None';
+    }
+
+    override toString() {
+        return this.getValue();
     }
 }
 
 export class UCStringLiteral extends UCLiteral {
+    declare valueToken: Token;
+
     override getType() {
         return StaticStringType;
     }
 
+    override getValue() {
+        return `${this.valueToken.text!}[${this.valueToken.text!.length - 2}]`;
+    }
+
     override toString() {
-        return '""';
+        return this.getValue();
     }
 }
 
@@ -1027,109 +1285,155 @@ export class UCNameLiteral extends UCLiteral {
         return StaticNameType;
     }
 
-    override toString() {
+    override getValue() {
         return `'${this.id.name.text}'`;
+    }
+
+    override toString() {
+        return this.getValue();
     }
 }
 
 export class UCBoolLiteral extends UCLiteral {
-    value: boolean;
+    declare valueToken: Token;
 
     override getType() {
         return StaticBoolType;
     }
 
+    override getValue() {
+        return Boolean(this.valueToken.text!);
+    }
+
     override toString() {
-        return String(this.value);
+        return String(this.getValue());
     }
 }
 
 export class UCFloatLiteral extends UCLiteral {
-    value: number;
+    declare valueToken: Token;
 
     override getType() {
         return StaticFloatType;
     }
 
     override getValue(): number {
-        return this.value;
+        return Number.parseFloat(this.valueToken.text!);
     }
 }
 
 export class UCIntLiteral extends UCLiteral {
-    value: number;
+    declare valueToken: Token;
 
     override getType() {
         return StaticIntType;
     }
 
     override getValue(): number {
-        return this.value;
+        return Number.parseInt(this.valueToken.text!);
     }
 }
 
 export class UCByteLiteral extends UCLiteral {
-    value: number;
+    declare valueToken: Token;
 
     override getType() {
         return StaticByteType;
     }
 
     override getValue(): number {
-        return this.value;
+        return Number.parseInt(this.valueToken.text!);
     }
 }
 
+/**
+ * Represents an expression `Identifier'QualifiedIdentifier'` as `classRef'classRef.baseType'`
+ *
+ * e.g.
+ * ```UnrealScript
+ * Package'Core'
+ * Class'Core.Object'
+ * Struct'Core.Object.Vector'
+ * Property'Core.Object.Vector.X'
+ * ```
+ **/
 export class UCObjectLiteral extends UCLiteral {
-    public castRef: UCObjectTypeSymbol;
-    public objectRef?: UCObjectTypeSymbol | UCQualifiedTypeSymbol;
+    /**
+     * The class specifier in the literal, i.e. Class for Class'MyClass'.
+     * @property classRef.baseType should represent the object reference.
+     **/
+    public classRef: UCObjectTypeSymbol<UCQualifiedTypeSymbol | UCObjectTypeSymbol>;
 
     override getMemberSymbol() {
-        return this.objectRef?.getRef() ?? this.castRef.getRef();
+        return this.classRef;
     }
 
     override getType() {
-        return this.objectRef ?? this.castRef;
+        return this.classRef;
     }
 
     override getContainedSymbolAtPos(position: Position) {
-        if (intersectsWith(this.castRef.getRange(), position)) {
-            return this.castRef.getRef() && this.castRef;
-        }
-        return this.objectRef?.getSymbolAtPos(position);
+        return this.classRef.getContainedSymbolAtPos(position);
     }
 
     override index(document: UCDocument, context: UCStructSymbol) {
-        const castClass = tryFindClassSymbol(this.castRef.id.name);
-        if (castClass) {
-            this.castRef.setRef(castClass, document);
-            if (this.objectRef) {
-                if (UCQualifiedTypeSymbol.is(this.objectRef)) {
-                    for (let next: UCQualifiedTypeSymbol | undefined = this.objectRef; next; next = next.left) {
-                        let symbol: ISymbol | undefined;
-                        if (next.left) {
-                            const hash = getSymbolOuterHash(getSymbolHash(next), getSymbolHash(next.left));
-                            symbol = OuterObjectsTable.getSymbol(hash, castClass.kind);
-                        } else {
-                            const hash = getSymbolHash(next);
-                            symbol = ObjectsTable.getSymbol<UCPackage>(hash, UCSymbolKind.Package);
-                        }
-                        if (symbol) {
-                            next.type.setRef(symbol, document);
-                        }
-                    }
+        const classSymbol = tryFindClassSymbol(this.classRef.id.name);
+        if (!classSymbol) {
+            return;
+        }
+
+        this.classRef.setRef(classSymbol, document);
+
+        const objectRefType = this.classRef.baseType;
+        if (!objectRefType) {
+            return;
+        }
+
+        // TODO: Implement StaticClass logic, so we can properly fetch the correct object by hash.
+
+        if (UCQualifiedTypeSymbol.is(objectRefType)) {
+            for (let next: UCQualifiedTypeSymbol | undefined = objectRefType; next; next = next.left) {
+                let symbol: ISymbol | undefined;
+                if (next.left) {
+                    const hash = getSymbolOuterHash(getSymbolHash(next), getSymbolHash(next.left));
+                    symbol = OuterObjectsTable.getSymbol(hash, classSymbol.kind);
                 } else {
-                    const id = this.objectRef.getName();
-                    const symbol = ObjectsTable.getSymbol(id, castClass.kind)
-                        ?? findOrIndexClassSymbol(id)
-                        // FIXME: Hacky case for literals like Property'TempColor', only enums and structs are added to the objects table.
-                        ?? context.findSuperSymbol(id);
-                    if (symbol) {
-                        this.objectRef.setRef(symbol, document);
-                    }
+                    const hash = getSymbolHash(next);
+                    symbol = ObjectsTable.getSymbol<UCPackage>(hash, UCSymbolKind.Package);
+                }
+                if (symbol) {
+                    next.type.setRef(symbol, document);
                 }
             }
+
+            return;
         }
+
+        let symbol: ISymbol | undefined = undefined;
+
+        const objectName = objectRefType.getName();
+        symbol = tryFindClassSymbol(objectName)
+            ?? ObjectsTable.getSymbol(objectName, classSymbol.kind)
+            // FIXME: Hacky case for literals like Property'TempColor', only enums and structs are added to the objects table.
+            ?? context.findSuperSymbol(objectName);
+
+        if (symbol) {
+            objectRefType.setRef(symbol, document);
+        }
+    }
+
+    override getValue() {
+        const classRef = this.classRef.getRef();
+        if (typeof classRef === 'undefined') {
+            return 'None';
+        }
+
+        const objectRef = this.classRef.baseType?.getRef();
+        return `${this.classRef.getName().text}'${objectRef?.getPath() ?? 'None'}'`;
+    }
+
+    override toString() {
+        return String(this.getValue());
     }
 }
 
@@ -1208,7 +1512,7 @@ export class UCRngLiteral extends UCStructLiteral {
 export class UCSizeOfLiteral extends UCLiteral {
     public argumentRef?: ITypeSymbol;
 
-    override getValue() {
+    override getValue(): undefined {
         // FIXME: We don't have the data to calculate a class's size.
         // const symbol = this.argumentRef?.getReference();
         return undefined;
@@ -1223,7 +1527,6 @@ export class UCSizeOfLiteral extends UCLiteral {
     }
 
     override index(document: UCDocument, context?: UCStructSymbol) {
-        super.index(document, context);
         this.argumentRef?.index(document, context!);
     }
 }
@@ -1233,7 +1536,7 @@ export class UCMetaClassExpression extends UCExpression {
     public expression?: IExpression;
 
     override getMemberSymbol() {
-        return this.classRef?.getRef();
+        return this.classRef;
     }
 
     override getType() {
@@ -1241,8 +1544,8 @@ export class UCMetaClassExpression extends UCExpression {
     }
 
     getContainedSymbolAtPos(position: Position) {
-        const subSymbol = this.classRef?.getSymbolAtPos(position) as UCObjectTypeSymbol;
-        return this.expression?.getSymbolAtPos(position) ?? (subSymbol?.getRef() && this.classRef);
+        return this.classRef?.getContainedSymbolAtPos(position)
+            ?? this.expression?.getSymbolAtPos(position);
     }
 
     override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {

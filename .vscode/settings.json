@@ -10,6 +10,7 @@
     "mochaExplorer.mochaPath": "server/node_modules/mocha",
     "mochaExplorer.require": "node_modules/ts-node/register",
     "mochaExplorer.files": "server/**/*.test.ts",
+    "mochaExplorer.watch": "server/**/*.test.ts",
     "mochaExplorer.ignore": "server/node_modules/**/*.test.ts",
     // "mochaExplorer.launcherScript": "node_modules/mocha-explorer-launcher-scripts/vscode-test",
     "mochaExplorer.autoload": false,
@@ -28,4 +29,10 @@
         "Intrinsics",
         "Vect"
     ],
+    "editor.renderWhitespace": "trailing",
+    "files.trimTrailingWhitespace": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "unrealscript.checkTypes": true,
+    "unrealscript.analyzeDocuments": "None",
+    "unrealscript.generation": "3",
 }

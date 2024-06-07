@@ -1,36 +1,82 @@
 // Test an ambiguous issue where a call looks like either a class casting or a function of the same name.
-class CastingTest dependson(InterfaceTest);
+class CastingTest extends Core.Object dependson (InterfaceTest, CastingActor) implements (InterfaceTest);
 
 struct Vector {};
 struct Rotator {};
 struct Range {};
 
-var enum EEnum { E_1 } EnumProperty;
-var InterfaceTest InterfaceProperty;
+enum CastingTest { CT_Tag };
+var private enum EEnum { E_1 } EnumProperty;
+var private InterfaceTest InterfaceProperty;
 
-delegate DelegateFunction();
+var array< Class<CastingTest> > TestClasses;
 
-function CastingTest(string message, optional int index);
-event Created()
+var struct CastingTestStruct {
+    var Class<CastingTest> TestClass;
+} CastingTestStruct;
+
+var Actor Actor;
+var Class<CastingActor> ActorClass;
+
+private delegate DelegateFunction();
+
+// Verify that we can match a function over a package of the same name.
+private function int Core(int other);
+
+// Verify that we can distinguish a function call from a class casting of the same name, depending on the context and arguments.
+private function int CastingTest(string message, optional int index);
+
+function CastingTest ShouldCastToClassTest()
 {
-    // Should cast to the class
-    CastingTest(self);
-    // Should reference the function
-    CastingTest("Message", 0);
-    CastingTest("Message");
+    // Should resolve to class 'CastingTest'
+    return CastingDerivative(self);
 }
 
-function InvalidCastingTest()
+function InterfaceTest ShouldCastToInterfaceTest()
+{
+    // Should resolve to interface 'InterfaceTest'
+    return InterfaceTest(self);
+}
+
+function CastingTest ShouldCastFromInterfaceTest()
+{
+    local InterfaceTest other;
+
+    // Should resolve to class 'CastingTest'
+    return CastingTest(other);
+}
+
+function CastingTest.CastingTest ShouldCastToEnumTest()
+{
+    local byte b;
+
+    // Should resolve to enum 'CastingTest'
+    return CastingTest(b);
+}
+
+function int ShouldCallFunctionTest()
+{
+    local int i;
+
+    // Should resolve to function 'CastingTest'
+    i = CastingTest("Message", 0);
+    i = CastingTest("Message");
+
+    // Should resolve to function 'Core', unless Core as a class does exist.
+    return Core(0);
+}
+
+function ShouldBeInvalidCastingTest()
 {
     // Invalid non-zero cost conversions:
 
-    Name(false);
+    name(false);
 
     // from enum
-    float(EEnum.E_1);
+    // float(EEnum.E_1);
 
     // Zero cost conversions:
-    
+
     string("");
     byte(byte(0)); // 0 is an int internally, so ensure we are trying to cast a byte to byte by double casting.
     int(0xFFFFFFFF);
@@ -40,7 +86,7 @@ function InvalidCastingTest()
     // Vector(vect(0,0,0));
 }
 
-function ValidCastingTest()
+function ShouldBeValidCastingTest()
 {
     // from byte
     int(byte(0));
@@ -72,7 +118,7 @@ function ValidCastingTest()
 
     // from object
     bool(self);
-    CastingTest(self);
+    CastingDerivative(self);
     InterfaceTest(self);
     string(self);
 
@@ -110,16 +156,134 @@ function ValidCastingTest()
     Rotator("");
 }
 
-function InvalidDynamicCastingInSwitchStatementTest()
+function ShouldBeValidCoerceTest()
 {
-    switch (CastingTest(self)) { default: break; }
-    switch (InterfaceTest(self)) { default: break; }
-    switch (CastingTest(DelegateFunction)) { default: break; }
-    switch (string(self)) { default: break; }
+    // Object to String
+    CoerceToString(self);
 }
 
-function string SwitchString(string s);
-function ValidTypesInSwitchStatementTest()
+private function CoerceToString(coerce string s);
+
+function ShouldBeValidAssignmentTest()
+{
+    local CastingTest c;
+    local Object obj;
+    local CastingTest cc[2];
+    local array<CastingTest> ca;
+    local InterfaceTest other;
+    local CastingActor castingActor;
+
+    // FIXME: `self.Class (other)` is picked up as a cast instead of a template reference
+    // Ensure it doesn't mistake this for a cast from `other` to `self.Class`
+    c = new (self) self.Class (other);
+
+    c = new (none) Class'CastingTest';
+    c = new (none) Class'CastingDerivative';
+    obj = Class'Object';
+
+    cc[0] = c;
+    cc[0] = new (none) Class'CastingDerivative';
+
+    ca[0] = c;
+    ca[0] = new (none) Class'CastingDerivative';
+
+    // Test array (class) element assignment
+    TestClasses[0] = Class'CastingTest';
+    TestClasses[0] = Class'CastingDerivative';
+
+    // Expect CastingActor to be compatible with local `castingActor`
+    castingActor = Actor.Spawn(Class'CastingActor');
+    castingActor = Actor.Spawn(ActorClass);
+
+    // Expect `Data` to exist.
+    Actor.Spawn(Class'CastingActor').Data;
+}
+
+function ShouldBeInvalidAssignmentTest()
+{
+    local CastingDerivative c;
+
+    // Not a derivative of CastingDerivative
+    c = new (none) Class'CastingTest';
+
+    // Test assignment of a class to an object reference (that is a class)
+    c = Class'CastingTest';
+    c = Class'CastingDerivative';
+}
+
+function ShouldBeInvalidDynamicCastingInSwitchStatementTest()
+{
+    local Object obj;
+
+    switch (CastingTest(obj)) { default: break; }
+    switch (InterfaceTest(obj)) { default: break; }
+    // FIXME: Figure this one out, how do we cast a delegate to an object?
+    // switch (CastingTest(DelegateFunction)) { default: break; }
+    switch (string(obj)) { default: break; }
+}
+
+private function string SwitchString(string s);
+function ShouldBeValidTypesInSwitchStatementTest()
 {
     switch (SwitchString("")) { default: break; }
+}
+
+// === Test the implicit casting between a class, a derivative, or a metaclass.
+
+private function AcceptClass(Class cls);
+private function AcceptClassLimitor(Class<CastingTest> cls);
+private function AcceptObject(Object obj);
+
+function ShouldBeValidClassArgumentTest()
+{
+    local Class<CastingTest> cls;
+    local CastingTest c;
+    local Object obj;
+
+    // By limitor
+    AcceptClassLimitor(Class'CastingTest');
+    AcceptClassLimitor(Class'CastingDerivative');
+    AcceptClassLimitor(Class<CastingDerivative>(cls));
+    AcceptClassLimitor(Class<CastingDerivative>(c));
+    AcceptClassLimitor(cls);
+    AcceptClassLimitor(c);
+
+    // Any class
+    AcceptClass(Class'CastingTest');
+    AcceptClass(Class'CastingDerivative');
+    AcceptClass(Class'Class');
+    AcceptClass(c);
+    AcceptClass(cls);
+
+    // Any object
+    AcceptObject(self); // coerced type
+    AcceptObject(self.Class); // coerced type
+    AcceptObject(Class'Class');
+}
+
+function ShouldBeInvalidClassArgumentTest()
+{
+    local Class<Object> cls;
+    local CastingDerivative c;
+    local Object obj;
+
+    // FIXME: Not producing any problems
+    AcceptClassLimitor(Class'Class');
+    // Invalid derivative
+    AcceptClassLimitor(Class<Object>(cls));
+    AcceptClassLimitor(Class<Object>(obj));
+    AcceptClassLimitor(cls);
+    // Should not allow an object to be passed to a class limitor
+    AcceptClassLimitor(obj);
+}
+
+defaultproperties
+{
+    TestClasses.Add(Class'CastingTest')
+    TestClasses.Add(Class'CastingDerivative')
+
+    TestClasses(0)=Class'CastingTest'
+    TestClasses(1)=Class'CastingDerivative'
+
+    CastingTestStruct=(TestClass=Class'CastingTest')
 }

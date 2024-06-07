@@ -4,9 +4,11 @@ client/
 coverage/
 grammars/
 node_modules/
+packages/
 scripts/
 server/
 syntaxes/
+unlens/
 
 **/*.ts
 **/*.d.ts

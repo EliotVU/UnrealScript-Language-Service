@@ -1,46 +1,66 @@
 import { Location, Position } from 'vscode-languageserver-types';
 
+import { Token } from 'antlr4ts/Token';
 import { UCDocument } from '../document';
+import { config } from '../indexer';
 import { Name } from '../name';
-import { NAME_ACTOR, NAME_ENGINE, NAME_SPAWN } from '../names';
+import { NAME_ACTOR, NAME_CREATEDATAOBJECT, NAME_ENGINE, NAME_LOADDATAOBJECT, NAME_SPAWN } from '../names';
+import { UCGeneration } from '../settings';
 import { SymbolWalker } from '../symbolWalker';
 import {
     ContextKind,
     DEFAULT_RANGE,
-    isFunction,
     ISymbol,
     ModifierFlags,
+    SymbolReferenceFlags,
     UCFieldSymbol,
     UCObjectSymbol,
     UCParamSymbol,
     UCStructSymbol,
     UCSymbolKind,
     UCTypeKind,
+    isFunction,
 } from './';
-import { Token } from 'antlr4ts/Token';
 
 export enum MethodFlags {
     None = 0x0000,
 
+    /** The method is declared as 'function' */
     Function = 1 << 0,
+
+    /** The method is declared as 'operator' */
     Operator = 1 << 1,
+
+    /** The method is declared as 'preoperator' */
     PreOperator = 1 << 2,
+
+    /** The method is declared as 'postoperator' */
     PostOperator = 1 << 3,
+
+    /** The method is declared as 'event' */
     Event = 1 << 4,
+
+    /** The method is declared as 'delegate' */
     Delegate = 1 << 5,
+
+    /** The method is marked as 'iterator' */
     Iterator = 1 << 6,
 
-    // Implies Final
-    Static = 1 << 7,
+    /** The method is marked as 'static', and implicitally as 'final' */
+    Static = 1 << 7, // Implies Final
+
+    /** The method is marked as 'final' */
     Final = 1 << 8,
 
     OperatorKind = Operator | PreOperator | PostOperator,
     HasKind = Function | OperatorKind | Event | Delegate,
 
-    NonOverridable = Final || PreOperator,
+    NonOverridable = Final | PreOperator,
 }
 
 export class UCMethodSymbol extends UCStructSymbol {
+    declare outer: UCStructSymbol;
+
     static readonly allowedKindsMask = 1 << UCSymbolKind.Const
         | 1 << UCSymbolKind.Property/** params and locals */;
 
@@ -78,6 +98,10 @@ export class UCMethodSymbol extends UCStructSymbol {
      */
     isBinaryOperator(): this is UCBinaryOperatorSymbol {
         return (this.specifiers & MethodFlags.Operator) !== 0;
+    }
+
+    isUnaryOperator(): this is UCBaseOperatorSymbol {
+        return (this.specifiers & (MethodFlags.PreOperator | MethodFlags.PostOperator)) !== 0;
     }
 
     isPreOperator(): this is UCPreOperatorSymbol {
@@ -139,7 +163,11 @@ export class UCMethodSymbol extends UCStructSymbol {
     }
 
     override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind) {
-        return this.getSymbol<T>(id, kind) ?? (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
+        return this.getSymbol<T>(id, kind) ?? this.outer.findSuperSymbol<T>(id, kind);
+    }
+
+    override findSuperSymbolPredicate<T extends UCFieldSymbol>(predicate: (symbol: UCFieldSymbol) => boolean): T | undefined {
+        return this.findSymbolPredicate<T>(predicate) ?? this.outer.findSuperSymbolPredicate<T>(predicate);
     }
 
     override index(document: UCDocument, context: UCStructSymbol) {
@@ -147,9 +175,13 @@ export class UCMethodSymbol extends UCStructSymbol {
             this.returnValue.index(document, context);
 
             // For UC1 and UC2 we have to hardcode the "coerce" modifier for the Spawn's return type.
-            if (this.getName() === NAME_SPAWN
-                && this.outer?.getName() === NAME_ACTOR
-                && this.outer.outer?.getName() === NAME_ENGINE) {
+            if (config.generation !== UCGeneration.UC3
+                && this.getName() === NAME_SPAWN) {
+                this.returnValue.modifiers |= ModifierFlags.Coerce;
+            }
+
+            if (config.generation === UCGeneration.UC2
+                && (this.getName() === NAME_CREATEDATAOBJECT || this.getName() === NAME_LOADDATAOBJECT)) {
                 this.returnValue.modifiers |= ModifierFlags.Coerce;
             }
         }
@@ -164,7 +196,8 @@ export class UCMethodSymbol extends UCStructSymbol {
                 // Never override a private method
                 && !symbolOverride.hasAnyModifierFlags(ModifierFlags.Private)) {
                 document.indexReference(symbolOverride, {
-                    location: Location.create(document.uri, this.id.range)
+                    location: Location.create(document.uri, this.id.range),
+                    flags: SymbolReferenceFlags.Override,
                 });
                 this.overriddenMethod = symbolOverride;
                 this.super = symbolOverride;
@@ -243,7 +276,7 @@ export class UCMethodLikeSymbol extends UCMethodSymbol {
     override specifiers = MethodFlags.Static | MethodFlags.Final;
 
     constructor(name: Name) {
-        super({ name, range: DEFAULT_RANGE });
+        super({ name, range: DEFAULT_RANGE }, DEFAULT_RANGE);
     }
 
     override getTypeKind() {
@@ -274,11 +307,6 @@ export class UCDelegateSymbol extends UCMethodSymbol {
 
 export abstract class UCBaseOperatorSymbol extends UCMethodSymbol {
     override kind = UCSymbolKind.Operator;
-
-    override acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
-        // TODO: Perhaps only list operators with a custom Identifier? i.e. "Dot" and "Cross".
-        return false;
-    }
 }
 
 export class UCBinaryOperatorSymbol extends UCBaseOperatorSymbol {

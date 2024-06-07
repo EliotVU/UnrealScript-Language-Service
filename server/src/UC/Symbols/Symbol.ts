@@ -2,7 +2,7 @@ import { Token } from 'antlr4ts';
 import { Position, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { intersectsWithRange } from '../helpers';
+import { intersectsWith, intersectsWithRange } from '../helpers';
 import { Name } from '../name';
 import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
@@ -10,8 +10,8 @@ import {
     ContextInfo,
     getSymbolPathHash,
     Identifier,
+    isOperator,
     ISymbol,
-    IWithIndex,
     IWithInnerSymbols,
     UCStructSymbol,
     UCSymbolKind,
@@ -33,7 +33,7 @@ export const enum ContextKind {
 /**
  * A symbol built from an AST context.
  */
-export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWithIndex {
+export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols {
     readonly kind: UCSymbolKind = UCSymbolKind.None;
 
     public outer?: UCObjectSymbol = undefined;
@@ -42,15 +42,10 @@ export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWit
     public description?: Token | Token[] = undefined;
 
     // TODO: Clarify id
-    constructor(public readonly id: Identifier) {
+    constructor(
+        readonly id: Identifier, 
+        readonly range: Range) {
 
-    }
-
-    /**
-     * Returns the whole range this symbol encompasses i.e. for a struct this should be inclusive of the entire block.
-     */
-    getRange(): Range {
-        return this.id.range;
     }
 
     getName(): Name {
@@ -74,16 +69,35 @@ export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWit
         return UCTypeKind.Error;
     }
 
+    // TODO: Move to visitor pattern
     /** Returns a tooltip for this symbol, usually mirroring the written code, but minimalized and formatted. */
     getTooltip(): string {
         return this.getPath();
     }
 
     getSymbolAtPos(position: Position): ISymbol | undefined {
-        return intersectsWithRange(position, this.getRange()) && this.getContainedSymbolAtPos(position) || this;
+        return UCObjectSymbol.getSymbolAtPos(this, position);
     }
 
-    protected getContainedSymbolAtPos(_position: Position): ISymbol | undefined {
+    static getSymbolAtPos(symbol: UCObjectSymbol, position: Position): ISymbol | undefined {
+        if (intersectsWith(symbol.range, position)) {
+            if (intersectsWithRange(position, symbol.id.range)) {
+                return symbol;
+            }
+    
+            const innerSymbol = symbol.getContainedSymbolAtPos(position);
+            if (typeof innerSymbol === 'undefined' && intersectsWithRange(position, symbol.id.range)) {
+                return symbol;
+            }
+    
+            return innerSymbol;
+        }
+        
+        return undefined;
+    }
+
+    // TODO: Move to visitor pattern
+    getContainedSymbolAtPos(_position: Position): ISymbol | undefined {
         return undefined;
     }
 
@@ -92,7 +106,12 @@ export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWit
         return [];
     }
 
+    // TODO: Move to visitor pattern
     acceptCompletion(_document: UCDocument, _context: ISymbol): boolean {
+        if (isOperator(this)) {
+            return false;
+        }
+
         return true;
     }
 
@@ -100,6 +119,7 @@ export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols, IWit
         //
     }
 
+    // TODO: Move to visitor pattern
     getDocumentation(): Token | Token[] | undefined {
         return this.description;
     }

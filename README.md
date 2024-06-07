@@ -1,13 +1,9 @@
 # UnrealScript
-  
+
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/last-updated/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/d/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 
-<p align="center">
-  <img src="Icon.png" width="180"
-</p>
-  
 ## Features
 
 This is a work-in-progress extension for Visual Studio Code, its goal is to bring a rich editing experience to UnrealScript, the Unreal Engine's domain specific language.
@@ -15,32 +11,44 @@ This is a work-in-progress extension for Visual Studio Code, its goal is to brin
 So far the extension has implemented support for the following features:
 
 * Semantic Syntax Highlighting
-* Diagnostics (linting)
+* Document Symbol Highlighting (Write, Read)
 * Go to Definition, Peek Definition
-* Auto-Completion
-* Code-Actions (create new class)
+* Context Auto-Completion
+* Code-Actions
+  * Create class
+  * Inline constant
+* Diagnostics (linting)
 
 ### Quick Info
 
-![PNG](docs/media/quickinfo.png)
+![PNG](./docs/media/quickinfo.png)
 
 ### Find All References
 
-![GIF](docs/media/references.gif)
+Enable `Index All Documents` to find references for the entire workspace.
+
+![GIF](./docs/media/references.gif)
 
 ### Symbol Renaming
 
-![GIF](docs/media/renaming.gif)
+Enable `Index All Documents` to rename symbols for the entire workspace.
+
+![GIF](./docs/media/renaming.gif)
 
 ### Symbol Searching
 
-![PNG](docs/media/workspaceSymbols.png)
+Enable `Index All Documents` to search symbols for the entire workspace.
 
-Beware, for *Symbol Renaming* and *Find All References* it is recommended to enable *Index All Documents*
+![PNG](./docs/media/workspaceSymbols.png)
+
+## Advice
+
+For the best results it is advised to work from within a `workspace` and to add all the project dependencies to the workspace, such as the root path for `Core/Classes` and `Engine/Classes`
+And even better, add the scripts `.u` and `.upk` content folders to the `workspace` this will make the extension aware of such packages in indexing and auto completion (but not its contents yet)
 
 ## Contribution
 
-Yes! For more information regarding contribution, please check the [Contributing Guidelines](.github/CONTRIBUTING.md).
+Yes! For more information regarding contribution, please check the [Contributing Guidelines](./.github/CONTRIBUTING.md).
 
 [![Gitter](https://img.shields.io/gitter/room/unrealscript/Language-Service?color=9cf)](https://gitter.im/unrealscript/Language-Service)
 [![Give something back!](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/eliotvu)

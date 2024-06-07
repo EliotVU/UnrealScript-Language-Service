@@ -2,53 +2,48 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Launch Client (Watch)",
             "runtimeExecutable": "${execPath}",
             "args": [
                 "--extensionDevelopmentPath=${workspaceRoot}"
             ],
-            "name": "Launch Client No Watch",
             "outFiles": [
                 "${workspaceRoot}/out/extension.js",
+                "${workspaceRoot}/out/server.js",
             ],
-            "sourceMaps": true,
-            "autoAttachChildProcesses": true,
-            "request": "launch",
-            "type": "extensionHost",
-        },
-        {
-            "runtimeExecutable": "${execPath}",
-            "args": [
-                "--extensionDevelopmentPath=${workspaceRoot}"
-            ],
-            "name": "Launch Client",
-            "outFiles": [
-                "${workspaceRoot}/out/extension.js",
+            "skipFiles": [
+                "<node_internals>/**"
             ],
             "sourceMaps": true,
             "autoAttachChildProcesses": true,
             "preLaunchTask": {
                 "type": "npm",
-                "script": "watch"
+                "script": "watch",
             },
             "request": "launch",
             "type": "extensionHost",
         },
         {
-            "port": 6010,
-            "name": "Attach to Server",
-            "outFiles": [
-                "${workspaceRoot}/out/server.js",
-                "!${workspaceRoot}/out/vendor.js"
+            "name": "Gulp (Watch)",
+            "program": "${workspaceFolder}/node_modules/gulp/bin/gulp.js",
+            "env": {
+                "NODE_ENV": "development"
+            },
+            "args": [
+                "default"
             ],
-            "sourceMaps": true,
-            "smartStep": false,
-            "restart": true,
-            "request": "attach",
+            "outFiles": [
+                "${workspaceRoot}/gulpfile.js",
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "request": "launch",
             "type": "node",
         },
         {
-            "debugServer": 6020,
             "name": "Antlr UC Macro Test",
+            "debugServer": 6020,
             "input": "grammars/test/Macro.uci",
             "grammar": "grammars/UCPreprocessorParser.g4",
             "startRule": "macroProgram",
@@ -58,8 +53,8 @@
             "type": "antlr-debug",
         },
         {
-            "debugServer": 6020,
             "name": "Antlr UC Test",
+            "debugServer": 6020,
             "input": "${workspaceFolder}/grammars/examples/classes/FunctionCallTest.uc",
             "grammar": "grammars/UCParser.g4",
             "startRule": "program",
@@ -67,14 +62,14 @@
             "visualParseTree": true,
             "request": "launch",
             "type": "antlr-debug",
-        },
+        }
     ],
     "compounds": [
         {
-            "name": "Client + Server",
+            "name": "Extension Development",
             "configurations": [
-                "Launch Client",
-                "Attach to Server"
+                "Launch Client (Watch)",
+                "Gulp (Watch)"
             ]
         }
     ]

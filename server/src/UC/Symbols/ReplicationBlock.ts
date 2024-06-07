@@ -1,17 +1,18 @@
 import { UCDocument } from '../document';
 import { SymbolWalker } from '../symbolWalker';
-import { isClass, UCObjectSymbol, UCStructSymbol, UCSymbolKind } from './';
+import { ModifierFlags, UCStructSymbol, UCSymbolKind } from './';
 
 export class UCReplicationBlock extends UCStructSymbol {
     override kind = UCSymbolKind.ReplicationBlock;
+    override modifiers = ModifierFlags.NoDeclaration;
 
 	// Just return the keyword identifier.
 	override getTooltip(): string {
 		return this.getName().text;
 	}
 
-	override acceptCompletion(_document: UCDocument, context: UCObjectSymbol): boolean {
-		return isClass(context);
+    override index(_document: UCDocument, _context: UCStructSymbol) {
+        return;
 	}
 
 	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {

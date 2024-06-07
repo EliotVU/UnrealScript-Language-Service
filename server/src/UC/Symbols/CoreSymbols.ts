@@ -1,3 +1,4 @@
+import { toName } from '../name';
 import {
     NAME_ARRAYPROPERTY,
     NAME_BOOLPROPERTY,
@@ -34,187 +35,228 @@ import {
     NAME_VECTOR,
 } from '../names';
 import {
-    addHashedSymbol,
     DEFAULT_RANGE,
     ModifierFlags,
+    StaticIntType,
     StaticNameType,
     StaticObjectType,
+    StaticRotatorType,
+    StaticVectorType,
     UCClassSymbol,
     UCPackage,
     UCPropertySymbol,
     UCScriptStructSymbol,
+    addHashedSymbol,
+    getSymbolOuterHash,
 } from './';
 
 export const CORE_PACKAGE = new UCPackage(NAME_CORE);
-addHashedSymbol(CORE_PACKAGE);
 
-export const IntrinsicObject = new UCClassSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE });
+export const IntrinsicObject = new UCClassSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicObject.modifiers |= ModifierFlags.Native | ModifierFlags.Abstract;
 IntrinsicObject.outer = CORE_PACKAGE;
 
-export const IntrinsicVector = new UCScriptStructSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE });
+export const IntrinsicVectorHash = getSymbolOuterHash(NAME_VECTOR.hash, NAME_OBJECT.hash);
+export const IntrinsicVector = new UCScriptStructSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE }, DEFAULT_RANGE);
+IntrinsicVector.modifiers |= ModifierFlags.Native;
 IntrinsicVector.outer = IntrinsicObject;
 
-export const IntrinsicRotator = new UCScriptStructSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE });
+const VectorXProperty = new UCPropertySymbol(
+    { name: toName('X'), range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticIntType);
+IntrinsicVector.addSymbol(VectorXProperty);
+
+const VectorYProperty = new UCPropertySymbol(
+    { name: toName('Y'), range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticIntType);
+IntrinsicVector.addSymbol(VectorYProperty);
+
+const VectorZProperty = new UCPropertySymbol(
+    { name: toName('Z'), range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticIntType);
+IntrinsicVector.addSymbol(VectorZProperty);
+
+export const IntrinsicRotatorHash = getSymbolOuterHash(NAME_ROTATOR.hash, NAME_OBJECT.hash);
+export const IntrinsicRotator = new UCScriptStructSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE }, DEFAULT_RANGE);
+IntrinsicRotator.modifiers |= ModifierFlags.Native;
 IntrinsicRotator.outer = IntrinsicObject;
 
+const RotatorPitchProperty = new UCPropertySymbol(
+    { name: toName('Pitch'), range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticIntType);
+IntrinsicRotator.addSymbol(RotatorPitchProperty);
+
+const RotatorYawProperty = new UCPropertySymbol(
+    { name: toName('Yaw'), range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticIntType);
+IntrinsicRotator.addSymbol(RotatorYawProperty);
+
+const RotatorRollProperty = new UCPropertySymbol(
+    { name: toName('Roll'), range: DEFAULT_RANGE },
+    DEFAULT_RANGE, StaticIntType);
+IntrinsicRotator.addSymbol(RotatorRollProperty);
+
+export const Object_OuterPropertyHash = getSymbolOuterHash(NAME_OUTER.hash, getSymbolOuterHash(NAME_OBJECT.hash, NAME_CORE.hash));
 export const Object_OuterProperty = new UCPropertySymbol(
     { name: NAME_OUTER, range: DEFAULT_RANGE },
     DEFAULT_RANGE, StaticObjectType);
-Object_OuterProperty.modifiers |= ModifierFlags.Native;
+Object_OuterProperty.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Native;
 Object_OuterProperty.outer = IntrinsicObject;
 IntrinsicObject.addSymbol(Object_OuterProperty);
 
+export const Object_NamePropertyHash = getSymbolOuterHash(NAME_NAME.hash, getSymbolOuterHash(NAME_OBJECT.hash, NAME_CORE.hash));
 export const Object_NameProperty = new UCPropertySymbol(
     { name: NAME_NAME, range: DEFAULT_RANGE },
     DEFAULT_RANGE, StaticNameType);
-Object_NameProperty.modifiers |= ModifierFlags.Native;
+Object_NameProperty.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Native;
 Object_NameProperty.outer = IntrinsicObject;
 IntrinsicObject.addSymbol(Object_NameProperty);
 
+export const Object_ClassPropertyHash = getSymbolOuterHash(NAME_CLASS.hash, getSymbolOuterHash(NAME_OBJECT.hash, NAME_CORE.hash));
 export const Object_ClassProperty = new UCPropertySymbol(
     { name: NAME_CLASS, range: DEFAULT_RANGE },
     DEFAULT_RANGE, StaticObjectType);
-Object_ClassProperty.modifiers |= ModifierFlags.Native;
+Object_ClassProperty.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.Native;
 Object_ClassProperty.outer = IntrinsicObject;
 IntrinsicObject.addSymbol(Object_ClassProperty);
 
-export const IntrinsicField = new UCClassSymbol({ name: NAME_FIELD, range: DEFAULT_RANGE });
+export const IntrinsicField = new UCClassSymbol({ name: NAME_FIELD, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicField.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicField.super = IntrinsicObject;
 IntrinsicField.outer = CORE_PACKAGE;
 
-export const IntrinsicConst = new UCClassSymbol({ name: NAME_CONST, range: DEFAULT_RANGE });
+export const IntrinsicConst = new UCClassSymbol({ name: NAME_CONST, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicConst.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicConst.super = IntrinsicField;
 IntrinsicConst.outer = CORE_PACKAGE;
 
-export const IntrinsicEnum = new UCClassSymbol({ name: NAME_ENUM, range: DEFAULT_RANGE });
+export const IntrinsicEnum = new UCClassSymbol({ name: NAME_ENUM, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicEnum.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicEnum.super = IntrinsicField;
 IntrinsicEnum.outer = CORE_PACKAGE;
 
-export const IntrinsicProperty = new UCClassSymbol({ name: NAME_PROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicProperty = new UCClassSymbol({ name: NAME_PROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicProperty.super = IntrinsicObject;
 IntrinsicProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicObjectProperty = new UCClassSymbol({ name: NAME_OBJECTPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicObjectProperty = new UCClassSymbol({ name: NAME_OBJECTPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicObjectProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicObjectProperty.super = IntrinsicProperty;
 IntrinsicObjectProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicInterfaceProperty = new UCClassSymbol({ name: NAME_INTERFACEPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicInterfaceProperty = new UCClassSymbol({ name: NAME_INTERFACEPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicInterfaceProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicInterfaceProperty.super = IntrinsicProperty;
 IntrinsicInterfaceProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicComponentProperty = new UCClassSymbol({ name: NAME_COMPONENTPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicComponentProperty = new UCClassSymbol({ name: NAME_COMPONENTPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicComponentProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicComponentProperty.super = IntrinsicObjectProperty;
 IntrinsicComponentProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicClassProperty = new UCClassSymbol({ name: NAME_CLASSPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicClassProperty = new UCClassSymbol({ name: NAME_CLASSPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicClassProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicClassProperty.super = IntrinsicObjectProperty;
 IntrinsicClassProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicByteProperty = new UCClassSymbol({ name: NAME_BYTEPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicByteProperty = new UCClassSymbol({ name: NAME_BYTEPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicByteProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicByteProperty.super = IntrinsicProperty;
 IntrinsicByteProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicFloatProperty = new UCClassSymbol({ name: NAME_FLOATPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicFloatProperty = new UCClassSymbol({ name: NAME_FLOATPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicFloatProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicFloatProperty.super = IntrinsicProperty;
 IntrinsicFloatProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicIntProperty = new UCClassSymbol({ name: NAME_INTPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicIntProperty = new UCClassSymbol({ name: NAME_INTPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicIntProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicIntProperty.super = IntrinsicProperty;
 IntrinsicIntProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicNameProperty = new UCClassSymbol({ name: NAME_NAMEPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicNameProperty = new UCClassSymbol({ name: NAME_NAMEPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicNameProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicNameProperty.super = IntrinsicProperty;
 IntrinsicNameProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicStringProperty = new UCClassSymbol({ name: NAME_STRINGPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicStringProperty = new UCClassSymbol({ name: NAME_STRINGPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicStringProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicStringProperty.super = IntrinsicProperty;
 IntrinsicStringProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicStrProperty = new UCClassSymbol({ name: NAME_STRPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicStrProperty = new UCClassSymbol({ name: NAME_STRPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicStrProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicStrProperty.super = IntrinsicProperty;
 IntrinsicStrProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicStructProperty = new UCClassSymbol({ name: NAME_STRUCTPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicStructProperty = new UCClassSymbol({ name: NAME_STRUCTPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicStructProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicStructProperty.extendsType = StaticObjectType;
 IntrinsicStructProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicBoolProperty = new UCClassSymbol({ name: NAME_BOOLPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicBoolProperty = new UCClassSymbol({ name: NAME_BOOLPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicBoolProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicBoolProperty.super = IntrinsicProperty;
 IntrinsicBoolProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicPointerProperty = new UCClassSymbol({ name: NAME_POINTERPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicPointerProperty = new UCClassSymbol({ name: NAME_POINTERPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicPointerProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicPointerProperty.super = IntrinsicProperty;
 IntrinsicPointerProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicMapProperty = new UCClassSymbol({ name: NAME_MAPPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicMapProperty = new UCClassSymbol({ name: NAME_MAPPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicMapProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicMapProperty.super = IntrinsicProperty;
 IntrinsicMapProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicDelegateProperty = new UCClassSymbol({ name: NAME_DELEGATEPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicDelegateProperty = new UCClassSymbol({ name: NAME_DELEGATEPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicDelegateProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicDelegateProperty.super = IntrinsicProperty;
 IntrinsicDelegateProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicArrayProperty = new UCClassSymbol({ name: NAME_ARRAYPROPERTY, range: DEFAULT_RANGE });
+export const IntrinsicArrayProperty = new UCClassSymbol({ name: NAME_ARRAYPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicArrayProperty.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicArrayProperty.super = IntrinsicProperty;
 IntrinsicArrayProperty.outer = CORE_PACKAGE;
 
-export const IntrinsicStruct = new UCClassSymbol({ name: NAME_STRUCT, range: DEFAULT_RANGE });
+export const IntrinsicStruct = new UCClassSymbol({ name: NAME_STRUCT, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicStruct.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicStruct.super = IntrinsicField;
 IntrinsicStruct.outer = CORE_PACKAGE;
 
-export const IntrinsicFunction = new UCClassSymbol({ name: NAME_FUNCTION, range: DEFAULT_RANGE });
+export const IntrinsicFunction = new UCClassSymbol({ name: NAME_FUNCTION, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicFunction.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicFunction.super = IntrinsicStruct;
 IntrinsicFunction.outer = CORE_PACKAGE;
 
-export const IntrinsicScriptStruct = new UCClassSymbol({ name: NAME_SCRIPTSTRUCT, range: DEFAULT_RANGE });
+export const IntrinsicScriptStruct = new UCClassSymbol({ name: NAME_SCRIPTSTRUCT, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicScriptStruct.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicScriptStruct.super = IntrinsicStruct;
 IntrinsicScriptStruct.outer = CORE_PACKAGE;
 
-export const IntrinsicState = new UCClassSymbol({ name: NAME_STATE, range: DEFAULT_RANGE });
+export const IntrinsicState = new UCClassSymbol({ name: NAME_STATE, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicState.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicState.super = IntrinsicStruct;
 IntrinsicState.outer = CORE_PACKAGE;
 
 // A Class type instance has all the members of an object.
-export const IntrinsicClass = new UCClassSymbol({ name: NAME_CLASS, range: DEFAULT_RANGE });
+export const IntrinsicClass = new UCClassSymbol({ name: NAME_CLASS, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicClass.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicClass.super = IntrinsicState;
 IntrinsicClass.outer = CORE_PACKAGE;
 
-export const IntrinsicInterface = new UCClassSymbol({ name: NAME_INTERFACE, range: DEFAULT_RANGE });
+export const IntrinsicInterface = new UCClassSymbol({ name: NAME_INTERFACE, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicInterface.modifiers |= ModifierFlags.Native;
 IntrinsicInterface.super = IntrinsicObject;
 IntrinsicInterface.outer = CORE_PACKAGE;
 
-export const IntrinsicPackage = new UCClassSymbol({ name: NAME_PACKAGE, range: DEFAULT_RANGE });
+export const IntrinsicPackage = new UCClassSymbol({ name: NAME_PACKAGE, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicPackage.modifiers |= ModifierFlags.Intrinsic;
 IntrinsicPackage.super = IntrinsicObject;
 IntrinsicPackage.outer = CORE_PACKAGE;
 
+addHashedSymbol(CORE_PACKAGE);
 // addHashedSymbol(IntrinsicObject);
 /*----*/addHashedSymbol(IntrinsicField);
 /*--------*/addHashedSymbol(IntrinsicConst);
@@ -243,3 +285,7 @@ IntrinsicPackage.outer = CORE_PACKAGE;
 /*----------------*/addHashedSymbol(IntrinsicClass);
 /*----*/// addHashedSymbol(IntrinsicInterface);
 /*----*/addHashedSymbol(IntrinsicPackage);
+
+StaticVectorType.setRefNoIndex(IntrinsicVector);
+StaticRotatorType.setRefNoIndex(IntrinsicRotator);
+// StaticRangeType.setRefNoIndex(IntrinsicRange);

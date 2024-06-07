@@ -1,13 +1,17 @@
 import { UCDocument } from './document';
+import { UCArchetypeBlockStatement } from './statements';
 import {
     ContextInfo,
-    isArchetypeSymbol,
+    isClassSymbol,
     isParamSymbol,
+    isScriptStructSymbol,
     isStruct,
+    UCArchetypeSymbol,
     UCClassSymbol,
     UCDefaultPropertiesBlock,
     UCEnumSymbol,
     UCMethodSymbol,
+    UCParamSymbol,
     UCReplicationBlock,
     UCScriptStructSymbol,
     UCStateSymbol,
@@ -16,6 +20,52 @@ import {
 import { DefaultSymbolWalker } from './symbolWalker';
 
 /**
+ * First pass:
+ * Will initiate the indexing of all symbols, but skip all code blocks (like UCBlock and UCStatement derivatives).
+ */
+export class DocumentSymbolIndexer extends DefaultSymbolWalker<undefined> {
+    constructor(private document: UCDocument) {
+        super();
+    }
+
+    override visitStructBase(symbol: UCStructSymbol) {
+        for (let child = symbol.children; child; child = child.next) {
+            if (isStruct(child)) {
+                child.accept(this);
+            }
+        }
+    }
+
+    override visitClass(symbol: UCClassSymbol) {
+        this.visitStructBase(symbol);
+
+        // TODO: Re-factor all index code into DocumentSymbolIndexer
+        symbol.index(this.document, symbol);
+    }
+
+    override visitParameter(symbol: UCParamSymbol) {
+        this.visitProperty(symbol);
+    }
+
+    override visitReplicationBlock(symbol: UCReplicationBlock) {
+        return;
+    }
+
+    override visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock): void {
+        return;
+    }
+
+    override visitArchetypeSymbol(symbol: UCArchetypeSymbol): void {
+        return;
+    }
+
+    override visitArchetypeBlockStatement(stm: UCArchetypeBlockStatement): void {
+        return;
+    }
+}
+
+/**
+ * Second pass:
  * Will initiate the indexing of all struct symbols that contain a block.
  * The indexing of a block is handled separately here so that we can resolve recursive dependencies within blocks.
  */
@@ -33,7 +83,7 @@ export class DocumentCodeIndexer extends DefaultSymbolWalker<undefined> {
     }
 
     override visitEnum(_symbol: UCEnumSymbol) { return; }
-	override visitScriptStruct(symbol: UCScriptStructSymbol) {
+    override visitScriptStruct(symbol: UCScriptStructSymbol) {
         this.visitStructBase(symbol);
     }
 
@@ -66,19 +116,36 @@ export class DocumentCodeIndexer extends DefaultSymbolWalker<undefined> {
         }
     }
 
-    override visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
-        if (symbol.block) {
-            symbol.block.index(this.document, symbol);
-        }
-
-        if (isArchetypeSymbol(symbol.default)) {
-            symbol.default.index(this.document, symbol.default);
-        }
-    }
-
     override visitReplicationBlock(symbol: UCReplicationBlock) {
         if (symbol.block) {
             symbol.block.index(this.document, symbol);
         }
+    }
+
+    override visitDefaultPropertiesBlock(symbol: UCDefaultPropertiesBlock) {
+        // Children (archetypes) are indexed by the ObjectDeclaration statements.
+        // this.visitStructBase(symbol);
+
+        if (symbol.block) {
+            const outer = symbol.outer;
+            if (outer) {
+                if (isClassSymbol(outer)) {
+                    // index in the defaults context (i.e. the class or generated archetype)
+                    symbol.block.index(this.document, outer.defaults);
+                } else if (isScriptStructSymbol(outer)) {
+                    symbol.block.index(this.document, outer);
+                } else { // classless document?
+                    symbol.block.index(this.document, symbol);
+                }
+            }
+        }
+    }
+
+    override visitArchetypeBlockStatement(stm: UCArchetypeBlockStatement): void {
+        return;
+    }
+
+    override visitArchetypeSymbol(symbol: UCArchetypeSymbol): void {
+        // symbol.index(this.document, symbol);
     }
 }

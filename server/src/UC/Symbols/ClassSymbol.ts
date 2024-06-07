@@ -1,13 +1,13 @@
 import { Position } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
-import { intersectsWith, intersectsWithRange } from '../helpers';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import {
     ISymbol,
     ITypeSymbol,
     ModifierFlags,
+    UCArchetypeSymbol,
     UCFieldSymbol,
     UCObjectTypeSymbol,
     UCPackage,
@@ -19,10 +19,11 @@ import {
 
 export enum ClassModifierFlags {
     None,
+
+    /** The class is declared as an 'interface' */
     Interface = 1 << 0,
 }
 
-// TODO: Derive this class as UCInterfaceSymbol
 export class UCClassSymbol extends UCStructSymbol {
     static readonly allowedKindsMask = 1 << UCSymbolKind.Const
         | 1 << UCSymbolKind.Enum
@@ -45,6 +46,12 @@ export class UCClassSymbol extends UCStructSymbol {
 
     public dependsOnTypes?: UCObjectTypeSymbol[];
     public implementsTypes?: (UCQualifiedTypeSymbol | UCObjectTypeSymbol)[];
+
+    /**
+     * (UC3) A generated symbol to hold onto object declarations (archetypes)
+     * If archetypes are not available, it will be referencing the outer class or struct.
+     */
+    public defaults: UCStructSymbol | UCArchetypeSymbol;
 
     override getTypeKind() {
         return UCTypeKind.Object;
@@ -90,17 +97,6 @@ export class UCClassSymbol extends UCStructSymbol {
         return text;
     }
 
-    override getSymbolAtPos(position: Position): ISymbol | undefined {
-        if (intersectsWith(this.getRange(), position)) {
-            if (intersectsWithRange(position, this.id.range)) {
-                return this;
-            }
-            return this.getContainedSymbolAtPos(position);
-        }
-        // HACK: due the fact that a class doesn't enclose its symbols we'll have to check for child symbols regardless if the given position is within the declaration span.
-        return this.getChildSymbolAtPos(position);
-    }
-
     override getContainedSymbolAtPos(position: Position) {
         let symbol: ISymbol | undefined = undefined;
         if (this.extendsType && (symbol = this.extendsType.getSymbolAtPos(position))) {
@@ -137,6 +133,12 @@ export class UCClassSymbol extends UCStructSymbol {
         return this.getSymbol<T>(id, kind)
             ?? this.super?.findSuperSymbol(id, kind)
             ?? this.within?.findSuperSymbol(id, kind);
+    }
+
+    override findSuperSymbolPredicate<T extends UCFieldSymbol>(predicate: (symbol: UCFieldSymbol) => boolean): T | undefined {
+        return this.findSymbolPredicate<T>(predicate)
+            ?? this.super?.findSuperSymbolPredicate<T>(predicate)
+            ?? this.within?.findSuperSymbolPredicate<T>(predicate);
     }
 
     override index(document: UCDocument, context: UCClassSymbol) {

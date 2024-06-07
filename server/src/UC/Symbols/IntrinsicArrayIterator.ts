@@ -16,6 +16,6 @@ const OutParam = new UCParamSymbol({ name: toName('Element'), range: DEFAULT_RAN
 OutParam.modifiers |= ModifierFlags.Out;
 ArrayIterator.addSymbol(OutParam);
 const IndexParam = new UCParamSymbol({ name: toName('Index'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
-IndexParam.modifiers |= ModifierFlags.Out;
+IndexParam.modifiers |= ModifierFlags.Out | ModifierFlags.Optional;
 ArrayIterator.addSymbol(IndexParam);
 ArrayIterator.params = [OutParam, IndexParam];

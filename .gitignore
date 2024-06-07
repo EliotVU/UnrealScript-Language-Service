@@ -1,9 +1,9 @@
-dist
 node_modules
 Icon.psd
 
-out
+out/**
 client/out
 server/out
 *.tsbuildinfo
 *.vsix
+.vscode-test

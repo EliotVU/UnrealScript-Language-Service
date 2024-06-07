@@ -1,37 +1,34 @@
 import { expect } from 'chai';
 
-import { rangeToString } from '../../diagnostics/diagnostic';
-import { DocumentAnalyzer } from '../../diagnostics/documentAnalyzer';
+import {
+    UCDefaultPropertiesBlock,
+    UCEnumMemberSymbol,
+    UCEnumSymbol,
+    UCPropertySymbol,
+    UCSymbolKind,
+} from '../../Symbols';
 import { UCDefaultAssignmentExpression, UCDefaultElementAccessExpression } from '../../expressions';
 import { queueIndexDocument } from '../../indexer';
 import { toName } from '../../name';
 import { NAME_DEFAULTPROPERTIES, NAME_ENUMCOUNT } from '../../names';
-import {
-    addHashedSymbol,
-    IntrinsicObject,
-    removeHashedSymbol,
-    UCDefaultPropertiesBlock,
-    UCEnumMemberSymbol,
-    UCEnumSymbol,
-    UCMethodSymbol,
-    UCPropertySymbol,
-    UCSymbolKind,
-} from '../../Symbols';
 import { assertBinaryOperatorExpressionMemberSymbol, assertExpressionStatement } from '../utils/codeAsserts';
+import { assertDocumentInvalidFieldsAnalysis, assertDocumentValidFieldsAnalysis, assertDocumentValidSymbolAnalysis } from '../utils/diagnosticUtils';
 import { usingDocuments } from '../utils/utils';
 
-describe('Enum usage', () => {
+describe('EnumSymbol usage', () => {
     usingDocuments(__dirname, ['EnumTest.uc'], ([testDocument]) => {
-        addHashedSymbol(IntrinsicObject);
         queueIndexDocument(testDocument);
-        removeHashedSymbol(IntrinsicObject);
-
         const documentClass = testDocument.class;
-        const enumTestSymbol = documentClass.getSymbol<UCEnumSymbol>(toName('EEnumTest'));
-        expect(enumTestSymbol)
-            .to.not.be.undefined;
+
+        it('should have no problems', () => {
+            queueIndexDocument(testDocument);
+            assertDocumentValidFieldsAnalysis(testDocument, /\bShould(?!BeInvalid)/i);
+            assertDocumentInvalidFieldsAnalysis(testDocument, /\bInvalid/);
+            assertDocumentValidSymbolAnalysis(testDocument, testDocument.class!.getSymbol(NAME_DEFAULTPROPERTIES));
+        });
 
         it('Enum EEnumTest is declared', () => {
+            const enumTestSymbol = documentClass.getSymbol<UCEnumSymbol>(toName('EEnumTest'));
             expect(enumTestSymbol)
                 .to.not.be.undefined;
             expect(enumTestSymbol.getSymbol(toName('ET_None')))
@@ -41,6 +38,7 @@ describe('Enum usage', () => {
         });
 
         it('Intrinsic EnumCount', () => {
+            const enumTestSymbol = documentClass.getSymbol<UCEnumSymbol>(toName('EEnumTest'));
             expect(enumTestSymbol.getSymbol<UCEnumMemberSymbol>(NAME_ENUMCOUNT))
                 .to.not.be.undefined;
             expect(enumTestSymbol.getSymbol<UCEnumMemberSymbol>(NAME_ENUMCOUNT).value)
@@ -55,6 +53,7 @@ describe('Enum usage', () => {
         // });
 
         it('Usage in Properties', () => {
+            const enumTestSymbol = documentClass.getSymbol<UCEnumSymbol>(toName('EEnumTest'));
             expect(documentClass.getSymbol<UCPropertySymbol>(toName('MyEnumProperty'))
                 .getType().getRef())
                 .to.equal(enumTestSymbol);
@@ -65,21 +64,8 @@ describe('Enum usage', () => {
             // expect(documentClass.getSymbol<UCPropertySymbol>(toName('MyQualifiedEnumBasedDimProperty')).arrayDimRef.getRef().outer).to.equal(enumSymbol);
         });
 
-        it('Usage in Methods', () => {
-            const symbol = documentClass.getSymbol<UCMethodSymbol>(toName('EnumHintTest'));
-            expect(symbol, 'symbol')
-                .to.not.be.undefined;
-
-            expect(symbol.returnValue.getType().getRef())
-                .is.equal(enumTestSymbol);
-
-            expect(symbol.params[0].getType().getRef())
-                .to.equal(enumTestSymbol);
-            expect(symbol.params[0].defaultExpression.getType().getRef())
-                .to.equal(enumTestSymbol.getSymbol(toName('ET_Max')));
-        });
-
         it('Usage in DefaultProperties', () => {
+            const enumTestSymbol = documentClass.getSymbol<UCEnumSymbol>(toName('EEnumTest'));
             const symbol = documentClass.getSymbol<UCDefaultPropertiesBlock>(
                 NAME_DEFAULTPROPERTIES,
                 UCSymbolKind.DefaultPropertiesBlock);
@@ -106,17 +92,6 @@ describe('Enum usage', () => {
             expect(((assertExpressionStatement(block.statements[1]).expression as UCDefaultAssignmentExpression).left as UCDefaultElementAccessExpression)
                 .argument.getMemberSymbol())
                 .to.equal(enumTestSymbol.getSymbol(toName('ET_None')));
-        });
-
-        it('should have no problems', () => {
-            const diagnoser = new DocumentAnalyzer(testDocument);
-            documentClass.accept(diagnoser);
-            const diagnostics = diagnoser.getDiagnostics();
-            const msg = diagnostics.toDiagnostic()
-                .map(d => `${rangeToString(d.range)}: ${d.message}`)
-                .join('\n');
-            expect(diagnostics.count(), msg)
-                .is.equal(0);
         });
     });
 });

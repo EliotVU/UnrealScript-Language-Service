@@ -2,7 +2,7 @@
     "name": "uc",
     "description": "UnrealScript Language support",
     "displayName": "UnrealScript",
-    "version": "0.7.0",
+    "version": "0.8.0",
     "author": {
         "name": "Eliot van Uytfanghe",
         "url": "https://EliotVU.com"
@@ -49,34 +49,31 @@
         "syntaxes": "file:syntaxes"
     },
     "devDependencies": {
-        "@tsconfig/recommended": "^1.0.2",
-        "@types/node": "^20.3.1",
-        "@typescript-eslint/eslint-plugin": "^5.60.0",
-        "@typescript-eslint/parser": "^5.60.0",
+        "@tsconfig/recommended": "^1.0.6",
+        "@types/node": "^20.14.2",
+        "@typescript-eslint/eslint-plugin": "^7.12.0",
+        "@typescript-eslint/parser": "^7.12.0",
         "antlr4ts-cli": "0.5.0-alpha.4",
-        "copy-webpack-plugin": "^11.0.0",
-        "eslint": "^8.43.0",
+        "esbuild": "^0.21.4",
+        "eslint": "^9.4.0",
         "gulp": "^4.0.2",
-        "js-yaml": "^4.1.0",
-        "merge-options": "^3.0.4",
         "mocha-explorer-launcher-scripts": "^0.4.0",
-        "rimraf": "^5.0.1",
-        "ts-loader": "^9.4.3",
-        "ts-node": "^10.9.1",
-        "tsconfig-paths-webpack-plugin": "^4.0.1",
-        "typescript": "^5.1.3",
+        "rimraf": "^5.0.7",
+        "ts-loader": "^9.5.1",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.4.5",
         "typescript-eslint-language-service": "^5.0.5",
-        "webpack": "^5.87.0",
-        "webpack-cli": "^5.1.4"
+        "yaml-convert": "^1.0.1"
     },
     "scripts": {
         "vscode:prepublish": "npm run build",
-        "build": "npx gulp buildGrammar && npm run compile:grammar && npm run compile:preprocessor && npm run clean && npx webpack --mode production --config ./webpack.config.js",
-        "compile": "npx webpack --mode development --config ./webpack.config.js",
+        "build": "npm run clean && npx gulp && npm run compile:grammar && npm run compile:preprocessor && npm run compile -- --minify --define:process.env.NODE_ENV=\\\"production\\\" && npm run compile:syntax",
+        "compile": "npx esbuild ./client/src/extension.ts ./server/src/server.ts --color --bundle --outdir=out --entry-names=[name] --chunk-names=vendor --format=cjs --external:vscode --platform=node",
         "compile:grammar": "npx antlr4ts -visitor -no-listener -Xexact-output-dir grammars/UCLexer.g4 -o server/src/UC/antlr/generated && npx antlr4ts -visitor -no-listener -Xexact-output-dir grammars/UCParser.g4 -o server/src/UC/antlr/generated",
         "compile:preprocessor": "npx antlr4ts -visitor -no-listener -Xexact-output-dir grammars/UCPreprocessorParser.g4 -o server/src/UC/antlr/generated",
-        "watch": "(set NODE_ENV=development) & start npx gulp & npx webpack --mode development --config ./webpack.config.js --watch",
-        "clean": "rimraf out",
+        "compile:syntax": "npx yaml-convert --np < ./syntaxes/UnrealScript.YAML-tmLanguage > ./out/unrealscript.tmLanguage.json && npx yaml-convert --np < ./syntaxes/unrealScript.preprocessor.YAML-tmLanguage > ./out/unrealscript.preprocessor.tmLanguage.json",
+        "watch": "(set NODE_ENV=development) & npm run compile -- --bundle --sourcemap --watch --define:process.env.NODE_ENV=\\\"development\\\"",
+        "clean": "rimraf out --preserve-root",
         "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
         "test": "cd server && npm test",
         "test-live": "cd server && npm run test-live"
@@ -96,8 +93,7 @@
                     "*.intrinsic": {
                         "italic": true
                     },
-                    "*.native": {
-                    },
+                    "*.native": {},
                     "archetype": {
                         "italic": true,
                         "foreground": "#eeee00"
@@ -192,68 +188,16 @@
                     "type": "object",
                     "description": "A map of intrinsic(C++) symbols that have no reflected source code.",
                     "default": {
-                        "Engine.Model": {
+                        "Core.PointerProperty": {
                             "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.Mesh": {
-                            "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.MeshInstance": {
-                            "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.MeshAnimation": {
-                            "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.StaticMesh": {
-                            "type": "class",
-                            "extends": "Actor"
-                        },
-                        "Engine.StaticMeshInstance": {
-                            "type": "class",
-                            "extends": "Actor"
-                        },
-                        "Engine.ConvexVolume": {
-                            "type": "class",
-                            "extends": "Actor"
-                        },
-                        "Engine.Level": {
-                            "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.NetConnection": {
-                            "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.Viewport": {
-                            "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.Primitive": {
-                            "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.Client": {
-                            "type": "class",
-                            "extends": "Object"
-                        },
-                        "Engine.AudioSubsystem": {
-                            "type": "class",
-                            "extends": "Subsystem"
-                        },
-                        "Engine.RenderDevice": {
-                            "type": "class",
-                            "extends": "Object"
+                            "extends": "Core.Property"
                         }
                     }
                 },
                 "unrealscript.indexPackageExtensions": {
                     "scope": "resource",
                     "type": "array",
-                    "description": "A list of package (uc,upk) extensions to index.",
+                    "description": "A list of package (u,upk) extensions to index.",
                     "default": [
                         "u",
                         "upk"
@@ -279,9 +223,6 @@
                 ],
                 "extensions": [
                     ".uc"
-                ],
-                "filenamePatterns": [
-                    "[a-zA-Z_][a-zA-Z0-9_]*"
                 ],
                 "configuration": "./language-configuration.json",
                 "icon": {

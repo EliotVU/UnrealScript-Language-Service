@@ -6,6 +6,7 @@
         "pedro-w.tmlanguage",
         "amodio.tsl-problem-matcher",
         "rbbit.typescript-hero",
-        "nicoespeon.abracadabra"
+        "nicoespeon.abracadabra",
+        "connor4312.esbuild-problem-matchers"
     ]
 }

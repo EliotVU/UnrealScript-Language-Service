@@ -55,7 +55,10 @@ export class UCPropertySymbol extends UCFieldSymbol {
             }
 
             if (isConstSymbol(symbol)) {
-                return symbol.getComputedValue();
+                const value = symbol.getComputedValue();
+                return typeof value === 'number'
+                    ? value
+                    : undefined;
             }
 
             if (config.generation === UCGeneration.UC3) {

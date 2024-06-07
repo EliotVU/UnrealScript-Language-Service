@@ -1,25 +1,38 @@
-import { Location, Position } from 'vscode-languageserver';
+import { Location, Position, ReferenceContext } from 'vscode-languageserver';
 import { DocumentUri } from 'vscode-languageserver-textdocument';
 
 import { getSymbolDefinition } from './UC/helpers';
 import { getIndexedReferences } from './UC/indexer';
-import { ISymbol } from './UC/Symbols';
+import { ISymbol, SymbolReferenceFlags } from './UC/Symbols';
 
-export async function getReferences(uri: DocumentUri, position: Position): Promise<Location[] | undefined> {
+export async function getReferences(uri: DocumentUri, position: Position, context: ReferenceContext): Promise<Location[] | undefined> {
     const symbol = getSymbolDefinition(uri, position);
     if (!symbol) {
         return undefined;
     }
 
-    return getSymbolReferences(symbol);
+    let filterFlags = SymbolReferenceFlags.All;
+    if (!context.includeDeclaration) {
+        filterFlags &= ~SymbolReferenceFlags.Declaration;
+    }
+
+    return getSymbolReferences(symbol, filterFlags);
 }
 
-export function getSymbolReferences(symbol: ISymbol): Location[] | undefined {
+export function getSymbolReferences(symbol: ISymbol, flags: SymbolReferenceFlags = SymbolReferenceFlags.All): Location[] | undefined {
     const references = getIndexedReferences(symbol.getHash());
     if (!references) {
         return undefined;
     }
-    
-    return Array.from(references.values())
-        .map(ref => ref.location);
+
+    const locations: Location[] = [];
+    for (const ref of references) {
+        if (ref.flags && (ref.flags & flags) === 0) {
+            continue;
+        }
+
+        locations.push(ref.location);
+    }
+
+    return locations;
 }
