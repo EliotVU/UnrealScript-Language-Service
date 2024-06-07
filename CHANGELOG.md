@@ -1,5 +1,44 @@
 # UnrealScript Language Service
 
+## 0.8.0 (Juni 7, 2024)
+
+- Improvements made to type checking
+  - The type checker will now calculate the lowest cost for each operator given the type of its operands, meaning the correct overloaded operator will be selected, if any. If multiple operators have an identical cost, then the types are reported as 'incompatible' just like the compiler. This however still needs further polishments in regards to 'Interface' types.
+- Improvements made to completion suggestions
+  - Suggest class, struct, or state name when writing `extends <qualified.identifier>`
+  - Suggest overridable state names when writing `state <identifier>`
+  - Suggest all known class modifiers when writing a class declaration.
+  - Suggest all ignorable functions when writing `ignores <identifier, identifier>`
+  - General improvements to context filtering.
+- Improvements made to syntax highlighting
+  - Added highlighting for missing UE1 keywords (localized, expand (in struct and state), always (replication if)).
+- Improvements made to parsing
+  - Parsing now respects the configured `generation` setting, meaning it won't parse keywords or grammar rules if the set generation does not have that keyword or grammar rule.
+- Improvements made to semantic syntax highlighting.
+- Improvements made to diagnostics, including new diagnostics:
+  - Report if a deprecated `field` is referenced.
+  - Report if an operator cannot be found.
+  - (check types) Report if the operator is found, but no overload can be matched.
+  - Report if a class type cannot be cast or assigned to an unrelated class type, also report if the cast is redundant.
+- Quality of Life
+  - General improvements made to parsing and indexing as to better align with the UnrealScript compiler's way of things.
+  - If a `.uc` document has no `classes` in its path, then the containing directory's name will be used instead to represent the package name.
+  - Displaced all default configured `intrinsicSymbols` with preset folders (predefined .uc documents) contained within the extension's package.
+  - Fixed missing `Write` document highlighting of variables that are assigned by operators (other than '=')
+  - Fixed marked the `Index` parameter of an array iterator as `optional`
+  - Fixed missing coercing of return types for (UT2004) `CreateDataObject` and `LoadDataObject`, also unrestricted `Spawn` to coerce for any function named `Spawn` just like the compiler.
+  - Fixed Coercing of `Object` properties `Outer` and `Class` ['Name' Does not exist on type 'Core.Class'](https://github.com/EliotVU/UnrealScript-Language-Service/issues/16)
+  - Fixed [Expression does not evaluate to an iteratable](https://github.com/EliotVU/UnrealScript-Language-Service/issues/164)
+  - Fixed [Type not found when assigning to a sub object if using an object literal](https://github.com/EliotVU/UnrealScript-Language-Service/issues/168)
+  - Fixed [Objects and Subobjects show errors in defaultproperties](https://github.com/EliotVU/UnrealScript-Language-Service/issues/170)
+  - Fixed [Show const hints for strings](https://github.com/EliotVU/UnrealScript-Language-Service/issues/177)
+  - Fixed [Casting to a class may mismatch a package (or class) of the same name](https://github.com/EliotVU/UnrealScript-Language-Service/issues/180)
+  - Fixed ["mismatched input 'if' expecting 'until'"](https://github.com/EliotVU/UnrealScript-Language-Service/issues/186)
+
+## 0.7.1 (Juni 29, 2023)
+
+- Removed configuration of "filenamePatterns"
+
 ## 0.7.0 (Juni 29, 2023)
 
 - Implemented signature help, providing assistance with function call arguments.
