@@ -4,9 +4,14 @@ channels { MACRO, COMMENTS_CHANNEL }
 
 @lexer::header {
     // TODO: Create a map of keyword tokens?
+
+
 }
 
 @lexer::members {
+	public static readonly MACRO_CHANNEL = 2;
+	public static readonly COMMENTS_CHANNEL = 3;
+
 	parensLevel: number = 0;
 	braceLevel: number = 0;
 	isDefineContext: boolean = false;

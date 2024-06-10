@@ -1,5 +1,4 @@
-import { CommonTokenStream } from 'antlr4ts';
-import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
+import { CommonTokenStream, PredictionMode } from 'antlr4ng';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
 import { DocumentUri } from 'vscode-languageserver';
@@ -20,7 +19,6 @@ import {
     UCSymbolKind,
     isArchetypeSymbol,
     isClassSymbol,
-    isStruct,
     removeHashedSymbol,
 } from './Symbols';
 import { UCLexer } from './antlr/generated/UCLexer';
@@ -62,7 +60,7 @@ function removeChildren(scope: UCStructSymbol) {
 }
 
 export type DocumentParseData = {
-    context: ProgramContext;
+    context: ProgramContext | null;
     parser: UCParser;
 };
 
@@ -142,7 +140,7 @@ export class UCDocument {
 
         // tokens.fill();
 
-        let context: ProgramContext | undefined;
+        let context: ProgramContext | null = null;
         const parser = new UCParser(tokens);
         parser.generation = config.generation === '3'
             ? 3 : config.generation === '2'
@@ -150,7 +148,7 @@ export class UCDocument {
                     ? 1 : 3;
         parser.licensee = config.licensee as unknown as Licensee;
         try {
-            parser.interpreter.setPredictionMode(PredictionMode.SLL);
+            parser.interpreter.predictionMode = PredictionMode.SLL;
             parser.errorHandler = ERROR_STRATEGY;
             parser.removeErrorListeners();
             context = parser.program();
@@ -158,7 +156,7 @@ export class UCDocument {
             console.debug('PredictionMode SLL has failed, rolling back to LL.');
             try {
                 parser.reset();
-                parser.interpreter.setPredictionMode(PredictionMode.LL);
+                parser.interpreter.predictionMode = PredictionMode.LL;
                 parser.errorHandler = ERROR_STRATEGY;
                 parser.removeErrorListeners();
                 context = parser.program();
@@ -205,7 +203,7 @@ export class UCDocument {
         const startWalking = performance.now();
         // tokenStream.fill();
 
-        let context: ProgramContext | undefined;
+        let context: ProgramContext | null = null;
         const parser = new UCParser(tokenStream);
         parser.generation = config.generation === '3'
             ? 3 : config.generation === '2'
@@ -213,7 +211,7 @@ export class UCDocument {
                     ? 1 : 3;
         parser.licensee = config.licensee as unknown as Licensee;
         try {
-            parser.interpreter.setPredictionMode(PredictionMode.SLL);
+            parser.interpreter.predictionMode = PredictionMode.SLL;
             parser.errorHandler = ERROR_STRATEGY;
             parser.removeErrorListeners(); parser.addErrorListener(errorListener);
             context = parser.program();
@@ -222,7 +220,7 @@ export class UCDocument {
             try {
                 errorListener.nodes = [];
                 parser.reset();
-                parser.interpreter.setPredictionMode(PredictionMode.LL);
+                parser.interpreter.predictionMode = PredictionMode.LL;
                 parser.errorHandler = ERROR_STRATEGY;
                 parser.removeErrorListeners(); parser.addErrorListener(errorListener);
                 context = parser.program();
@@ -307,7 +305,7 @@ export class UCDocument {
 }
 
 export function createPreprocessor(document: UCDocument, lexer: UCLexer) {
-    const macroStream = new CommonTokenStream(lexer, UCLexer.MACRO);
+    const macroStream = new CommonTokenStream(lexer, UCLexer.MACRO_CHANNEL);
     macroStream.fill();
 
     if (macroStream.getNumberOfOnChannelTokens() <= 1) {

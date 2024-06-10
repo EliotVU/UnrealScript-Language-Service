@@ -1,6 +1,6 @@
 import { Location, Position } from 'vscode-languageserver-types';
 
-import { Token } from 'antlr4ts/Token';
+import { Token } from 'antlr4ng';
 import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
@@ -18,99 +18,99 @@ export class UCStateSymbol extends UCStructSymbol {
 
     declare public extendsType?: UCObjectTypeSymbol;
 
-	public overriddenState?: UCStateSymbol;
-	public ignoreRefs?: UCObjectTypeSymbol[];
+    public overriddenState?: UCStateSymbol;
+    public ignoreRefs?: UCObjectTypeSymbol[];
 
-	override getTypeKind() {
-		return UCTypeKind.Object;
-	}
+    override getTypeKind() {
+        return UCTypeKind.Object;
+    }
 
     protected override getTypeHint(): string | undefined {
-		if (this.overriddenState) {
+        if (this.overriddenState) {
             return '(override)';
-		}
+        }
 
         return undefined;
     }
 
-	override getTypeKeyword(): string {
-		return 'state';
-	}
+    override getTypeKeyword(): string {
+        return 'state';
+    }
 
     public buildModifiers(modifiers = this.modifiers): string[] {
-		const text: string[] = [];
+        const text: string[] = [];
 
         // none tracked yet
 
-		return text;
-	}
+        return text;
+    }
 
-	override getTooltip(): string {
-		const text: Array<string | undefined> = [];
+    override getTooltip(): string {
+        const text: Array<string | undefined> = [];
 
         text.push(this.getTypeHint());
-		const modifiers = this.buildModifiers();
-		text.push(...modifiers);
+        const modifiers = this.buildModifiers();
+        text.push(...modifiers);
 
-		text.push(this.getTypeKeyword());
-		text.push(this.getPath());
+        text.push(this.getTypeKeyword());
+        text.push(this.getPath());
 
-		return text.filter(s => s).join(' ');
-	}
+        return text.filter(s => s).join(' ');
+    }
 
     override getDocumentation(): Token | Token[] | undefined {
-		const doc = super.getDocumentation();
-		if (doc) {
-			return doc;
-		}
+        const doc = super.getDocumentation();
+        if (doc) {
+            return doc;
+        }
 
-		if (this.overriddenState) {
-			return this.overriddenState.getDocumentation();
-		}
+        if (this.overriddenState) {
+            return this.overriddenState.getDocumentation();
+        }
 
         return undefined;
-	}
+    }
 
-	override getContainedSymbolAtPos(position: Position) {
-		if (this.ignoreRefs) {
-			const symbol = this.ignoreRefs.find(ref => !!(ref.getSymbolAtPos(position)));
-			if (symbol) {
-				return symbol;
-			}
-		}
-		return super.getContainedSymbolAtPos(position);
-	}
+    override getContainedSymbolAtPos(position: Position) {
+        if (this.ignoreRefs) {
+            const symbol = this.ignoreRefs.find(ref => !!(ref.getSymbolAtPos(position)));
+            if (symbol) {
+                return symbol;
+            }
+        }
+        return super.getContainedSymbolAtPos(position);
+    }
 
-	override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind) {
-		const symbol = super.findSuperSymbol<T>(id, kind) ?? (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
-		return symbol;
-	}
+    override findSuperSymbol<T extends UCFieldSymbol>(id: Name, kind?: UCSymbolKind) {
+        const symbol = super.findSuperSymbol<T>(id, kind) ?? (<UCStructSymbol>(this.outer)).findSuperSymbol<T>(id, kind);
+        return symbol;
+    }
 
     override findSuperSymbolPredicate<T extends UCFieldSymbol>(predicate: (symbol: UCFieldSymbol) => boolean): T | undefined {
         return this.findSymbolPredicate<T>(predicate) ?? (<UCStructSymbol>(this.outer)).findSuperSymbolPredicate<T>(predicate);
     }
 
-	override index(document: UCDocument, context: UCStructSymbol) {
+    override index(document: UCDocument, context: UCStructSymbol) {
         super.index(document, context);
 
-		if (this.ignoreRefs) for (const ref of this.ignoreRefs) {
-			const symbol = this.findSuperSymbol(ref.getName());
-			symbol && ref.setRef(symbol, document);
-		}
-	}
+        if (this.ignoreRefs) for (const ref of this.ignoreRefs) {
+            const symbol = this.findSuperSymbol(ref.getName());
+            symbol && ref.setRef(symbol, document);
+        }
+    }
 
     protected override indexSuper(document: UCDocument, context: UCStructSymbol) {
         if (context.super) {
             // Look for an overridden state, e.g. "state Pickup {}" would override "Pickup" of "Pickup.uc".
-			const symbolOverride = context.super.findSuperSymbol<UCStateSymbol>(this.getName(), UCSymbolKind.State);
-			if (symbolOverride) {
-				document.indexReference(symbolOverride, {
-					location: Location.create(document.uri, this.id.range),
+            const symbolOverride = context.super.findSuperSymbol<UCStateSymbol>(this.getName(), UCSymbolKind.State);
+            if (symbolOverride) {
+                document.indexReference(symbolOverride, {
+                    location: Location.create(document.uri, this.id.range),
                     flags: SymbolReferenceFlags.Override
-				});
-				this.overriddenState = symbolOverride;
-				this.super = symbolOverride;
-			}
+                });
+                this.overriddenState = symbolOverride;
+                this.super = symbolOverride;
+            }
 
             if (this.extendsType && this.extendsType.id.name !== this.id.name) {
                 const symbolSuper = context.findSuperSymbol<UCStateSymbol>(this.extendsType.id.name, UCSymbolKind.State);
@@ -119,10 +119,10 @@ export class UCStateSymbol extends UCStructSymbol {
                     this.super ??= symbolSuper;
                 }
             }
-		}
+        }
     }
 
-	override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
-		return visitor.visitState(this);
-	}
+    override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
+        return visitor.visitState(this);
+    }
 }

@@ -1,6 +1,4 @@
-import * as c3 from 'antlr4-c3/lib/src/CodeCompletionCore';
-import { Parser, ParserRuleContext } from 'antlr4ts';
-import { Token } from 'antlr4ts/Token';
+import { Parser, ParserRuleContext, Token } from 'antlr4ng';
 import { CompletionItem, CompletionItemKind, InsertTextFormat, InsertTextMode, SignatureHelp, SignatureInformation } from 'vscode-languageserver';
 import { DocumentUri, Position } from 'vscode-languageserver-textdocument';
 
@@ -79,6 +77,7 @@ import { toName } from './UC/name';
 import { UCGeneration } from './UC/settings';
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { UCLanguageServerSettings } from './configuration';
+import { CandidatesCollection, CodeCompletionCore } from 'antlr4-c3';
 
 /** If the candidates collector hits any these it'll stop at the first occurance. */
 const PreferredRulesSet = new Set([
@@ -166,7 +165,7 @@ export async function getCompletionItems(uri: DocumentUri, position: Position): 
     }
 
     const data = document.parse(text);
-    if (typeof data.context === 'undefined') {
+    if (data.context === null) {
         throw new Error('No parse context!');
     }
 
@@ -186,7 +185,7 @@ export async function getSignatureHelp(uri: DocumentUri, position: Position): Pr
     }
 
     const data = document.parse(text);
-    if (typeof data.context === 'undefined') {
+    if (data.context === null) {
         throw new Error('No parse context!');
     }
 
@@ -352,8 +351,8 @@ async function buildSignatureHelp(document: UCDocument, position: Position, data
         return undefined;
     }
 
-    let callExpression: ParserRuleContext | undefined = carretRuleContext;
-    while (callExpression !== undefined && !(callExpression instanceof CallExpressionContext)) {
+    let callExpression: ParserRuleContext | null = carretRuleContext;
+    while (callExpression !== null && !(callExpression instanceof CallExpressionContext)) {
         callExpression = getParentRuleByIndex(callExpression.parent, UCParser.RULE_primaryExpression);
     }
 
@@ -370,14 +369,14 @@ async function buildSignatureHelp(document: UCDocument, position: Position, data
     // TODO: could be a call to a delegate within an array?
     const signatures: SignatureInformation[] = [];
 
-    const invocationPosition = positionFromToken(callExpression.primaryExpression()._stop!);
+    const invocationPosition = positionFromToken(callExpression.primaryExpression().stop!);
 
     let activeParameter: number | undefined = undefined;
     const args = callExpression.arguments()?.children?.filter(c => c instanceof ParserRuleContext);
     if (args) {
-        const stop = callExpression.CLOSE_PARENS()!._symbol;
+        const stop = callExpression.CLOSE_PARENS()!.symbol;
         for (let i = args.length - 1; i >= 0; --i) {
-            if (intersectsWithRange(position, rangeFromBounds((args[i] as ParserRuleContext).start, stop))) {
+            if (intersectsWithRange(position, rangeFromBounds((args[i] as ParserRuleContext).start!, stop))) {
                 activeParameter = i;
                 break;
             }
@@ -558,7 +557,7 @@ async function buildCompletionItems(
         'completion::scopeRuleContext'.padEnd(42),
         getCtxDebugInfo(scopeRuleContext, data.parser));
 
-    const cc = new c3.CodeCompletionCore(data.parser);
+    const cc = new CodeCompletionCore(data.parser);
     // cc.showResult = true;
     // cc.showRuleStack = true;
     // cc.showDebugOutput = true;
@@ -566,13 +565,13 @@ async function buildCompletionItems(
     cc.ignoredTokens = currentIgnoredTokensSet;
     cc.preferredRules = PreferredRulesSet;
 
-    let candidates: c3.CandidatesCollection;
+    let candidates: CandidatesCollection;
     try {
         const timeOut = setTimeout(() => {
             throw new Error('c3 timeout');
         }, 300);
 
-        candidates = await new Promise<c3.CandidatesCollection>((resolve, reject) => {
+        candidates = await new Promise<CandidatesCollection>((resolve, reject) => {
             setImmediate(() => {
                 let candidates = cc.collectCandidates(leadingToken.tokenIndex, scopeRuleContext);
                 if (candidates.rules.size === 0 && scopeRuleContext !== carretRuleContext) {
@@ -622,7 +621,7 @@ async function buildCompletionItems(
     let carretContextSymbol: ISymbol | undefined;
     let carretSymbol: ISymbol | undefined;
 
-    let carretContextToken: Token | undefined;
+    let carretContextToken: Token | null = null;
     if (isStruct(scopeSymbol)) {
         if ((carretContextToken = backtrackFirstTokenOfType(stream, UCParser.DOT, leadingToken.tokenIndex - 1))
             && (carretContextToken = backtrackFirstToken(stream, carretContextToken.tokenIndex))) {
@@ -824,7 +823,7 @@ async function buildCompletionItems(
                                 candidates.tokens.delete(UCParser.KW_STATIC);
                                 candidates.tokens.delete(UCParser.KW_CONST);
 
-                                let precedingContextToken: Token | undefined;
+                                let precedingContextToken: Token | null;
                                 // get the first dot preceding one of the class specifier keywords
                                 if ((precedingContextToken = backtrackFirstTokenOfType(stream, UCParser.DOT, carretContextToken.tokenIndex - 1))
                                     // the actual context preceding the dot
@@ -1532,7 +1531,7 @@ async function buildCompletionItems(
     if (shouldIncludeTokenKeywords) {
         for (const [type, tokens] of candidates.tokens) {
             const name = data.parser.vocabulary.getLiteralName(type);
-            if (typeof name === 'undefined') {
+            if (name === null) {
                 continue;
             }
 

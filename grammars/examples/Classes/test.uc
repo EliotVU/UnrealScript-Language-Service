@@ -66,6 +66,8 @@ enum AEnum {
 	A_2
 };
 
+struct {QWORD} QWORD {};
+
 struct native transient AStruct {
 	struct StubStruct {
 		struct DeepStruct {

@@ -22,25 +22,31 @@ options {
     licensee: Licensee = Licensee.Epic;
 
     getIndex(): number {
-        return this._input.index;
+        return this.inputStream.index;
     }
 
-    skipLine(i = this._input.index): void {
+    skipLine(i = this.inputStream.index): void {
         let token;
         do {
-            token = this._input.get(i++);
+            token = this.inputStream.get(i++);
             // We cannot consume an EOF token.
             if (token.type === UCParser.EOF) {
                 break;
             }
             // We need to consume, incase the stream is not filled yet.
-            this._input.consume();
+            this.inputStream.consume();
         } while (token.type !== UCParser.NEWLINE)
-        this._input.seek(i);
+        this.inputStream.seek(i);
     }
 
-    isNewLine(i = this._input.index): boolean {
-        const token = this._input.get(i);
+    consumeUntil(type: number): void {
+        while (this.inputStream.LT(1).type !== type) {
+
+        }
+    }
+
+    isNewLine(i = this.inputStream.index): boolean {
+        const token = this.inputStream.get(i);
         return token.type === UCParser.NEWLINE;
     }
 
@@ -58,11 +64,12 @@ options {
 
     isBinaryOperator(): boolean {
         // FIXME: slow, we should figure a way to hash any identifier on the lexer-phase.
-        const id = this._input.LT(1).text!.toLowerCase();
+        const id = this.inputStream.LT(1).text?.toLowerCase();
         // TODO: Match to a runtime map
-        if (id === 'dot' || id === 'cross' || id === 'clockwisefrom') {
+        if (['dot', 'cross', 'clockwisefrom'].includes(id)) {
             return true;
         }
+
         return false;
     }
 }
@@ -256,7 +263,7 @@ qualifiedIdentifier: left=identifier (DOT right=identifier)?;
 
 /** `#identifier TEXT \n` */
 directive
-	: SHARP { const i = this.getIndex(); } identifier? { this.skipLine(i); }
+	: SHARP identifier { this.skipLine() }
 	;
 
 program: member* | EOF;

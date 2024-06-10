@@ -5,7 +5,8 @@
         "lib": [
             "ES2022"
         ],
-        "module": "NodeNext",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
         "plugins": [
             {
                 "name": "typescript-eslint-language-service"

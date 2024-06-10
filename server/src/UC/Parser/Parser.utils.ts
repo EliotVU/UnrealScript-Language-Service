@@ -1,49 +1,35 @@
-import { Parser, ParserRuleContext, RuleContext, Token } from 'antlr4ts';
-import { ParseTree } from 'antlr4ts/tree/ParseTree';
+import { ParseTree, Parser, ParserRuleContext, Token } from 'antlr4ng';
 import { Position } from 'vscode-languageserver-textdocument';
 import { intersectsWith, rangeFromCtx } from '../helpers';
 
-export function getTokenDebugInfo(
-    token: Token | undefined,
-    parser?: Parser
-): string {
-    if (typeof token === 'undefined') {
+// Positions are transformed to match the visual representation of a line and column,
+// -- that is to say that lines and columns start at 1.
+
+export function getTokenDebugInfo(token: Token | null, parser?: Parser): string {
+    if (token === null) {
         return 'null';
     }
-
-    const typeTree = parser
-        ? parser.vocabulary.getSymbolicName(token.type)
-        : token.type;
-
-    return `(${token.line}:${token.charPositionInLine}) [${typeTree}] ${JSON.stringify(token.text)}`;
+    const typeTree = parser ? parser.vocabulary.getSymbolicName(token.type) : token.type;
+    return `(${token.line}:${token.column + 1}) [${typeTree}] ${JSON.stringify(token.text)}`;
 }
 
-export function getCtxDebugInfo(
-    ctx: ParserRuleContext | undefined,
-    parser?: Parser
-): string {
-    if (typeof ctx === 'undefined') {
+export function getCtxDebugInfo(ctx: ParserRuleContext | null, parser?: Parser): string {
+    if (ctx === null) {
         return 'null';
     }
-
-    const typeTree = parser
-        ? parser.ruleNames[ctx.ruleIndex]
-        : ctx.ruleIndex;
-
-    return `(${ctx.start.line}:${ctx.start.charPositionInLine}) [${typeTree}]`;
+    const typeTree = parser ? parser.ruleNames[ctx.ruleIndex] : ctx.ruleIndex;
+    return `(${ctx.start!.line}:${ctx.start!.column + 1}) [${typeTree}]`;
 }
 
-export function getPositionDebugInfo(
-    position: Position
-): string {
+export function getPositionDebugInfo(position: Position): string {
     return `(${position.line + 1}:${position.character + 1})`;
 }
 
 // Can be narrowed down to a `RuleContext`
 export function getParentRuleByIndex(
-    ctx: ParserRuleContext | undefined,
+    ctx: ParserRuleContext | null,
     ruleIndex: number
-): ParserRuleContext | undefined {
+): ParserRuleContext | null {
     while (ctx && ctx.ruleIndex !== ruleIndex) {
         ctx = ctx.parent;
     }
@@ -52,9 +38,9 @@ export function getParentRuleByIndex(
 }
 
 export function getParentRuleByType(
-    ctx: ParseTree | undefined,
+    ctx: ParseTree | null,
     type: any
-): ParseTree | undefined {
+): ParseTree | null {
     while (ctx && !(ctx instanceof type)) {
         ctx = ctx.parent;
     }
@@ -65,10 +51,10 @@ export function getParentRuleByType(
 export function getIntersectingContext(
     ctx: ParserRuleContext,
     position: Position
-): ParserRuleContext | undefined {
+): ParserRuleContext | null {
     // FIXME: Intersect without any conversion
     if (!intersectsWith(rangeFromCtx(ctx), position)) {
-        return undefined;
+        return null;
     }
 
     // TODO: Perhaps binary search? Let's benchmark first to see if it matters at all.

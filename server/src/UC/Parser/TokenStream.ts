@@ -1,15 +1,15 @@
-import { ANTLRErrorListener, CommonTokenStream, Token, WritableToken } from 'antlr4ts';
+import { ANTLRErrorListener, CommonTokenStream, Token, WritableToken } from 'antlr4ng';
 
 import { UCLexer } from '../antlr/generated/UCLexer';
 import { MacroCallContext, MacroProgramContext } from '../antlr/generated/UCPreprocessorParser';
 import { UCInputStream } from './InputStream';
 
-const DEFAULT_INPUT = UCInputStream.fromString(''); 
+const DEFAULT_INPUT = UCInputStream.fromString('');
 
 export class UCTokenStream extends CommonTokenStream {
     readonly evaluatedTokens = new Map<number, WritableToken[]>();
 
-    initMacroTree(macroTree: MacroProgramContext, errListener?: ANTLRErrorListener<number>) {
+    initMacroTree(macroTree: MacroProgramContext, errListener?: ANTLRErrorListener) {
         const smNodes = macroTree.macroStatement();
         if (smNodes) {
             const rawLexer = new UCLexer(DEFAULT_INPUT);
@@ -19,7 +19,7 @@ export class UCTokenStream extends CommonTokenStream {
 
             for (const smNode of smNodes) {
                 const macroCtx = smNode.macro();
-                if (macroCtx.isActive && macroCtx instanceof MacroCallContext) {
+                if (macroCtx.isActive && macroCtx instanceof MacroCallContext && macroCtx._expr) {
                     // TODO: Cache the evaluated tokens from within the `define context itself,
                     // -- so that we don't have to repeat this step for each macro call.
                     let tokens = macroCtx.evaluatedTokens;
@@ -38,7 +38,7 @@ export class UCTokenStream extends CommonTokenStream {
 
                     if (tokens) {
                         const token = smNode.MACRO_CHAR();
-                        this.evaluatedTokens.set(token.symbol.startIndex, tokens as WritableToken[]);
+                        this.evaluatedTokens.set(token.symbol.start, tokens as WritableToken[]);
                     }
                 }
             }
@@ -55,15 +55,15 @@ export class UCTokenStream extends CommonTokenStream {
             // See if we have any evaluated tokens for this macro call.
             // if so, insert a token references to the evaluated tokens that are part of a "`define" text block.
             if (token.type === UCLexer.MACRO_CHAR) {
-                const macroTokens = this.evaluatedTokens.get(token.startIndex);
+                const macroTokens = this.evaluatedTokens.get(token.start);
                 if (macroTokens) {
                     const baseline = macroTokens[0].line;
-                    const basechar = macroTokens[0].charPositionInLine;
+                    const basechar = macroTokens[0].column;
                     for (let j = 0; j < macroTokens.length; ++j) {
                         const macroToken = macroTokens[j];
                         macroToken.tokenIndex = i + j;
                         macroToken.line = token.line + (macroToken.line - baseline);
-                        macroToken.charPositionInLine = token.charPositionInLine;//token.charPositionInLine + (macroToken.charPositionInLine - basechar);
+                        macroToken.column = token.column;//token.column + (macroToken.column - basechar);
                     }
                     this.tokens.push(...macroTokens);
                     n += macroTokens.length;
@@ -85,16 +85,16 @@ export class UCTokenStream extends CommonTokenStream {
         let comments: Token[] | undefined;
 
         let precedingLine = token.line - 1;
-        const pos = token.charPositionInLine;
+        const pos = token.column;
         let i = token.tokenIndex;
         for (; --i >= 0;) {
             token = this.get(i);
-            // Stop at the first /* */ comment 
+            // Stop at the first /* */ comment
             // only if we are not actively looking for preceding // comments
             // note that a block comment may span several lines!
             if (token.type === UCLexer.BLOCK_COMMENT
                 && typeof comments === 'undefined'
-                && token.charPositionInLine === pos) {
+                && token.column === pos) {
                 return token;
             }
 
@@ -104,7 +104,7 @@ export class UCTokenStream extends CommonTokenStream {
 
             if (token.channel === UCLexer.COMMENTS_CHANNEL) {
                 // Let's not pickup comments that start after trailing spaces, or after a preceding declaration.
-                if (token.charPositionInLine !== pos) {
+                if (token.column !== pos) {
                     break;
                 }
 

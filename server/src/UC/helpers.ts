@@ -1,4 +1,4 @@
-import { ParserRuleContext, Token, TokenStream } from 'antlr4ts';
+import { ParserRuleContext, Token, TokenStream } from 'antlr4ng';
 import { Hover, Location, MarkupKind, Position, Range } from 'vscode-languageserver';
 import { DocumentUri } from 'vscode-languageserver-textdocument';
 
@@ -13,7 +13,6 @@ import {
     getContext,
     hasModifiers,
     isArchetypeSymbol,
-    isClass,
     isField,
     isStruct,
     supportsRef,
@@ -25,11 +24,11 @@ import { getDocumentById, getDocumentByURI } from './indexer';
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 
 export function rangeAtStopFromBound(token: Token): Range {
-    const length = token.stopIndex - token.startIndex + 1;
+    const length = token.stop - token.start + 1;
     const line = token.line - 1;
     const position: Position = {
         line,
-        character: token.charPositionInLine + length
+        character: token.column + length
     };
 
     return {
@@ -39,12 +38,12 @@ export function rangeAtStopFromBound(token: Token): Range {
 }
 
 export function rangeFromBound(token: Token): Range {
-    const length = token.stopIndex - token.startIndex + 1;
+    const length = token.stop - token.start + 1;
     const line = token.line - 1;
     if (length === 0) {
         const position: Position = {
             line,
-            character: token.charPositionInLine + length
+            character: token.column + length
         };
 
         return {
@@ -54,39 +53,39 @@ export function rangeFromBound(token: Token): Range {
     }
     const start: Position = {
         line,
-        character: token.charPositionInLine
+        character: token.column
     };
     const end: Position = {
         line,
-        character: token.charPositionInLine + length
+        character: token.column + length
     };
 
     return { start, end };
 }
 
 export function rangeFromBounds(startToken: Token, stopToken: Token = startToken): Range {
-    const length = stopToken.stopIndex - stopToken.startIndex + 1;
+    const length = stopToken.stop - stopToken.start + 1;
     const start: Position = {
         line: startToken.line - 1,
-        character: startToken.charPositionInLine
+        character: startToken.column
     };
     const end: Position = {
         line: stopToken.line - 1,
-        character: stopToken.charPositionInLine + length
+        character: stopToken.column + length
     };
 
     return { start, end };
 }
 
 export function rangeFromCtx(ctx: ParserRuleContext): Range {
-    const length = ctx.stop!.stopIndex - ctx.stop!.startIndex + 1;
+    const length = ctx.stop!.stop - ctx.stop!.start + 1;
     const start = {
-        line: ctx.start.line - 1,
-        character: ctx.start.charPositionInLine
+        line: ctx.start!.line - 1,
+        character: ctx.start!.column
     };
     const end: Position = {
         line: ctx.stop!.line - 1,
-        character: ctx.stop!.charPositionInLine + length
+        character: ctx.stop!.column + length
     };
 
     return { start, end };
@@ -95,21 +94,21 @@ export function rangeFromCtx(ctx: ParserRuleContext): Range {
 export function positionFromToken(token: Token): Position {
     return {
         line: token.line - 1,
-        character: token.charPositionInLine
+        character: token.column
     };
 }
 
 export function positionFromCtxStart(ctx: ParserRuleContext): Position {
     return {
-        line: ctx.start.line - 1,
-        character: ctx.start.charPositionInLine
+        line: ctx.start!.line - 1,
+        character: ctx.start!.column
     };
 }
 
 export function positionFromCtxStop(ctx: ParserRuleContext): Position {
     return {
         line: ctx.stop!.line - 1,
-        character: ctx.stop!.charPositionInLine
+        character: ctx.stop!.column
     };
 }
 
@@ -284,27 +283,27 @@ export function getSymbolDocument(symbol: ISymbol): UCDocument | undefined {
     return document;
 }
 
-export function getCaretTokenFromStream(stream: TokenStream, caret: Position): Token | undefined {
+export function getCaretTokenFromStream(stream: TokenStream, caret: Position): Token | null {
     // ANTLR lines begin at 1
     const carretLine = caret.line + 1;
     const carretColumn = caret.character > 0 ? caret.character - 1 : 0;
     let i = 0;
-    let token: Token | undefined = undefined;
+    let token: Token | null = null;
     while (i < stream.size && (token = stream.get(i))) {
         if (carretLine === token.line
-            && token.charPositionInLine <= carretColumn
-            && token.charPositionInLine + (token.stopIndex - token.startIndex) >= carretColumn) {
+            && token.column <= carretColumn
+            && token.column + (token.stop - token.start) >= carretColumn) {
             return token;
         }
         ++i;
     }
 
-    return undefined;
+    return null;
 }
 
-export function backtrackFirstToken(stream: TokenStream, index: number): Token | undefined {
+export function backtrackFirstToken(stream: TokenStream, index: number): Token | null {
     if (index >= stream.size) {
-        return undefined;
+        return null;
     }
 
     let i = index;
@@ -317,12 +316,12 @@ export function backtrackFirstToken(stream: TokenStream, index: number): Token |
         return token;
     }
 
-    return undefined;
+    return null;
 }
 
-export function backtrackFirstTokenOfType(stream: TokenStream, type: number, index: number): Token | undefined {
+export function backtrackFirstTokenOfType(stream: TokenStream, type: number, index: number): Token | null {
     if (index >= stream.size) {
-        return undefined;
+        return null;
     }
 
     let i = index + 1;
@@ -333,13 +332,13 @@ export function backtrackFirstTokenOfType(stream: TokenStream, type: number, ind
         }
 
         if (token.type !== type) {
-            return undefined;
+            return null;
         }
 
         return token;
     }
 
-    return undefined;
+    return null;
 }
 
 export function isSymbolDefined(symbol: ISymbol): boolean {

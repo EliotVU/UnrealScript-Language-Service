@@ -1,5 +1,4 @@
-import { ParserRuleContext, Token } from 'antlr4ts';
-import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
+import { AbstractParseTreeVisitor, ParserRuleContext, Token } from 'antlr4ng';
 import { Range } from 'vscode-languageserver-types';
 
 import { UCLexer } from './antlr/generated/UCLexer';
@@ -140,8 +139,8 @@ import {
 
 function createIdentifier(ctx: ParserRuleContext) {
     const identifier: Identifier = {
-        name: toName(ctx.text),
-        range: rangeFromBound(ctx.start)
+        name: toName(ctx.getText()),
+        range: rangeFromBound(ctx.start!)
     };
 
     return identifier;
@@ -169,8 +168,8 @@ function createBlock(
         return undefined;
     }
 
-    const startToken = nodes[0].start;
-    const stopToken = nodes[nodes.length - 1].stop;
+    const startToken = nodes[0].start!;
+    const stopToken = nodes[nodes.length - 1].stop!;
     const block = new UCBlock(rangeFromBounds(startToken, stopToken));
     block.statements = new Array(nodes.length);
     for (let i = 0; i < nodes.length; ++i) {
@@ -223,7 +222,7 @@ function createObjectType(ctx: ParserRuleContext, kind?: UCSymbolKind) {
 }
 
 function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, kind?: UCSymbolKind) {
-    const leftId: Identifier = createIdentifier(ctx._left);
+    const leftId: Identifier = createIdentifier(ctx._left!);
     const leftType = new UCObjectTypeSymbol(leftId, leftId.range, kind);
 
     if (ctx._right) {
@@ -279,7 +278,7 @@ function fetchDeclarationComments(tokenStream: UCTokenStream, ctx: ParserRuleCon
         }
     }
 
-    return tokenStream.fetchHeaderComment(ctx.start);
+    return tokenStream.fetchHeaderComment(ctx.start!);
 }
 
 const TypeKeywordToTypeKindMap: { [key: number]: UCTypeKind } = {
@@ -335,7 +334,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             // TODO: mark range?
             return undefined;
         }
-        const macro = ctx._MACRO_SYMBOL;
+        const macro = ctx._MACRO_SYMBOL!;
         const identifier = createIdentifierFromToken(macro);
         // TODO: custom class
         const symbol = new UCMacroSymbol(identifier, rangeFromCtx(ctx));
@@ -358,13 +357,13 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             // TODO: Handle string type's size for analysis
             case UCGrammar.UCParser.RULE_stringType:
             case UCGrammar.UCParser.RULE_primitiveType: {
-                const tokenType = rule.start.type;
+                const tokenType = rule.start!.type;
                 const typeKind = TypeKeywordToTypeKindMap[tokenType];
                 if (typeof typeKind === 'undefined') {
-                    throw new Error(`Unknown type '${UCGrammar.UCParser.VOCABULARY.getDisplayName(tokenType)}' for predefinedType() was encountered!`);
+                    throw new Error(`Unknown type '${(UCGrammar.UCParser as any)._vocabulary.getDisplayName(tokenType)}' for predefinedType() was encountered!`);
                 }
 
-                const type = new UCTypeSymbol(typeKind, rangeFromBounds(rule.start, rule.stop));
+                const type = new UCTypeSymbol(typeKind, rangeFromBounds(rule.start!, rule.stop!));
                 return type;
             }
 
@@ -376,9 +375,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             case UCGrammar.UCParser.RULE_classType: {
                 const identifier: Identifier = {
                     name: NAME_CLASS,
-                    range: rangeFromBound(rule.start)
+                    range: rangeFromBound(rule.start!)
                 };
-                const type = new UCObjectTypeSymbol(identifier, rangeFromBounds(rule.start, rule.stop), UCSymbolKind.Class);
+                const type = new UCObjectTypeSymbol(identifier, rangeFromBounds(rule.start!, rule.stop!), UCSymbolKind.Class);
 
                 const idNode = (rule as UCGrammar.ClassTypeContext).identifier();
                 if (idNode) {
@@ -392,9 +391,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             case UCGrammar.UCParser.RULE_arrayType: {
                 const identifier: Identifier = {
                     name: NAME_ARRAY,
-                    range: rangeFromBound(rule.start)
+                    range: rangeFromBound(rule.start!)
                 };
-                const arrayType = new UCArrayTypeSymbol(identifier, rangeFromBounds(rule.start, rule.stop));
+                const arrayType = new UCArrayTypeSymbol(identifier, rangeFromBounds(rule.start!, rule.stop!));
 
                 const baseTypeNode = (rule as UCGrammar.ArrayTypeContext).varType();
                 if (baseTypeNode) {
@@ -407,9 +406,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             case UCGrammar.UCParser.RULE_delegateType: {
                 const identifier: Identifier = {
                     name: NAME_DELEGATE,
-                    range: rangeFromBound(rule.start)
+                    range: rangeFromBound(rule.start!)
                 };
-                const delegateType = new UCDelegateTypeSymbol(identifier, rangeFromBounds(rule.start, rule.stop));
+                const delegateType = new UCDelegateTypeSymbol(identifier, rangeFromBounds(rule.start!, rule.stop!));
                 delegateType.setExpectedKind(UCSymbolKind.Delegate);
 
                 const qualifiedNode = (rule as UCGrammar.DelegateTypeContext).qualifiedIdentifier();
@@ -423,9 +422,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             case UCGrammar.UCParser.RULE_mapType: {
                 const identifier: Identifier = {
                     name: NAME_MAP,
-                    range: rangeFromBound(rule.start)
+                    range: rangeFromBound(rule.start!)
                 };
-                const type = new UCMapTypeSymbol(identifier, rangeFromBounds(rule.start, rule.stop));
+                const type = new UCMapTypeSymbol(identifier, rangeFromBounds(rule.start!, rule.stop!));
                 return type;
             }
 
@@ -455,7 +454,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         const identifier: Identifier = createIdentifier(ctx.identifier());
-        const symbol = new UCInterfaceSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
+        const symbol = new UCInterfaceSymbol(identifier, rangeFromBounds(ctx.start!, ctx.stop!));
         symbol.outer = this.document.classPackage;
         this.document.class = symbol; // Important!, must be assigned before further parsing.
 
@@ -466,14 +465,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
         const extendsNode = ctx.qualifiedExtendsClause();
         if (extendsNode) {
-            symbol.extendsType = createQualifiedType(extendsNode._id, UCSymbolKind.Interface);
+            symbol.extendsType = createQualifiedType(extendsNode._id!, UCSymbolKind.Interface);
         }
 
         // Need to push before visiting modifiers.
         this.push(symbol);
         const modifierNodes = ctx.interfaceModifier();
         for (const modifierNode of modifierNodes) {
-            switch (modifierNode.start.type) {
+            switch (modifierNode.start!.type) {
                 case UCGrammar.UCParser.KW_NATIVE:
                 case UCGrammar.UCParser.KW_NATIVEONLY:
                     symbol.modifiers |= ModifierFlags.Native;
@@ -497,7 +496,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         const identifier: Identifier = createIdentifier(ctx.identifier());
-        const symbol = new UCClassSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
+        const symbol = new UCClassSymbol(identifier, rangeFromBounds(ctx.start!, ctx.stop!));
         symbol.outer = this.document.classPackage;
         this.document.class = symbol; // Important!, must be assigned before further parsing.
 
@@ -508,19 +507,19 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
         const extendsNode = ctx.qualifiedExtendsClause();
         if (extendsNode) {
-            symbol.extendsType = createQualifiedType(extendsNode._id, UCSymbolKind.Class);
+            symbol.extendsType = createQualifiedType(extendsNode._id!, UCSymbolKind.Class);
         }
 
         const withinNode = ctx.qualifiedWithinClause();
         if (withinNode) {
-            symbol.withinType = createQualifiedType(withinNode._id, UCSymbolKind.Class);
+            symbol.withinType = createQualifiedType(withinNode._id!, UCSymbolKind.Class);
         }
 
         // Need to push before visiting modifiers.
         this.push(symbol);
         const modifierNodes = ctx.classModifier();
         for (const modifierNode of modifierNodes) {
-            switch (modifierNode.start.type) {
+            switch (modifierNode.start!.type) {
                 case UCGrammar.UCParser.KW_NATIVE:
                     symbol.modifiers |= ModifierFlags.Native;
                     break;
@@ -604,7 +603,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     visitConstDecl(ctx: UCGrammar.ConstDeclContext) {
         const identifier: Identifier = createIdentifier(ctx.identifier());
-        const symbol = new UCConstSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
+        const symbol = new UCConstSymbol(identifier, rangeFromBounds(ctx.start!, ctx.stop!));
 
         // Manually inject description, because a 'const' is passed to this.declare()
         symbol.description = fetchDeclarationComments(this.tokenStream!, ctx);
@@ -622,7 +621,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     visitEnumDecl(ctx: UCGrammar.EnumDeclContext) {
         const identifier: Identifier = createIdentifier(ctx.identifier());
-        const symbol = new UCEnumSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
+        const symbol = new UCEnumSymbol(identifier, rangeFromBounds(ctx.start!, ctx.stop!));
 
         this.declare(symbol, ctx, !!this.document.class);
         this.push(symbol);
@@ -684,7 +683,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
         const modifierNodes = ctx.structModifier();
         for (const modifierNode of modifierNodes) {
-            switch (modifierNode.start.type) {
+            switch (modifierNode.start!.type) {
                 case UCGrammar.UCParser.KW_NATIVE:
                     symbol.modifiers |= ModifierFlags.Native;
                     break;
@@ -697,7 +696,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
         const extendsNode = ctx.qualifiedExtendsClause();
         if (extendsNode) {
-            symbol.extendsType = createQualifiedType(extendsNode._id, UCSymbolKind.ScriptStruct);
+            symbol.extendsType = createQualifiedType(extendsNode._id!, UCSymbolKind.ScriptStruct);
         }
 
         this.declare(symbol, ctx, !!this.document.class);
@@ -717,9 +716,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     visitReplicationBlock(ctx: UCGrammar.ReplicationBlockContext) {
         const identifier: Identifier = {
             name: NAME_REPLICATION,
-            range: rangeFromBound(ctx.start)
+            range: rangeFromBound(ctx.start!)
         };
-        const symbol = new UCReplicationBlock(identifier, rangeFromBounds(ctx.start, ctx.stop));
+        const symbol = new UCReplicationBlock(identifier, rangeFromBounds(ctx.start!, ctx.stop!));
         symbol.super = this.document.class;
         this.declare(symbol, ctx);
 
@@ -733,15 +732,15 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitFunctionDecl(ctx: UCGrammar.FunctionDeclContext) {
-        const nameNode: UCGrammar.FunctionNameContext | undefined = ctx.tryGetRuleContext(0, UCGrammar.FunctionNameContext);
+        const nameNode: UCGrammar.FunctionNameContext | null = ctx.getRuleContext<UCGrammar.FunctionNameContext, any>(0, UCGrammar.FunctionNameContext);
 
         let modifiers: ModifierFlags = 0;
         let specifiers: MethodFlags = MethodFlags.None;
-        let precedence: number | undefined;
+        let precedence: number | undefined = undefined;
 
         const specifierNodes = ctx.functionSpecifier();
         for (const specifier of specifierNodes) {
-            switch (specifier.start.type) {
+            switch (specifier.start!.type) {
                 case UCGrammar.UCParser.KW_NATIVE:
                     modifiers |= ModifierFlags.Native;
                     break;
@@ -808,21 +807,21 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                                 : UCMethodSymbol;
 
         if ((specifiers & MethodFlags.HasKind) === 0) {
-            this.document.nodes.push(new ErrorDiagnostic(rangeFromBound(ctx.start),
+            this.document.nodes.push(new ErrorDiagnostic(rangeFromBound(ctx.start!),
                 `Method must be declared as either one of the following: (Function, Event, Operator, PreOperator, PostOperator, or Delegate).`
             ));
         }
 
-        const range = rangeFromBounds(ctx.start, ctx.stop);
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
         // nameNode may be undefined if the end-user is in process of writing a new function.
         const identifier: Identifier = nameNode
             ? createIdentifier(nameNode)
-            : { name: NAME_NONE, range: rangeFromBound(ctx.start) };
+            : { name: NAME_NONE, range: rangeFromBound(ctx.start!) };
         const symbol = new type(identifier, range);
         symbol.specifiers |= specifiers;
         symbol.modifiers |= modifiers;
-        if (precedence) {
-            (symbol as UCBinaryOperatorSymbol).precedence = precedence;
+        if (symbol.isBinaryOperator()) {
+            symbol.precedence = precedence;
         }
         this.declare(symbol, ctx);
 
@@ -833,7 +832,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                     | ModifierFlags.Out
                     | ModifierFlags.Generated;
                 const modifierNode = ctx._returnParam.returnTypeModifier();
-                if (modifierNode?.start.type === UCGrammar.UCParser.KW_COERCE) {
+                if (modifierNode?.start!.type === UCGrammar.UCParser.KW_COERCE) {
                     paramModifiers |= ModifierFlags.Coerce;
                 }
 
@@ -887,7 +886,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         let modifiers: ModifierFlags = 0;
         const modifierNodes = ctx.paramModifier();
         for (const modNode of modifierNodes) {
-            switch (modNode.start.type) {
+            switch (modNode.start!.type) {
                 case UCGrammar.UCParser.KW_CONST:
                     modifiers |= ModifierFlags.ReadOnly;
                     break;
@@ -912,7 +911,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const varNode = ctx.variable();
 
         const identifier: Identifier = createIdentifier(varNode.identifier());
-        const symbol = new UCParamSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop), typeSymbol);
+        const symbol = new UCParamSymbol(identifier, rangeFromBounds(ctx.start!, ctx.stop!), typeSymbol);
         if (ctx._expr) {
             symbol.defaultExpression = ctx._expr.accept(this);
             modifiers |= ModifierFlags.Optional;
@@ -941,7 +940,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
         const intNode = arrayDimNode.INTEGER_LITERAL();
         if (intNode) {
-            property.arrayDim = Number.parseInt(intNode.text);
+            property.arrayDim = Number.parseInt(intNode.getText());
             property.arrayDimRange = rangeFromBound(intNode.symbol);
         }
     }
@@ -964,10 +963,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         let modifiers: ModifierFlags = 0;
 
         const declTypeNode: UCGrammar.VarTypeContext | undefined = ctx.varType();
-        if (typeof declTypeNode !== 'undefined') {
+        if (declTypeNode !== null) {
             const modifierNodes = declTypeNode.variableModifier();
             for (const modNode of modifierNodes) {
-                switch (modNode.start.type) {
+                switch (modNode.start!.type) {
                     case UCGrammar.UCParser.KW_CONST:
                         modifiers |= ModifierFlags.ReadOnly;
                         break;
@@ -994,9 +993,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
 
         let typeSymbol: ITypeSymbol;
-        const typeDeclCtx = declTypeNode?.tryGetRuleContext(0, UCGrammar.TypeDeclContext);
+        const typeDeclCtx = declTypeNode?.getRuleContext(0, UCGrammar.TypeDeclContext);
         // Bad grammar, fallback to an error if the parsed rule is invalid.
-        if (typeof typeDeclCtx === 'undefined') {
+        if (typeDeclCtx === null) {
             typeSymbol = new UCTypeSymbol(UCTypeKind.Error, rangeFromCtx(declTypeNode));
             this.document.nodes.push(new ErrorDiagnostic(rangeFromCtx(declTypeNode), "Mismatched type input."));
 
@@ -1024,7 +1023,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const symbol: UCPropertySymbol = new type(
             identifier,
             // Stop at varCtx instead of localCtx for multiple variable declarations.
-            rangeFromBounds(ctx.parent!.start, ctx.stop),
+            rangeFromBounds(ctx.parent!.start!, ctx.stop!),
             StaticErrorType
         );
         this.initVariable(symbol, ctx);
@@ -1033,11 +1032,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     visitStateDecl(ctx: UCGrammar.StateDeclContext) {
         const identifier: Identifier = createIdentifier(ctx.identifier());
-        const symbol = new UCStateSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
+        const symbol = new UCStateSymbol(identifier, rangeFromBounds(ctx.start!, ctx.stop!));
 
         const extendsNode = ctx.extendsClause();
         if (extendsNode) {
-            symbol.extendsType = createObjectType(extendsNode._id, UCSymbolKind.State);
+            symbol.extendsType = createObjectType(extendsNode._id!, UCSymbolKind.State);
         }
 
         this.declare(symbol, ctx);
@@ -1077,9 +1076,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     visitStructDefaultPropertiesBlock(ctx: UCGrammar.StructDefaultPropertiesBlockContext) {
         const identifier: Identifier = {
             name: NAME_STRUCTDEFAULTPROPERTIES,
-            range: rangeFromBound(ctx.start)
+            range: rangeFromBound(ctx.start!)
         };
-        const range = rangeFromBounds(ctx.start, ctx.stop);
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
         const symbol = new UCDefaultPropertiesBlock(identifier, range);
 
         this.declare(symbol, ctx);
@@ -1097,9 +1096,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     visitDefaultPropertiesBlock(ctx: UCGrammar.DefaultPropertiesBlockContext) {
         const identifier: Identifier = {
             name: NAME_DEFAULTPROPERTIES,
-            range: rangeFromBound(ctx.start)
+            range: rangeFromBound(ctx.start!)
         };
-        const range = rangeFromBounds(ctx.start, ctx.stop);
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
         const symbol = new UCDefaultPropertiesBlock(identifier, range);
 
         this.declare(symbol, ctx);
@@ -1124,15 +1123,15 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const hardcodedStatements: IExpression[] = [];
         const attrs = ctx.objectAttribute();
         if (attrs) for (const objAttr of attrs) {
-            switch (objAttr._id.type) {
+            switch (objAttr._id!.type) {
                 case UCLexer.KW_NAME: {
-                    const valueId = createIdentifier(objAttr._value);
+                    const valueId = createIdentifier(objAttr._value!);
                     nameId = valueId;
 
                     const valueExpr = new UCIdentifierLiteralExpression(valueId);
                     valueExpr.type = StaticNameType;
 
-                    const propertyId = createIdentifierFromToken(objAttr._id);
+                    const propertyId = createIdentifierFromToken(objAttr._id!);
                     const letType = new UCObjectTypeSymbol(propertyId);
 
                     const propertySymbol = OuterObjectsTable.getSymbol(Object_NamePropertyHash) ?? Object_NameProperty;
@@ -1141,7 +1140,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                     const letExpr = new UCMemberExpression(propertyId);
                     letExpr.type = letType;
 
-                    const expression = new UCObjectAttributeExpression(rangeFromBounds(ctx.start, ctx.stop));
+                    const expression = new UCObjectAttributeExpression(rangeFromBounds(ctx.start!, ctx.stop!));
                     expression.left = letExpr;
                     expression.right = valueExpr;
 
@@ -1150,13 +1149,13 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 }
 
                 case UCLexer.KW_CLASS: {
-                    const valueId = createIdentifier(objAttr._value);
+                    const valueId = createIdentifier(objAttr._value!);
                     classType = new UCObjectTypeSymbol(valueId, undefined, UCSymbolKind.Class);
 
                     const valueExpr = new UCIdentifierLiteralExpression(valueId);
                     valueExpr.type = classType;
 
-                    const propertyId = createIdentifierFromToken(objAttr._id);
+                    const propertyId = createIdentifierFromToken(objAttr._id!);
                     const letType = new UCObjectTypeSymbol(propertyId);
 
                     const propertySymbol = OuterObjectsTable.getSymbol(Object_ClassPropertyHash) ?? Object_ClassProperty;
@@ -1165,7 +1164,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                     const letExpr = new UCMemberExpression(propertyId);
                     letExpr.type = letType;
 
-                    const expression = new UCObjectAttributeExpression(rangeFromBounds(ctx.start, ctx.stop));
+                    const expression = new UCObjectAttributeExpression(rangeFromBounds(ctx.start!, ctx.stop!));
                     expression.left = letExpr;
                     expression.right = valueExpr;
 
@@ -1174,11 +1173,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 }
 
                 default:
-                    throw Error(`Invalid archetype '${objAttr._id.text}' variable!`);
+                    throw Error(`Invalid archetype '${objAttr._id!.text}' variable!`);
             }
         }
 
-        const statementRange = rangeFromBounds(ctx.start, ctx.stop);
+        const statementRange = rangeFromBounds(ctx.start!, ctx.stop!);
         const archId = nameId ?? { name: NAME_NONE, range: statementRange };
         const symbol = new UCArchetypeSymbol(archId, statementRange);
         if (classType) {
@@ -1222,12 +1221,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitDefaultConstantArgument(ctx: UCGrammar.DefaultConstantArgumentContext): IExpression | undefined {
-        const range = rangeFromBounds(ctx.start, ctx.stop);
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
         const token = ctx.start;
-        switch (token.type) {
+        switch (token!.type) {
             case UCGrammar.UCParser.DECIMAL_LITERAL:
             case UCGrammar.UCParser.INTEGER_LITERAL: {
-                const expression = new UCIntLiteral(range, ctx._start);
+                const expression = new UCIntLiteral(range, ctx.start!);
                 return expression;
             }
         }
@@ -1235,7 +1234,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitDefaultAssignmentExpression(ctx: UCGrammar.DefaultAssignmentExpressionContext) {
-        const expression = new UCDefaultAssignmentExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCDefaultAssignmentExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         const primaryNode = ctx.defaultExpression();
         expression.left = primaryNode?.accept(this);
@@ -1250,16 +1249,16 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitDefaultMemberCallExpression(ctx: UCGrammar.DefaultMemberCallExpressionContext) {
-        const expression = new UCDefaultMemberCallExpression(rangeFromBounds(ctx.start, ctx.stop));
-        expression.propertyMember = createMemberExpression(ctx.identifier(0));
-        const operationId = createIdentifier(ctx.identifier(1));
+        const expression = new UCDefaultMemberCallExpression(rangeFromBounds(ctx.start!, ctx.stop!));
+        expression.propertyMember = createMemberExpression(ctx.identifier(0)!);
+        const operationId = createIdentifier(ctx.identifier(1)!);
         expression.operationMember = new UCObjectTypeSymbol(operationId);
         expression.arguments = ctx.defaultArguments()?.accept(this);
         return expression;
     }
 
     visitDefaultElementAccessExpression(ctx: UCGrammar.DefaultElementAccessExpressionContext) {
-        const expression = new UCDefaultElementAccessExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCDefaultElementAccessExpression(rangeFromBounds(ctx.start!, ctx.stop!));
         const idNode = ctx.identifier();
         if (idNode) {
             expression.expression = createMemberExpression(idNode);
@@ -1270,10 +1269,10 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     visitStatement(ctx: UCGrammar.StatementContext) {
         const child = ctx.getChild(0)!;
-        console.assert(typeof child !== 'undefined');
+        console.assert(child !== null);
         const stm = child.accept<IStatement>(this);
-        console.assert(typeof stm !== 'undefined');
-        console.assert(isStatement(stm), `Statement is invalid: ${getCtxDebugInfo(ctx)}`);
+        console.assert(stm !== null);
+        console.assert(isStatement(stm!), `Statement is invalid: ${getCtxDebugInfo(ctx)}`);
         return stm;
     }
 
@@ -1285,7 +1284,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     // For the time being we don't want to run into analysis errors, so we transform directives into pseudo object symbols.
     visitDirective(ctx: UCGrammar.DirectiveContext) {
         const id = ctx.identifier();
-        if (typeof id === 'undefined') {
+        if (id === null) {
             return undefined;
         }
 
@@ -1321,7 +1320,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitLabeledStatement(ctx: UCGrammar.LabeledStatementContext): UCLabeledStatement {
-        const statement = new UCLabeledStatement(rangeFromBounds(ctx.start, ctx.stop));
+        const statement = new UCLabeledStatement(rangeFromBounds(ctx.start!, ctx.stop!));
         const idNode = ctx.identifier();
         statement.label = createIdentifier(idNode);
         const struct = this.scope<UCStructSymbol>();
@@ -1330,7 +1329,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitReturnStatement(ctx: UCGrammar.ReturnStatementContext): IStatement {
-        const statement = new UCReturnStatement(rangeFromBounds(ctx.start, ctx.stop));
+        const statement = new UCReturnStatement(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
             statement.expression = ctx._expr.accept(this);
@@ -1339,7 +1338,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitGotoStatement(ctx: UCGrammar.GotoStatementContext): IStatement {
-        const statement = new UCGotoStatement(rangeFromBounds(ctx.start, ctx.stop));
+        const statement = new UCGotoStatement(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
             statement.expression = ctx._expr.accept(this);
@@ -1348,7 +1347,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitReplicationStatement(ctx: UCGrammar.ReplicationStatementContext): UCIfStatement {
-        const statement = new UCRepIfStatement(rangeFromBounds(ctx.start, ctx.stop));
+        const statement = new UCRepIfStatement(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
             statement.expression = ctx._expr.accept(this);
@@ -1366,7 +1365,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitWhileStatement(ctx: UCGrammar.WhileStatementContext): UCWhileStatement {
-        const statement = new UCWhileStatement(rangeFromBounds(ctx.start, ctx.stop));
+        const statement = new UCWhileStatement(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
             statement.expression = ctx._expr.accept(this);
@@ -1378,7 +1377,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitIfStatement(ctx: UCGrammar.IfStatementContext): UCIfStatement {
-        const statement = new UCIfStatement(rangeFromBounds(ctx.start, ctx.stop));
+        const statement = new UCIfStatement(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
             statement.expression = ctx._expr.accept(this);
@@ -1400,7 +1399,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitDoStatement(ctx: UCGrammar.DoStatementContext): UCDoUntilStatement {
-        const statement = new UCDoUntilStatement(rangeFromBounds(ctx.start, ctx.stop));
+        const statement = new UCDoUntilStatement(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
             statement.expression = ctx._expr.accept(this);
@@ -1412,7 +1411,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitForeachStatement(ctx: UCGrammar.ForeachStatementContext): UCForEachStatement {
-        const statement = new UCForEachStatement(rangeFromBounds(ctx.start, ctx.stop));
+        const statement = new UCForEachStatement(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
             statement.expression = ctx._expr.accept(this);
@@ -1424,7 +1423,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitForStatement(ctx: UCGrammar.ForStatementContext): UCForStatement {
-        const statement = new UCForStatement(rangeFromBounds(ctx.start, ctx.stop));
+        const statement = new UCForStatement(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._initExpr) {
             statement.init = ctx._initExpr.accept(this);
@@ -1446,7 +1445,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitSwitchStatement(ctx: UCGrammar.SwitchStatementContext): IStatement {
-        const range = rangeFromBounds(ctx.start, ctx.stop);
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
         const statement = new UCSwitchStatement(range);
 
         if (ctx._expr) {
@@ -1465,7 +1464,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitCaseClause(ctx: UCGrammar.CaseClauseContext): IStatement {
-        const statement = new UCCaseClause(rangeFromBounds(ctx.start, ctx.stop));
+        const statement = new UCCaseClause(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
             statement.expression = ctx._expr.accept(this);
@@ -1475,13 +1474,13 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitDefaultClause(ctx: UCGrammar.DefaultClauseContext) {
-        const statement = new UCDefaultClause(rangeFromBounds(ctx.start, ctx.stop));
+        const statement = new UCDefaultClause(rangeFromBounds(ctx.start!, ctx.stop!));
         statement.then = createBlock(this, ctx.statement());
         return statement;
     }
 
     visitAssertStatement(ctx: UCGrammar.AssertStatementContext): IStatement {
-        const statement = new UCAssertStatement(rangeFromBounds(ctx.start, ctx.stop));
+        const statement = new UCAssertStatement(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
             statement.expression = ctx._expr.accept(this);
@@ -1490,9 +1489,9 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitAssignmentExpression(ctx: UCGrammar.AssignmentExpressionContext | UCGrammar.AssignmentOperatorExpressionContext) {
-        const expression = new UCAssignmentOperatorExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCAssignmentOperatorExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
-        const operatorNode = ctx._id;
+        const operatorNode = ctx._id!;
         const identifier: Identifier = {
             name: toName(operatorNode.text!),
             range: rangeFromBound(operatorNode)
@@ -1502,7 +1501,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             expression.operator = new UCObjectTypeSymbol(identifier);
         }
 
-        const primaryNode = ctx._left;
+        const primaryNode = ctx._left!;
         expression.left = primaryNode.accept(this);
 
         const exprNode = ctx._right;
@@ -1520,7 +1519,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitConditionalExpression(ctx: UCGrammar.ConditionalExpressionContext) {
-        const expression = new UCConditionalExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCConditionalExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         const conditionNode = ctx._cond;
         if (conditionNode) {
@@ -1540,14 +1539,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitBinaryOperatorExpression(ctx: UCGrammar.BinaryOperatorExpressionContext) {
-        const expression = new UCBinaryOperatorExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCBinaryOperatorExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         const leftNode = ctx._left;
         if (leftNode) {
             expression.left = leftNode.accept(this);
         }
 
-        const operatorNode = ctx._id;
+        const operatorNode = ctx._id!;
         const identifier: Identifier = {
             name: toName(operatorNode.text!),
             range: rangeFromBound(operatorNode)
@@ -1564,14 +1563,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitBinaryNamedOperatorExpression(ctx: UCGrammar.BinaryNamedOperatorExpressionContext) {
-        const expression = new UCBinaryOperatorExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCBinaryOperatorExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         const leftNode = ctx._left;
         if (leftNode) {
             expression.left = leftNode.accept(this);
         }
 
-        const operatorNode = ctx._id;
+        const operatorNode = ctx._id!;
         const identifier = createIdentifier(operatorNode);
         expression.operator = new UCObjectTypeSymbol(identifier);
 
@@ -1585,12 +1584,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitPostOperatorExpression(ctx: UCGrammar.PostOperatorExpressionContext) {
-        const expression = new UCPostOperatorExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCPostOperatorExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
-        const primaryNode = ctx._left;
+        const primaryNode = ctx._left!;
         expression.expression = primaryNode.accept(this);
 
-        const operatorNode = ctx._id;
+        const operatorNode = ctx._id!;
         const identifier: Identifier = {
             name: toName(operatorNode.text!),
             range: rangeFromBound(operatorNode)
@@ -1600,12 +1599,12 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitPreOperatorExpression(ctx: UCGrammar.PreOperatorExpressionContext) {
-        const expression = new UCPreOperatorExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCPreOperatorExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
-        const primaryNode = ctx._right;
+        const primaryNode = ctx._right!;
         expression.expression = primaryNode.accept(this);
 
-        const operatorNode = ctx._id;
+        const operatorNode = ctx._id!;
         const identifier: Identifier = {
             name: toName(operatorNode.text!),
             range: rangeFromBound(operatorNode)
@@ -1637,16 +1636,16 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     // }
 
     visitParenthesizedExpression(ctx: UCGrammar.ParenthesizedExpressionContext) {
-        const expression = new UCParenthesizedExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCParenthesizedExpression(rangeFromBounds(ctx.start!, ctx.stop!));
         expression.expression = ctx._expr?.accept<IExpression>(this);
         return expression;
     }
 
     visitPropertyAccessExpression(ctx: UCGrammar.PropertyAccessExpressionContext) {
-        const expression = new UCPropertyAccessExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCPropertyAccessExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         const primaryNode = ctx.primaryExpression();
-        expression.left = primaryNode.accept<IExpression>(this);
+        expression.left = primaryNode.accept<IExpression>(this)!;
 
         const idNode = ctx.identifier();
         if (idNode) {
@@ -1656,14 +1655,15 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 `Identifier expected.`
             ));
         }
+
         return expression;
     }
 
     visitPropertyClassAccessExpression(ctx: UCGrammar.PropertyClassAccessExpressionContext) {
-        const expression = new UCPropertyClassAccessExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCPropertyClassAccessExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         const primaryNode = ctx.primaryExpression();
-        expression.left = primaryNode.accept<IExpression>(this);
+        expression.left = primaryNode.accept<IExpression>(this)!;
 
         const idNode = ctx.identifier();
         if (idNode) {
@@ -1673,6 +1673,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 `Identifier expected.`
             ));
         }
+
         return expression;
     }
 
@@ -1681,7 +1682,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitCallExpression(ctx: UCGrammar.CallExpressionContext) {
-        const expression = new UCCallExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCCallExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         // expr ( arguments )
         const exprNode = ctx.primaryExpression();
@@ -1707,7 +1708,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitEmptyArgument(ctx: UCGrammar.EmptyArgumentContext): IExpression {
-        return new UCEmptyArgument(rangeFromBounds(ctx.start, ctx.stop));
+        return new UCEmptyArgument(rangeFromBounds(ctx.start!, ctx.stop!));
     }
 
     visitDefaultArguments(ctx: UCGrammar.DefaultArgumentsContext): IExpression[] | undefined {
@@ -1721,7 +1722,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             const argNode = argumentNodes[i];
             const expr = argNode.accept(this);
             if (!expr) {
-                exprArgs[i] = new UCEmptyArgument(rangeFromBounds(argNode.start, argNode.stop));
+                exprArgs[i] = new UCEmptyArgument(rangeFromBounds(argNode.start!, argNode.stop!));
                 continue;
             }
             exprArgs[i] = expr;
@@ -1736,7 +1737,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     // primaryExpression [ expression ]
     visitElementAccessExpression(ctx: UCGrammar.ElementAccessExpressionContext) {
-        const expression = new UCElementAccessExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCElementAccessExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         const primaryNode = ctx.primaryExpression();
         expression.expression = primaryNode.accept(this);
@@ -1746,7 +1747,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
     // new ( arguments ) expression=primaryExpression
     visitNewExpression(ctx: UCGrammar.NewExpressionContext) {
-        const expression = new UCNewExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCNewExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         const exprArgumentNodes = ctx.arguments();
         if (exprArgumentNodes) {
@@ -1758,18 +1759,18 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             (expression.arguments || (expression.arguments = [])).push(templateExpr);
         }
 
-        expression.expression = ctx._expr.accept(this);
+        expression.expression = ctx._expr!.accept(this);
 
         return expression;
     }
 
     visitMetaClassExpression(ctx: UCGrammar.MetaClassExpressionContext) {
-        const expression = new UCMetaClassExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCMetaClassExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         const classIdNode = ctx.identifier();
         if (classIdNode) {
             const classReferenceType = new UCObjectTypeSymbol<UCObjectTypeSymbol>(
-                createIdentifierFromToken(ctx.KW_CLASS()._symbol),
+                createIdentifierFromToken(ctx.KW_CLASS().symbol),
                 undefined,
                 UCSymbolKind.Class
             );
@@ -1785,7 +1786,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitSuperExpression(ctx: UCGrammar.SuperExpressionContext) {
-        const range = rangeFromBounds(ctx.start, ctx.stop);
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
         const expression = new UCSuperExpression(range);
 
         const superIdNode = ctx.identifier();
@@ -1817,7 +1818,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitSizeOfToken(ctx: UCGrammar.SizeOfTokenContext) {
-        const range = rangeFromBounds(ctx.start, ctx.stop);
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
         const expression = new UCSizeOfLiteral(range);
 
         const idNode = ctx.identifier();
@@ -1830,44 +1831,44 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitArrayCountExpression(ctx: UCGrammar.ArrayCountExpressionContext) {
-        const expression = new UCArrayCountExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCArrayCountExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
-            expression.argument = ctx._expr.accept<IExpression>(this);
+            expression.argument = ctx._expr.accept<IExpression>(this)!;
         }
         return expression;
     }
 
     visitArrayCountToken(ctx: UCGrammar.ArrayCountTokenContext) {
-        const expression = new UCArrayCountExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCArrayCountExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
-            expression.argument = ctx._expr.accept<IExpression>(this);
+            expression.argument = ctx._expr.accept<IExpression>(this)!;
         }
         return expression;
     }
 
     visitNameOfToken(ctx: UCGrammar.NameOfTokenContext) {
-        const expression = new UCNameOfExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCNameOfExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
-            expression.argument = ctx._expr.accept<IExpression>(this);
+            expression.argument = ctx._expr.accept<IExpression>(this)!;
         }
         return expression;
     }
 
     visitNameOfExpression(ctx: UCGrammar.NameOfExpressionContext) {
-        const expression = new UCNameOfExpression(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCNameOfExpression(rangeFromBounds(ctx.start!, ctx.stop!));
 
         if (ctx._expr) {
-            expression.argument = ctx._expr.accept<IExpression>(this);
+            expression.argument = ctx._expr.accept<IExpression>(this)!;
         }
         return expression;
     }
 
     visitLiteral(ctx: UCGrammar.LiteralContext) {
-        const range = rangeFromBounds(ctx.start, ctx.stop);
-        const token = ctx.start;
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
+        const token = ctx.start!;
         switch (token.type) {
             case UCGrammar.UCParser.NONE_LITERAL:
                 return new UCNoneLiteral(range);
@@ -1895,29 +1896,25 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             }
 
             default:
-                throw new Error(`Unsupported literal type '${UCGrammar.UCParser.VOCABULARY.getDisplayName(token.type)}'`);
+                throw new Error(`Unsupported literal type '${(UCGrammar.UCParser as any)._VOCABULARY.getDisplayName(token.type)}'`);
         }
     }
 
     visitSignedNumericLiteral(ctx: UCGrammar.SignedNumericLiteralContext) {
-        const range = rangeFromBounds(ctx.start, ctx.stop);
-        let expression: UCFloatLiteral | UCIntLiteral;
-        const txt = ctx.text;
-        if (txt.includes('.')) {
-            expression = new UCFloatLiteral(range, ctx.start);
-        } else {
-            expression = new UCIntLiteral(range, ctx.start);
-        }
-        return expression;
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
+        const txt = ctx.getText();
+        return txt.includes('.')
+            ? new UCFloatLiteral(range, ctx.start!)
+            : new UCIntLiteral(range, ctx.start!);
     }
 
     visitObjectLiteral(ctx: UCGrammar.ObjectLiteralContext) {
-        const expression = new UCObjectLiteral(rangeFromBounds(ctx.start, ctx.stop));
+        const expression = new UCObjectLiteral(rangeFromBounds(ctx.start!, ctx.stop!));
 
         const objectIdNode = ctx._path;
-        const startLine = objectIdNode.line - 1;
-        let startChar = objectIdNode.charPositionInLine + 1;
-        const identifiers: Identifier[] = objectIdNode.text!
+        const startLine = objectIdNode!.line - 1;
+        let startChar = objectIdNode!.column + 1;
+        const identifiers: Identifier[] = objectIdNode!.text!
             .replace(/'|\s/g, "")
             .split('.')
             .map(txt => {
@@ -1938,7 +1935,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 return identifier;
             });
 
-        const classReferenceType = new UCObjectTypeSymbol<UCQualifiedTypeSymbol | UCObjectTypeSymbol>(createIdentifier(ctx._classRef), undefined, UCSymbolKind.Class);
+        const classReferenceType = new UCObjectTypeSymbol<UCQualifiedTypeSymbol | UCObjectTypeSymbol>(createIdentifier(ctx._classRef!), undefined, UCSymbolKind.Class);
         classReferenceType.baseType = createTypeFromIdentifiers(identifiers);
         expression.classRef = classReferenceType;
 
@@ -1946,25 +1943,25 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitVectToken(ctx: UCGrammar.VectTokenContext) {
-        const range = rangeFromBounds(ctx.start, ctx.stop);
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
         const expression = new UCVectLiteral(range);
         return expression;
     }
 
     visitRotToken(ctx: UCGrammar.RotTokenContext) {
-        const range = rangeFromBounds(ctx.start, ctx.stop);
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
         const expression = new UCRotLiteral(range);
         return expression;
     }
 
     visitRngToken(ctx: UCGrammar.RngTokenContext) {
-        const range = rangeFromBounds(ctx.start, ctx.stop);
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
         const expression = new UCRngLiteral(range);
         return expression;
     }
 
     visitDefaultStructLiteral(ctx: UCGrammar.DefaultStructLiteralContext) {
-        const range = rangeFromBounds(ctx.start, ctx.stop);
+        const range = rangeFromBounds(ctx.start!, ctx.stop!);
         const expression = new UCDefaultStructLiteral(range);
 
         // FIXME: Assign structType

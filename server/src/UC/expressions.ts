@@ -1,6 +1,6 @@
 import { Position, Range } from 'vscode-languageserver';
 
-import { Token } from 'antlr4ts/Token';
+import { Token } from 'antlr4ng';
 import {
     CORE_PACKAGE,
     CastTypeSymbolMap,
@@ -11,7 +11,6 @@ import {
     ITypeSymbol,
     IWithInnerSymbols,
     Identifier,
-    IntrinsicClass,
     IntrinsicNewConstructor,
     IntrinsicObject,
     IntrinsicRngLiteral,
@@ -76,7 +75,7 @@ import {
 import { UCDocument } from './document';
 import { intersectsWith } from './helpers';
 import { config, getConstSymbol, getEnumMember } from './indexer';
-import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_SPAWN, NAME_STRUCT, NAME_VECTOR } from './names';
+import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_STRUCT, NAME_VECTOR } from './names';
 import { SymbolWalker } from './symbolWalker';
 
 export interface IExpression extends INode, IWithInnerSymbols {
@@ -162,7 +161,7 @@ export abstract class UCExpression implements IExpression {
 export class UCParenthesizedExpression implements IExpression {
     readonly kind = UCNodeKind.Expression;
 
-    public expression?: IExpression;
+    public expression?: IExpression | null;
 
     constructor(readonly range: Range) {
     }

@@ -1,4 +1,4 @@
-import { ANTLRErrorListener, RecognitionException, Recognizer, Token } from 'antlr4ts';
+import { ANTLRErrorListener, RecognitionException, Recognizer, Token } from 'antlr4ng';
 import { expect } from 'chai';
 import * as fs from 'fs';
 import * as path from 'path';

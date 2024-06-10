@@ -1,14 +1,13 @@
-import { CharStreams, CodePointCharStream } from 'antlr4ts';
+import { CharStream, CharStreamImpl } from 'antlr4ng';
 
-export class UCInputStream extends CodePointCharStream {
+export class UCInputStream extends CharStreamImpl {
     static fromString(text: string): UCInputStream {
-        const stream = CharStreams.fromString(text);
+        const stream = CharStream.fromString(text) as CharStreamImpl;
         Object.setPrototypeOf(stream, UCInputStream.prototype);
         return stream;
     }
 
-	override LA(i: number): number {
-		const c = super.LA(i);
-        return c | (Number(c >= 65 && c <= 90) << 5);
-	}
+    override LA(i: number): number {
+        return (i = super.LA(i)) | (Number(i >= 65 && i <= 90) << 5);
+    }
 }

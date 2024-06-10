@@ -18,7 +18,8 @@
 		"node": "*"
 	},
 	"dependencies": {
-		"antlr4-c3": "3.1.1",
+		"antlr4-c3": "3.4.1",
+		"antlr4ng": "^3.0.4",
 		"glob": "^10.4.1",
 		"rxjs": "^7.8.1",
 		"vscode-languageserver": "^9.0.1",

@@ -90,7 +90,7 @@ import {
 import { UnrealPackage } from './UPK/UnrealPackage';
 import { getFiles, isDocumentFileName } from './workspace';
 import { getWorkspaceSymbols } from './workspaceSymbol';
-import { CommandIdentifier, executeCommand, getCommand, getCommands } from 'commands';
+import { executeCommand, getCommand, getCommands } from 'commands';
 
 /**
  * Emits true when the workspace is prepared and ready for indexing.

@@ -1,4 +1,4 @@
-import { Token } from 'antlr4ts';
+import { Token } from 'antlr4ng';
 import { Position, Range } from 'vscode-languageserver-types';
 
 import { UCDocument } from '../document';
@@ -43,7 +43,7 @@ export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols {
 
     // TODO: Clarify id
     constructor(
-        readonly id: Identifier, 
+        readonly id: Identifier,
         readonly range: Range) {
 
     }
@@ -84,15 +84,15 @@ export abstract class UCObjectSymbol implements ISymbol, IWithInnerSymbols {
             if (intersectsWithRange(position, symbol.id.range)) {
                 return symbol;
             }
-    
+
             const innerSymbol = symbol.getContainedSymbolAtPos(position);
             if (typeof innerSymbol === 'undefined' && intersectsWithRange(position, symbol.id.range)) {
                 return symbol;
             }
-    
+
             return innerSymbol;
         }
-        
+
         return undefined;
     }
 

@@ -1,10 +1,10 @@
 import { Location, Position } from 'vscode-languageserver-types';
 
-import { Token } from 'antlr4ts/Token';
+import { Token } from 'antlr4ng';
 import { UCDocument } from '../document';
 import { config } from '../indexer';
 import { Name } from '../name';
-import { NAME_ACTOR, NAME_CREATEDATAOBJECT, NAME_ENGINE, NAME_LOADDATAOBJECT, NAME_SPAWN } from '../names';
+import { NAME_CREATEDATAOBJECT, NAME_LOADDATAOBJECT, NAME_SPAWN } from '../names';
 import { UCGeneration } from '../settings';
 import { SymbolWalker } from '../symbolWalker';
 import {

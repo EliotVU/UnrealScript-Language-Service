@@ -1,6 +1,6 @@
 import { expect } from 'chai';
+import * as path from 'path';
 import { URI } from 'vscode-uri';
-import path = require('path');
 
 import { getFiles, isDocumentFileName, isPackageFileName, readTextByURI } from './workspace';
 

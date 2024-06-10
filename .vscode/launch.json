@@ -55,7 +55,7 @@
         {
             "name": "Antlr UC Test",
             "debugServer": 6020,
-            "input": "${workspaceFolder}/grammars/examples/classes/FunctionCallTest.uc",
+            "input": "${workspaceFolder}/grammars/examples/classes/test.uc",
             "grammar": "grammars/UCParser.g4",
             "startRule": "program",
             "trace": true,

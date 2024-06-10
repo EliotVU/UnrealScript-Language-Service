@@ -45,12 +45,6 @@ const GRAMMAR_TASK = (() => {
             console.error(stderr);
             done();
         });
-
-        exec('npm run compile:preprocessor', (err, stdout, stderr) => {
-            console.log(stdout);
-            console.error(stderr);
-            done();
-        });
     });
 
     if (process.env.NODE_ENV === 'development') {
