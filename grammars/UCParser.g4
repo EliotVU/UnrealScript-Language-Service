@@ -888,8 +888,11 @@ breakStatement: 'break' SEMICOLON;
 continueStatement: 'continue' SEMICOLON;
 stopStatement: 'stop' SEMICOLON;
 labeledStatement: identifier COLON;
+// expr is not optional, but we need to ensure we match this statement for every 'goto' identifier.
+// expr=identifier? if generation pre-UC3.
 gotoStatement: 'goto' expr=expression? SEMICOLON;
-assertStatement: 'assert' (OPEN_PARENS expr=expression? CLOSE_PARENS) SEMICOLON;
+// expr is not optional, but we need to ensure we match this statement for every 'assert' identifier.
+assertStatement: 'assert' expr=expression? SEMICOLON;
 
 // All valid operator names (for declarations)
 operatorName
