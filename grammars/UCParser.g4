@@ -1111,7 +1111,11 @@ defaultConstantArgument
 	;
 
 defaultAssignmentExpression
-	: defaultExpression ASSIGNMENT ((OPEN_BRACE defaultValue? CLOSE_BRACE) | defaultValue)
+	: defaultExpression ASSIGNMENT
+        (
+            ({ this.generation === 3 }? (OPEN_BRACE defaultValue? CLOSE_BRACE))
+            | defaultValue
+        )
 	;
 
 defaultMemberCallExpression
