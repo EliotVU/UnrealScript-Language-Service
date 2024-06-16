@@ -753,7 +753,7 @@ functionSpecifier
 functionName: identifier | operatorName;
 
 parameters: paramDecl (COMMA paramDecl)*;
-paramDecl: paramModifier* typeDecl variable (ASSIGNMENT expr=expression)?;
+paramDecl: paramModifier* typeDecl variable ({ this.generation === 3 }? ASSIGNMENT expr=expression)?;
 
 returnTypeModifier
 	: 'coerce' // UC3+
