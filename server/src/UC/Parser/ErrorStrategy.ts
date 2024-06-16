@@ -33,6 +33,24 @@ export class UCErrorStrategy extends DefaultErrorStrategy {
 
             const node = recognizer.createTerminalNode(recognizer.context, token);
             recognizer.context.addChild(node);
+        } else if (e.expectedTokens.contains(UCParser.OPEN_BRACE)) {
+            const token = this.constructToken(
+                recognizer.inputStream.tokenSource,
+                UCParser.OPEN_BRACE, '{',
+                recognizer.currentToken,
+            );
+
+            const node = recognizer.createTerminalNode(recognizer.context, token);
+            recognizer.context.addChild(node);
+        } else if (e.expectedTokens.contains(UCParser.CLOSE_BRACE)) {
+            const token = this.constructToken(
+                recognizer.inputStream.tokenSource,
+                UCParser.CLOSE_BRACE, '}',
+                recognizer.currentToken,
+            );
+
+            const node = recognizer.createTerminalNode(recognizer.context, token);
+            recognizer.context.addChild(node);
         }
         // else if (e.expectedTokens.contains(UCParser.OPEN_PARENS)) {
         //     const openToken = this.constructToken(
