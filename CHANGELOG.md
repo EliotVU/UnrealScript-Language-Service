@@ -1,5 +1,16 @@
 # UnrealScript Language Service
 
+## 0.8.1 (Juni 16, 2024)
+
+- (check types) Fixed false-positive `Type 'Object' and 'None' are incompatible with operator '!='`
+this occurred due a false 'same-cost' operator match for `Interface` types; furthermore supported type checking for `Interface` types.
+- (check types) Fixed false-positive `Type 'Struct' and 'Struct' are incompatible with operator '=='` this occurred when comparing structs that have no overloaded '=='
+- Fixed minor issues with completion suggestions, e.g. when writing `begin object name=<carret>` etc.
+- Fixed minor syntax highlighting issues, and added unit tests.
+- Fixed error popup 'names cannot be falsy' when writing multiple variables.
+- Fixed parenthesis `()` are no longer required for an `assert` statement.
+- Restricted grammar parsing of multiline assignments and parameter assignments to UE3 (set `generation` to 3 to enable)
+
 ## 0.8.0 (Juni 7, 2024)
 
 - Improvements made to type checking
@@ -19,7 +30,7 @@
   - Report if a deprecated `field` is referenced.
   - Report if an operator cannot be found.
   - (check types) Report if the operator is found, but no overload can be matched.
-  - Report if a class type cannot be cast or assigned to an unrelated class type, also report if the cast is redundant.
+  - (check types) Report if a class type cannot be cast or assigned to an unrelated class type, also report if the cast is redundant.
 - Quality of Life
   - General improvements made to parsing and indexing as to better align with the UnrealScript compiler's way of things.
   - If a `.uc` document has no `classes` in its path, then the containing directory's name will be used instead to represent the package name.
