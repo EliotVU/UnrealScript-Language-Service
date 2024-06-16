@@ -81,7 +81,8 @@ import {
     UCStructSymbol,
     areIdentityMatch,
     tryFindClassSymbol,
-    tryFindSymbolInPackage
+    tryFindSymbolInPackage,
+    UCInterfaceSymbol
 } from './';
 
 export const enum UCNodeKind {
@@ -678,6 +679,8 @@ const T = 0x04;
 const S = 0x08;
 /** Conversion can be performed automatically in a T3D context */
 const D = 0x10;
+/** Conversion requires zero conversion, for instance 'Object' to 'None' */
+const Z = 0x20;
 const ConversionMask = ~D;
 
 /**
@@ -700,10 +703,10 @@ const TypeConversionFlagsTable: Readonly<{ [key: number]: number[] }> = [
 /* Int      */[N,       N,          Y | E,      Y | E,      N,          Y,          Y | E | T,  N,          N,      N,          N,          N,      N,      N,      N,          Y,          N,      N,      N],
 /* Bool     */[N,       N,          Y,          N,          Y | D,      N,          Y,          Y,          Y,      N,          Y,          N,      N,      Y,      Y,          Y,          N,      N,      N],
 /* Float    */[N,       N,          Y | E | S,  N,          Y | E | S,  Y,          N,          N,          N,      N,          N,          N,      N,      N,      N,          Y,          N,      N,      S],
-/* Object   */[N,       Y | E,      N,          Y | E,      N,          N,          N,          N,          N,      N,          E,          N,      N,      N,      N,          N,          N,      N,      N],
-/* Name     */[N,       Y | E,      N,          N,          N,          D,          N,          N,          N,      N,          N,          N,      N,      N,      N,          Y | D,      N,      N,      N],
-/* Delegate */[N,       Y | E,      N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
-/* Interface*/[N,       Y | E,      N,          N,          N,          N,          N,          Y | E,      N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Object   */[N,       Y | Z,      N,          Y | E,      N,          N,          N,          N,          N,      N,          E,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Name     */[N,       Y | Z,      N,          N,          N,          D,          N,          N,          N,      N,          N,          N,      N,      N,      N,          Y | D,      N,      N,      N],
+/* Delegate */[N,       Y | Z,      N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Interface*/[N,       Y | Z,      N,          N,          N,          N,          N,          Y | E,      N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 /* Range    */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 /* Struct   */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 /* Vector   */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      Y,          Y,          N,      N,      N],
@@ -756,7 +759,9 @@ export function getConversionCost(
     // - ArrayDimension mismatch
     // - If both types are an enum, they must be the same enum
     if (inputTypeKind === destTypeKind) {
-        if (inputTypeKind === UCTypeKind.Object || inputTypeKind === UCTypeKind.Struct) {
+        if (inputTypeKind === UCTypeKind.Object ||
+            inputTypeKind === UCTypeKind.Interface ||
+            inputTypeKind === UCTypeKind.Struct) {
             let inputStruct = inputType.getRef<UCStructSymbol>();
             if (!inputStruct) {
                 return UCConversionCost.Illegal;
@@ -786,6 +791,35 @@ export function getConversionCost(
         return UCConversionCost.Zero;
     }
 
+    if (inputTypeKind === UCTypeKind.Object &&
+        destTypeKind === UCTypeKind.Interface) {
+        let inputClass = inputType.getRef<UCClassSymbol>();
+        if (!inputClass || !isClassSymbol(inputClass)) {
+            return UCConversionCost.Illegal;
+        }
+
+        const destInterface = destType.getRef<UCInterfaceSymbol>();
+        if (!destInterface || !isInterfaceSymbol(inputClass)) {
+            return UCConversionCost.Illegal;
+        }
+
+        let depth = 1;
+        for (; inputClass; inputClass = inputClass.super, ++depth) {
+            if (!inputClass.implementsTypes?.some(type => {
+                return type.getRef() && areDescendants(destInterface, type.getRef()!);
+            })) {
+                break;
+            }
+        }
+
+        // Incompatible, class does not implement the interface.
+        if (depth === 1) {
+            return UCConversionCost.Illegal;
+        }
+
+        return depth as UCConversionCost;
+    }
+
     const flags = getTypeConversionFlags(inputTypeKind, destTypeKind);
     if ((flags & ConversionMask) === N) {
         return UCConversionCost.Illegal;
@@ -801,6 +835,10 @@ export function getConversionCost(
 
     if (flags & E) {
         return UCConversionCost.Expansion;
+    }
+
+    if (flags & Z) {
+        return UCConversionCost.Zero;
     }
 
     if ((flags & Y) === (matchFlags & UCMatchFlags.Coerce)) {
@@ -842,15 +880,16 @@ export function typesMatch(
     destTypeKind = resolveTypeKind(destType);
     if (inputTypeKind === destTypeKind) {
         // If we are expecting an assignment to an object that has a class type, then verify that the input class is compatible.
-        // TODO: Interface kind
-        if ((destTypeKind === UCTypeKind.Object || destTypeKind === UCTypeKind.Interface)
+        if ((destTypeKind === UCTypeKind.Object ||
+             destTypeKind === UCTypeKind.Interface)
             // Safety check to ensure that we are working with resolved types.
             && isClass(destType.getRef())
             && isClass(inputType.getRef())) {
             // e.g. "var Class","var Class<ClassLimitor>", or "Class'ClassReference'"
             if (destType.getRef() === IntrinsicClass) {
                 // Resolves Class<destMetaClass>
-                const destMetaClass = hasDefinedBaseType(destType) && destType.baseType.getRef<UCClassSymbol>();
+                const destMetaClass = hasDefinedBaseType(destType)
+                    && destType.baseType.getRef<UCClassSymbol>();
                 if (destMetaClass) {
                     const inputMetaClass = hasDefinedBaseType(inputType)
                         ? inputType.baseType.getRef<UCClassSymbol>()
@@ -868,7 +907,10 @@ export function typesMatch(
             }
 
             // e.g. "var AClassName", see if the input class is a derivative of "AClassName"
-            if (areDescendants(destType.getRef<UCStructSymbol>()!, inputType.getRef<UCStructSymbol>()!)) {
+            if (areDescendants(
+                destType.getRef<UCStructSymbol>()!,
+                inputType.getRef<UCStructSymbol>()!
+            )) {
                 return true;
             }
 
@@ -879,7 +921,10 @@ export function typesMatch(
             // Safety check to ensure that we are working with resolved types.
             && isStruct(destType.getRef())
             && isStruct(inputType.getRef())) {
-            if (areDescendants(destType.getRef<UCStructSymbol>()!, inputType.getRef<UCStructSymbol>()!)) {
+            if (areDescendants(
+                destType.getRef<UCStructSymbol>()!,
+                inputType.getRef<UCStructSymbol>()!
+            )) {
                 return true;
             }
 
@@ -888,6 +933,26 @@ export function typesMatch(
 
         // TODO: Return a distinguisable return type
         return true;
+    }
+
+    // Assigning object to an interface?
+    if (inputTypeKind === UCTypeKind.Interface &&
+        destTypeKind === UCTypeKind.Object) {
+        const destClass = destType.getRef<UCClassSymbol>();
+        if (!destClass || !isClassSymbol(destClass)) {
+            return false
+        }
+
+        const inputInterface = inputType.getRef<UCInterfaceSymbol>();
+        if (!inputInterface || !isInterfaceSymbol(inputInterface)) {
+            return false;
+        }
+
+        if (classImplementsInterface(destClass, inputInterface)) {
+            return true;
+        }
+
+        return false;
     }
 
     // Not a perfect match, see if we can convert or even coerce the types.
@@ -947,6 +1012,21 @@ export function areDescendants(
         }
 
         other = other.super;
+    }
+
+    return false;
+}
+
+export function classImplementsInterface(
+    classSymbol: UCClassSymbol,
+    interfaceSymbol: UCInterfaceSymbol
+): boolean {
+    for (let parent: UCClassSymbol | undefined = classSymbol; parent; parent = parent.super) {
+        if (parent.implementsTypes?.some(type => {
+            return type.getRef() && areDescendants(interfaceSymbol, type.getRef()!);
+        })) {
+            return true;
+        }
     }
 
     return false;
@@ -1039,6 +1119,10 @@ export function isClass(symbol: ISymbol | undefined): symbol is UCClassSymbol {
 
 export function isClassSymbol(symbol: ISymbol): symbol is UCClassSymbol {
     return symbol.kind === UCSymbolKind.Class;
+}
+
+export function isInterfaceSymbol(symbol: ISymbol): symbol is UCInterfaceSymbol {
+    return symbol.kind === UCSymbolKind.Interface;
 }
 
 export function isArchetypeSymbol(symbol: ISymbol): symbol is UCArchetypeSymbol {

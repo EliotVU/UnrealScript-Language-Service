@@ -162,6 +162,11 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         if (range === DEFAULT_RANGE) {
             return;
         }
+
+        if (!id.name.text) {
+            return;
+        }
+
         this.semanticTokensBuilder.push(
             range.start.line,
             range.start.character,

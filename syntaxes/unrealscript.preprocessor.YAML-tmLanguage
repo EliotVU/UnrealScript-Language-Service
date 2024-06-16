@@ -57,41 +57,54 @@ repository:
     beginCaptures:
       '0':
         name: punctuation.definition.grave.upp
+    end: \n|$
     patterns:
       - begin: \{
+        beginCaptures:
+          '0':
+            name: punctuation.curlybrace.open.upp
         patterns:
-          - match: \w
+          - match: \w+
             name: entity.name.function.preprocessor.upp
-        end: \}|\n
+        end: \}
+        endCaptures:
+          '0':
+            name: punctuation.curlybrace.close.upp
 
-      - begin: ((?i)if|elseif|ifdef|ifndef)
+      - begin: \b(((?i)if)|((?i)elseif)|((?i)ifdef)|((?i)ifndef))\b
         beginCaptures:
           '1':
-            name: meta.preprocessor.if.upp
+            name: keyword.control.directive.if.upp
+          '2':
+            name: keyword.control.directive.elseif.upp
+          '3':
+            name: keyword.control.directive.ifdef.upp
+          '4':
+            name: keyword.control.directive.ifndef.upp
         patterns:
           - include: '#preprocessor-invoke'
-        end: (?<=\))\b
+        end: (?<=$)
 
-      - begin: (?:(?i)(isdefined)|(notdefined))
+      - begin: \b(?:((?i)isdefined)|((?i)notdefined))\b
         beginCaptures:
           '1':
-            name: meta.preprocessor.isdefined.upp
+            name: keyword.control.directive.isdefined.upp
           '2':
-            name: meta.preprocessor.notdefined.upp
+            name: keyword.control.directive.notdefined.upp
         patterns:
           - include: '#preprocessor-arguments'
-        end: (?<=\))\b
+        end: (?<=$)
 
-      - match: ((?i)else)
-        name: meta.preprocessor.else.upp
+      - match: \b((?i)else)\b
+        name: keyword.control.directive.else.upp
 
-      - match: ((?i)endif)
-        name: meta.preprocessor.endif.upp
-        
-      - begin: ((?i)define)(?:[\s^\n](\w+))?
+      - match: \b((?i)endif)\b
+        name: keyword.control.directive.endif.upp
+
+      - begin: \b((?i)define)\b(?:[\s^\n](\w+))?
         beginCaptures:
           '1':
-            name: meta.preprocessor.define.upp
+            name: keyword.control.directive.define.upp
           '2':
             name: entity.name.function.preprocessor.upp
         patterns:
@@ -113,40 +126,37 @@ repository:
                 name: constant.character.escape.line-continuation.upp
               '2':
                 name: invalid.illegal.upp
-        end: (?<=\n)
+        end: $
 
-      - begin: ((?i)include)
+      - begin: \b((?i)undefine)\b
         beginCaptures:
           '1':
-            name: meta.preprocessor.include.upp
-        patterns:
-          - include: '#preprocessor-arguments'
-        end: (?<=\n)
-
-      - begin: ((?i)undefine)
-        beginCaptures:
-          '1':
-            name: meta.preprocessor.undefine.upp
+            name: keyword.control.directive.undefine.upp
           '2':
             name: variable.other.upp
         patterns:
           - include: '#preprocessor-arguments'
-        end: (?<=\n)
+        end: $
+
+      - begin: \b((?i)include)\b
+        beginCaptures:
+          '1':
+            name: keyword.control.directive.include.upp
+        contentName: meta.preprocessor.include.upp
+        patterns:
+          - include: '#preprocessor-arguments'
+        end: $
 
       # Custom macro
-      - match: \w
+      - match: \w+
         name: entity.name.function.preprocessor.upp
-
-      - include: '#unrealscript'
-      # FIXME: Stopping at \b for now, otherwise in some cases, we may never hit the end marker.
-    end: (?<=\n|\))|\b
 
   preprocessor-invoke:
     begin: \(
     patterns:
     #   - include: '#preprocessor'
 
-      - match: \w
+      - match: \w+
         name: entity.name.function.preprocessor.upp
 
       - match: \,
@@ -158,7 +168,7 @@ repository:
     patterns:
     #   - include: '#preprocessor'
 
-      - match: \w
+      - match: \w+
         name: entity.name.parameter.preprocessor.upp
 
       - match: \,
@@ -168,4 +178,4 @@ repository:
   unrealscript:
     name: meta.embedded.block.unrealscript.upp
     patterns:
-        - include: source.uc
+      - include: source.uc

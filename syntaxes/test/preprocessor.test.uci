@@ -1,0 +1,40 @@
+// SYNTAX TEST "source.upp" "preprocessor testcase"
+
+// My UnrealScript include file
+// < comment.line.double-slash.upp
+
+   `macro
+// ^ meta.preprocessor.macro.upp punctuation.definition.grave.upp
+//  ^^^^^ entity.name.function.preprocessor.upp
+
+abcdef`{macro}ghi
+// <------ source.upp
+//    ^ meta.preprocessor.macro.upp punctuation.definition.grave.upp
+//     ^ punctuation.curlybrace.open.upp
+//      ^^^^^ entity.name.function.preprocessor.upp
+//           ^ punctuation.curlybrace.close.upp
+//            ^^^ source.upp
+
+`define     macroName           	    abcdef      `macro
+// <- meta.preprocessor.macro.upp punctuation.definition.grave.upp
+
+`define     macroName(param,param)	    abcdef      `param \
+// <- meta.preprocessor.macro.upp punctuation.definition.grave.upp
+                                                    `param
+
+`macroName("string")
+// <- meta.preprocessor.macro.upp punctuation.definition.grave.upp
+// < --------- entity.name.function.preprocessor.upp
+
+// Ensure that we did exit the macro scope
+abcdef
+// <------ source.upp
+
+`if(true)
+// <- meta.preprocessor.macro.upp punctuation.definition.grave.upp
+// < -- keyword.control.directive.if.upp
+    abcdef
+//  ^^^^^^ source.upp
+`endif
+// <- meta.preprocessor.macro.upp punctuation.definition.grave.upp
+// < ----- keyword.control.directive.endif.upp

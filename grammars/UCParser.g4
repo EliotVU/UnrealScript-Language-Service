@@ -753,7 +753,7 @@ functionSpecifier
 functionName: identifier | operatorName;
 
 parameters: paramDecl (COMMA paramDecl)*;
-paramDecl: paramModifier* typeDecl variable (ASSIGNMENT expr=expression)?;
+paramDecl: paramModifier* typeDecl variable ({ this.generation === 3 }? ASSIGNMENT expr=expression)?;
 
 returnTypeModifier
 	: 'coerce' // UC3+
@@ -888,8 +888,11 @@ breakStatement: 'break' SEMICOLON;
 continueStatement: 'continue' SEMICOLON;
 stopStatement: 'stop' SEMICOLON;
 labeledStatement: identifier COLON;
+// expr is not optional, but we need to ensure we match this statement for every 'goto' identifier.
+// expr=identifier? if generation pre-UC3.
 gotoStatement: 'goto' expr=expression? SEMICOLON;
-assertStatement: 'assert' (OPEN_PARENS expr=expression? CLOSE_PARENS) SEMICOLON;
+// expr is not optional, but we need to ensure we match this statement for every 'assert' identifier.
+assertStatement: 'assert' expr=expression? SEMICOLON;
 
 // All valid operator names (for declarations)
 operatorName
@@ -1108,7 +1111,11 @@ defaultConstantArgument
 	;
 
 defaultAssignmentExpression
-	: defaultExpression ASSIGNMENT ((OPEN_BRACE defaultValue? CLOSE_BRACE) | defaultValue)
+	: defaultExpression ASSIGNMENT
+        (
+            ({ this.generation === 3 }? (OPEN_BRACE defaultValue? CLOSE_BRACE))
+            | defaultValue
+        )
 	;
 
 defaultMemberCallExpression

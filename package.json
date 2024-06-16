@@ -2,7 +2,7 @@
     "name": "uc",
     "description": "UnrealScript Language support",
     "displayName": "UnrealScript",
-    "version": "0.8.0",
+    "version": "0.8.1",
     "author": {
         "name": "Eliot van Uytfanghe",
         "url": "https://EliotVU.com"
@@ -52,10 +52,10 @@
         "@tsconfig/recommended": "^1.0.6",
         "@types/node": "^20.14.2",
         "@typescript-eslint/eslint-plugin": "^7.12.0",
-        "@typescript-eslint/parser": "^7.12.0",
+        "@typescript-eslint/parser": "^7.13.0",
         "antlr4ts-cli": "0.5.0-alpha.4",
-        "esbuild": "^0.21.4",
-        "eslint": "^9.4.0",
+        "esbuild": "^0.21.5",
+        "eslint": "^9.5.0",
         "gulp": "^4.0.2",
         "mocha-explorer-launcher-scripts": "^0.4.0",
         "rimraf": "^5.0.7",

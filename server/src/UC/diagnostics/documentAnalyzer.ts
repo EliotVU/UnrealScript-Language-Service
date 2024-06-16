@@ -1294,30 +1294,44 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
 
             // Defined but not indexed? (undefined for the '=' assignment)
             if (expr.operator && !expr.operator.getRef()) {
-                const leftOperandType = expr.left.getType();
-                const rightOperandType = expr.right.getType();
-
                 const candidates = getOperatorsByName(this.document.class, expr.operator.getName());
                 if (candidates.length === 0) {
                     this.pushError(expr.operator.range, `Couldn't find operator '${expr.operator.id.name.text}'`);
-                } else if (config.checkTypes
-                    && leftOperandType && leftOperandType.getTypeKind() !== UCTypeKind.Error
-                    && rightOperandType && rightOperandType.getTypeKind() !== UCTypeKind.Error) {
-                    this.diagnostics.add({
-                        range: expr.range,
-                        message: {
-                            text: `Type '{0}' and '{1}' are incompatible with operator '{2}'`,
-                            severity: DiagnosticSeverity.Error
-                        },
-                        args: [
-                            typeKindToDisplayString(leftOperandType.getTypeKind()),
-                            typeKindToDisplayString(rightOperandType.getTypeKind()),
-                            expr.operator.id.name.text
-                        ]
-                    });
+                } else if (config.checkTypes) {
+                    const leftOperandType = expr.left.getType();
+                    const rightOperandType = expr.right.getType();
+
+                    if (leftOperandType && leftOperandType.getTypeKind() !== UCTypeKind.Error &&
+                        rightOperandType && rightOperandType.getTypeKind() !== UCTypeKind.Error) {
+                        // Mute incompatible errors when comparing a struct using the intrinsic comparisons.
+                        // TODO: Perhaps provide and index an intrinsic symbol for these cases.
+                        // TODO: Perhaps handle this before we collect any candidates.
+                        if (leftOperandType.getTypeKind() === UCTypeKind.Struct &&
+                            rightOperandType.getTypeKind() === UCTypeKind.Struct &&
+                            // struct name
+                            leftOperandType.getName() === rightOperandType.getName() &&
+                            (expr.operator.getName().text === '==' ||
+                             expr.operator.getName().text === '!=')) {
+                            // do nothing, this is an intrinsic comparison of the same struct type.
+                        } else {
+                            this.diagnostics.add({
+                                range: expr.range,
+                                message: {
+                                    text: `Type '{0}' and '{1}' are incompatible with operator '{2}'`,
+                                    severity: DiagnosticSeverity.Error
+                                },
+                                args: [
+                                    typeKindToDisplayString(leftOperandType.getTypeKind()),
+                                    typeKindToDisplayString(rightOperandType.getTypeKind()),
+                                    expr.operator.id.name.text
+                                ]
+                            });
+                        }
+                    }
                 }
                 // TODO: 'else' Suggest candidates?
             }
+
 
             if (!(expr instanceof UCAssignmentOperatorExpression || expr instanceof UCDefaultAssignmentExpression)) {
                 return;

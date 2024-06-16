@@ -918,16 +918,24 @@ connection.onWorkspaceSymbol((e) => {
 
 connection.onDocumentHighlight((e) => getDocumentHighlights(e.textDocument.uri, e.position));
 connection.onCompletion((e) => {
-    if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
-        return firstValueFrom(documentsCodeIndexed$).then(_documents => {
+    // re-use the indexed document when not invoked by an identifier.
+    return (e.context?.triggerKind === CompletionTriggerKind.Invoked
+        ? getCompletionItems(e.textDocument.uri, e.position)
+        : firstValueFrom(documentsCodeIndexed$).then(_documents => {
             return getCompletionItems(e.textDocument.uri, e.position);
-        });
-    }
+        }))
+        .then(items => {
+            if (items?.length === 0) {
+                // Prefer general text suggestions!
+                return undefined;
+            }
 
-    return getCompletionItems(e.textDocument.uri, e.position);
+            return items;
+        });
 });
 connection.onCompletionResolve(getFullCompletionItem);
 connection.onSignatureHelp((e) => {
+    // re-use the indexed document when not invoked by an identifier.
     if (e.context?.triggerKind !== CompletionTriggerKind.Invoked) {
         return firstValueFrom(documentsCodeIndexed$).then(_documents => {
             return getSignatureHelp(e.textDocument.uri, e.position);

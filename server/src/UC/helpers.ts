@@ -348,5 +348,10 @@ export function isSymbolDefined(symbol: ISymbol): boolean {
         return false;
     }
 
+    // Name cannot be 'falsy'
+    if (!symbol.id.name.text) {
+        return false;
+    }
+
     return true;
 }
