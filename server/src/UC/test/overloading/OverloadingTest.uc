@@ -1,7 +1,9 @@
 // This class serves the purpose to test the overloading of operators.
 class OverloadingTest extends Overloads;
 
-function ShouldOverload()
+struct MyOperatorlessStruct { };
+
+function ShouldOverloadTest()
 {
     local byte byteOne;
     local int intOne;
@@ -10,6 +12,9 @@ function ShouldOverload()
     local StructTwo structTwo;
     local EnumOne enumOne;
     local Class classOne, classTwo;
+    local Object objectOne;
+    local Interface interfaceOne;
+    local OverloadingInterfaceTest interfaceTwo;
 
     true == true;
 
@@ -36,6 +41,12 @@ function ShouldOverload()
 
     // Should pick Overloads.==(Object,Object)
     classOne == classTwo;
+    classOne == none;
+    objectOne == none;
+    interfaceOne == none; // Yes interface == none should not match the interface operator.
+
+    // Should pick Overloads.==(Interface,Interface)
+    interfaceTwo == none;
 
     // Should pick Overloads.+=(StructOne,Float)
     structOne = (structOne += 1.0);
@@ -50,7 +61,16 @@ function ShouldOverload()
     "string" $ "string";
 }
 
-function ShouldBeInvalidOverload()
+function ShouldBeValidOperatorTest()
+{
+    local MyOperatorlessStruct o1, o2;
+
+    // operator '==' for this struct type does not exist, so use the built-in intrinsic struct comparison operators (only for '==' and '!=')
+    o1 == o2;
+    o1 != o2;
+}
+
+function ShouldBeInvalidOverloadTest()
 {
     local StructOne structOne;
     local StructTwo structTwo;
@@ -66,7 +86,7 @@ function ShouldBeInvalidOverload()
     none $ "string";
 }
 
-function ShouldBeInvalidOperator()
+function ShouldBeInvalidOperatorTest()
 {
     // ! '~=' is not defined in Overloads.uc
     "" ~= "";

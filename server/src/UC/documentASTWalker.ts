@@ -596,7 +596,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             symbol.implementsTypes = modifierArgumentNodes
                 .qualifiedIdentifier()
                 .map(valueNode => {
-                    const typeSymbol = createQualifiedType(valueNode, UCSymbolKind.Class);
+                    const typeSymbol = createQualifiedType(valueNode, UCSymbolKind.Interface);
                     return typeSymbol;
                 });
         }

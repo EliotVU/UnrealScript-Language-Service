@@ -16,8 +16,13 @@ static final postoperator int           ++  (out int A);
 
 static final operator(24) bool          ==  (bool A, bool B);
 static final operator(24) bool          ==  (int A, int B);
+static final operator(24) bool          ==  (float A, float B);
 
 static final operator(24) bool          ==  (Object A, Object B);
+static final operator(26) bool          !=  (Object A, Object B);
+
+static final operator(24) bool          ==  (Interface A, Interface B);
+static final operator(26) bool          !=  (Interface A, Interface B);
 
 static final operator(20) int           +   (int A, int B);
 static final operator(20) float         +   (float A, float B);
