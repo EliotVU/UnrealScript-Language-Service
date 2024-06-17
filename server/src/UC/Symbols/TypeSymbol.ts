@@ -82,7 +82,8 @@ import {
     areIdentityMatch,
     tryFindClassSymbol,
     tryFindSymbolInPackage,
-    UCInterfaceSymbol
+    UCInterfaceSymbol,
+    findOuterFieldSymbol
 } from './';
 
 export const enum UCNodeKind {
@@ -402,11 +403,6 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
                 symbol = tryFindClassSymbol(id);
                 break;
 
-            // Not applicable
-            // case UCSymbolKind.Enum:
-            //     symbol = ObjectsTable.getSymbol<UCStructSymbol>(id, UCSymbolKind.Enum);
-            //     break;
-
             // Struct Foo extends context?.id
             case UCSymbolKind.ScriptStruct:
                 // Prioritize parent-inherited structs first
@@ -452,6 +448,24 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
                     ?? ObjectsTable.getSymbol(id, UCSymbolKind.Enum)
                     ?? ObjectsTable.getSymbol(id, UCSymbolKind.ScriptStruct)
                     ;
+                break;
+            }
+
+            // We expect an enum, presumed to be only used outside of code blocks. i.e. `MyVar[MyConstOrMyEnum.MaybeEnumTag]`
+            // As per the compiler:
+            // We must prioritize const lookups in the current context
+            // - its outers and the outer's inherited classes too.
+            // If not found, look through the 'within' class of the outer most class and repeat.
+            // - Repeat the same for 'Enum', if all fail then we must lookup the enum in the global table
+            // - (this lets us pickup an enum declared in a 'dependson' class or a class compiled before)
+            // - However this will also match enum's declared in any class that is yet-to-be-compiled, even an enum in an unrelated package.
+            // - Perhaps we can run an analysis post-index to see if the enum is a possible 'dependency'
+            case UCSymbolKind.Enum: {
+                symbol = findOuterFieldSymbol(context, id, UCSymbolKind.Const)
+                    ?? findOuterFieldSymbol(context, id, UCSymbolKind.Enum)
+                    // Global lookup
+                    ?? ObjectsTable.getSymbol(id, UCSymbolKind.Enum);
+
                 break;
             }
 
@@ -881,7 +895,7 @@ export function typesMatch(
     if (inputTypeKind === destTypeKind) {
         // If we are expecting an assignment to an object that has a class type, then verify that the input class is compatible.
         if ((destTypeKind === UCTypeKind.Object ||
-             destTypeKind === UCTypeKind.Interface)
+            destTypeKind === UCTypeKind.Interface)
             // Safety check to ensure that we are working with resolved types.
             && isClass(destType.getRef())
             && isClass(inputType.getRef())) {

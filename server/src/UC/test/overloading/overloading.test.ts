@@ -9,7 +9,7 @@ import { toName } from '../../name';
 describe('Overloading', () => {
     // Run some additional "real-examples" to verify that we have no reported diagnostics where it is not expected.
     it('should have no problems', () => {
-        usingDocuments(__dirname, ['Overloads.uc', 'OverloadingTest.uc'], ([, testDocument]) => {
+        usingDocuments(__dirname, ['Overloads.uc', 'OverloadingTest.uc', 'OverloadingInterfaceTest.uc'], ([, testDocument]) => {
             queueIndexDocument(testDocument);
             assertDocumentValidFieldsAnalysis(testDocument, /\bShould(?!BeInvalid)/i);
             assertDocumentInvalidFieldsAnalysis(testDocument, /\bInvalid/);

@@ -11,7 +11,6 @@ import {
     ITypeSymbol,
     IWithInnerSymbols,
     Identifier,
-    IntrinsicClass,
     IntrinsicNewConstructor,
     IntrinsicObject,
     IntrinsicRngLiteral,
@@ -58,7 +57,7 @@ import {
     findOverloadedBinaryOperator,
     findOverloadedPostOperator,
     findOverloadedPreOperator,
-    findSuperStruct,
+    findSuperStructSymbol,
     getContext,
     getSymbolHash,
     getSymbolOuterHash,
@@ -76,7 +75,7 @@ import {
 import { UCDocument } from './document';
 import { intersectsWith } from './helpers';
 import { config, getConstSymbol, getEnumMember } from './indexer';
-import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_SPAWN, NAME_STRUCT, NAME_VECTOR } from './names';
+import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_STRUCT, NAME_VECTOR } from './names';
 import { SymbolWalker } from './symbolWalker';
 
 export interface IExpression extends INode, IWithInnerSymbols {
@@ -1089,7 +1088,7 @@ export class UCSuperExpression extends UCExpression {
             // FIXME: UE2 doesn't verify inheritance, thus particular exploits are possible by calling a super function through an unrelated class,
             // -- this let's programmers write data in different parts of the memory.
             // -- Thus should we just be naive and match any type instead?
-            const symbol = findSuperStruct(context, this.structTypeRef.getName()) ?? tryFindClassSymbol(this.structTypeRef.getName());
+            const symbol = findSuperStructSymbol(context, this.structTypeRef.getName()) ?? tryFindClassSymbol(this.structTypeRef.getName());
             if (isStruct(symbol)) {
                 this.structTypeRef.setRef(symbol, document);
                 this.superStruct = symbol;

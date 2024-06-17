@@ -254,6 +254,11 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, kind?: U
                 leftType.setExpectedKind(UCSymbolKind.Package);
                 break;
 
+            case UCSymbolKind.Enum:
+                leftType.setExpectedKind(UCSymbolKind.Enum);
+                rightType.setExpectedKind(UCSymbolKind.EnumTag);
+                break;
+
             default:
                 leftType.setExpectedKind(UCSymbolKind.Class);
                 break;
@@ -934,7 +939,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
         const qualifiedNode = arrayDimNode.qualifiedIdentifier();
         if (qualifiedNode) {
-            property.arrayDimRef = qualifiedNode.accept(this);
+            property.arrayDimRef = createQualifiedType(qualifiedNode, UCSymbolKind.Enum);
             property.arrayDimRange = property.arrayDimRef?.range;
             return;
         }

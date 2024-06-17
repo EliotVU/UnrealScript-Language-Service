@@ -1,11 +1,11 @@
 import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
-import { ContextKind, ISymbol, ModifierFlags, UCFieldSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
+import { ContextKind, ISymbol, ModifierFlags, UCClassSymbol, UCFieldSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
-    declare outer: UCStructSymbol;
-    
+    declare outer: UCScriptStructSymbol | UCClassSymbol;
+
     static readonly allowedKindsMask = 1 << UCSymbolKind.Const
         | 1 << UCSymbolKind.ScriptStruct
         | 1 << UCSymbolKind.Property;

@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { Range, TextDocument } from 'vscode-languageserver-textdocument';
 import { readTextByURI } from '../../../workspace';
-import { ISymbol, isFunction } from '../../Symbols';
+import { ISymbol, UCFieldSymbol, isFunction, isStruct } from '../../Symbols';
 import { rangeToString } from '../../diagnostics/diagnostic';
 import { DocumentAnalyzer } from '../../diagnostics/documentAnalyzer';
 import { UCDocument } from '../../document';
@@ -18,21 +18,49 @@ export function assertDocumentValidFieldsAnalysis(document: UCDocument, pattern?
 
     if (typeof pattern === 'undefined') {
         document.accept(diagnoser);
-        assertDocumentDiagnoser(diagnoser).to.equal(0, 'Expected zero problems.');
-    } else {
-        for (let field = document.class.children; field; field = field.next) {
-            if (isFunction(field) && field.id.name.text.match(pattern)) {
-                if (field.block?.statements) for (const stm of field.block.statements) {
-                    diagnostics.clear();
-                    stm.accept(diagnoser);
-                    if (diagnostics.count() > 0) {
-                        const problems = diagnostics.toDiagnostic();
-                        expect.fail(`Reported problem(s) "${problems.map(p => p.message).join(',')}" in statement "${textDocument.getText(stm.range)}" of '${field.getPath()}' at ${rangeToString(stm.range)}`);
-                    }
-                }
+
+        const problems = diagnostics.toDiagnostic();
+
+        expect(problems.length).to.equal(0,
+            `Expected zero problems:
+                ${problems
+                .map(p => `\n\t"${p.message}" for "${textDocument.getText(p.range)}" at ${rangeToString(p.range)}`)
+                .join(',\n\t')
+            }`);
+
+        return;
+    }
+
+    const TestSymbol = (symbol: ISymbol) => {
+        if (isStruct(symbol) && symbol.children) {
+            const symbols: ISymbol[] = Array(symbol.childrenCount());
+
+            for (let child: UCFieldSymbol | undefined = symbol.children, i = 0; child; child = child.next, ++i) {
+                symbols[i] = child;
+            }
+
+            for (let i = symbols.length - 1; i >= 0; --i) {
+                TestSymbol(symbols[i]);
             }
         }
-    }
+
+        if (!symbol.id.name.text.match(pattern)) {
+            return;
+        }
+
+        symbol.accept(diagnoser);
+
+        if (diagnostics.count() > 0) {
+            const problems = diagnostics.toDiagnostic();
+            expect.fail(`Reported problem(s):
+                ${problems
+                    .map(p => `\n\t"${p.message}" for "${textDocument.getText(p.range)}" at ${rangeToString(p.range)}`)
+                    .join(',\n\t')
+                }`);
+        }
+    };
+
+    TestSymbol(document.class);
 }
 
 /** Runs the document's declared fields through the DocumentAnalyzer, and asserts the count of diagnostic problems that have been produced. */
@@ -62,9 +90,9 @@ export function assertDocumentInvalidFieldsAnalysis(document: UCDocument, patter
                 diagnostics.clear();
                 stm.accept(diagnoser);
                 if (diagnostics.count() === 0) {
-                    expect.fail(`Missing problem in statement "${textDocument.getText(stm.range)}" of '${field.getPath()}' at ${rangeToString(stm.range)}`);
+                    expect.fail(`Missing problem for "${textDocument.getText(stm.range)}" of '${field.getPath()}' at ${rangeToString(stm.range)}`);
                 } else {
-                    console.debug(`Validated problem in statement "${textDocument.getText(stm.range)}" of '${field.getPath()}' at ${rangeToString(stm.range)}`);
+                    console.debug(`Validated problem for "${textDocument.getText(stm.range)}" of '${field.getPath()}' at ${rangeToString(stm.range)}`);
                 }
             }
         }

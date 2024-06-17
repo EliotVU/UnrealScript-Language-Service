@@ -6,18 +6,23 @@ import { Name } from '../name';
 import { UCBlock } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
+    areIdentityMatch,
     ContextKind,
+    getContext,
     getConversionCost,
     Identifier,
+    IntrinsicObject,
     isFunction,
     isOperator,
     isStateSymbol,
+    isStruct,
     ISymbol,
     ISymbolContainer,
     ITypeSymbol,
     ModifierFlags,
     UCBaseOperatorSymbol,
     UCBinaryOperatorSymbol,
+    UCClassSymbol,
     UCConversionCost,
     UCFieldSymbol,
     UCMatchFlags,
@@ -197,18 +202,69 @@ export class UCStructSymbol extends UCFieldSymbol implements ISymbolContainer<UC
 }
 
 /**
- * Looks up the @struct's hierarchy for a matching @id
+ * Finds a super symbol by name.
+ * @param name the super symbol name.
+ * @param context any symbol with a defined `super`
+ * @returns the super if any.
  */
-export function findSuperStruct(context: UCStructSymbol, id: Name): UCStructSymbol | undefined {
-	for (let other = context.super; other; other = other.super) {
-		if (other.id.name === id) {
-			return other;
+export function findSuperStructSymbol(
+    context: SuperSymbol,
+    name: Name
+): SuperSymbol | undefined {
+	for (let scope = context.super; scope; scope = scope.super) {
+		if (scope.id.name === name) {
+			return scope;
 		}
 	}
+
 	return undefined;
 }
 
-export function getOperatorsByName<T extends UCBaseOperatorSymbol>(context: UCStructSymbol | undefined, name: Name): T[] {
+/**
+ * Finds a field symbol by name and kind in a provided context.
+ * The context's outer and super fields will be scanned.
+ * If all fails, the context's outer most class 'within' will be scanned.
+ * @param name the field name.
+ * @param context any symbol with fields to scan.
+ * @param kind the field kind.
+ * @returns the field if any.
+ */
+export function findOuterFieldSymbol<T extends UCFieldSymbol>(
+    context: UCStructSymbol,
+    name: Name,
+    kind?: UCSymbolKind
+): T | undefined {
+    function findByOuter(scope: UCStructSymbol): T | undefined {
+        for (; isStruct(scope); scope = <UCStructSymbol>scope.outer) {
+            // TODO: Maybe inline findSuperSymbol to ensure we work with predictable code.
+            const symbol = scope.findSuperSymbol<T>(name, kind);
+            if (symbol) {
+                return symbol;
+            }
+        }
+
+        return undefined;
+    }
+
+    const symbol = findByOuter(context);
+    if (symbol) {
+        return <T>symbol;
+    }
+
+    // Re-try in the outer most class's 'within'
+    // p.s. may be 'undefined' if resolving within an included .uc file, or an `Interface` class.
+    const outerClass = getContext<UCClassSymbol>(context, UCSymbolKind.Class);
+    if (outerClass?.within && !areIdentityMatch(outerClass.within, IntrinsicObject)) {
+        return <T>findByOuter(outerClass.within);
+    }
+
+    return undefined;
+}
+
+export function getOperatorsByName<T extends UCBaseOperatorSymbol>(
+    context: UCStructSymbol | undefined,
+    name: Name
+): T[] {
     let scope: UCStructSymbol | undefined = isFunction(context)
         ? context.outer as UCStructSymbol
         : context;
