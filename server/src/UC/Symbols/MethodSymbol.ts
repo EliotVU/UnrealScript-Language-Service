@@ -4,14 +4,13 @@ import { Token } from 'antlr4ts/Token';
 import { UCDocument } from '../document';
 import { config } from '../indexer';
 import { Name } from '../name';
-import { NAME_ACTOR, NAME_CREATEDATAOBJECT, NAME_ENGINE, NAME_LOADDATAOBJECT, NAME_SPAWN } from '../names';
+import { NAME_CREATEDATAOBJECT, NAME_LOADDATAOBJECT, NAME_SPAWN } from '../names';
 import { UCGeneration } from '../settings';
 import { SymbolWalker } from '../symbolWalker';
 import {
     ContextKind,
     DEFAULT_RANGE,
     ISymbol,
-    ModifierFlags,
     SymbolReferenceFlags,
     UCFieldSymbol,
     UCObjectSymbol,
@@ -21,6 +20,7 @@ import {
     UCTypeKind,
     isFunction,
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export enum MethodFlags {
     None = 0x0000,

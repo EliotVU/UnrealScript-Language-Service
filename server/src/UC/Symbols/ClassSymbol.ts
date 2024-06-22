@@ -6,7 +6,6 @@ import { SymbolWalker } from '../symbolWalker';
 import {
     ISymbol,
     ITypeSymbol,
-    ModifierFlags,
     UCArchetypeSymbol,
     UCFieldSymbol,
     UCObjectTypeSymbol,
@@ -16,6 +15,7 @@ import {
     UCSymbolKind,
     UCTypeKind,
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export enum ClassModifierFlags {
     None,

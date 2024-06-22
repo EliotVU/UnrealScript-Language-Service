@@ -3,8 +3,9 @@ import { SymbolWalker } from '../symbolWalker';
 import {
     ContextKind,
     getContext,
-    isArchetypeSymbol, ISymbol, ModifierFlags, UCClassSymbol, UCStructSymbol, UCSymbolKind
+    isArchetypeSymbol, ISymbol, UCClassSymbol, UCStructSymbol, UCSymbolKind
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export class UCDefaultPropertiesBlock extends UCStructSymbol {
     override kind = UCSymbolKind.DefaultPropertiesBlock;

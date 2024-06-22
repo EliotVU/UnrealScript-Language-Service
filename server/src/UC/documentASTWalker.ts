@@ -97,7 +97,6 @@ import {
     ISymbolContainer,
     ITypeSymbol,
     MethodFlags,
-    ModifierFlags,
     Object_ClassProperty,
     Object_ClassPropertyHash,
     Object_NameProperty,
@@ -137,6 +136,7 @@ import {
     UCTypeKind,
     UCTypeSymbol,
 } from './Symbols';
+import { ModifierFlags } from './Symbols/ModifierFlags';
 
 function createIdentifier(ctx: ParserRuleContext) {
     const identifier: Identifier = {

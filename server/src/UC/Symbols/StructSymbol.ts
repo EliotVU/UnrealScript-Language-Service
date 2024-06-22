@@ -19,18 +19,17 @@ import {
     ISymbol,
     ISymbolContainer,
     ITypeSymbol,
-    ModifierFlags,
     UCBaseOperatorSymbol,
     UCBinaryOperatorSymbol,
     UCClassSymbol,
     UCConversionCost,
     UCFieldSymbol,
-    UCMatchFlags,
     UCObjectSymbol,
     UCObjectTypeSymbol,
     UCQualifiedTypeSymbol,
     UCSymbolKind,
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export interface ISuperSymbol {
     super?: UCStructSymbol | undefined;

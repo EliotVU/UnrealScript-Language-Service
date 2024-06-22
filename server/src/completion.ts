@@ -17,7 +17,6 @@ import {
     IntrinsicRotator,
     IntrinsicVector,
     MethodFlags,
-    ModifierFlags,
     Object_ClassProperty,
     ObjectsTable,
     OuterObjectsTable,
@@ -81,6 +80,7 @@ import { NAME_CLASS } from './UC/names';
 import { UCGeneration } from './UC/settings';
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { UCLanguageServerSettings } from './configuration';
+import { ModifierFlags } from 'UC/Symbols/ModifierFlags';
 
 /** If the candidates collector hits any these it'll stop at the first occurance. */
 const PreferredRulesSet = new Set([

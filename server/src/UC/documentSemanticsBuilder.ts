@@ -34,12 +34,10 @@ import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from '
 import {
     DEFAULT_RANGE,
     Identifier,
-    isClass,
     isField,
     isFunction,
     ISymbol,
     MethodFlags,
-    ModifierFlags,
     UCClassSymbol,
     UCConstSymbol,
     UCEnumSymbol,
@@ -47,7 +45,6 @@ import {
     UCInterfaceSymbol,
     UCMethodSymbol,
     UCObjectTypeSymbol,
-    UCParamSymbol,
     UCPropertySymbol,
     UCScriptStructSymbol,
     UCStateSymbol,
@@ -55,6 +52,7 @@ import {
     UCSymbolKind,
     UCTypeKind,
 } from './Symbols';
+import { ModifierFlags } from './Symbols/ModifierFlags';
 import { DefaultSymbolWalker } from './symbolWalker';
 
 export const TokenTypes = [

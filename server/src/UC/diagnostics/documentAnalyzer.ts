@@ -10,7 +10,6 @@ import {
     IntrinsicEnum,
     IntrinsicNewConstructor,
     MethodFlags,
-    ModifierFlags,
     StaticBoolType,
     StaticDelegateType,
     StaticIntType,
@@ -56,6 +55,7 @@ import {
     typeKindToDisplayString,
     typesMatch,
 } from '../Symbols';
+import { ModifierFlags } from '../Symbols/ModifierFlags';
 import { UCDocument } from '../document';
 import {
     IExpression,

@@ -1,5 +1,6 @@
 import { SymbolWalker } from '../symbolWalker';
-import { ClassModifierFlags, ModifierFlags, UCClassSymbol, UCSymbolKind, UCTypeKind } from './';
+import { ClassModifierFlags, UCClassSymbol, UCSymbolKind, UCTypeKind } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export class UCInterfaceSymbol extends UCClassSymbol {
     static override readonly allowedKindsMask = 1 << UCSymbolKind.Enum

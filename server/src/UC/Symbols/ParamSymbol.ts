@@ -2,7 +2,8 @@ import { Position } from 'vscode-languageserver-types';
 
 import { IExpression } from '../expressions';
 import { SymbolWalker } from '../symbolWalker';
-import { ModifierFlags, UCPropertySymbol, UCSymbolKind } from './';
+import { UCPropertySymbol, UCSymbolKind } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export class UCParamSymbol extends UCPropertySymbol {
     override kind = UCSymbolKind.Parameter;

@@ -60,7 +60,6 @@ import {
     Identifier,
     IntrinsicArray,
     IntrinsicClass,
-    ModifierFlags,
     ObjectsTable,
     SymbolReference,
     UCArchetypeSymbol,
@@ -85,6 +84,7 @@ import {
     UCInterfaceSymbol,
     findOuterFieldSymbol
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export const enum UCNodeKind {
     Expression,

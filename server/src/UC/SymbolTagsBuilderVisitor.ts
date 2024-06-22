@@ -1,6 +1,7 @@
 import { SymbolTag } from 'vscode-languageserver';
 
-import { ModifierFlags, UCClassSymbol, UCFieldSymbol, UCMethodSymbol, UCPropertySymbol } from './Symbols';
+import { UCClassSymbol, UCFieldSymbol, UCMethodSymbol, UCPropertySymbol } from './Symbols';
+import { ModifierFlags } from './Symbols/ModifierFlags';
 import { DumbSymbolWalker } from './symbolWalker';
 
 // Transform field modifiers to their corresponding SymbolTag counter-part.

@@ -1,7 +1,8 @@
 import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
-import { ContextKind, ISymbol, ModifierFlags, UCClassSymbol, UCFieldSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
+import { ContextKind, ISymbol, UCClassSymbol, UCFieldSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export class UCScriptStructSymbol extends UCStructSymbol {
     declare outer: UCScriptStructSymbol | UCClassSymbol;

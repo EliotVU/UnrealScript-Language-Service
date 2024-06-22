@@ -20,6 +20,7 @@ import {
     WorkspaceFolder,
 } from 'vscode-languageserver/node';
 
+import { executeCommand, getCommand, getCommands } from 'commands';
 import { getDocumentRenameEdit } from 'rename';
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { getDocumentCodeActions } from './codeActions';
@@ -73,7 +74,6 @@ import {
     IntrinsicArray,
     isClass,
     isField,
-    ModifierFlags,
     ObjectsTable,
     tryFindClassSymbol,
     tryFindSymbolInPackage,
@@ -87,10 +87,10 @@ import {
     UCSymbolKind,
     UCTypeKind,
 } from './UC/Symbols';
+import { ModifierFlags } from './UC/Symbols/ModifierFlags';
 import { UnrealPackage } from './UPK/UnrealPackage';
 import { getFiles, isDocumentFileName } from './workspace';
 import { getWorkspaceSymbols } from './workspaceSymbol';
-import { CommandIdentifier, executeCommand, getCommand, getCommands } from 'commands';
 
 /**
  * Emits true when the workspace is prepared and ready for indexing.

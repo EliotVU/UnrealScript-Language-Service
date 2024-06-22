@@ -12,7 +12,6 @@ import {
     isEnumTagSymbol,
     ISymbol,
     ITypeSymbol,
-    ModifierFlags,
     UCArrayTypeSymbol,
     UCFieldSymbol,
     UCObjectSymbol,
@@ -20,6 +19,7 @@ import {
     UCSymbolKind,
     UCTypeKind,
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export class UCPropertySymbol extends UCFieldSymbol {
     override kind = UCSymbolKind.Property;

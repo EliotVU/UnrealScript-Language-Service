@@ -1,5 +1,6 @@
 import { SymbolWalker } from '../symbolWalker';
-import { ModifierFlags, UCPropertySymbol, UCSymbolKind } from './';
+import { UCPropertySymbol, UCSymbolKind } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export class UCLocalSymbol extends UCPropertySymbol {
     override kind = UCSymbolKind.Local;

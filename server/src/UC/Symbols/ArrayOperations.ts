@@ -3,13 +3,13 @@ import { toName } from '../name';
 import { NAME_ARRAY } from '../names';
 import {
     DEFAULT_RANGE,
-    ModifierFlags,
     StaticIntType,
     StaticMetaType,
     UCMethodLikeSymbol,
     UCParamSymbol,
     UCStructSymbol,
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 /** (defaultproperties) Acts as a template for array operations such as MyArray.Replace(item1, item2) etc.  */
 export const DefaultArray = new UCStructSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE }, DEFAULT_RANGE);

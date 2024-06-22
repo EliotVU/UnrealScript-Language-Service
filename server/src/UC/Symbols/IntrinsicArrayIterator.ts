@@ -1,13 +1,13 @@
 import {
     DEFAULT_RANGE,
     MethodFlags,
-    ModifierFlags,
     StaticIntType,
     StaticMetaType,
     UCMethodLikeSymbol,
     UCParamSymbol,
 } from '.';
 import { toName } from '../name';
+import { ModifierFlags } from './ModifierFlags';
 
 export const ArrayIterator = new UCMethodLikeSymbol(toName('Iterator'));
 ArrayIterator.modifiers |= ModifierFlags.Intrinsic | ModifierFlags.ReadOnly | ModifierFlags.NoDeclaration;

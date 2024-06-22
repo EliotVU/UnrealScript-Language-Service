@@ -21,7 +21,6 @@ import {
     IntrinsicVectLiteral,
     IntrinsicVector,
     IntrinsicVectorHash,
-    ModifierFlags,
     ObjectsTable,
     OuterObjectsTable,
     StaticBoolType,
@@ -77,6 +76,7 @@ import { intersectsWith } from './helpers';
 import { config, getConstSymbol, getEnumMember } from './indexer';
 import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_STRUCT, NAME_VECTOR } from './names';
 import { SymbolWalker } from './symbolWalker';
+import { ModifierFlags } from './Symbols/ModifierFlags';
 
 export interface IExpression extends INode, IWithInnerSymbols {
     /**

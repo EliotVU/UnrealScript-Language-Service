@@ -3,7 +3,6 @@ import { toName } from '../name';
 import { NAME_ARRAY, NAME_RETURNVALUE } from '../names';
 import {
     DEFAULT_RANGE,
-    ModifierFlags,
     StaticDelegateType,
     StaticFloatType,
     StaticIntType,
@@ -21,6 +20,7 @@ import {
     UCStructSymbol,
     UCSymbolKind,
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export * from './CoreSymbols';
 export * from './EngineSymbols';
@@ -163,7 +163,7 @@ IntrinsicNewConstructor.kind = UCSymbolKind.Operator;
 IntrinsicNewConstructor.modifiers |= ModifierFlags.Keyword;
 IntrinsicNewConstructor.description = createToken(`
     Creates a new instanced object of the specified class.
-    
+
     Syntax:
     ${'`new [( [outer [, name [, flags]]] )] class [( template )]`'}
 
@@ -171,7 +171,7 @@ IntrinsicNewConstructor.description = createToken(`
     ${'```unrealscript'}
     ${`new (None, "MyObject", RF_Transient) Class'MyClass' (MyClass'MyTemplateObject')`}
     ${'```'}
-    
+
     ${'For *Unreal Engine 2* the event `Object.Created()` will be instigated during the construction.'}
 `);
 

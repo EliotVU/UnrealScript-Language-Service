@@ -1,8 +1,7 @@
-import { UCDocument } from 'UC/document';
+import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ModifierFlags,
     UCClassSymbol,
     UCFieldSymbol,
     UCObjectSymbol,
@@ -10,6 +9,7 @@ import {
     UCSymbolKind,
     UCTypeKind,
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 /**
  * Represents an instanced Archetype found within a defaultproperties block e.g. "begin object class=classID name=objectName".
