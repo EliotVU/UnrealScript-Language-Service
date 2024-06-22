@@ -376,6 +376,7 @@ export class UCCallExpression extends UCExpression {
 
                 const sourceTypeKind = this.arguments[0].getType()?.getTypeKind();
                 switch (sourceTypeKind) {
+                    case UCTypeKind.Interface:
                     case UCTypeKind.Object: {
                         const classSymbol = tryFindClassSymbol(name);
                         if (classSymbol) {
