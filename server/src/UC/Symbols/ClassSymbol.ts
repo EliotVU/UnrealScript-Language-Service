@@ -87,11 +87,11 @@ export class UCClassSymbol extends UCStructSymbol {
         }
 
         if (modifiers & ModifierFlags.Transient) {
-            text.push('abstract');
+            text.push('transient');
         }
 
         if (modifiers & ModifierFlags.Abstract) {
-            text.push('transient');
+            text.push('abstract');
         }
 
         return text;
