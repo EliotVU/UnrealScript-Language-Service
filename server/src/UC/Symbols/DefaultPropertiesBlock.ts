@@ -9,7 +9,7 @@ import { ModifierFlags } from './ModifierFlags';
 
 export class UCDefaultPropertiesBlock extends UCStructSymbol {
     override kind = UCSymbolKind.DefaultPropertiesBlock;
-    override modifiers = ModifierFlags.NoDeclaration;
+    override modifiers = ModifierFlags.ReadOnly | ModifierFlags.NoDeclaration;
 
     override getCompletionSymbols<C extends ISymbol>(document: UCDocument, context: ContextKind, kinds?: UCSymbolKind | undefined): C[] {
         const outerClass = getContext<UCClassSymbol>(this, UCSymbolKind.Class);

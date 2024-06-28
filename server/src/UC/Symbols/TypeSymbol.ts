@@ -49,40 +49,40 @@ import {
 import { IStatement } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ContextInfo,
     DEFAULT_IDENTIFIER,
     DEFAULT_RANGE,
-    INode,
-    SuperSymbol,
-    ISymbol,
-    IWithInnerSymbols,
-    IWithReference,
-    Identifier,
     IntrinsicArray,
     IntrinsicClass,
     ObjectsTable,
-    SymbolReference,
-    UCArchetypeSymbol,
-    UCBaseOperatorSymbol,
     UCClassSymbol,
-    UCConstSymbol,
-    UCDelegateSymbol,
-    UCEnumMemberSymbol,
-    UCEnumSymbol,
-    UCEventSymbol,
     UCFieldSymbol,
     UCMethodSymbol,
     UCPackage,
-    UCParamSymbol,
     UCPropertySymbol,
-    UCScriptStructSymbol,
-    UCStateSymbol,
     UCStructSymbol,
     areIdentityMatch,
+    findOuterFieldSymbol,
     tryFindClassSymbol,
     tryFindSymbolInPackage,
-    UCInterfaceSymbol,
-    findOuterFieldSymbol
+    type ContextInfo,
+    type INode,
+    type ISymbol,
+    type IWithInnerSymbols,
+    type IWithReference,
+    type Identifier,
+    type SuperSymbol,
+    type SymbolReference,
+    type UCArchetypeSymbol,
+    type UCBaseOperatorSymbol,
+    type UCConstSymbol,
+    type UCDelegateSymbol,
+    type UCEnumMemberSymbol,
+    type UCEnumSymbol,
+    type UCEventSymbol,
+    type UCInterfaceSymbol,
+    type UCParamSymbol,
+    type UCScriptStructSymbol,
+    type UCStateSymbol
 } from './';
 import { ModifierFlags } from './ModifierFlags';
 
@@ -202,6 +202,15 @@ export function typeKindToDisplayString(kind: UCTypeKind): string {
 }
 
 export interface ITypeSymbol extends ISymbol, IWithReference, IWithInnerSymbols {
+    flags: ModifierFlags;
+
+    /**
+     * The type's dimension. Implies 1 if 'undefined' or if the dimension is bound to a type that was unresolved.
+     *
+     * 0 if working with a dynamic array.
+     **/
+    arrayDimension?: number;
+
     getTypeText(): string;
     getTypeKind(): UCTypeKind;
     getSymbolAtPos(position: Position): ISymbol | undefined;
@@ -219,11 +228,15 @@ export class UCTypeSymbol implements ITypeSymbol {
     declare outer: undefined;
     declare nextInHash: undefined;
 
+    flags: ModifierFlags = 0;
+    arrayDimension?: number;
+
     constructor(
         /** The UnrealScript type to represent. */
         readonly type: UCTypeKind,
-        readonly range: Range = DEFAULT_RANGE
-    ) { }
+        readonly range: Range = DEFAULT_RANGE,
+        flags: ModifierFlags = 0,
+    ) { this.flags = flags; }
 
     getName(): Name {
         return TypeKindToName.get(this.type)!;
@@ -296,6 +309,9 @@ export class UCTypeSymbol implements ITypeSymbol {
 export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> implements ITypeSymbol {
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
 
+    flags: ModifierFlags = 0;
+    arrayDimension?: number;
+
     /**
      * The resolved reference of this type.
      */
@@ -312,8 +328,9 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
     constructor(
         readonly id: Identifier,
         readonly range: Range = id.range,
-        private expectedKind?: UCSymbolKind
-    ) { }
+        private expectedKind?: UCSymbolKind,
+        flags: ModifierFlags = 0,
+    ) { this.flags = flags; }
 
     getName(): Name {
         return this.id.name;
@@ -501,6 +518,7 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
 }
 
 export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
+    override arrayDimension = 0;
     override reference = IntrinsicArray;
 
     /** @deprecated */
@@ -566,6 +584,9 @@ export class UCQualifiedTypeSymbol implements ITypeSymbol {
     readonly range: Range;
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
     readonly id: Identifier;
+
+    flags: ModifierFlags = ModifierFlags.None;
+    arrayDimension?: number;
 
     /**
      * A reference to the indexed symbol.
@@ -650,7 +671,7 @@ export class UCQualifiedTypeSymbol implements ITypeSymbol {
 }
 
 export const StaticErrorType = new UCTypeSymbol(UCTypeKind.Error);
-export const StaticNoneType = new UCTypeSymbol(UCTypeKind.None);
+export const StaticNoneType = new UCTypeSymbol(UCTypeKind.None, undefined, ModifierFlags.ReadOnly);
 export const StaticByteType = new UCTypeSymbol(UCTypeKind.Byte);
 export const StaticEnumType = new UCTypeSymbol(UCTypeKind.Enum);
 export const StaticIntType = new UCTypeSymbol(UCTypeKind.Int);
@@ -661,24 +682,47 @@ export const StaticStringType = new UCTypeSymbol(UCTypeKind.String);
 export const StaticPointerType = new UCTypeSymbol(UCTypeKind.Pointer);
 export const StaticButtonType = new UCTypeSymbol(UCTypeKind.Button);
 
-export const StaticObjectType = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE);
+export const StaticObjectType = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE });
 export const StaticArrayType = new UCArrayTypeSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });
 export const StaticMapType = new UCMapTypeSymbol({ name: NAME_MAP, range: DEFAULT_RANGE });
 export const StaticDelegateType = new UCDelegateTypeSymbol({ name: NAME_DELEGATE, range: DEFAULT_RANGE });
-export const StaticVectorType = new UCObjectTypeSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE });
-export const StaticRotatorType = new UCObjectTypeSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE });
-export const StaticRangeType = new UCObjectTypeSymbol({ name: NAME_RANGE, range: DEFAULT_RANGE });
+export const StaticVectorType = new UCObjectTypeSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE },
+    undefined,
+    undefined,
+    ModifierFlags.ReadOnly
+);
+export const StaticRotatorType = new UCObjectTypeSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE },
+    undefined,
+    undefined,
+    ModifierFlags.ReadOnly
+);
+export const StaticRangeType = new UCObjectTypeSymbol({ name: NAME_RANGE, range: DEFAULT_RANGE },
+    undefined,
+    undefined,
+    ModifierFlags.ReadOnly
+);
 export const StaticMetaType = new UCMetaTypeSymbol({ name: NAME_TYPE, range: DEFAULT_RANGE });
 
+// Const types to present literal expression types.
+// Can't mark all static types as ReadOnly because we use those to present variable types too.
+
+export const StaticConstByteType = new UCTypeSymbol(UCTypeKind.Byte, undefined, ModifierFlags.ReadOnly);
+export const StaticConstIntType = new UCTypeSymbol(UCTypeKind.Int, undefined, ModifierFlags.ReadOnly);
+export const StaticConstBoolType = new UCTypeSymbol(UCTypeKind.Bool, undefined, ModifierFlags.ReadOnly);
+export const StaticConstFloatType = new UCTypeSymbol(UCTypeKind.Float, undefined, ModifierFlags.ReadOnly);
+export const StaticConstNameType = new UCTypeSymbol(UCTypeKind.Name, undefined, ModifierFlags.ReadOnly);
+export const StaticConstStringType = new UCTypeSymbol(UCTypeKind.String, undefined, ModifierFlags.ReadOnly);
+export const StaticConstDelegateType = new UCTypeSymbol(UCTypeKind.Delegate, undefined, ModifierFlags.ReadOnly);
+
 export const CastTypeSymbolMap: Readonly<WeakMap<Name, ITypeSymbol>> = new WeakMap([
-    [NAME_BYTE, StaticByteType],
-    [NAME_INT, StaticIntType],
-    [NAME_BOOL, StaticBoolType],
-    [NAME_FLOAT, StaticFloatType],
-    [NAME_STRING, StaticStringType],
-    [NAME_NAME, StaticNameType],
+    [NAME_BYTE, StaticConstByteType],
+    [NAME_INT, StaticConstIntType],
+    [NAME_BOOL, StaticConstBoolType],
+    [NAME_FLOAT, StaticConstFloatType],
+    [NAME_STRING, StaticConstStringType],
+    [NAME_NAME, StaticConstNameType],
     // Oddly... conversion to a button is actually valid!
-    [NAME_BUTTON, StaticBoolType]
+    [NAME_BUTTON, StaticConstBoolType]
 ]);
 
 /** Conversion is illegal */
@@ -689,7 +733,7 @@ const Y = 0x01;
 const E = 0x02;
 /** Conversion requires truncation */
 const T = 0x04;
-/** Conversion requires shifting */
+/** Conversion requires shifting, for instance a conversion from a byte or int to float */
 const S = 0x08;
 /** Conversion can be performed automatically in a T3D context */
 const D = 0x10;
@@ -765,6 +809,11 @@ export function getConversionCost(
     destType: ITypeSymbol,
     matchFlags: UCMatchFlags = UCMatchFlags.None
 ): UCConversionCost {
+    // Cannot convert multi-dimension types (i.e. var int Variable[2])
+    if ((destType.flags | inputType.flags) & ModifierFlags.WithDimension) {
+        return UCConversionCost.Illegal;
+    }
+
     const inputTypeKind = resolveTypeKind(inputType);
     const destTypeKind = resolveTypeKind(destType);
 
@@ -837,6 +886,11 @@ export function getConversionCost(
     const flags = getTypeConversionFlags(inputTypeKind, destTypeKind);
     if ((flags & ConversionMask) === N) {
         return UCConversionCost.Illegal;
+    }
+
+    // FIXME: Not entirely correct
+    if ((flags & Y) && (destType.flags & ModifierFlags.Coerce)) {
+        return UCConversionCost.Expansion;
     }
 
     if (flags & T) {
@@ -1157,6 +1211,10 @@ export function isTypeSymbol(symbol: ISymbol): symbol is ITypeSymbol {
 
 export function isArrayTypeSymbol(symbol: ISymbol): symbol is UCArrayTypeSymbol {
     return symbol.getTypeKind() === UCTypeKind.Array;
+}
+
+export function isFixedArrayTypeSymbol(symbol: ISymbol): symbol is ITypeSymbol {
+    return isTypeSymbol(symbol) && !!(symbol.arrayDimension && symbol.arrayDimension > 1);
 }
 
 export function isQualifiedType(symbol?: ISymbol): symbol is UCQualifiedTypeSymbol {

@@ -86,4 +86,7 @@ export const enum ModifierFlags {
 
     // A private method can however be re-defined!
     NonOverridable = Private | Intrinsic,
+
+    /** Flags that have an impact on type checking. */
+    TypeFlags = Out | Coerce | Ref | ReadOnly | WithDimension | ReturnParam
 }

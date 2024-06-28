@@ -292,16 +292,14 @@ export function getBinaryOperatorConversionCost(
     inputTypeA: ITypeSymbol, inputTypeB: ITypeSymbol
 ): UCConversionCost {
     const operandA = operator.params![0].getType();
-    const coerceA = operator.params![0].modifiers & ModifierFlags.Coerce;
-    const operandACost = getConversionCost(inputTypeA, operandA, UCMatchFlags.Coerce * Number(coerceA !== 0));
+    const operandACost = getConversionCost(inputTypeA, operandA);
     if (operandACost === UCConversionCost.Illegal) {
         // left type is incompatible.
         return UCConversionCost.Illegal;
     }
 
     const operandB = operator.params![1].getType();
-    const coerceB = operator.params![1].modifiers & ModifierFlags.Coerce;
-    const operandBCost = getConversionCost(inputTypeB, operandB, UCMatchFlags.Coerce * Number(coerceB !== 0));
+    const operandBCost = getConversionCost(inputTypeB, operandB);
     if (operandBCost === UCConversionCost.Illegal) {
         // right type is incompatible.
         return UCConversionCost.Illegal;
@@ -316,8 +314,7 @@ export function getUnaryOperatorConversionCost(
     inputType: ITypeSymbol
 ): UCConversionCost {
     const operandA = operator.params![0].getType();
-    const coerceA = operator.params![0].modifiers & ModifierFlags.Coerce;
-    const operandACost = getConversionCost(inputType, operandA, UCMatchFlags.Coerce * Number(coerceA !== 0));
+    const operandACost = getConversionCost(inputType, operandA);
     return operandACost;
 }
 

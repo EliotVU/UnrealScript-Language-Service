@@ -12,9 +12,11 @@ import {
     UCSymbolKind,
     UCTypeKind,
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export class UCEnumSymbol extends UCStructSymbol {
     override kind = UCSymbolKind.Enum;
+    override modifiers = ModifierFlags.ReadOnly;
 
     declare public extendsType?: undefined;
 

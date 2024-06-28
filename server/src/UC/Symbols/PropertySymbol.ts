@@ -27,7 +27,9 @@ export class UCPropertySymbol extends UCFieldSymbol {
     // The type if specified, i.e. "var Object Outer;" Object here is represented by @type, including the resolved symbol.
     public type: ITypeSymbol;
 
-    // The array dimension if specified, undefined if @arrayDimRef is truthy.
+    /**
+     * @deprecated use getArrayDimSize, also see ITypeSymbol.ArrayDimension
+     */
     public arrayDim?: number;
 
     // Array dimension is statically based on a declared symbol, such as a const or enum member.
@@ -39,38 +41,15 @@ export class UCPropertySymbol extends UCFieldSymbol {
         this.type = type;
     }
 
+    /**
+     * @deprecated @see isArrayTypeSymbol
+     */
     isDynamicArray(): this is { type: UCArrayTypeSymbol } {
         return (this.type?.getTypeKind() === UCTypeKind.Array);
     }
 
-    /**
-     * Resolves and returns static array's size.
-     * Returns undefined if unresolved.
-     */
     getArrayDimSize(): number | undefined {
-        if (this.arrayDimRef) {
-            const symbol = this.arrayDimRef.getRef();
-            if (!symbol) {
-                return undefined;
-            }
-
-            if (isConstSymbol(symbol)) {
-                const value = symbol.getComputedValue();
-                return typeof value === 'number'
-                    ? value
-                    : undefined;
-            }
-
-            if (config.generation === UCGeneration.UC3) {
-                if (isEnumSymbol(symbol)) {
-                    return symbol.maxValue;
-                }
-                if (isEnumTagSymbol(symbol)) {
-                    return symbol.value;
-                }
-            }
-        }
-        return this.arrayDim;
+        return this.type.arrayDimension;
     }
 
     override getTypeKind() {
@@ -111,9 +90,9 @@ export class UCPropertySymbol extends UCFieldSymbol {
         text.push(this.type!.getTypeText());
         text.push(this.getTooltipId());
 
-        if (this.isFixedArray()) {
-            const arrayDim = this.getArrayDimSize() ?? '';
-            text.push(text.pop() + `[${arrayDim}]`);
+        if (this.type.arrayDimension && this.type.arrayDimension > 0) {
+            const arrayDim = this.type.arrayDimension;
+            text.push(`${text.pop()}[${arrayDim}]`);
         }
 
         return text.filter(s => s).join(' ');
@@ -141,7 +120,38 @@ export class UCPropertySymbol extends UCFieldSymbol {
         super.index(document, context);
 
         this.type?.index(document, context);
-        this.arrayDimRef?.index(document, context);
+
+        if (this.arrayDimRef) {
+            this.arrayDimRef.index(document, context);
+
+            // TODO: Re-factor to visitor pattern that can fold any symbol.
+            function computeArrayDimension(type: ITypeSymbol): number | undefined {
+                const symbol = type.getRef();
+                if (!symbol) {
+                    return undefined;
+                }
+
+                if (isConstSymbol(symbol)) {
+                    const value = symbol.getComputedValue();
+                    return typeof value === 'number'
+                        ? value
+                        : undefined;
+                }
+
+                if (config.generation === UCGeneration.UC3) {
+                    if (isEnumSymbol(symbol)) {
+                        return symbol.maxValue;
+                    }
+                    if (isEnumTagSymbol(symbol)) {
+                        return symbol.value;
+                    }
+                }
+
+                return undefined;
+            }
+
+            this.type.arrayDimension = computeArrayDimension(this.arrayDimRef);
+        }
     }
 
     override accept<Result>(visitor: SymbolWalker<Result>): Result | void {

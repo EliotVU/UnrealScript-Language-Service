@@ -45,6 +45,8 @@ export abstract class UCFieldSymbol extends UCObjectSymbol {
     /**
 	 * Returns true if this property is declared as a static array type (false if it's dynamic!).
 	 * Note that this property will be seen as a static array even if the @arrayDim value is invalid.
+     *
+     * @deprecated
 	 */
 	isFixedArray(): boolean {
 		return (this.modifiers & ModifierFlags.WithDimension) === ModifierFlags.WithDimension;

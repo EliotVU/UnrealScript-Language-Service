@@ -41,11 +41,13 @@ import {
     areMethodsCompatibleWith,
     getConversionCost,
     getOperatorsByName,
+    isArrayTypeSymbol,
     isClass,
     isDelegateSymbol,
     isEnumSymbol,
     isEnumTagSymbol,
     isField,
+    isFixedArrayTypeSymbol,
     isFunction,
     isMethodSymbol,
     isStateSymbol,
@@ -436,7 +438,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             return;
         }
 
-        if (symbol.isFixedArray()) {
+        if (isFixedArrayTypeSymbol(symbol.type)) {
             const arraySize = symbol.getArrayDimSize();
             if (!arraySize) {
                 const dimSymbolRef = symbol.arrayDimRef?.getRef();
@@ -472,11 +474,10 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
 
         if (config.checkTypes) {
-            const baseType = symbol.isDynamicArray()
-                ? symbol.type.baseType
-                : symbol.isFixedArray()
-                    ? symbol.type
-                    : undefined;
+            const baseType
+                = isArrayTypeSymbol(symbol.type) ? symbol.type.baseType
+                    : isFixedArrayTypeSymbol(symbol.type) ? symbol.type
+                        : undefined;
 
             if (baseType) {
                 const arrayType = baseType.getTypeKind();
@@ -934,7 +935,6 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
         }
     }
 
-    // TODO: Verify we have an iterator function or array(UC3+).
     override visitForEachStatement(stm: UCForEachStatement) {
         this.pushNest(stm);
         // handled below, necessary so we can skip the analysis if we are iterating on a dynamic array.
@@ -1485,7 +1485,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
 
             const type = expr.propertyMember.getType();
             if (type) {
-                if (!UCArrayTypeSymbol.is(type)) {
+                if (!isArrayTypeSymbol(type)) {
                     this.pushError(expr.operationMember.range, `Array operations are only allowed on dynamic arrays.`);
                 } else {
                     const operationType = expr.operationMember;

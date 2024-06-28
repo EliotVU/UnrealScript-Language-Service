@@ -3,6 +3,8 @@ import { toName } from '../name';
 import { NAME_ARRAY, NAME_RETURNVALUE } from '../names';
 import {
     DEFAULT_RANGE,
+    StaticConstFloatType,
+    StaticConstIntType,
     StaticDelegateType,
     StaticFloatType,
     StaticIntType,
@@ -107,21 +109,24 @@ IntrinsicArray.addSymbol(Array_SortFunction);
 const ReturnValueIdentifier = { name: NAME_RETURNVALUE, range: DEFAULT_RANGE };
 
 const VectorReturnValue = new UCParamSymbol(ReturnValueIdentifier, DEFAULT_RANGE, StaticVectorType);
+VectorReturnValue.modifiers |= ModifierFlags.ReturnParam | ModifierFlags.Out;
 const RotatorReturnValue = new UCParamSymbol(ReturnValueIdentifier, DEFAULT_RANGE, StaticRotatorType);
+RotatorReturnValue.modifiers |= ModifierFlags.ReturnParam | ModifierFlags.Out;
 const RangeReturnValue = new UCParamSymbol(ReturnValueIdentifier, DEFAULT_RANGE, StaticRangeType);
+RangeReturnValue.modifiers |= ModifierFlags.ReturnParam | ModifierFlags.Out;
 
 export const IntrinsicVectLiteral = new UCMethodLikeSymbol(toName('Vect'));
 IntrinsicVectLiteral.returnValue = VectorReturnValue;
 
-const XParam = new UCParamSymbol({ name: toName('X'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+const XParam = new UCParamSymbol({ name: toName('X'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstFloatType);
 XParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicVectLiteral.addSymbol(XParam);
 
-const YParam = new UCParamSymbol({ name: toName('Y'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+const YParam = new UCParamSymbol({ name: toName('Y'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstFloatType);
 YParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicVectLiteral.addSymbol(YParam);
 
-const ZParam = new UCParamSymbol({ name: toName('Z'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+const ZParam = new UCParamSymbol({ name: toName('Z'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstFloatType);
 ZParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicVectLiteral.addSymbol(ZParam);
 
@@ -130,15 +135,15 @@ IntrinsicVectLiteral.params = [XParam, YParam, ZParam];
 export const IntrinsicRotLiteral = new UCMethodLikeSymbol(toName('Rot'));
 IntrinsicRotLiteral.returnValue = RotatorReturnValue;
 
-const PitchParam = new UCParamSymbol({ name: toName('Pitch'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
+const PitchParam = new UCParamSymbol({ name: toName('Pitch'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstIntType);
 PitchParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRotLiteral.addSymbol(PitchParam);
 
-const YawParam = new UCParamSymbol({ name: toName('Yaw'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
+const YawParam = new UCParamSymbol({ name: toName('Yaw'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstIntType);
 YawParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRotLiteral.addSymbol(YawParam);
 
-const RollParam = new UCParamSymbol({ name: toName('Roll'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
+const RollParam = new UCParamSymbol({ name: toName('Roll'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstIntType);
 RollParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRotLiteral.addSymbol(RollParam);
 
@@ -147,11 +152,11 @@ IntrinsicRotLiteral.params = [PitchParam, YawParam, RollParam];
 export const IntrinsicRngLiteral = new UCMethodLikeSymbol(toName('Rng'));
 IntrinsicRngLiteral.returnValue = RangeReturnValue;
 
-const MinParam = new UCParamSymbol({ name: toName('Min'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+const MinParam = new UCParamSymbol({ name: toName('Min'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstFloatType);
 MinParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRngLiteral.addSymbol(MinParam);
 
-const MaxParam = new UCParamSymbol({ name: toName('Max'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+const MaxParam = new UCParamSymbol({ name: toName('Max'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstFloatType);
 MinParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRngLiteral.addSymbol(MaxParam);
 

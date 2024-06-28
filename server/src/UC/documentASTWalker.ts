@@ -218,7 +218,7 @@ function createTypeFromIdentifiers(identifiers: Identifier[]): UCQualifiedTypeSy
 
 function createObjectType(ctx: ParserRuleContext, kind?: UCSymbolKind) {
     const id: Identifier = createIdentifier(ctx);
-    const type = new UCObjectTypeSymbol(id, id.range, kind);
+    const type = new UCObjectTypeSymbol(id, id.range, kind, ModifierFlags.ReadOnly);
     return type;
 }
 
@@ -842,6 +842,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                     paramModifiers |= ModifierFlags.Coerce;
                 }
 
+                // the 'Const' keyword towards the end of the function param's body.
+                if (ctx.KW_CONST()) {
+                    paramModifiers |= ModifierFlags.ReadOnly;
+                }
+
                 const typeSymbol = this.visitTypeDecl(ctx._returnParam.typeDecl());
                 const returnValueId: Identifier = {
                     name: NAME_RETURNVALUE,
@@ -849,6 +854,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 };
                 const returnValue = new UCParamSymbol(returnValueId, returnValueId.range, typeSymbol);
                 returnValue.modifiers |= paramModifiers;
+
+                typeSymbol.flags = paramModifiers & ModifierFlags.TypeFlags;
 
                 this.declare(returnValue);
                 symbol.returnValue = returnValue;
@@ -924,31 +931,48 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         }
         symbol.modifiers |= modifiers;
 
-        this.initVariable(symbol, varNode);
+        if (varNode._arrayDim) {
+            this.initVariableTypeAndDimension(symbol, typeSymbol, varNode._arrayDim);
+        }
+
+        typeSymbol.flags = symbol.modifiers & ModifierFlags.TypeFlags;
         this.declare(symbol, ctx);
         return symbol;
     }
 
-    initVariable(property: UCPropertySymbol, ctx: UCGrammar.VariableContext) {
-        const arrayDimNode = ctx._arrayDim;
-        if (!arrayDimNode) {
+    initVariableTypeAndDimension(property: UCPropertySymbol, type: ITypeSymbol, ctx: UCGrammar.ArrayDimReferContext) {
+        const literalNode = ctx.INTEGER_LITERAL();
+        if (literalNode) {
+            property.modifiers |= ModifierFlags.WithDimension;
+            property.arrayDimRange = rangeFromBound(literalNode.symbol);
+
+            const arrayDimension = Number.parseInt(literalNode.text);
+            type.arrayDimension = arrayDimension;
+
+            // Displace type as if it were declared like an array: `Array<type>[arrayDimension]`
+            // const fixedArrayType = new UCObjectTypeSymbol(type.id, type.range);
+            // fixedArrayType.arrayDimension = arrayDimension;
+            // fixedArrayType.baseType = type;
+            // fixedArrayType.baseType.flags = (property.modifiers & ModifierFlags.TypeFlags) & ~ModifierFlags.WithDimension;
+            // property.type = fixedArrayType;
+
             return;
         }
 
-        property.modifiers |= ModifierFlags.WithDimension;
+        const qualifiedIdentifier = ctx.qualifiedIdentifier();
+        if (qualifiedIdentifier) {
+            property.modifiers |= ModifierFlags.WithDimension;
+            property.arrayDimRange = rangeFromCtx(qualifiedIdentifier);
+            property.arrayDimRef = createQualifiedType(qualifiedIdentifier, UCSymbolKind.Enum);
 
-        const qualifiedNode = arrayDimNode.qualifiedIdentifier();
-        if (qualifiedNode) {
-            property.arrayDimRef = createQualifiedType(qualifiedNode, UCSymbolKind.Enum);
-            property.arrayDimRange = property.arrayDimRef?.range;
+            // property.arrayDimension will be set during the indexing phase.
+
             return;
         }
 
-        const intNode = arrayDimNode.INTEGER_LITERAL();
-        if (intNode) {
-            property.arrayDim = Number.parseInt(intNode.text);
-            property.arrayDimRange = rangeFromBound(intNode.symbol);
-        }
+        // ??? possible other patterns
+        // Dynamic array when there's no token between '[]'
+        type.arrayDimension = 0;
     }
 
     visitLocalDecl(ctx: UCGrammar.LocalDeclContext): undefined {
@@ -958,7 +982,14 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const varNodes = ctx.variable();
         for (const varNode of varNodes) {
             const symbol: UCLocalSymbol = varNode.accept(this);
-            symbol.type = typeSymbol;
+            const varTypeSymbol = varNodes.length === 1
+                ? typeSymbol
+                : Object.create(typeSymbol);
+            symbol.type = varTypeSymbol;
+            if (varNode._arrayDim) {
+                this.initVariableTypeAndDimension(symbol, varTypeSymbol, varNode._arrayDim);
+            }
+            varTypeSymbol.flags = symbol.modifiers & ModifierFlags.TypeFlags;
             this.declare(symbol, ctx);
         }
 
@@ -1012,8 +1043,15 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const varNodes = ctx.variable();
         if (varNodes) for (const varNode of varNodes) {
             const symbol: UCPropertySymbol = varNode.accept(this);
-            symbol.type = typeSymbol;
+            const varTypeSymbol = varNodes.length === 1
+                ? typeSymbol
+                : Object.create(typeSymbol);
+            symbol.type = varTypeSymbol;
             symbol.modifiers |= modifiers;
+            if (varNode._arrayDim) {
+                this.initVariableTypeAndDimension(symbol, varTypeSymbol, varNode._arrayDim);
+            }
+            varTypeSymbol.flags = modifiers & ModifierFlags.TypeFlags;
             this.declare(symbol, ctx);
         }
 
@@ -1032,7 +1070,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             rangeFromBounds(ctx.parent!.start, ctx.stop),
             StaticErrorType
         );
-        this.initVariable(symbol, ctx);
+
         return symbol;
     }
 
@@ -1504,7 +1542,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         };
 
         if (operatorNode.text !== '=') {
-            expression.operator = new UCObjectTypeSymbol(identifier);
+            expression.operator = new UCObjectTypeSymbol(identifier, undefined, undefined, ModifierFlags.ReadOnly);
         }
 
         const primaryNode = ctx._left;
@@ -1557,7 +1595,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             name: toName(operatorNode.text!),
             range: rangeFromBound(operatorNode)
         };
-        expression.operator = new UCObjectTypeSymbol(identifier);
+        expression.operator = new UCObjectTypeSymbol(identifier, undefined, undefined, ModifierFlags.ReadOnly);
 
         const rightNode = ctx._right;
         if (rightNode) {
@@ -1578,7 +1616,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
         const operatorNode = ctx._id;
         const identifier = createIdentifier(operatorNode);
-        expression.operator = new UCObjectTypeSymbol(identifier);
+        expression.operator = new UCObjectTypeSymbol(identifier, undefined, undefined, ModifierFlags.ReadOnly);
 
         const rightNode = ctx._right;
         if (rightNode) {
@@ -1600,7 +1638,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             name: toName(operatorNode.text!),
             range: rangeFromBound(operatorNode)
         };
-        expression.operator = new UCObjectTypeSymbol(identifier);
+        expression.operator = new UCObjectTypeSymbol(identifier, undefined, undefined, ModifierFlags.ReadOnly);
         return expression;
     }
 
@@ -1615,7 +1653,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             name: toName(operatorNode.text!),
             range: rangeFromBound(operatorNode)
         };
-        expression.operator = new UCObjectTypeSymbol(identifier);
+        expression.operator = new UCObjectTypeSymbol(identifier, undefined, undefined, ModifierFlags.ReadOnly);
         return expression;
     }
 
@@ -1776,7 +1814,8 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             const classReferenceType = new UCObjectTypeSymbol<UCObjectTypeSymbol>(
                 createIdentifierFromToken(ctx.KW_CLASS()._symbol),
                 undefined,
-                UCSymbolKind.Class
+                UCSymbolKind.Class,
+                ModifierFlags.ReadOnly
             );
             classReferenceType.baseType = createObjectType(classIdNode, UCSymbolKind.Class);
             expression.classRef = classReferenceType;
@@ -1795,7 +1834,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
 
         const superIdNode = ctx.identifier();
         if (superIdNode) {
-            expression.structTypeRef = new UCObjectTypeSymbol(createIdentifier(superIdNode));
+            expression.structTypeRef = new UCObjectTypeSymbol(createIdentifier(superIdNode), undefined, undefined, ModifierFlags.ReadOnly);
         }
 
         return expression;
@@ -1828,7 +1867,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const idNode = ctx.identifier();
         if (idNode) {
             const identifier: Identifier = createIdentifier(idNode);
-            expression.argumentRef = new UCObjectTypeSymbol(identifier, undefined, UCSymbolKind.Class);
+            expression.argumentRef = new UCObjectTypeSymbol(identifier, undefined, UCSymbolKind.Class, ModifierFlags.ReadOnly);
         }
 
         return expression;
@@ -1944,6 +1983,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             });
 
         const classReferenceType = new UCObjectTypeSymbol<UCQualifiedTypeSymbol | UCObjectTypeSymbol>(createIdentifier(ctx._classRef), undefined, UCSymbolKind.Class);
+        classReferenceType.flags = ModifierFlags.ReadOnly;
         classReferenceType.baseType = createTypeFromIdentifiers(identifiers);
         expression.classRef = classReferenceType;
 

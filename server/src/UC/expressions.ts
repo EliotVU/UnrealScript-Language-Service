@@ -11,6 +11,7 @@ import {
     ITypeSymbol,
     IWithInnerSymbols,
     Identifier,
+    IntrinsicClass,
     IntrinsicNewConstructor,
     IntrinsicObject,
     IntrinsicRngLiteral,
@@ -23,21 +24,19 @@ import {
     IntrinsicVectorHash,
     ObjectsTable,
     OuterObjectsTable,
-    StaticBoolType,
-    StaticByteType,
+    StaticConstBoolType,
+    StaticConstFloatType,
+    StaticConstIntType,
+    StaticConstNameType,
+    StaticConstStringType,
     StaticDelegateType,
     StaticErrorType,
-    StaticFloatType,
-    StaticIntType,
     StaticMetaType,
-    StaticNameType,
     StaticNoneType,
     StaticRangeType,
     StaticRotatorType,
-    StaticStringType,
     StaticVectorType,
     SymbolReferenceFlags,
-    UCArrayTypeSymbol,
     UCBaseOperatorSymbol,
     UCClassSymbol,
     UCDelegateSymbol,
@@ -62,21 +61,23 @@ import {
     getSymbolOuterHash,
     hasDefinedBaseType,
     isArchetypeSymbol,
+    isArrayTypeSymbol,
     isConstSymbol,
     isFunction,
     isOperator,
     isProperty,
+    isQualifiedType,
     isStateSymbol,
     isStruct,
     resolveType,
     tryFindClassSymbol,
 } from './Symbols';
+import { ModifierFlags } from './Symbols/ModifierFlags';
 import { UCDocument } from './document';
 import { intersectsWith } from './helpers';
 import { config, getConstSymbol, getEnumMember } from './indexer';
 import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_STRUCT, NAME_VECTOR } from './names';
 import { SymbolWalker } from './symbolWalker';
-import { ModifierFlags } from './Symbols/ModifierFlags';
 
 export interface IExpression extends INode, IWithInnerSymbols {
     /**
@@ -221,6 +222,7 @@ export class UCArrayCountExpression implements IExpression {
     }
 
     getValue() {
+        // FIXME: Refactor
         const symbol = this.argument?.getMemberSymbol();
         return symbol && isProperty(symbol) && symbol.getArrayDimSize() || undefined;
     }
@@ -230,7 +232,7 @@ export class UCArrayCountExpression implements IExpression {
     }
 
     getType() {
-        return StaticIntType;
+        return StaticConstIntType;
     }
 
     getContainedSymbolAtPos(position: Position) {
@@ -255,7 +257,7 @@ export class UCNameOfExpression extends UCExpression {
     }
 
     override getType() {
-        return StaticNameType;
+        return StaticConstNameType;
     }
 
     getContainedSymbolAtPos(position: Position) {
@@ -353,19 +355,19 @@ export class UCCallExpression extends UCExpression {
             if ((type = CastTypeSymbolMap.get(name))) {
                 this.expression.type = type;
             } else if (name === NAME_VECTOR) {
-                type = new UCObjectTypeSymbol(this.expression.id);
+                type = new UCObjectTypeSymbol(this.expression.id, undefined, UCSymbolKind.ScriptStruct, ModifierFlags.ReadOnly);
                 // Try work with the declared native struct instead of the intrinsic struct. (so that Vector(MyVec).X will resolve properly, as well as go to definition)
                 // Fall back to the intrinsic struct for situations where we have no Object.uc in the workspace.
                 const nativeStruct = OuterObjectsTable.getSymbol(IntrinsicVectorHash, UCSymbolKind.ScriptStruct) ?? IntrinsicVector;
                 (type as UCObjectTypeSymbol).setRef(nativeStruct, document);
                 this.expression.type = type;
             } else if (name === NAME_ROTATOR) {
-                type = new UCObjectTypeSymbol(this.expression.id);
+                type = new UCObjectTypeSymbol(this.expression.id, undefined, UCSymbolKind.ScriptStruct, ModifierFlags.ReadOnly);
                 const nativeStruct = OuterObjectsTable.getSymbol(IntrinsicRotatorHash, UCSymbolKind.ScriptStruct) ?? IntrinsicRotator;
                 (type as UCObjectTypeSymbol).setRef(nativeStruct, document);
                 this.expression.type = type;
             } else if (name === NAME_STRUCT) {
-                type = new UCObjectTypeSymbol(this.expression.id);
+                type = new UCObjectTypeSymbol(this.expression.id, undefined, UCSymbolKind.ScriptStruct, ModifierFlags.ReadOnly);
                 (type as UCObjectTypeSymbol).setRef(IntrinsicScriptStruct, document);
                 this.expression.type = type;
             } else if (this.arguments.length === 1) {
@@ -380,7 +382,7 @@ export class UCCallExpression extends UCExpression {
                     case UCTypeKind.Object: {
                         const classSymbol = tryFindClassSymbol(name);
                         if (classSymbol) {
-                            type = new UCObjectTypeSymbol(this.expression.id);
+                            type = new UCObjectTypeSymbol(this.expression.id, undefined, UCSymbolKind.Class, ModifierFlags.ReadOnly);
                             (type as UCObjectTypeSymbol).setRef(classSymbol, document);
                             this.expression.type = type;
                         }
@@ -390,7 +392,7 @@ export class UCCallExpression extends UCExpression {
                     case UCTypeKind.Byte: {
                         const enumSymbol = ObjectsTable.getSymbol<UCEnumSymbol>(name, UCSymbolKind.Enum);
                         if (enumSymbol) {
-                            type = new UCObjectTypeSymbol(this.expression.id);
+                            type = new UCObjectTypeSymbol(this.expression.id, undefined, UCSymbolKind.Enum, ModifierFlags.ReadOnly);
                             (type as UCObjectTypeSymbol).setRef(enumSymbol, document);
                             this.expression.type = type;
                         }
@@ -770,7 +772,7 @@ export class UCMemberExpression extends UCExpression {
         if (contextTypeKind === UCTypeKind.Name) {
             const label = context.labels?.[id.hash];
             if (label) {
-                const nameType = new UCTypeSymbol(UCTypeKind.Name, this.id.range);
+                const nameType = new UCTypeSymbol(UCTypeKind.Name, this.id.range, ModifierFlags.ReadOnly);
                 this.type = nameType;
                 return;
             }
@@ -795,6 +797,7 @@ export class UCMemberExpression extends UCExpression {
             }
         } else if (member.getName() === NAME_CLASS && areIdentityMatch(member.outer, IntrinsicObject)) {
             const classContext = getContext<UCClassSymbol>(context, UCSymbolKind.Class)!;
+            const coercedType = new UCObjectTypeSymbol(this.id, undefined, undefined, ModifierFlags.ReadOnly);
             const coercedType = new UCObjectTypeSymbol(this.id);
             coercedType.setRefNoIndex(classContext);
             this.coercedType = coercedType;
@@ -804,7 +807,7 @@ export class UCMemberExpression extends UCExpression {
         }
 
         if (member) {
-            const type = new UCObjectTypeSymbol(this.id);
+            const type = new UCObjectTypeSymbol(this.id, undefined, undefined, member.modifiers & ModifierFlags.TypeFlags);
             const symbolRef = type.setRef(member, document)!;
             if (info?.inAssignment) {
                 symbolRef.flags |= SymbolReferenceFlags.Assignment;
@@ -856,7 +859,7 @@ export class UCDefaultMemberCallExpression extends UCExpression {
 
     override getType() {
         const type = this.propertyMember.getType();
-        if (type && UCArrayTypeSymbol.is(type)) {
+        if (type && isArrayTypeSymbol(type)) {
             // Resolve metaclass class<Actor> to Actor
             // Commented out because it was causing issues with type compatibility checks, TODO: Figure out if this resolve matters anymore.
             // if (hasDefinedBaseType(type) && hasDefinedBaseType(type.baseType)) {
@@ -887,7 +890,7 @@ export class UCDefaultMemberCallExpression extends UCExpression {
         this.propertyMember.index(document, context, info);
 
         const type = this.propertyMember.getType();
-        const isArrayType = type && UCArrayTypeSymbol.is(type);
+        const isArrayType = type && isArrayTypeSymbol(type);
         const methodSymbol = isArrayType
             ? DefaultArray.findSuperSymbol<UCMethodSymbol>(this.operationMember.id.name)
             : undefined;
@@ -1015,7 +1018,15 @@ export class UCIdentifierLiteralExpression extends UCMemberExpression {
 
 // Resolves the member for predefined specifiers such as (self, default, static, and global)
 export class UCPredefinedAccessExpression extends UCExpression {
-    constructor(readonly id: Identifier, public typeRef = new UCObjectTypeSymbol(id)) {
+    constructor(
+        readonly id: Identifier,
+        readonly typeRef = new UCObjectTypeSymbol(
+            id,
+            undefined,
+            undefined,
+            ModifierFlags.ReadOnly
+        )
+    ) {
         super(id.range);
     }
 
@@ -1097,7 +1108,7 @@ export class UCSuperExpression extends UCExpression {
         } else {
             this.superStruct = context.super;
             if (this.superStruct) {
-                const type = new UCObjectTypeSymbol(this.superStruct.id, undefined, UCSymbolKind.Field);
+                const type = new UCObjectTypeSymbol(this.superStruct.id, undefined, UCSymbolKind.Field, ModifierFlags.ReadOnly);
                 type.setRef(this.superStruct, document);
                 this.structTypeRef = type;
             }
@@ -1264,7 +1275,7 @@ export class UCStringLiteral extends UCLiteral {
     declare valueToken: Token;
 
     override getType() {
-        return StaticStringType;
+        return StaticConstStringType;
     }
 
     override getValue() {
@@ -1282,7 +1293,7 @@ export class UCNameLiteral extends UCLiteral {
     }
 
     override getType() {
-        return StaticNameType;
+        return StaticConstNameType;
     }
 
     override getValue() {
@@ -1298,7 +1309,7 @@ export class UCBoolLiteral extends UCLiteral {
     declare valueToken: Token;
 
     override getType() {
-        return StaticBoolType;
+        return StaticConstBoolType;
     }
 
     override getValue() {
@@ -1314,7 +1325,7 @@ export class UCFloatLiteral extends UCLiteral {
     declare valueToken: Token;
 
     override getType() {
-        return StaticFloatType;
+        return StaticConstFloatType;
     }
 
     override getValue(): number {
@@ -1326,19 +1337,7 @@ export class UCIntLiteral extends UCLiteral {
     declare valueToken: Token;
 
     override getType() {
-        return StaticIntType;
-    }
-
-    override getValue(): number {
-        return Number.parseInt(this.valueToken.text!);
-    }
-}
-
-export class UCByteLiteral extends UCLiteral {
-    declare valueToken: Token;
-
-    override getType() {
-        return StaticByteType;
+        return StaticConstIntType;
     }
 
     override getValue(): number {
@@ -1391,7 +1390,7 @@ export class UCObjectLiteral extends UCLiteral {
 
         // TODO: Implement StaticClass logic, so we can properly fetch the correct object by hash.
 
-        if (UCQualifiedTypeSymbol.is(objectRefType)) {
+        if (isQualifiedType(objectRefType)) {
             for (let next: UCQualifiedTypeSymbol | undefined = objectRefType; next; next = next.left) {
                 let symbol: ISymbol | undefined;
                 if (next.left) {
