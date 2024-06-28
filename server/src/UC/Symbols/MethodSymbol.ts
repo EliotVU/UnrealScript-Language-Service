@@ -328,30 +328,3 @@ export class UCPostOperatorSymbol extends UCBaseOperatorSymbol {
         return 'postoperator';
     }
 }
-
-export function areMethodsCompatibleWith(a: UCMethodSymbol, b: UCMethodSymbol): boolean {
-    // FIXME: Maybe check by hash instead of a memory-reference
-    if (a === b) {
-        return true;
-    }
-
-    if (a.returnValue && b.returnValue) {
-        if (a.returnValue.getType()?.getTypeKind() !== b.returnValue.getType()?.getTypeKind()) {
-            return false;
-        }
-    }
-
-    if (a.params && b.params) {
-        if (a.params.length !== b.params.length) {
-            return false;
-        }
-
-        for (let i = 0; i < a.params.length; ++i) {
-            if (a.params[i].getType()?.getTypeKind() === b.params[i].getType()?.getTypeKind()) {
-                continue;
-            }
-            return false;
-        }
-    }
-    return typeof a.params === typeof b.params && typeof a.returnValue === typeof b.returnValue;
-}

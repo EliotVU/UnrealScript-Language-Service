@@ -25,6 +25,7 @@ import {
     ObjectsTable,
     OuterObjectsTable,
     StaticConstBoolType,
+    StaticConstDelegateType,
     StaticConstFloatType,
     StaticConstIntType,
     StaticConstNameType,
@@ -69,6 +70,7 @@ import {
     isQualifiedType,
     isStateSymbol,
     isStruct,
+    resolveElementType,
     resolveType,
     tryFindClassSymbol,
 } from './Symbols';
@@ -464,27 +466,22 @@ export class UCCallExpression extends UCExpression {
  */
 export class UCElementAccessExpression extends UCExpression {
     public expression: IExpression;
-    public argument?: IExpression;
+    public argument?: IExpression = undefined;
+
+    protected accessType?: ITypeSymbol = undefined;
 
     override getMemberSymbol() {
-        return this.expression?.getMemberSymbol();
+        return this.expression.getMemberSymbol();
     }
 
     // Returns the type we are working with after [] has taken affect, this means we return undefined if the type is invalid.
     override getType() {
-        const type = this.expression?.getType();
-        if (type && UCArrayTypeSymbol.is(type)) {
-            // the actual array type `MyType` e.g. `Array<MyType>`
-            return type.baseType;
+        if (this.accessType) {
+            return this.accessType;
         }
 
-        const symbol = this.getMemberSymbol();
-        if (symbol && isProperty(symbol) && symbol.isFixedArray()) {
-            // metaclass is resolved in @UCMemberExpression's .getType
-            return type;
-        }
-
-        return undefined;
+        // not applicable
+        return StaticNoneType;
     }
 
     getContainedSymbolAtPos(position: Position) {
@@ -499,6 +496,12 @@ export class UCElementAccessExpression extends UCExpression {
 
     override index(document: UCDocument, context?: UCStructSymbol, info?: ContextInfo) {
         this.expression.index(document, context, info);
+
+        const type = this.expression.getType();
+        if (type) {
+            this.accessType = resolveElementType(type);
+        }
+
         this.argument?.index(document, context, info);
     }
 }
@@ -511,8 +514,13 @@ export class UCDefaultElementAccessExpression extends UCElementAccessExpression 
 
     override index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         this.expression.index(document, context, info);
-        // this.argument?.index(document, context, info);
 
+        const type = this.expression.getType();
+        if (type) {
+            this.accessType = resolveElementType(type);
+        }
+
+        // Manually index the argument
         if (this.argument && this.argument instanceof UCIdentifierLiteralExpression) {
             const id = this.argument.id;
             const symbol = (isStruct(context) && context.findSuperSymbol(id.name)) ?? getEnumMember(id.name);
@@ -1258,12 +1266,24 @@ export abstract class UCLiteral implements IExpression {
 }
 
 export class UCNoneLiteral extends UCLiteral {
+    private isNoneDelegate?: boolean;
+
     override getType() {
-        return StaticNoneType;
+        return typeof this.isNoneDelegate === 'undefined'
+            ? StaticNoneType
+            : StaticConstDelegateType;
     }
 
     override getValue() {
         return 'None';
+    }
+
+    override index(_document: UCDocument, _context?: UCStructSymbol | undefined, info?: ContextInfo | undefined): void {
+        // Hacky, but this is how the compiler behaves -
+        // we have to treat 'None' as an empty delegate where 'Delegate' is a context hint.
+        if (info?.contextType?.getTypeKind() === UCTypeKind.Delegate) {
+            this.isNoneDelegate = true;
+        }
     }
 
     override toString() {

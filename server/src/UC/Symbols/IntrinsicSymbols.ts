@@ -1,12 +1,11 @@
 import { createToken } from '../Parser/TokenFactory';
 import { toName } from '../name';
-import { NAME_ARRAY, NAME_RETURNVALUE } from '../names';
+import { NAME_ARRAY, NAME_NAME, NAME_OUTER, NAME_RETURNVALUE } from '../names';
 import {
     DEFAULT_RANGE,
     StaticConstFloatType,
     StaticConstIntType,
     StaticDelegateType,
-    StaticFloatType,
     StaticIntType,
     StaticMetaType,
     StaticNameType,
@@ -181,13 +180,13 @@ IntrinsicNewConstructor.description = createToken(`
 `);
 
 // TODO: meta type and coerce to the class's 'within' type?
-const OuterParam = new UCParamSymbol({ name: toName('Outer'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticObjectType);
+const OuterParam = new UCParamSymbol({ name: NAME_OUTER, range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticObjectType);
 OuterParam.modifiers |= ModifierFlags.Optional | ModifierFlags.Coerce;
 OuterParam.description = createToken('Outer for the new object. The outer must be an object derived of the declared `within` class.');
 IntrinsicNewConstructor.addSymbol(OuterParam);
 
 // TODO: Name type for UC1, String type for UC2+
-const NameParam = new UCParamSymbol({ name: toName('Name'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticStringType);
+const NameParam = new UCParamSymbol({ name: NAME_NAME, range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticStringType);
 NameParam.modifiers |= ModifierFlags.Optional | ModifierFlags.Coerce;
 NameParam.description = createToken('Name for the new object.');
 IntrinsicNewConstructor.addSymbol(NameParam);

@@ -19,6 +19,7 @@ import {
     ISymbol,
     ISymbolContainer,
     ITypeSymbol,
+    TypeMatchFlags,
     UCBaseOperatorSymbol,
     UCBinaryOperatorSymbol,
     UCClassSymbol,
@@ -292,14 +293,14 @@ export function getBinaryOperatorConversionCost(
     inputTypeA: ITypeSymbol, inputTypeB: ITypeSymbol
 ): UCConversionCost {
     const operandA = operator.params![0].getType();
-    const operandACost = getConversionCost(inputTypeA, operandA);
+    const operandACost = getConversionCost(inputTypeA, operandA, TypeMatchFlags.Generalize);
     if (operandACost === UCConversionCost.Illegal) {
         // left type is incompatible.
         return UCConversionCost.Illegal;
     }
 
     const operandB = operator.params![1].getType();
-    const operandBCost = getConversionCost(inputTypeB, operandB);
+    const operandBCost = getConversionCost(inputTypeB, operandB, TypeMatchFlags.Generalize);
     if (operandBCost === UCConversionCost.Illegal) {
         // right type is incompatible.
         return UCConversionCost.Illegal;
@@ -314,7 +315,7 @@ export function getUnaryOperatorConversionCost(
     inputType: ITypeSymbol
 ): UCConversionCost {
     const operandA = operator.params![0].getType();
-    const operandACost = getConversionCost(inputType, operandA);
+    const operandACost = getConversionCost(inputType, operandA, TypeMatchFlags.Generalize);
     return operandACost;
 }
 

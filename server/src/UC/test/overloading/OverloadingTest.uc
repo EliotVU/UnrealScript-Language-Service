@@ -1,8 +1,6 @@
 // This class serves the purpose to test the overloading of operators.
 class OverloadingTest extends Overloads;
 
-struct MyOperatorlessStruct { };
-
 function ShouldOverloadTest()
 {
     local byte byteOne;
@@ -18,7 +16,7 @@ function ShouldOverloadTest()
 
     true == true;
 
-    // Should pick Overloads.+(Byte,Byte), cast to byte should work if the int operator was picked.
+    // Should pick Overloads.+(Int,Int), cast to byte should work if the int operator was picked.
     byte(1 + 1);
 
     // Should pick Overloads.+(Int,Int), cast to float should work if the int operator was picked.
@@ -37,7 +35,10 @@ function ShouldOverloadTest()
     structTwo + structTwo;
 
     // Should pick Overloads.==(Int,Int)
-    enumOne == EO_1;
+    enumOne == EO_1; // by global tag
+    enumOne == EnumOne.EO_1; // by context tag
+    enumOne == EnumOne.EnumCount; // by intrinsic tag
+    enumOne == enumOne; // by variable
 
     // Should pick Overloads.==(Object,Object)
     classOne == classTwo;
@@ -50,24 +51,27 @@ function ShouldOverloadTest()
 
     // Should pick Overloads.+=(StructOne,Float)
     structOne = (structOne += 1.0);
+    // Also test implicit casting from int to float.
+    structOne = (structOne += 1);
     // Should pick Overloads.+=(Float,StructOne)
     floatOne = (1.0 += structOne);
 
     ++byteOne;
     ++intOne;
 
+    // Should pick Overloads.*=(Byte,Byte)
+    float(byte(1) *= byte(1));
+    // Should pick Overloads.*=(Int,Float)
+    float(1 *= 1.0);
+    // Should pick Overloads.*=(Float,Float)
+    int(1.0 *= 1.0);
+    // Should pick Overloads.*=(Int,Float)
+    float(1 *= 1); // with implicit casting
+
     self $ "string";
     "string" $ self;
     "string" $ "string";
-}
-
-function ShouldBeValidOperatorTest()
-{
-    local MyOperatorlessStruct o1, o2;
-
-    // operator '==' for this struct type does not exist, so use the built-in intrinsic struct comparison operators (only for '==' and '!=')
-    o1 == o2;
-    o1 != o2;
+    "string" $ EnumOne;
 }
 
 function ShouldBeInvalidOverloadTest()
@@ -76,7 +80,9 @@ function ShouldBeInvalidOverloadTest()
     local StructTwo structTwo;
     local float floatOne;
 
-    // FIXME: Diagnostic for missmatching overloads, (not added yet because we have false positives)
+    local int dimensionedLocal[2];
+
+    // FIXME: Diagnostic for mismatching overloads, (not added yet because we have false positives)
     // structOne + structTwo;
     // structTwo + structOne;
 
@@ -84,6 +90,11 @@ function ShouldBeInvalidOverloadTest()
     ++floatOne;
 
     none $ "string";
+
+    ++ dimensionedLocal;
+
+    // Cannot pass 'Int' to an 'Float' marked as 'Out'
+    floatOne = (1 += structOne);
 }
 
 function ShouldBeInvalidOperatorTest()

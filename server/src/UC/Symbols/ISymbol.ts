@@ -108,7 +108,7 @@ export interface IWithInnerSymbols {
 /**
  * Returns the outer of a symbol that matches the kind.
  *
- * Be carefull when using it against a context symbol to get a ClassSymbol e.g.
+ * Be careful when using it against a context symbol to get a ClassSymbol e.g.
  * ```typescript
  * getOuter<UCSymbolClass>(MyContextSymbolThatMightBeAClassSymbol, UCSymbolKind.Class)
  * ```

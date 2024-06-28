@@ -38,7 +38,7 @@ import {
     UCTypeKind,
     areDescendants,
     areIdentityMatch,
-    areMethodsCompatibleWith,
+    areMethodsCompatible,
     findOrIndexClassSymbol,
     getSymbolDebugInfo,
     isClass,
@@ -1639,7 +1639,7 @@ async function buildCompletionItems(
                     && (symbol.outer != scope.outer))) {
                     return false;
                 }
-                if (!delegateSource || areMethodsCompatibleWith(symbol, delegateSource)) {
+                if (!delegateSource || areMethodsCompatible(symbol, delegateSource)) {
                     return true;
                 }
                 return false;

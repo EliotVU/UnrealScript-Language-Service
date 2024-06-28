@@ -148,7 +148,7 @@ defaultproperties
     MyEnumBasedDimPropertyTest(ET_None)=ET_None
     // TODO: Check if this is allowed
     // MyEnumBasedDimProperty(EEnumTest.ET_None)=ET_None
-    // FIXME
+    // ! FIXME
     // MyEnumProperty=EEnumTest.ET_None
 
     // Verify that the enum hint is picked up.
