@@ -131,6 +131,9 @@ function EEnumTest ShouldHintEnumTest()
     AcceptByte(EEnumTest.EnumCount);
     AcceptInt(ET_Other);
 
+    // in element accesses
+    MyEnumArrayPropertyTest[ET_Other] = ET_Other;
+
     // in returns
     return ET_Max;
 }
