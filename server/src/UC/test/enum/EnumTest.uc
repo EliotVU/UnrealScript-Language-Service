@@ -89,6 +89,7 @@ function EEnumTest ShouldHintEnumTest()
 {
     local EEnumTest p1;
     local byte b1;
+    local array<string> strings;
 
     // in assignments
     p1 = EEnumTest.EnumCount;
@@ -131,8 +132,9 @@ function EEnumTest ShouldHintEnumTest()
     AcceptByte(EEnumTest.EnumCount);
     AcceptInt(ET_Other);
 
-    // in element accesses
+    // in element accesses (UC3+)
     MyEnumArrayPropertyTest[ET_Other] = ET_Other;
+    strings[ET_Other] = ""; // Hint is also expected for a non-int type array.
 
     // in returns
     return ET_Max;

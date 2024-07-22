@@ -500,12 +500,10 @@ export class UCElementAccessExpression extends UCExpression {
         const type = this.expression.getType();
         if (type) {
             this.accessType = resolveElementType(type);
-            info = {
-                contextType: this.accessType
-            };
         }
 
-        this.argument?.index(document, context, info);
+        // UC1 and UC2 do not pass a context hint.
+        this.argument?.index(document, context, { contextType: StaticConstIntType });
     }
 }
 
