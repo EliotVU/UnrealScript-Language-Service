@@ -85,7 +85,7 @@ import {
     type UCScriptStructSymbol,
     type UCStateSymbol
 } from './';
-import { ModifierFlags } from './ModifierFlags';
+import { ModifierFlags, type TypeFlags } from './ModifierFlags';
 
 export const enum UCNodeKind {
     Expression,
@@ -118,7 +118,7 @@ export const enum UCSymbolKind {
     Macro
 }
 
-export const SymboldKindToName: Readonly<Map<UCSymbolKind, Name>> = new Map([
+export const SymbolKindToName: Readonly<Map<UCSymbolKind, Name>> = new Map([
     [UCSymbolKind.None, NAME_NONE],
     [UCSymbolKind.Type, NAME_TYPE],
     [UCSymbolKind.Package, NAME_PACKAGE],
@@ -143,10 +143,6 @@ export const SymboldKindToName: Readonly<Map<UCSymbolKind, Name>> = new Map([
     [UCSymbolKind.Statement, NAME_STATEMENT],
     [UCSymbolKind.Macro, NAME_MACRO],
 ]);
-
-export function symbolKindToDisplayString(kind: UCSymbolKind): string {
-    return SymboldKindToName.get(kind)!.text;
-}
 
 export const enum UCTypeKind {
     /** An unrecognized type */
@@ -198,12 +194,8 @@ export const TypeKindToName: Readonly<Map<UCTypeKind, Name>> = new Map([
     [UCTypeKind.Button, NAME_BUTTON],
 ]);
 
-export function typeKindToDisplayString(kind: UCTypeKind): string {
-    return TypeKindToName.get(kind)!.text;
-}
-
 export interface ITypeSymbol extends ISymbol, IWithReference, IWithInnerSymbols {
-    flags: ModifierFlags;
+    flags: TypeFlags;
 
     /**
      * The type's dimension. Implies 1 if 'undefined' or if the dimension is bound to a type that was unresolved.
@@ -229,14 +221,14 @@ export class UCTypeSymbol implements ITypeSymbol {
     declare outer: undefined;
     declare nextInHash: undefined;
 
-    flags: ModifierFlags = 0;
+    flags: TypeFlags = 0;
     arrayDimension?: number;
 
     constructor(
         /** The UnrealScript type to represent. */
         readonly type: UCTypeKind,
         readonly range: Range = DEFAULT_RANGE,
-        flags: ModifierFlags = 0,
+        flags: TypeFlags = 0,
     ) { this.flags = flags; }
 
     getName(): Name {
@@ -310,7 +302,7 @@ export class UCTypeSymbol implements ITypeSymbol {
 export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> implements ITypeSymbol {
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
 
-    flags: ModifierFlags = 0;
+    flags: TypeFlags = 0;
     arrayDimension?: number;
 
     /**
@@ -330,7 +322,7 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
         readonly id: Identifier,
         readonly range: Range = id.range,
         private expectedKind?: UCSymbolKind,
-        flags: ModifierFlags = 0,
+        flags: TypeFlags = 0,
     ) { this.flags = flags; }
 
     getName(): Name {
@@ -586,7 +578,7 @@ export class UCQualifiedTypeSymbol implements ITypeSymbol {
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
     readonly id: Identifier;
 
-    flags: ModifierFlags = ModifierFlags.None;
+    flags: TypeFlags = ModifierFlags.None;
     arrayDimension?: number;
 
     /**
@@ -1307,7 +1299,7 @@ export function hasModifiers(
     return typeof symbol.modifiers !== 'undefined';
 }
 
-export function isSymbol(symbol: ISymbol): symbol is ISymbol {
+export function isSymbol(symbol: { kind?: UCSymbolKind }): symbol is ISymbol {
     return typeof symbol.kind !== 'undefined';
 }
 

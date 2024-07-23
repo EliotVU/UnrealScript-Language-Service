@@ -90,3 +90,5 @@ export const enum ModifierFlags {
     /** Flags that have an impact on type checking. */
     TypeFlags = Out | Coerce | Ref | ReadOnly | WithDimension | ReturnParam
 }
+
+export type TypeFlags = ModifierFlags;

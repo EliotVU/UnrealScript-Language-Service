@@ -67,6 +67,7 @@ function ShouldOverloadTest()
     int(1.0 *= 1.0);
     // Should pick Overloads.*=(Int,Float)
     float(1 *= 1); // with implicit casting
+    byte(1) *= 2;
 
     self $ "string";
     "string" $ self;

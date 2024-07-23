@@ -54,7 +54,7 @@
     },
 
     "ARGUMENT_IS_INCOMPATIBLE": {
-        "text": "Argument of type '{0}' is not assignable to parameter of type '{1}'",
+        "text": "Argument of type {0} is not assignable to parameter of type {1}",
 		"code": "9",
 		"severity": 1
     },
@@ -72,7 +72,7 @@
 	},
 
     "ARGUMENT_CLASS_IS_INCOMPATIBLE": {
-        "text": "Argument of type Class '{0}' does not derive from the parameter of type Class '{1}'",
+        "text": "Argument of type {0} does not derive from the parameter of type Class {1}",
 		"code": "12",
 		"severity": 1
     }
