@@ -962,8 +962,10 @@ primaryExpression
 	| primaryExpression (OPEN_PARENS arguments? CLOSE_PARENS) 								#callExpression
 	| primaryExpression (OPEN_BRACKET arg=expression? CLOSE_BRACKET) 						#elementAccessExpression
 
-	| 'new' 		(OPEN_PARENS arguments? CLOSE_PARENS)? expr=primaryExpression
-                    (OPEN_PARENS templateExpr=primaryExpression CLOSE_PARENS)?              #newExpression
+	| 'new' 		(OPEN_PARENS arguments CLOSE_PARENS)? expr=primaryExpression
+                    ({ this.generation === 3 }?
+                    OPEN_PARENS templateExpr=primaryExpression CLOSE_PARENS
+                    )?                                                                      #newExpression
 	| 'class' 		(LT identifier GT) (OPEN_PARENS expr=expression CLOSE_PARENS)			#metaClassExpression
 	| 'arraycount' 	(OPEN_PARENS expr=primaryExpression CLOSE_PARENS)						#arrayCountExpression
 	| 'super' 		(OPEN_PARENS identifier CLOSE_PARENS)?									#superExpression

@@ -7,8 +7,9 @@ import {
     ContextInfo,
     ITypeSymbol,
     IntrinsicClass,
+    IntrinsicClassConstructor,
     IntrinsicEnum,
-    IntrinsicNewConstructor,
+    IntrinsicNewOperator,
     MethodFlags,
     StaticBoolType,
     StaticDelegateType,
@@ -1008,7 +1009,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                 if (type.getTypeKind() === UCTypeKind.Array) {
                     // check the arguments against our intrinsic ArrayIterator.
                     const arrayInnerType = (symbol.getType() as UCArrayTypeSymbol).baseType;
-                    this.checkArguments(ArrayIterator, stm.expression, arrayInnerType);
+                    this.checkArguments(ArrayIterator, stm.expression, stm.expression.arguments, arrayInnerType);
 
                     // Skip analysis below
                     return;
@@ -1114,7 +1115,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             const symbol = destType.getRef();
             if (symbol && isFunction(symbol)) {
                 // FIXME: inferred type, this is unfortunately complicated :(
-                this.checkArguments(symbol, expr);
+                this.checkArguments(symbol, expr, expr.arguments);
                 return;
             }
 
@@ -1543,7 +1544,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     const operationType = expr.operationMember;
                     const operationSymbol = operationType.getRef();
                     if (operationSymbol && isFunction(operationSymbol)) {
-                        this.checkArguments(operationSymbol, expr, expr.getType());
+                        this.checkArguments(operationSymbol, expr, expr.arguments, expr.getType());
                     } else {
                         this.pushError(operationType.range, `Unrecognized array operation '${operationType.id.name.text}'`);
                     }
@@ -1652,17 +1653,24 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             expr.argumentRef?.accept(this);
         } else if (expr instanceof UCNewExpression) {
             expr.arguments?.forEach(arg => arg.accept(this));
+            this.checkArguments(IntrinsicNewOperator, expr, expr.arguments);
+
             expr.expression.accept(this);
 
-            this.checkArguments(IntrinsicNewConstructor, expr);
+            expr.constructorArguments?.forEach(arg => arg.accept(this));
+            this.checkArguments(IntrinsicClassConstructor, expr.expression, expr.constructorArguments);
         }
     }
 
-    private checkArguments(symbol: UCMethodSymbol, expr: UCCallExpression | UCDefaultMemberCallExpression | UCNewExpression, inferredType?: ITypeSymbol) {
+    private checkArguments(
+        symbol: UCMethodSymbol,
+        expr: IExpression,
+        args: IExpression[] | undefined,
+        inferredType?: ITypeSymbol
+    ) {
         let i = 0;
         let passedArgumentsCount = 0; // excluding optional parameters.
 
-        const args = expr.arguments;
         if (args) for (; i < args.length; ++i) {
             const arg = args[i];
             const param = symbol.params?.[i];

@@ -1796,12 +1796,18 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             expression.arguments = exprArgumentNodes.accept(this);
         }
 
-        if (ctx._templateExpr) {
-            const templateExpr = ctx._templateExpr.accept(this);
-            (expression.arguments || (expression.arguments = [])).push(templateExpr);
-        }
+        const classExpression = ctx._expr.accept(this);
+        const templateArgumentExpression = ctx._templateExpr?.accept(this);
 
-        expression.expression = ctx._expr.accept(this);
+        if (classExpression instanceof UCCallExpression && classExpression.expression instanceof UCObjectLiteral) {
+            expression.expression = classExpression.expression;
+            expression.constructorArguments = classExpression.arguments;
+        } else {
+            expression.expression = classExpression;
+            if (templateArgumentExpression) {
+                expression.constructorArguments = [templateArgumentExpression];
+            }
+        }
 
         return expression;
     }

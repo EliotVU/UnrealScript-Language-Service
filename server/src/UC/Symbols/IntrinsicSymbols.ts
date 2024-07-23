@@ -162,10 +162,10 @@ IntrinsicRngLiteral.addSymbol(MaxParam);
 IntrinsicRngLiteral.params = [MinParam, MaxParam];
 
 /** Symbol to represent the `New` operator. */
-export const IntrinsicNewConstructor = new UCMethodLikeSymbol(toName('New'));
-IntrinsicNewConstructor.kind = UCSymbolKind.Operator;
-IntrinsicNewConstructor.modifiers |= ModifierFlags.Keyword;
-IntrinsicNewConstructor.description = createToken(`
+export const IntrinsicNewOperator = new UCMethodLikeSymbol(toName('New'));
+IntrinsicNewOperator.kind = UCSymbolKind.Operator;
+IntrinsicNewOperator.modifiers |= ModifierFlags.Keyword;
+IntrinsicNewOperator.description = createToken(`
     Creates a new instanced object of the specified class.
 
     Syntax:
@@ -183,24 +183,30 @@ IntrinsicNewConstructor.description = createToken(`
 const OuterParam = new UCParamSymbol({ name: NAME_OUTER, range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticObjectType);
 OuterParam.modifiers |= ModifierFlags.Optional | ModifierFlags.Coerce;
 OuterParam.description = createToken('Outer for the new object. The outer must be an object derived of the declared `within` class.');
-IntrinsicNewConstructor.addSymbol(OuterParam);
+IntrinsicNewOperator.addSymbol(OuterParam);
 
 // TODO: Name type for UC1, String type for UC2+
 const NameParam = new UCParamSymbol({ name: NAME_NAME, range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticStringType);
 NameParam.modifiers |= ModifierFlags.Optional | ModifierFlags.Coerce;
 NameParam.description = createToken('Name for the new object.');
-IntrinsicNewConstructor.addSymbol(NameParam);
+IntrinsicNewOperator.addSymbol(NameParam);
 
 // TODO: Int type for UC1+, QWORD type for UC3
 const FlagsParam = new UCParamSymbol({ name: toName('Flags'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
 FlagsParam.modifiers |= ModifierFlags.Optional;
 FlagsParam.description = createToken('Flags for the new object.');
-IntrinsicNewConstructor.addSymbol(FlagsParam);
+IntrinsicNewOperator.addSymbol(FlagsParam);
 
-// TODO: Only for UC3+ and maybe remove it from parameters, because technically this param goes at the end of the 'new' expression.
+IntrinsicNewOperator.params = [OuterParam, NameParam, FlagsParam, /* TemplateParam */];
+
+// TODO: Only for UC3+
+export const IntrinsicClassConstructor = new UCMethodLikeSymbol(toName('Constructor'));
+IntrinsicClassConstructor.kind = UCSymbolKind.Function;
+IntrinsicClassConstructor.modifiers |= ModifierFlags.NoDeclaration;
+
 const TemplateParam = new UCParamSymbol({ name: toName('Template'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticObjectType);
 TemplateParam.modifiers |= ModifierFlags.Optional;
 TemplateParam.description = createToken('Template to use as base for the new object.');
-// IntrinsicNewConstructor.addSymbol(TemplateParam);
+IntrinsicClassConstructor.addSymbol(TemplateParam);
 
-IntrinsicNewConstructor.params = [OuterParam, NameParam, FlagsParam, /* TemplateParam */];
+IntrinsicClassConstructor.params = [TemplateParam];

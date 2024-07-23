@@ -12,7 +12,8 @@ import {
     IWithInnerSymbols,
     Identifier,
     IntrinsicClass,
-    IntrinsicNewConstructor,
+    IntrinsicClassConstructor,
+    IntrinsicNewOperator,
     IntrinsicObject,
     IntrinsicRngLiteral,
     IntrinsicRotLiteral,
@@ -760,7 +761,8 @@ export class UCMemberExpression extends UCExpression {
     }
 
     getContainedSymbolAtPos(_position: Position) {
-        if (this.coercedType) {
+        // FIXME: Provide auto completion suggestions in the context of the coerced type, but not for tooltips and references etc.
+        if (this.coercedType && UCCallExpression.hack_getTypeIfNoSymbol) {
             return this.coercedType;
         }
 
@@ -1126,20 +1128,23 @@ export class UCSuperExpression extends UCExpression {
 }
 
 /**
- * An expression to represent `new (Arguments)? Expression (TemplateExpression)?`
+ * An expression to represent `new (Arguments)? Expression (ConstructorArguments)?`
  *
  * ```UnrealScript
- * new (None) Class
+ * new (None) Class (Template)
  * ```
  */
 export class UCNewExpression implements IExpression {
     readonly kind = UCNodeKind.Expression;
 
-    /** The arguments for `new` including the template expression */
+    /** The arguments passed to the `new` operator */
     public arguments?: Array<IExpression>;
 
-    /** The class expression. */
+    /** The class expression, or right operand of the operator. */
     public expression: IExpression;
+
+    /** The constructor arguments, including the `template` argument. */
+    public constructorArguments?: IExpression[];
 
     constructor(readonly range: Range) {
     }
@@ -1182,18 +1187,25 @@ export class UCNewExpression implements IExpression {
             return symbol;
         }
 
+        if (this.constructorArguments) for (const arg of this.constructorArguments) {
+            const symbol = arg.getSymbolAtPos(position);
+            if (symbol) {
+                return symbol;
+            }
+        }
+
         // HACK: Redirect the completion context to the resolved type (the class)
         if (UCCallExpression.hack_getTypeIfNoSymbol) {
             return this.getType();
         }
 
         // HACK: Redirect hover info to the 'New' operator.
-        return IntrinsicNewConstructor;
+        return IntrinsicNewOperator;
     }
 
     index(document: UCDocument, context: UCStructSymbol, info?: ContextInfo) {
         if (this.arguments) {
-            const methodSymbol = IntrinsicNewConstructor;
+            const methodSymbol = IntrinsicNewOperator;
             const argInfo: ContextInfo = {
                 contextType: StaticErrorType,
                 inAssignment: false,
@@ -1215,6 +1227,22 @@ export class UCNewExpression implements IExpression {
         }
 
         this.expression.index(document, context);
+
+        if (this.constructorArguments) {
+            const methodSymbol = IntrinsicClassConstructor;
+            const argInfo: ContextInfo = {
+                contextType: StaticErrorType,
+                inAssignment: false,
+            };
+            for (let i = 0; i < this.constructorArguments.length; ++i) {
+                if (i < methodSymbol.params!.length) {
+                    const param = methodSymbol.params![i];
+                    argInfo.contextType = param.getType();
+                    argInfo.inAssignment = param.hasAnyModifierFlags(ModifierFlags.Out);
+                    this.constructorArguments[i].index(document, context, argInfo);
+                }
+            }
+        }
     }
 
     getValue(): string | number | boolean | undefined {
@@ -1224,7 +1252,6 @@ export class UCNewExpression implements IExpression {
     accept<Result>(visitor: SymbolWalker<Result>): void | Result {
         return visitor.visitExpression(this);
     }
-
 }
 
 export abstract class UCLiteral implements IExpression {
