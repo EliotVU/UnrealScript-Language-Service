@@ -2,7 +2,14 @@
 
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/last-updated/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
+
+Availabe on the Visual Studio Marketplace:
+
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/d/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
+
+Available on the Open VSX Registry:
+
+[![Open VSX Registry Version](https://img.shields.io/open-vsx/dt/EliotVU/uc)](https://open-vsx.org/extension/EliotVU/uc)
 
 ## Features
 
