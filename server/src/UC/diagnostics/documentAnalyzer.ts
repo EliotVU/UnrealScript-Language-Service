@@ -996,7 +996,7 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                     this.diagnostics.add({
                         range: stm.expression.range,
                         message: {
-                            text: `Type ${typeToDisplayString(type)}' cannot be iterated. Expected an iterator function.`,
+                            text: `Type ${typeToDisplayString(type)} cannot be iterated. Expected an iterator function.`,
                             severity: DiagnosticSeverity.Error
                         }
                     });
@@ -1837,18 +1837,4 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
     private pushError(range: Range, text: string): void {
         this.diagnostics.add({ range, message: { text, severity: DiagnosticSeverity.Error } });
     }
-}
-
-function createExpectedTypeMessage(destType: UCTypeKind, inputType: UCTypeKind): IDiagnosticMessage {
-    return {
-        text: `Expected type '${typeKindToDisplayString(destType)}', but got type '${typeKindToDisplayString(inputType)}'`,
-        severity: DiagnosticSeverity.Error
-    };
-}
-
-function createTypeCannotBeAssignedToMessage(destType: UCTypeKind, inputType: UCTypeKind): IDiagnosticMessage {
-    return {
-        text: `Type '${typeKindToDisplayString(inputType)}' is not assignable to type '${typeKindToDisplayString(destType)}'`,
-        severity: DiagnosticSeverity.Error
-    };
 }
