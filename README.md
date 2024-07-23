@@ -3,7 +3,7 @@
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/last-updated/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 
-Availabe on the Visual Studio Marketplace:
+Available on the Visual Studio Marketplace:
 
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/d/EliotVU.uc)](https://marketplace.visualstudio.com/items?itemName=EliotVU.uc)
 
