@@ -1,5 +1,18 @@
 # UnrealScript Language Service
 
+## 0.8.2 (July 24, 2024)
+
+This hotfix mostly addresses problems with type checking (when 'check types' is enabled) and other minor issues:
+
+- Fixed [#190](https://github.com/EliotVU/UnrealScript-Language-Service/issues/190)
+- Fixed [#189](https://github.com/EliotVU/UnrealScript-Language-Service/issues/189)
+- Fixed [#188](https://github.com/EliotVU/UnrealScript-Language-Service/issues/188)
+- Fixed [#187](https://github.com/EliotVU/UnrealScript-Language-Service/issues/187)
+
+In order to fix all of the listed issues above, the type checking had to be expanded to validate and consider 'variables' modifiers, and as a result more incompatible types should be reported; but this may also cause more false-positives to be reported in cases where the data is incomplete (i.e. macros)
+
+- Fixed [#182; "Declaring static array size from variable fails in some cases"](https://github.com/EliotVU/UnrealScript-Language-Service/issues/182)
+
 ## 0.8.1 (Juni 16, 2024)
 
 - (check types) Fixed false-positive `Type 'Object' and 'None' are incompatible with operator '!='`
