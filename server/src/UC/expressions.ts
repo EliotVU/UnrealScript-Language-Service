@@ -808,9 +808,10 @@ export class UCMemberExpression extends UCExpression {
             }
         } else if (member.getName() === NAME_CLASS && areIdentityMatch(member.outer, IntrinsicObject)) {
             const classContext = getContext<UCClassSymbol>(context, UCSymbolKind.Class)!;
-            const coercedType = new UCObjectTypeSymbol(this.id, undefined, undefined, ModifierFlags.ReadOnly);
-            const coercedType = new UCObjectTypeSymbol(this.id);
-            coercedType.setRefNoIndex(classContext);
+            const coercedType = new UCObjectTypeSymbol(IntrinsicClass.id, undefined, UCSymbolKind.Class, ModifierFlags.ReadOnly);
+            coercedType.baseType = new UCObjectTypeSymbol(classContext.id, undefined, UCSymbolKind.Class, ModifierFlags.ReadOnly);
+            (coercedType.baseType as UCObjectTypeSymbol).setRefNoIndex(classContext);
+            coercedType.setRefNoIndex(IntrinsicClass);
             this.coercedType = coercedType;
         } else if (member.getName() === NAME_OUTER && areIdentityMatch(member.outer, IntrinsicObject)) {
             const classContext = getContext<UCClassSymbol>(context, UCSymbolKind.Class)!;
