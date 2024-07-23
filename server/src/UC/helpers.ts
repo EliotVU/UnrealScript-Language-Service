@@ -5,7 +5,6 @@ import { DocumentUri } from 'vscode-languageserver-textdocument';
 import { commentTokensToStrings } from './Parser/TokenStream';
 import {
     ISymbol,
-    ModifierFlags,
     UCClassSymbol,
     UCObjectSymbol,
     UCStructSymbol,
@@ -13,7 +12,6 @@ import {
     getContext,
     hasModifiers,
     isArchetypeSymbol,
-    isClass,
     isField,
     isStruct,
     supportsRef,
@@ -21,6 +19,7 @@ import {
 import { UCLexer } from './antlr/generated/UCLexer';
 import { UCDocument } from './document';
 import { getDocumentById, getDocumentByURI } from './indexer';
+import { ModifierFlags } from './Symbols/ModifierFlags';
 
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
 
@@ -345,6 +344,11 @@ export function backtrackFirstTokenOfType(stream: TokenStream, type: number, ind
 export function isSymbolDefined(symbol: ISymbol): boolean {
     // Exclude generated symbols
     if (hasModifiers(symbol) && (symbol.modifiers & ModifierFlags.Generated) != 0) {
+        return false;
+    }
+
+    // Name cannot be 'falsy'
+    if (!symbol.id.name.text) {
         return false;
     }
 

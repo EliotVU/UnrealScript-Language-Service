@@ -1,11 +1,11 @@
 import { createToken } from '../Parser/TokenFactory';
 import { toName } from '../name';
-import { NAME_ARRAY, NAME_RETURNVALUE } from '../names';
+import { NAME_ARRAY, NAME_NAME, NAME_OUTER, NAME_RETURNVALUE } from '../names';
 import {
     DEFAULT_RANGE,
-    ModifierFlags,
+    StaticConstFloatType,
+    StaticConstIntType,
     StaticDelegateType,
-    StaticFloatType,
     StaticIntType,
     StaticMetaType,
     StaticNameType,
@@ -21,6 +21,7 @@ import {
     UCStructSymbol,
     UCSymbolKind,
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export * from './CoreSymbols';
 export * from './EngineSymbols';
@@ -107,21 +108,24 @@ IntrinsicArray.addSymbol(Array_SortFunction);
 const ReturnValueIdentifier = { name: NAME_RETURNVALUE, range: DEFAULT_RANGE };
 
 const VectorReturnValue = new UCParamSymbol(ReturnValueIdentifier, DEFAULT_RANGE, StaticVectorType);
+VectorReturnValue.modifiers |= ModifierFlags.ReturnParam | ModifierFlags.Out;
 const RotatorReturnValue = new UCParamSymbol(ReturnValueIdentifier, DEFAULT_RANGE, StaticRotatorType);
+RotatorReturnValue.modifiers |= ModifierFlags.ReturnParam | ModifierFlags.Out;
 const RangeReturnValue = new UCParamSymbol(ReturnValueIdentifier, DEFAULT_RANGE, StaticRangeType);
+RangeReturnValue.modifiers |= ModifierFlags.ReturnParam | ModifierFlags.Out;
 
 export const IntrinsicVectLiteral = new UCMethodLikeSymbol(toName('Vect'));
 IntrinsicVectLiteral.returnValue = VectorReturnValue;
 
-const XParam = new UCParamSymbol({ name: toName('X'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+const XParam = new UCParamSymbol({ name: toName('X'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstFloatType);
 XParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicVectLiteral.addSymbol(XParam);
 
-const YParam = new UCParamSymbol({ name: toName('Y'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+const YParam = new UCParamSymbol({ name: toName('Y'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstFloatType);
 YParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicVectLiteral.addSymbol(YParam);
 
-const ZParam = new UCParamSymbol({ name: toName('Z'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+const ZParam = new UCParamSymbol({ name: toName('Z'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstFloatType);
 ZParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicVectLiteral.addSymbol(ZParam);
 
@@ -130,15 +134,15 @@ IntrinsicVectLiteral.params = [XParam, YParam, ZParam];
 export const IntrinsicRotLiteral = new UCMethodLikeSymbol(toName('Rot'));
 IntrinsicRotLiteral.returnValue = RotatorReturnValue;
 
-const PitchParam = new UCParamSymbol({ name: toName('Pitch'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
+const PitchParam = new UCParamSymbol({ name: toName('Pitch'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstIntType);
 PitchParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRotLiteral.addSymbol(PitchParam);
 
-const YawParam = new UCParamSymbol({ name: toName('Yaw'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
+const YawParam = new UCParamSymbol({ name: toName('Yaw'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstIntType);
 YawParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRotLiteral.addSymbol(YawParam);
 
-const RollParam = new UCParamSymbol({ name: toName('Roll'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
+const RollParam = new UCParamSymbol({ name: toName('Roll'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstIntType);
 RollParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRotLiteral.addSymbol(RollParam);
 
@@ -147,23 +151,23 @@ IntrinsicRotLiteral.params = [PitchParam, YawParam, RollParam];
 export const IntrinsicRngLiteral = new UCMethodLikeSymbol(toName('Rng'));
 IntrinsicRngLiteral.returnValue = RangeReturnValue;
 
-const MinParam = new UCParamSymbol({ name: toName('Min'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+const MinParam = new UCParamSymbol({ name: toName('Min'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstFloatType);
 MinParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRngLiteral.addSymbol(MinParam);
 
-const MaxParam = new UCParamSymbol({ name: toName('Max'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticFloatType);
+const MaxParam = new UCParamSymbol({ name: toName('Max'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticConstFloatType);
 MinParam.modifiers |= ModifierFlags.ReadOnly;
 IntrinsicRngLiteral.addSymbol(MaxParam);
 
 IntrinsicRngLiteral.params = [MinParam, MaxParam];
 
 /** Symbol to represent the `New` operator. */
-export const IntrinsicNewConstructor = new UCMethodLikeSymbol(toName('New'));
-IntrinsicNewConstructor.kind = UCSymbolKind.Operator;
-IntrinsicNewConstructor.modifiers |= ModifierFlags.Keyword;
-IntrinsicNewConstructor.description = createToken(`
+export const IntrinsicNewOperator = new UCMethodLikeSymbol(toName('New'));
+IntrinsicNewOperator.kind = UCSymbolKind.Operator;
+IntrinsicNewOperator.modifiers |= ModifierFlags.Keyword;
+IntrinsicNewOperator.description = createToken(`
     Creates a new instanced object of the specified class.
-    
+
     Syntax:
     ${'`new [( [outer [, name [, flags]]] )] class [( template )]`'}
 
@@ -171,32 +175,38 @@ IntrinsicNewConstructor.description = createToken(`
     ${'```unrealscript'}
     ${`new (None, "MyObject", RF_Transient) Class'MyClass' (MyClass'MyTemplateObject')`}
     ${'```'}
-    
+
     ${'For *Unreal Engine 2* the event `Object.Created()` will be instigated during the construction.'}
 `);
 
 // TODO: meta type and coerce to the class's 'within' type?
-const OuterParam = new UCParamSymbol({ name: toName('Outer'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticObjectType);
+const OuterParam = new UCParamSymbol({ name: NAME_OUTER, range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticObjectType);
 OuterParam.modifiers |= ModifierFlags.Optional | ModifierFlags.Coerce;
 OuterParam.description = createToken('Outer for the new object. The outer must be an object derived of the declared `within` class.');
-IntrinsicNewConstructor.addSymbol(OuterParam);
+IntrinsicNewOperator.addSymbol(OuterParam);
 
 // TODO: Name type for UC1, String type for UC2+
-const NameParam = new UCParamSymbol({ name: toName('Name'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticStringType);
+const NameParam = new UCParamSymbol({ name: NAME_NAME, range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticStringType);
 NameParam.modifiers |= ModifierFlags.Optional | ModifierFlags.Coerce;
 NameParam.description = createToken('Name for the new object.');
-IntrinsicNewConstructor.addSymbol(NameParam);
+IntrinsicNewOperator.addSymbol(NameParam);
 
 // TODO: Int type for UC1+, QWORD type for UC3
 const FlagsParam = new UCParamSymbol({ name: toName('Flags'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticIntType);
 FlagsParam.modifiers |= ModifierFlags.Optional;
 FlagsParam.description = createToken('Flags for the new object.');
-IntrinsicNewConstructor.addSymbol(FlagsParam);
+IntrinsicNewOperator.addSymbol(FlagsParam);
 
-// TODO: Only for UC3+ and maybe remove it from parameters, because technically this param goes at the end of the 'new' expression.
+IntrinsicNewOperator.params = [OuterParam, NameParam, FlagsParam, /* TemplateParam */];
+
+// TODO: Only for UC3+
+export const IntrinsicClassConstructor = new UCMethodLikeSymbol(toName('Constructor'));
+IntrinsicClassConstructor.kind = UCSymbolKind.Function;
+IntrinsicClassConstructor.modifiers |= ModifierFlags.NoDeclaration;
+
 const TemplateParam = new UCParamSymbol({ name: toName('Template'), range: DEFAULT_RANGE }, DEFAULT_RANGE, StaticObjectType);
 TemplateParam.modifiers |= ModifierFlags.Optional;
 TemplateParam.description = createToken('Template to use as base for the new object.');
-// IntrinsicNewConstructor.addSymbol(TemplateParam);
+IntrinsicClassConstructor.addSymbol(TemplateParam);
 
-IntrinsicNewConstructor.params = [OuterParam, NameParam, FlagsParam, /* TemplateParam */];
+IntrinsicClassConstructor.params = [TemplateParam];

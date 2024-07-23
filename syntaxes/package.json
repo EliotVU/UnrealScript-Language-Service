@@ -1,10 +1,55 @@
 {
     "name": "unrealscript-tmlanguage",
-    "version": "0.7.0",
+    "version": "0.7.1",
     "description": "",
     "author": "Eliot van Uytfanghe",
     "license": "MIT",
     "devDependencies": {
-        "js-yaml-loader": "^1.2.2"
+        "vscode-tmgrammar-test": "^0.1.3",
+        "yaml-convert": "1.0.1"
+    },
+    "scripts": {
+        "compile": "mkdir out & npx yaml-convert --np < ./UnrealScript.YAML-tmLanguage > ./out/unrealscript.tmLanguage.json && npx yaml-convert --np < ./unrealscript.preprocessor.YAML-tmLanguage > ./out/unrealscript.preprocessor.tmLanguage.json",
+        "test": "npm run compile & npx vscode-tmgrammar-test -c ./test/**/*.test.{uc,uci}"
+    },
+    "contributes": {
+        "languages": [
+            {
+                "id": "unrealscript",
+                "extensions": [
+                    ".uc"
+                ]
+            },
+            {
+                "id": "unrealscript-pp",
+                "extensions": [
+                    ".uci"
+                ]
+            }
+        ],
+        "grammars": [
+            {
+                "language": "unrealscript",
+                "scopeName": "source.uc",
+                "path": "./out/unrealscript.tmLanguage.json",
+                "embeddedLanguages": {
+                    "meta.embedded.block.cpp.uc": "cpp",
+                    "meta.embedded.block.upp.uc": "unrealscript-pp"
+                }
+            },
+            {
+                "language": "unrealscript",
+                "scopeName": "source.upp",
+                "path": "./out/unrealscript.preprocessor.tmLanguage.json"
+            },
+            {
+                "language": "unrealscript-pp",
+                "scopeName": "source.upp",
+                "path": "./out/unrealscript.preprocessor.tmLanguage.json",
+                "embeddedLanguages": {
+                    "meta.embedded.block.unrealscript.upp": "unrealscript"
+                }
+            }
+        ]
     }
 }

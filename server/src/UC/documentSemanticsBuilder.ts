@@ -34,12 +34,10 @@ import { UCBlock, UCGotoStatement, UCLabeledStatement, UCRepIfStatement } from '
 import {
     DEFAULT_RANGE,
     Identifier,
-    isClass,
     isField,
     isFunction,
     ISymbol,
     MethodFlags,
-    ModifierFlags,
     UCClassSymbol,
     UCConstSymbol,
     UCEnumSymbol,
@@ -47,7 +45,6 @@ import {
     UCInterfaceSymbol,
     UCMethodSymbol,
     UCObjectTypeSymbol,
-    UCParamSymbol,
     UCPropertySymbol,
     UCScriptStructSymbol,
     UCStateSymbol,
@@ -55,6 +52,7 @@ import {
     UCSymbolKind,
     UCTypeKind,
 } from './Symbols';
+import { ModifierFlags } from './Symbols/ModifierFlags';
 import { DefaultSymbolWalker } from './symbolWalker';
 
 export const TokenTypes = [
@@ -162,6 +160,11 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         if (range === DEFAULT_RANGE) {
             return;
         }
+
+        if (!id.name.text) {
+            return;
+        }
+
         this.semanticTokensBuilder.push(
             range.start.line,
             range.start.character,
@@ -438,6 +441,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         } else if (expr instanceof UCNewExpression) {
             expr.arguments?.forEach(arg => arg.accept(this));
             expr.expression.accept(this);
+            expr.constructorArguments?.forEach(arg => arg.accept(this));
         }
         return super.visitExpression(expr);
     }

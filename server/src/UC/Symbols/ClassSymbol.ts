@@ -6,7 +6,6 @@ import { SymbolWalker } from '../symbolWalker';
 import {
     ISymbol,
     ITypeSymbol,
-    ModifierFlags,
     UCArchetypeSymbol,
     UCFieldSymbol,
     UCObjectTypeSymbol,
@@ -16,6 +15,7 @@ import {
     UCSymbolKind,
     UCTypeKind,
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export enum ClassModifierFlags {
     None,
@@ -87,11 +87,11 @@ export class UCClassSymbol extends UCStructSymbol {
         }
 
         if (modifiers & ModifierFlags.Transient) {
-            text.push('abstract');
+            text.push('transient');
         }
 
         if (modifiers & ModifierFlags.Abstract) {
-            text.push('transient');
+            text.push('abstract');
         }
 
         return text;
@@ -142,6 +142,12 @@ export class UCClassSymbol extends UCStructSymbol {
     }
 
     override index(document: UCDocument, context: UCClassSymbol) {
+        // !! index before any children (because type references may be dependent on a resolved 'within')
+        if (this.withinType) {
+            this.withinType.index(document, context);
+            this.within ??= this.withinType.getRef<UCClassSymbol>();
+        }
+
         if (this.dependsOnTypes) {
             for (const classTypeRef of this.dependsOnTypes) {
                 classTypeRef.index(document, context);
@@ -156,10 +162,6 @@ export class UCClassSymbol extends UCStructSymbol {
 
         super.index(document, context);
 
-        if (this.withinType) {
-            this.withinType.index(document, context);
-            this.within ??= this.withinType.getRef<UCClassSymbol>();
-        }
     }
 
     override accept<Result>(visitor: SymbolWalker<Result>): Result | void {

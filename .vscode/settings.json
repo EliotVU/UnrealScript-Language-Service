@@ -35,4 +35,10 @@
     "unrealscript.checkTypes": true,
     "unrealscript.analyzeDocuments": "None",
     "unrealscript.generation": "3",
+    "files.associations": {
+        "*.YAML-tmLanguage": "yaml",
+    },
+    "yaml.schemas": {
+        "https://json.schemastore.org/tmlanguage.json": "*.YAML-tmLanguage"
+    }
 }

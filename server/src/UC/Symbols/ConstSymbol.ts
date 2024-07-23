@@ -3,7 +3,8 @@ import { Position } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { IExpression } from '../expressions';
 import { SymbolWalker } from '../symbolWalker';
-import { ModifierFlags, UCFieldSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
+import { UCFieldSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export class UCConstSymbol extends UCFieldSymbol {
     override kind = UCSymbolKind.Const;

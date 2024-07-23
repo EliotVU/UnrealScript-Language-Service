@@ -1,8 +1,9 @@
 import { Location, Position, Range } from 'vscode-languageserver-types';
 
+import { typeKindToDisplayString } from '../diagnostics/diagnostic';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
-import { ITypeSymbol, UCNodeKind, UCSymbolKind, UCTypeKind, typeKindToDisplayString } from './';
+import { ITypeSymbol, UCNodeKind, UCSymbolKind, UCTypeKind } from './';
 
 export type Identifier = Readonly<{
     readonly name: Name;
@@ -108,7 +109,7 @@ export interface IWithInnerSymbols {
 /**
  * Returns the outer of a symbol that matches the kind.
  *
- * Be carefull when using it against a context symbol to get a ClassSymbol e.g.
+ * Be careful when using it against a context symbol to get a ClassSymbol e.g.
  * ```typescript
  * getOuter<UCSymbolClass>(MyContextSymbolThatMightBeAClassSymbol, UCSymbolKind.Class)
  * ```

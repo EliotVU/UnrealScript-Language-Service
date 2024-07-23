@@ -36,7 +36,6 @@ import {
 } from '../names';
 import {
     DEFAULT_RANGE,
-    ModifierFlags,
     StaticIntType,
     StaticNameType,
     StaticObjectType,
@@ -49,6 +48,7 @@ import {
     addHashedSymbol,
     getSymbolOuterHash,
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export const CORE_PACKAGE = new UCPackage(NAME_CORE);
 

@@ -17,7 +17,7 @@ import {
     IntrinsicRotator,
     IntrinsicVector,
     MethodFlags,
-    ModifierFlags,
+    Object_ClassProperty,
     ObjectsTable,
     OuterObjectsTable,
     UCClassSymbol,
@@ -38,7 +38,7 @@ import {
     UCTypeKind,
     areDescendants,
     areIdentityMatch,
-    areMethodsCompatibleWith,
+    areMethodsCompatible,
     findOrIndexClassSymbol,
     getSymbolDebugInfo,
     isClass,
@@ -76,9 +76,11 @@ import {
 } from './UC/helpers';
 import { config, getDocumentByURI } from './UC/indexer';
 import { toName } from './UC/name';
+import { NAME_CLASS } from './UC/names';
 import { UCGeneration } from './UC/settings';
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { UCLanguageServerSettings } from './configuration';
+import { ModifierFlags } from 'UC/Symbols/ModifierFlags';
 
 /** If the candidates collector hits any these it'll stop at the first occurance. */
 const PreferredRulesSet = new Set([
@@ -1036,13 +1038,24 @@ async function buildCompletionItems(
                         break;
                     }
                 }
-            }
-            else if (isWithin(UCParser.RULE_defaultValue)) {
+            } else if (isWithin(UCParser.RULE_defaultValue) || isWithin(UCParser.RULE_objectAttribute)) {
                 let shouldIncludeConstants = true;
                 switch (rule) {
+                    // Case in `begin object Name=<carret>`
+                    case UCParser.RULE_identifier:
+
                     case UCParser.RULE_defaultIdentifierRef: {
                         if (carretContextSymbol && isTypeSymbol(carretContextSymbol)) {
-                            const letSymbol = carretContextSymbol.getRef<UCFieldSymbol>();
+                            let letSymbol = carretContextSymbol.getRef<UCFieldSymbol>();
+
+                            // HACK: resolve for `begin object Class=<carret>`
+                            // FIXME: How come Class is not indexed properly?
+                            if (!letSymbol
+                                && carretContextSymbol.getName() === NAME_CLASS
+                                && isWithin(UCParser.RULE_objectAttribute)) {
+                                letSymbol = Object_ClassProperty;
+                            }
+
                             if (!letSymbol) {
                                 break;
                             }
@@ -1054,7 +1067,13 @@ async function buildCompletionItems(
                                 break;
                             }
 
-                            const typeKind = letType.getTypeKind();
+                            let typeKind = letType.getTypeKind();
+
+                            // FIXME: Intrinsic type is not indexed.
+                            if (letSymbol === Object_ClassProperty) {
+                                typeKind = UCTypeKind.Object;
+                            }
+
                             switch (typeKind) {
                                 case UCTypeKind.Byte:
                                 case UCTypeKind.Int:
@@ -1086,10 +1105,15 @@ async function buildCompletionItems(
                                     );
                                     break;
 
-                                case UCTypeKind.Name:
-                                    // Suggest names of objects maybe?
-                                    shouldIncludeConstants = false;
-                                    break;
+                                case UCTypeKind.Name: {
+                                    // Suggest general text.
+                                    return undefined;
+
+                                    // // Suggest names of objects maybe?
+                                    // shouldIncludeConstants = false;
+
+                                    // break;
+                                }
 
                                 case UCTypeKind.Enum:
                                 case UCTypeKind.Byte: {
@@ -1177,6 +1201,14 @@ async function buildCompletionItems(
                         break;
                     }
 
+                    case UCParser.RULE_constDecl:
+                    case UCParser.RULE_enumDecl:
+                    case UCParser.RULE_enumMember:
+                    case UCParser.RULE_structDecl: {
+                        // Suggest general text.
+                        return undefined;
+                    }
+
                     case UCParser.RULE_stateDecl: {
                         // Suggest overridable states
                         if (scopeSymbol && isStateSymbol(scopeSymbol)) {
@@ -1189,6 +1221,13 @@ async function buildCompletionItems(
                                 // -- we don't have to filter out any overriden states,
                                 // -- because it's invalid to extend a state if the declared state is an override.
                                 .filter(symbol => symbol !== scopeSymbol);
+
+                            // Fallback if we have no overridable states.
+                            if (symbolItems.length === 0) {
+                                // Suggest general text.
+                                return undefined;
+                            }
+
                             symbols.push(...symbolItems);
                         }
 
@@ -1264,6 +1303,13 @@ async function buildCompletionItems(
                                 );
                             symbols.push(...symbolItems);
                         }
+
+                        break;
+                    }
+
+                    case UCParser.RULE_variable: {
+                        // this would be nice, but this condition is also true when writing the 'typeDecl'
+                        // return;
 
                         break;
                     }
@@ -1593,7 +1639,7 @@ async function buildCompletionItems(
                     && (symbol.outer != scope.outer))) {
                     return false;
                 }
-                if (!delegateSource || areMethodsCompatibleWith(symbol, delegateSource)) {
+                if (!delegateSource || areMethodsCompatible(symbol, delegateSource)) {
                     return true;
                 }
                 return false;

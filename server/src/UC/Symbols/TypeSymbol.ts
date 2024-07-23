@@ -3,7 +3,7 @@ import { Location, Position, Range } from 'vscode-languageserver-types';
 import { UCDocument } from '../document';
 import { IExpression } from '../expressions';
 import { intersectsWith, intersectsWithRange } from '../helpers';
-import { indexReference } from '../indexer';
+import { config, indexReference } from '../indexer';
 import { Name } from '../name';
 import {
     NAME_ARCHETYPE,
@@ -46,43 +46,46 @@ import {
     NAME_TYPE,
     NAME_VECTOR,
 } from '../names';
+import { UCGeneration } from '../settings';
 import { IStatement } from '../statements';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ContextInfo,
     DEFAULT_IDENTIFIER,
     DEFAULT_RANGE,
-    INode,
-    SuperSymbol,
-    ISymbol,
-    IWithInnerSymbols,
-    IWithReference,
-    Identifier,
     IntrinsicArray,
     IntrinsicClass,
-    ModifierFlags,
     ObjectsTable,
-    SymbolReference,
-    UCArchetypeSymbol,
-    UCBaseOperatorSymbol,
     UCClassSymbol,
-    UCConstSymbol,
-    UCDelegateSymbol,
-    UCEnumMemberSymbol,
-    UCEnumSymbol,
-    UCEventSymbol,
     UCFieldSymbol,
     UCMethodSymbol,
     UCPackage,
-    UCParamSymbol,
     UCPropertySymbol,
-    UCScriptStructSymbol,
-    UCStateSymbol,
     UCStructSymbol,
     areIdentityMatch,
+    findOuterFieldSymbol,
     tryFindClassSymbol,
-    tryFindSymbolInPackage
+    tryFindSymbolInPackage,
+    type ContextInfo,
+    type INode,
+    type ISymbol,
+    type IWithInnerSymbols,
+    type IWithReference,
+    type Identifier,
+    type SuperSymbol,
+    type SymbolReference,
+    type UCArchetypeSymbol,
+    type UCBaseOperatorSymbol,
+    type UCConstSymbol,
+    type UCDelegateSymbol,
+    type UCEnumMemberSymbol,
+    type UCEnumSymbol,
+    type UCEventSymbol,
+    type UCInterfaceSymbol,
+    type UCParamSymbol,
+    type UCScriptStructSymbol,
+    type UCStateSymbol
 } from './';
+import { ModifierFlags, type TypeFlags } from './ModifierFlags';
 
 export const enum UCNodeKind {
     Expression,
@@ -115,7 +118,7 @@ export const enum UCSymbolKind {
     Macro
 }
 
-export const SymboldKindToName: Readonly<Map<UCSymbolKind, Name>> = new Map([
+export const SymbolKindToName: Readonly<Map<UCSymbolKind, Name>> = new Map([
     [UCSymbolKind.None, NAME_NONE],
     [UCSymbolKind.Type, NAME_TYPE],
     [UCSymbolKind.Package, NAME_PACKAGE],
@@ -140,10 +143,6 @@ export const SymboldKindToName: Readonly<Map<UCSymbolKind, Name>> = new Map([
     [UCSymbolKind.Statement, NAME_STATEMENT],
     [UCSymbolKind.Macro, NAME_MACRO],
 ]);
-
-export function symbolKindToDisplayString(kind: UCSymbolKind): string {
-    return SymboldKindToName.get(kind)!.text;
-}
 
 export const enum UCTypeKind {
     /** An unrecognized type */
@@ -195,11 +194,16 @@ export const TypeKindToName: Readonly<Map<UCTypeKind, Name>> = new Map([
     [UCTypeKind.Button, NAME_BUTTON],
 ]);
 
-export function typeKindToDisplayString(kind: UCTypeKind): string {
-    return TypeKindToName.get(kind)!.text;
-}
-
 export interface ITypeSymbol extends ISymbol, IWithReference, IWithInnerSymbols {
+    flags: TypeFlags;
+
+    /**
+     * The type's dimension. Implies 1 if 'undefined' or if the dimension is bound to a type that was unresolved.
+     *
+     * 0 if working with a dynamic array.
+     **/
+    arrayDimension?: number;
+
     getTypeText(): string;
     getTypeKind(): UCTypeKind;
     getSymbolAtPos(position: Position): ISymbol | undefined;
@@ -217,11 +221,15 @@ export class UCTypeSymbol implements ITypeSymbol {
     declare outer: undefined;
     declare nextInHash: undefined;
 
+    flags: TypeFlags = 0;
+    arrayDimension?: number;
+
     constructor(
         /** The UnrealScript type to represent. */
         readonly type: UCTypeKind,
-        readonly range: Range = DEFAULT_RANGE
-    ) { }
+        readonly range: Range = DEFAULT_RANGE,
+        flags: TypeFlags = 0,
+    ) { this.flags = flags; }
 
     getName(): Name {
         return TypeKindToName.get(this.type)!;
@@ -294,6 +302,9 @@ export class UCTypeSymbol implements ITypeSymbol {
 export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> implements ITypeSymbol {
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
 
+    flags: TypeFlags = 0;
+    arrayDimension?: number;
+
     /**
      * The resolved reference of this type.
      */
@@ -310,8 +321,9 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
     constructor(
         readonly id: Identifier,
         readonly range: Range = id.range,
-        private expectedKind?: UCSymbolKind
-    ) { }
+        private expectedKind?: UCSymbolKind,
+        flags: TypeFlags = 0,
+    ) { this.flags = flags; }
 
     getName(): Name {
         return this.id.name;
@@ -401,11 +413,6 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
                 symbol = tryFindClassSymbol(id);
                 break;
 
-            // Not applicable
-            // case UCSymbolKind.Enum:
-            //     symbol = ObjectsTable.getSymbol<UCStructSymbol>(id, UCSymbolKind.Enum);
-            //     break;
-
             // Struct Foo extends context?.id
             case UCSymbolKind.ScriptStruct:
                 // Prioritize parent-inherited structs first
@@ -454,6 +461,24 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
                 break;
             }
 
+            // We expect an enum, presumed to be only used outside of code blocks. i.e. `MyVar[MyConstOrMyEnum.MaybeEnumTag]`
+            // As per the compiler:
+            // We must prioritize const lookups in the current context
+            // - its outers and the outer's inherited classes too.
+            // If not found, look through the 'within' class of the outer most class and repeat.
+            // - Repeat the same for 'Enum', if all fail then we must lookup the enum in the global table
+            // - (this lets us pickup an enum declared in a 'dependson' class or a class compiled before)
+            // - However this will also match enum's declared in any class that is yet-to-be-compiled, even an enum in an unrelated package.
+            // - Perhaps we can run an analysis post-index to see if the enum is a possible 'dependency'
+            case UCSymbolKind.Enum: {
+                symbol = findOuterFieldSymbol(context, id, UCSymbolKind.Const)
+                    ?? findOuterFieldSymbol(context, id, UCSymbolKind.Enum)
+                    // Global lookup
+                    ?? ObjectsTable.getSymbol(id, UCSymbolKind.Enum);
+
+                break;
+            }
+
             // No expected type, let's do a general (inheritance based) lookup
             default:
                 // Ensure we are working with a valid context, bad user or incomplete code may give us an unsuitable context.
@@ -486,6 +511,7 @@ export class UCObjectTypeSymbol<TBaseType extends ITypeSymbol = ITypeSymbol> imp
 }
 
 export class UCArrayTypeSymbol extends UCObjectTypeSymbol {
+    override arrayDimension = 0;
     override reference = IntrinsicArray;
 
     /** @deprecated */
@@ -551,6 +577,9 @@ export class UCQualifiedTypeSymbol implements ITypeSymbol {
     readonly range: Range;
     readonly kind: UCSymbolKind = UCSymbolKind.Type;
     readonly id: Identifier;
+
+    flags: TypeFlags = ModifierFlags.None;
+    arrayDimension?: number;
 
     /**
      * A reference to the indexed symbol.
@@ -635,7 +664,7 @@ export class UCQualifiedTypeSymbol implements ITypeSymbol {
 }
 
 export const StaticErrorType = new UCTypeSymbol(UCTypeKind.Error);
-export const StaticNoneType = new UCTypeSymbol(UCTypeKind.None);
+export const StaticNoneType = new UCTypeSymbol(UCTypeKind.None, undefined, ModifierFlags.ReadOnly);
 export const StaticByteType = new UCTypeSymbol(UCTypeKind.Byte);
 export const StaticEnumType = new UCTypeSymbol(UCTypeKind.Enum);
 export const StaticIntType = new UCTypeSymbol(UCTypeKind.Int);
@@ -646,24 +675,47 @@ export const StaticStringType = new UCTypeSymbol(UCTypeKind.String);
 export const StaticPointerType = new UCTypeSymbol(UCTypeKind.Pointer);
 export const StaticButtonType = new UCTypeSymbol(UCTypeKind.Button);
 
-export const StaticObjectType = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE }, DEFAULT_RANGE);
+export const StaticObjectType = new UCObjectTypeSymbol({ name: NAME_OBJECT, range: DEFAULT_RANGE });
 export const StaticArrayType = new UCArrayTypeSymbol({ name: NAME_ARRAY, range: DEFAULT_RANGE });
 export const StaticMapType = new UCMapTypeSymbol({ name: NAME_MAP, range: DEFAULT_RANGE });
 export const StaticDelegateType = new UCDelegateTypeSymbol({ name: NAME_DELEGATE, range: DEFAULT_RANGE });
-export const StaticVectorType = new UCObjectTypeSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE });
-export const StaticRotatorType = new UCObjectTypeSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE });
-export const StaticRangeType = new UCObjectTypeSymbol({ name: NAME_RANGE, range: DEFAULT_RANGE });
+export const StaticVectorType = new UCObjectTypeSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE },
+    undefined,
+    undefined,
+    ModifierFlags.ReadOnly
+);
+export const StaticRotatorType = new UCObjectTypeSymbol({ name: NAME_ROTATOR, range: DEFAULT_RANGE },
+    undefined,
+    undefined,
+    ModifierFlags.ReadOnly
+);
+export const StaticRangeType = new UCObjectTypeSymbol({ name: NAME_RANGE, range: DEFAULT_RANGE },
+    undefined,
+    undefined,
+    ModifierFlags.ReadOnly
+);
 export const StaticMetaType = new UCMetaTypeSymbol({ name: NAME_TYPE, range: DEFAULT_RANGE });
 
+// Const types to present literal expression types.
+// Can't mark all static types as ReadOnly because we use those to present variable types too.
+
+export const StaticConstByteType = new UCTypeSymbol(UCTypeKind.Byte, undefined, ModifierFlags.ReadOnly);
+export const StaticConstIntType = new UCTypeSymbol(UCTypeKind.Int, undefined, ModifierFlags.ReadOnly);
+export const StaticConstBoolType = new UCTypeSymbol(UCTypeKind.Bool, undefined, ModifierFlags.ReadOnly);
+export const StaticConstFloatType = new UCTypeSymbol(UCTypeKind.Float, undefined, ModifierFlags.ReadOnly);
+export const StaticConstNameType = new UCTypeSymbol(UCTypeKind.Name, undefined, ModifierFlags.ReadOnly);
+export const StaticConstStringType = new UCTypeSymbol(UCTypeKind.String, undefined, ModifierFlags.ReadOnly);
+export const StaticConstDelegateType = new UCTypeSymbol(UCTypeKind.Delegate, undefined, ModifierFlags.ReadOnly);
+
 export const CastTypeSymbolMap: Readonly<WeakMap<Name, ITypeSymbol>> = new WeakMap([
-    [NAME_BYTE, StaticByteType],
-    [NAME_INT, StaticIntType],
-    [NAME_BOOL, StaticBoolType],
-    [NAME_FLOAT, StaticFloatType],
-    [NAME_STRING, StaticStringType],
-    [NAME_NAME, StaticNameType],
+    [NAME_BYTE, StaticConstByteType],
+    [NAME_INT, StaticConstIntType],
+    [NAME_BOOL, StaticConstBoolType],
+    [NAME_FLOAT, StaticConstFloatType],
+    [NAME_STRING, StaticConstStringType],
+    [NAME_NAME, StaticConstNameType],
     // Oddly... conversion to a button is actually valid!
-    [NAME_BUTTON, StaticBoolType]
+    [NAME_BUTTON, StaticConstBoolType]
 ]);
 
 /** Conversion is illegal */
@@ -674,10 +726,12 @@ const Y = 0x01;
 const E = 0x02;
 /** Conversion requires truncation */
 const T = 0x04;
-/** Conversion requires shifting */
+/** Conversion requires shifting, for instance a conversion from a byte or int to float */
 const S = 0x08;
 /** Conversion can be performed automatically in a T3D context */
 const D = 0x10;
+/** Conversion requires zero conversion, for instance 'Object' to 'None' */
+const Z = 0x20;
 const ConversionMask = ~D;
 
 /**
@@ -696,19 +750,19 @@ const TypeConversionFlagsTable: Readonly<{ [key: number]: number[] }> = [
 /* Error    */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 /* None     */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 /* Byte     */[N,       N,          N,          Y | E,      Y | E | T,  Y,          Y | E | T,  N,          N,      N,          N,          N,      N,      N,      N,          Y,          N,      N,      N],
-/* Enum     */[N,       N,          Y | E,      N,          Y | E | T,  N,          N,          Y | E,      N,      N,          N,          N,      N,      N,      N,          Y,          N,      N,      N],
+/* Enum     */[N,       N,          Y | E,      N,          Y | E | T,  N,          N,          Y,          N,      N,          N,          N,      N,      N,      N,          Y,          N,      N,      N],
 /* Int      */[N,       N,          Y | E,      Y | E,      N,          Y,          Y | E | T,  N,          N,      N,          N,          N,      N,      N,      N,          Y,          N,      N,      N],
 /* Bool     */[N,       N,          Y,          N,          Y | D,      N,          Y,          Y,          Y,      N,          Y,          N,      N,      Y,      Y,          Y,          N,      N,      N],
 /* Float    */[N,       N,          Y | E | S,  N,          Y | E | S,  Y,          N,          N,          N,      N,          N,          N,      N,      N,      N,          Y,          N,      N,      S],
-/* Object   */[N,       Y | E,      N,          Y | E,      N,          N,          N,          N,          N,      N,          E,          N,      N,      N,      N,          N,          N,      N,      N],
-/* Name     */[N,       Y | E,      N,          N,          N,          D,          N,          N,          N,      N,          N,          N,      N,      N,      N,          Y | D,      N,      N,      N],
-/* Delegate */[N,       Y | E,      N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
-/* Interface*/[N,       Y | E,      N,          N,          N,          N,          N,          Y | E,      N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Object   */[N,       Y | Z,      N,          Y,          N,          N,          N,          N,          N,      N,          E,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Name     */[N,       Y | Z,      N,          N,          N,          D,          N,          N,          N,      N,          N,          N,      N,      N,      N,          Y | D,      N,      N,      N],
+/* Delegate */[N,       Y | Z,      N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
+/* Interface*/[N,       Y | Z,      N,          N,          N,          N,          N,          Y | E,      N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 /* Range    */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 /* Struct   */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 /* Vector   */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      Y,          Y,          N,      N,      N],
 /* Rotator  */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      Y,      N,          Y,          N,      N,      N],
-/* String   */[N,       N,          Y,          N,          Y,          Y,          Y,          Y,          Y,      Y,          Y,          N,      N,      Y,      Y,          N,          N,      N,      N],
+/* String   */[N,       N,          Y,          Y,          Y,          Y,          Y,          Y,          Y,      Y,          Y,          N,      N,      Y,      Y,          N,          N,      N,      N],
 /* Map      */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 /* Array    */[N,       N,          N,          N,          N,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
 /* Pointer  */[N,       N,          N,          N,          D,          N,          N,          N,          N,      N,          N,          N,      N,      N,      N,          N,          N,      N,      N],
@@ -740,23 +794,47 @@ export const enum UCConversionCost {
     Expansion = 100,
     Shift = 200,
     Truncation = 300,
+    Undetermined = 400,
     Illegal = 0x7FFFFFFF,
 }
 
 export function getConversionCost(
     inputType: ITypeSymbol,
     destType: ITypeSymbol,
-    matchFlags: UCMatchFlags = UCMatchFlags.None
+    matchFlags: TypeMatchFlags = TypeMatchFlags.None
 ): UCConversionCost {
-    const inputTypeKind = resolveTypeKind(inputType);
-    const destTypeKind = resolveTypeKind(destType);
+    // Cannot convert multi-dimension types (i.e. var int Variable[2])
+    if ((destType.flags | inputType.flags) & ModifierFlags.WithDimension) {
+        return UCConversionCost.Illegal;
+    }
 
-    // TODO: Should not be identical if one of the following are true:
-    // - If destType is an OutParam and Const or if inputType is not an OutParam
-    // - ArrayDimension mismatch
-    // - If both types are an enum, they must be the same enum
+    const inputTypeKind = resolveTypeKind(inputType);
+    if (inputTypeKind === UCTypeKind.Error) {
+        return UCConversionCost.Undetermined;
+    }
+
+    const destTypeKind = resolveTypeKind(destType);
+    if (destTypeKind === UCTypeKind.Error) {
+        return UCConversionCost.Undetermined;
+    }
+
+    // Out params must be EXACT matches
+    if (destType.flags & ModifierFlags.Out) {
+        if (inputTypeKind === destTypeKind) {
+            return UCConversionCost.Zero;
+        }
+
+        if (typesMatch(inputType, destType, matchFlags & ~TypeMatchFlags.Generalize) > 0) {
+            // return UCConversionCost.Zero;
+        }
+
+        return UCConversionCost.Illegal;
+    }
+
     if (inputTypeKind === destTypeKind) {
-        if (inputTypeKind === UCTypeKind.Object || inputTypeKind === UCTypeKind.Struct) {
+        if (inputTypeKind === UCTypeKind.Object ||
+            inputTypeKind === UCTypeKind.Interface ||
+            inputTypeKind === UCTypeKind.Struct) {
             let inputStruct = inputType.getRef<UCStructSymbol>();
             if (!inputStruct) {
                 return UCConversionCost.Illegal;
@@ -786,9 +864,43 @@ export function getConversionCost(
         return UCConversionCost.Zero;
     }
 
+    if (inputTypeKind === UCTypeKind.Object &&
+        destTypeKind === UCTypeKind.Interface) {
+        let inputClass = inputType.getRef<UCClassSymbol>();
+        if (!inputClass || !isClassSymbol(inputClass)) {
+            return UCConversionCost.Illegal;
+        }
+
+        const destInterface = destType.getRef<UCInterfaceSymbol>();
+        if (!destInterface || !isInterfaceSymbol(inputClass)) {
+            return UCConversionCost.Illegal;
+        }
+
+        let depth = 1;
+        for (; inputClass; inputClass = inputClass.super, ++depth) {
+            if (!inputClass.implementsTypes?.some(type => {
+                return type.getRef() && areDescendants(destInterface, type.getRef()!);
+            })) {
+                break;
+            }
+        }
+
+        // Incompatible, class does not implement the interface.
+        if (depth === 1) {
+            return UCConversionCost.Illegal;
+        }
+
+        return depth as UCConversionCost;
+    }
+
     const flags = getTypeConversionFlags(inputTypeKind, destTypeKind);
     if ((flags & ConversionMask) === N) {
         return UCConversionCost.Illegal;
+    }
+
+    // FIXME: Not entirely correct
+    if ((flags & Y) && (destType.flags & ModifierFlags.Coerce)) {
+        return UCConversionCost.Expansion;
     }
 
     if (flags & T) {
@@ -803,20 +915,63 @@ export function getConversionCost(
         return UCConversionCost.Expansion;
     }
 
-    if ((flags & Y) === (matchFlags & UCMatchFlags.Coerce)) {
-        // FIXME: What kind of cost should a coerced 'Object' to 'String' be?
-        return UCConversionCost.Expansion;
+    if (flags & Z) {
+        // 'None' to 'Object' cost should be 1
+        return 1 as UCConversionCost;
     }
 
     return UCConversionCost.Illegal;
 }
 
-export const enum UCMatchFlags {
+export const enum TypeMatchFlags {
     None = 0,
-    Coerce = 1 << 0,
-    // We have to presume different rules for assignments within a DefaultProperties block.
-    // e.g. A boolean type can be assigned to a name as it interpreted as an identifier.
-    T3D = 1 << 1,
+
+    /** Type comparison is allowed to be generalized, such as 'Int' -> 'Float' */
+    Generalize = 1 << 0,
+
+    /** Type comparison is to be coerced, such as 'Int' -> 'String'. */
+    Coerce = 1 << 2,
+
+    /**
+     * Type comparison is within a T3D (defaultproperties) context.
+     *
+     * We have to presume different rules for assignments within a DefaultProperties block.
+     * e.g. A boolean type can be assigned to a name as it interpreted as an identifier.
+     **/
+    T3D = 1 << 3,
+
+    /** Type comparison should suppress the check for 'Out' types. */
+    SuppressOut = 1 << 4
+}
+
+export const enum TypeMatchReport {
+    ArrayDimensionMismatch = -1,
+
+    OutConstMismatch = -2,
+    OutClassAndInterfaceMixup = -3,
+
+    StructMismatch = -4,
+    ClassMismatch = -5,
+    MetaClassMismatch = -6,
+    ClassAndInterfaceMismatch = -7,
+
+    /** Type match is uncompatible, but may still be expandable or convertable if conversion is allowed. */
+    Incompatible = 0,
+
+    /** Type match is compatible, 'Object' -> 'Interface' */
+    Compatible = 1,
+
+    /** Type match is identical, 'Int' == 'Int' */
+    Identical,
+
+    /** Type match is convertable, 'Int' -> 'String' */
+    Convertable,
+
+    /** Type match is expandable, 'Byte' -> 'Int' */
+    Expandable,
+
+    /** Type match is undetermined due unsufficient data, greater than 0 to silence any errors. */
+    Undetermined,
 }
 
 /**
@@ -825,95 +980,223 @@ export const enum UCMatchFlags {
 export function typesMatch(
     inputType: ITypeSymbol,
     destType: ITypeSymbol,
-    matchFlags: UCMatchFlags = UCMatchFlags.None
-): boolean {
+    matchFlags: TypeMatchFlags
+): TypeMatchReport {
     // Ignore types with no reference (Error)
     let inputTypeKind = inputType.getTypeKind();
     if (inputTypeKind === UCTypeKind.Error) {
-        return true;
+        return TypeMatchReport.Undetermined;
     }
 
     let destTypeKind = destType.getTypeKind();
     if (destTypeKind === UCTypeKind.Error) {
-        return true;
+        return TypeMatchReport.Undetermined;
+    }
+
+    if (destType.arrayDimension !== inputType.arrayDimension) {
+        return TypeMatchReport.ArrayDimensionMismatch;
+    }
+
+    // TODO: Unit tests for UC1 and UC2.
+    if (destType.flags & ModifierFlags.Out && (matchFlags & TypeMatchFlags.SuppressOut) === 0) {
+        // 'Const' inputs cannot be matched with a const param.
+        if (
+            // UE3 requires the other type to be non-const.
+            (config.generation === UCGeneration.UC3 && (
+                (inputType.flags & ModifierFlags.ReadOnly) !== 0
+                && (destType.flags & ModifierFlags.ReadOnly) === 0
+            ))
+            ||
+            // UE1 and UE2 requires the other type to be an 'Out' even if the source type is not a 'Const'
+            (config.generation < UCGeneration.UC3 && (
+                (inputType.flags & ModifierFlags.ReadOnly) !== 0
+                // Not supported yet (or even necessary), the current code is not applying any 'Out' flags based on context usage.
+                // || (inputType.flags & ModifierFlags.Out) === 0
+            ))
+        ) {
+            return TypeMatchReport.OutConstMismatch;
+        }
+
+        // Cannot match mixed 'Object' and 'Interface' types.
+        if (destTypeKind !== inputTypeKind
+            // both types are one of ...
+            && (destTypeKind === UCTypeKind.Object || destTypeKind === UCTypeKind.Interface)
+            && (inputTypeKind === UCTypeKind.Object || inputTypeKind === UCTypeKind.Interface)
+        ) {
+            return TypeMatchReport.OutClassAndInterfaceMixup;
+        }
+
+        if ((destTypeKind !== UCTypeKind.Object || inputTypeKind !== UCTypeKind.Object) &&
+            (destTypeKind !== UCTypeKind.Interface || inputTypeKind !== UCTypeKind.Interface)) {
+            // Disallow generalization to an 'Out' destination.
+            matchFlags &= ~TypeMatchFlags.Generalize;
+        }
     }
 
     inputTypeKind = resolveTypeKind(inputType);
     destTypeKind = resolveTypeKind(destType);
     if (inputTypeKind === destTypeKind) {
         // If we are expecting an assignment to an object that has a class type, then verify that the input class is compatible.
-        // TODO: Interface kind
-        if ((destTypeKind === UCTypeKind.Object || destTypeKind === UCTypeKind.Interface)
+        if ((destTypeKind === UCTypeKind.Object ||
+             destTypeKind === UCTypeKind.Interface)
             // Safety check to ensure that we are working with resolved types.
             && isClass(destType.getRef())
             && isClass(inputType.getRef())) {
             // e.g. "var Class","var Class<ClassLimitor>", or "Class'ClassReference'"
             if (destType.getRef() === IntrinsicClass) {
                 // Resolves Class<destMetaClass>
-                const destMetaClass = hasDefinedBaseType(destType) && destType.baseType.getRef<UCClassSymbol>();
+                const destMetaClass = hasDefinedBaseType(destType)
+                    && destType.baseType.getRef<UCClassSymbol>();
                 if (destMetaClass) {
                     const inputMetaClass = hasDefinedBaseType(inputType)
                         ? inputType.baseType.getRef<UCClassSymbol>()
                         // e.g. a MyClass as input to destination of Class<MyClass>
                         : inputType.getRef<UCClassSymbol>();
-                    if (inputMetaClass && (areDescendants(destMetaClass, inputMetaClass))) {
-                        return true;
+                    if (!inputMetaClass) {
+                        return TypeMatchReport.Undetermined;
                     }
 
-                    return false;
+                    if ((matchFlags & TypeMatchFlags.Generalize) === 0) {
+                        return areIdentityMatch(destMetaClass, inputMetaClass)
+                            ? TypeMatchReport.Identical
+                            : TypeMatchReport.MetaClassMismatch;
+                    }
+
+                    if (areDescendants(destMetaClass, inputMetaClass)) {
+                        return TypeMatchReport.Compatible;
+                    }
+
+                    return TypeMatchReport.MetaClassMismatch;
                 }
 
                 // Any class derivative is compatible with the intrinsic class object.
-                return isClass(inputType.getRef());
+                return TypeMatchReport.Compatible;
+            }
+
+            if ((matchFlags & TypeMatchFlags.Generalize) === 0) {
+                return areIdentityMatch(destType.getRef<UCStructSymbol>()!, inputType.getRef<UCStructSymbol>()!)
+                    ? TypeMatchReport.Identical
+                    : TypeMatchReport.ClassMismatch;
             }
 
             // e.g. "var AClassName", see if the input class is a derivative of "AClassName"
-            if (areDescendants(destType.getRef<UCStructSymbol>()!, inputType.getRef<UCStructSymbol>()!)) {
-                return true;
+            if (areDescendants(
+                destType.getRef<UCStructSymbol>()!,
+                inputType.getRef<UCStructSymbol>()!
+            )) {
+                return TypeMatchReport.Compatible;
             }
 
-            return false;
+            return TypeMatchReport.ClassMismatch;
         }
 
         if (destTypeKind === UCTypeKind.Struct
             // Safety check to ensure that we are working with resolved types.
-            && isStruct(destType.getRef())
-            && isStruct(inputType.getRef())) {
-            if (areDescendants(destType.getRef<UCStructSymbol>()!, inputType.getRef<UCStructSymbol>()!)) {
-                return true;
+            && isScriptStructSymbol(destType.getRef()!)
+            && isScriptStructSymbol(inputType.getRef()!)) {
+            if ((matchFlags & TypeMatchFlags.Generalize) === 0) {
+                return areIdentityMatch(destType.getRef<UCStructSymbol>()!, inputType.getRef<UCStructSymbol>()!)
+                    ? TypeMatchReport.Identical
+                    : TypeMatchReport.StructMismatch;
             }
 
-            return false;
+            if (areDescendants(
+                destType.getRef<UCStructSymbol>()!,
+                inputType.getRef<UCStructSymbol>()!
+            )) {
+                return TypeMatchReport.Compatible;
+            }
+
+            return TypeMatchReport.StructMismatch;
         }
 
-        // TODO: Return a distinguisable return type
-        return true;
+        return TypeMatchReport.Identical;
+    }
+
+    // Assigning object to an interface?
+    if (inputTypeKind === UCTypeKind.Interface &&
+        destTypeKind === UCTypeKind.Object) {
+        const destClass = destType.getRef<UCClassSymbol>();
+        if (!destClass || !isClassSymbol(destClass)) {
+            return TypeMatchReport.Undetermined;
+        }
+
+        const inputInterface = inputType.getRef<UCInterfaceSymbol>();
+        if (!inputInterface || !isInterfaceSymbol(inputInterface)) {
+            return TypeMatchReport.Undetermined;
+        }
+
+        // FIXME:
+        // if ((matchFlags & TypeMatchFlags.Generalize) === 0) {
+        //     return TypeMatchReport.Incompatible;
+        // }
+
+        if (classImplementsInterface(destClass, inputInterface)) {
+            return TypeMatchReport.Compatible;
+        }
+
+        return TypeMatchReport.ClassAndInterfaceMismatch;
     }
 
     // Not a perfect match, see if we can convert or even coerce the types.
     const c = getTypeConversionFlags(inputTypeKind, destTypeKind);
-    if ((c & Y) || ((c & E) !== 0 && (matchFlags & UCMatchFlags.Coerce))) {
-        return true;
+
+    if ((c & Z) !== 0 && (matchFlags & TypeMatchFlags.Generalize) !== 0) {
+        return TypeMatchReport.Compatible;
+    }
+
+    // Convertable? Only if the destiny is marked with 'Coerce'
+    if ((c & Y) !== 0 && ((destType.flags & ModifierFlags.Coerce) !== 0 || (matchFlags & TypeMatchFlags.Coerce) !== 0)) {
+        return TypeMatchReport.Convertable;
+    }
+
+    // Expandable? Only if auto-conversion is allowed.
+    if ((c & E) !== 0 && (matchFlags & TypeMatchFlags.Generalize) !== 0) {
+        return TypeMatchReport.Expandable;
     }
 
     if (c === N) {
+        // FIXME: ???
         if (destTypeKind === UCTypeKind.Delegate) {
-            return inputType.getRef()?.kind === UCSymbolKind.Function;
+            return (inputType.getRef()?.kind === UCSymbolKind.Function) as unknown as TypeMatchReport;
         }
 
-        return false;
+        return TypeMatchReport.Incompatible;
     }
 
-    if ((c & D) !== 0 && (matchFlags & UCMatchFlags.T3D) !== 0) {
-        return true;
+    if ((c & D) !== 0 && (matchFlags & TypeMatchFlags.T3D) !== 0) {
+        return TypeMatchReport.Convertable;
     }
 
-    return false;
+    return TypeMatchReport.Incompatible;
 }
 
 /** Resolves a type to its base type if set. e.g. "Class&lt;Actor&gt;" would be resolved to "Actor", if "Actor" is missing it will resolve to "Class" instead. */
 export function resolveType(type: ITypeSymbol): ITypeSymbol {
     return hasDefinedBaseType(type) ? type.baseType : type;
+}
+
+/**
+ * Resolves a given type to its appropriate element type i.e. an (`Array<int>`) type will be resolved to its inner type 'Int'
+ *
+ * @param type type to resolve to an element type.
+ * @returns element type, or 'None' if the type is inaccessible. `undefined` if the base type is missing.
+ */
+export function resolveElementType(type: ITypeSymbol): ITypeSymbol | undefined {
+    if (isArrayTypeSymbol(type)) {
+        // the actual array type `MyType` e.g. `Array<MyType>`
+        return type.baseType;
+    }
+
+    if (isFixedArrayTypeSymbol(type)) {
+        // Would be nice if we had a baseType for fixed arrays, but that complicates matters too much.
+        return Object.create(type, {
+            flags: { value: type.flags & ~ModifierFlags.WithDimension },
+            arrayDimension: { value: undefined }
+        });
+    }
+
+    return StaticNoneType;
 }
 
 export function hasDefinedBaseType(
@@ -952,13 +1235,71 @@ export function areDescendants(
     return false;
 }
 
+/**
+ * Checks if the source and target are compatible by return type and parameters.
+ * Generally used to validate an assignment or comparison of a delegate to a function/delegate.
+ *
+ * @param source source method to compare to.
+ * @param target target method to be compared.
+ * @returns true if the return type and the param types are compatible.
+ */
+export function areMethodsCompatible(
+    source: UCMethodSymbol,
+    target: UCMethodSymbol
+): boolean {
+    if (source === target) {
+        return true;
+    }
+
+    if (source.returnValue) {
+        if ((!target.returnValue ||
+            !typesMatch(source.returnValue.type, target.returnValue.type, TypeMatchFlags.None))) {
+            return false;
+        }
+    } else if (target.returnValue) {
+        return false;
+    }
+
+    if (source.params) {
+        if (typeof target.params === 'undefined' ||
+            source.params.length !== target.params.length) {
+            return false;
+        }
+
+        for (let i = 0; i < source.params.length; ++i) {
+            if (!typesMatch(source.params[i].type, target.params[i].type, TypeMatchFlags.None)) {
+                return false;
+            }
+        }
+    } else if (target.params) {
+        return false;
+    }
+
+    return true;
+}
+
+export function classImplementsInterface(
+    classSymbol: UCClassSymbol,
+    interfaceSymbol: UCInterfaceSymbol
+): boolean {
+    for (let parent: UCClassSymbol | undefined = classSymbol; parent; parent = parent.super) {
+        if (parent.implementsTypes?.some(type => {
+            return type.getRef() && areDescendants(interfaceSymbol, type.getRef()!);
+        })) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 export function hasModifiers(
     symbol: (ISymbol & { modifiers?: ModifierFlags })
 ): symbol is ISymbol & { modifiers: ModifierFlags } {
     return typeof symbol.modifiers !== 'undefined';
 }
 
-export function isSymbol(symbol: ISymbol): symbol is ISymbol {
+export function isSymbol(symbol: { kind?: UCSymbolKind }): symbol is ISymbol {
     return typeof symbol.kind !== 'undefined';
 }
 
@@ -1041,6 +1382,10 @@ export function isClassSymbol(symbol: ISymbol): symbol is UCClassSymbol {
     return symbol.kind === UCSymbolKind.Class;
 }
 
+export function isInterfaceSymbol(symbol: ISymbol): symbol is UCInterfaceSymbol {
+    return symbol.kind === UCSymbolKind.Interface;
+}
+
 export function isArchetypeSymbol(symbol: ISymbol): symbol is UCArchetypeSymbol {
     return symbol.kind === UCSymbolKind.Archetype;
 }
@@ -1059,6 +1404,10 @@ export function isTypeSymbol(symbol: ISymbol): symbol is ITypeSymbol {
 
 export function isArrayTypeSymbol(symbol: ISymbol): symbol is UCArrayTypeSymbol {
     return symbol.getTypeKind() === UCTypeKind.Array;
+}
+
+export function isFixedArrayTypeSymbol(symbol: ISymbol): symbol is ITypeSymbol {
+    return isTypeSymbol(symbol) && !!(symbol.arrayDimension && symbol.arrayDimension > 1);
 }
 
 export function isQualifiedType(symbol?: ISymbol): symbol is UCQualifiedTypeSymbol {

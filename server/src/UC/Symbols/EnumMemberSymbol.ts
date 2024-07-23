@@ -1,5 +1,6 @@
 import { SymbolWalker } from '../symbolWalker';
-import { ModifierFlags, UCFieldSymbol, UCSymbolKind, UCTypeKind } from './';
+import { UCFieldSymbol, UCSymbolKind, UCTypeKind } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export class UCEnumMemberSymbol extends UCFieldSymbol {
     override kind = UCSymbolKind.EnumTag;

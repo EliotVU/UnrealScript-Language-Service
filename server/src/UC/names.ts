@@ -76,3 +76,7 @@ export const NAME_PARAMETER = toName('Parameter');
 export const NAME_ARCHETYPE = toName('Archetype');
 export const NAME_STATEMENT = toName('Statement');
 export const NAME_MACRO = toName('Macro');
+
+// Operators
+export const NAME_EQUALEQUAL = toName('==');
+export const NAME_NOTEQUAL = toName('!=');

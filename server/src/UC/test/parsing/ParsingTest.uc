@@ -1,4 +1,4 @@
-class ParsingTest;
+class ParsingTest extends Core.Object;
 
 // Ensure we have no grammar parsing errors for all statements.
 function ShouldBeValidStatementsTest()
@@ -69,4 +69,9 @@ return1:
 
     assert (true);
     stop;
+}
+
+function ShouldBeInvalidPrimaryExpressionTest()
+{
+    Class'Object'(self);
 }

@@ -1,5 +1,7 @@
 // Test an ambiguous issue where a call looks like either a class casting or a function of the same name.
-class CastingTest extends Core.Object dependson (InterfaceTest, CastingActor) implements (InterfaceTest);
+class CastingTest extends Core.Object
+    dependson (InterfaceTest, CastingActor)
+    implements (InterfaceTest);
 
 struct Vector {};
 struct Rotator {};
@@ -18,7 +20,15 @@ var struct CastingTestStruct {
 var Actor Actor;
 var Class<CastingActor> ActorClass;
 
-private delegate DelegateFunction();
+var bool bBoolProperty;
+var const Array<int> ConstIntArrayProperty;
+var Array<int> IntArrayProperty;
+var Array<string> StringArrayProperty;
+var const int ConstIntProperty;
+var delegate<DelegateMethod> DelegateProperty;
+
+private delegate DelegateMethod();
+private function DelegateTarget();
 
 // Verify that we can match a function over a package of the same name.
 private function int Core(int other);
@@ -62,7 +72,7 @@ function int ShouldCallFunctionTest()
     i = CastingTest("Message", 0);
     i = CastingTest("Message");
 
-    // Should resolve to function 'Core', unless Core as a class does exist.
+    // Should resolve to function 'Core'
     return Core(0);
 }
 
@@ -86,6 +96,8 @@ function ShouldBeInvalidCastingTest()
     // Vector(vect(0,0,0));
 }
 
+private function Object ObjectCastFunction();
+
 function ShouldBeValidCastingTest()
 {
     // from byte
@@ -97,6 +109,7 @@ function ShouldBeValidCastingTest()
     // from enum
     byte(EnumProperty);
     int(EnumProperty);
+    string(EnumProperty);
 
     // from int
     byte(0);
@@ -120,6 +133,7 @@ function ShouldBeValidCastingTest()
     bool(self);
     CastingDerivative(self);
     InterfaceTest(self);
+    CastingDerivative(ObjectCastFunction());
     string(self);
 
     // from name
@@ -127,7 +141,7 @@ function ShouldBeValidCastingTest()
     string('None');
 
     // from delegate
-    string(DelegateFunction);
+    string(DelegateMethod);
 
     // from interface
     bool(InterfaceProperty);
@@ -154,17 +168,173 @@ function ShouldBeValidCastingTest()
     // name("1.0"); // Only in a T3D context
     Vector("");
     Rotator("");
+
+    // UC3
+    Name("");
 }
 
+private function CoerceToString(coerce string s);
 function ShouldBeValidCoerceTest()
 {
     // Object to String
     CoerceToString(self);
+    CoerceToString(byte(0));
+    CoerceToString(0);
+    CoerceToString(0.0);
+    CoerceToString(true);
 }
 
-private function CoerceToString(coerce string s);
+private function OutInt(out int i);
+private function OutEnum(out EEnum e);
+private function OutObject(out Object obj);
+private function OutDerivedObject(out CastingTest obj);
+private function OutArray(out array<string> arr);
+
+function ShouldBeValidOutTest()
+{
+    local int i;
+    local CastingTest obj;
+    local array<string> arr;
+
+    OutInt(i);
+
+    OutEnum(EnumProperty); // by property
+
+    OutObject(obj);
+    OutDerivedObject(obj);
+
+    OutArray(arr);
+}
+
+// Auto-Conversion should be disallowed for 'Out' types.
+function ShouldBeInvalidOutTest()
+{
+    local byte b;
+    local float f;
+
+    // <===> Passing 'ReadOnly' types to 'Out' types are disallowed.
+    OutInt(0);
+    OutInt(0.0);
+    OutInt(byte(0.0)); // no byte literal exists, as 0 will always be an 'Int' type.
+    OutInt(ConstIntProperty);
+    OutInt(EnumProperty); // TODO: Is this actually allowed?
+
+    OutEnum(E_1);
+    OutEnum(EEnum.E_1);
+    OutEnum(EEnum.EnumCount);
+
+    // Special keywords
+    OutObject(self);
+    OutObject(none);
+
+    OutObject(Class'Object');
+
+    // </===>
+
+    // <===> Passing generalized types to 'Out' types are disallowed i.e. 'Float' to 'Int'
+    OutInt(f);
+    OutInt(b);
+
+    // Compatible interface, but should be disallowed when passing to an 'Out' parameter.
+    OutObject(InterfaceProperty);
+    // </===>
+}
+
 
 function ShouldBeValidAssignmentTest()
+{
+    local byte b;
+    local float f;
+    local int i;
+
+    b = 0;      // implicit cast from int to byte
+
+    f = 0;      // implicit cast from int to float
+    f = 0.0;
+
+    i = 0;
+    i = 0.0;    // implicit cast from float to int
+
+    DelegateProperty = none;
+    DelegateMethod = none;
+
+    DelegateProperty = DelegateMethod;
+    DelegateMethod = DelegateProperty;
+
+    // from an ordinary non-delegate function
+    DelegateProperty = DelegateTarget;
+    DelegateMethod = DelegateTarget;
+}
+
+function ShouldBeInvalidAssignmentTest()
+{
+    local int i;
+
+    i = none;
+
+    self = none;
+
+    0 = none;
+    none = none;
+
+    Class'Object' = none;
+    vect(0,0,0) = vect(0,0,0);
+}
+
+// 'Out' params cannot accept 'Const' types, but it should be possible to re-assign nonetheless.
+function ShouldBeValidOutAssignmentTest(out string s, out int i)
+{
+    s = "";
+    i = 0;
+}
+
+// Maybe move to array tests
+function ShouldBeValidArrayAssignmentTest()
+{
+    local Array<int> ints;
+    local int multiInt[2];
+
+    ints[0] = 0;
+    multiInt[0] = 0;
+
+    ints = ints;
+    multiInt = multiInt;
+
+    ConstIntArrayProperty[0] = 0;
+}
+
+function ShouldBeInvalidArrayAssignmentTest()
+{
+    local int multiInt[2], otherMultiInt[3];
+
+    // ! mismatch array dimension
+    multiint = otherMultiInt;
+
+    // ! Cannot assign to 'Const'
+    ConstIntArrayProperty = IntArrayProperty;
+
+    // TODO: ! incompatible type
+    // IntArrayProperty = StringArrayProperty;
+}
+
+// Valid return types
+
+function byte ShouldBeValidReturnConstIntToByteTest() { return 0; }
+function float ShouldBeValidReturnConstIntToFloatTest() { return 0; }
+function int ShouldBeValidReturnConstFloatToIntTest() { return 0.0; }
+function Object ShouldBeValidReturnNoneToObjectTest() { return none; }
+function bool ShouldBeValidReturnConstBoolTest() { return true; }
+function bool ShouldBeValidReturnBoolPropertyTest() { return bBoolProperty; }
+function CastingTest ShouldBeValidReturnInterfaceCastToObjectTest() { return CastingTest(InterfaceProperty); }
+function CastingTest ShouldBeValidReturnInterfacePropertyToObjectTest() { return InterfaceProperty; }
+
+// Invalid return types
+
+// Never generalize int to bool
+function bool ShouldBeInvalidReturnConstIntToBoolTest() { return 0; }
+function bool ShouldBeInvalidReturnNoneToBoolTest() { return none; }
+
+function ShouldBeValidObjectAssignmentTest()
 {
     local CastingTest c;
     local Object obj;
@@ -173,9 +343,17 @@ function ShouldBeValidAssignmentTest()
     local InterfaceTest other;
     local CastingActor castingActor;
 
+    local Class<CastingTest> metaClass;
+
+    c = none;
+    other = none;
+    metaClass = none;
+
     // FIXME: `self.Class (other)` is picked up as a cast instead of a template reference
     // Ensure it doesn't mistake this for a cast from `other` to `self.Class`
-    c = new (self) self.Class (other);
+    c = new (self) self.Class (obj);
+    // as evident by passing an interface as an argument to 'Template'
+    // c = new (self) self.Class (other);
 
     c = new (none) Class'CastingTest';
     c = new (none) Class'CastingDerivative';
@@ -199,7 +377,7 @@ function ShouldBeValidAssignmentTest()
     Actor.Spawn(Class'CastingActor').Data;
 }
 
-function ShouldBeInvalidAssignmentTest()
+function ShouldBeInvalidObjectAssignmentTest()
 {
     local CastingDerivative c;
 
@@ -241,6 +419,7 @@ function ShouldBeValidClassArgumentTest()
     local Object obj;
 
     // By limitor
+    AcceptClassLimitor(none);
     AcceptClassLimitor(Class'CastingTest');
     AcceptClassLimitor(Class'CastingDerivative');
     AcceptClassLimitor(Class<CastingDerivative>(cls));
@@ -249,6 +428,7 @@ function ShouldBeValidClassArgumentTest()
     AcceptClassLimitor(c);
 
     // Any class
+    AcceptClass(none);
     AcceptClass(Class'CastingTest');
     AcceptClass(Class'CastingDerivative');
     AcceptClass(Class'Class');
@@ -256,6 +436,7 @@ function ShouldBeValidClassArgumentTest()
     AcceptClass(cls);
 
     // Any object
+    AcceptObject(none);
     AcceptObject(self); // coerced type
     AcceptObject(self.Class); // coerced type
     AcceptObject(Class'Class');

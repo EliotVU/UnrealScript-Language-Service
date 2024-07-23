@@ -5,8 +5,9 @@ import { UCDocument } from '../document';
 import { Name } from '../name';
 import { SymbolWalker } from '../symbolWalker';
 import {
-    ModifierFlags, SymbolReferenceFlags, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
+    SymbolReferenceFlags, UCFieldSymbol, UCObjectTypeSymbol, UCStructSymbol, UCSymbolKind, UCTypeKind
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export class UCStateSymbol extends UCStructSymbol {
     static readonly allowedKindsMask = 1 << UCSymbolKind.Const
