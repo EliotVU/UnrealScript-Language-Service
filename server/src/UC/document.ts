@@ -62,7 +62,7 @@ function removeChildren(scope: UCStructSymbol) {
 }
 
 export type DocumentParseData = {
-    context: ProgramContext;
+    context: ProgramContext | undefined;
     parser: UCParser;
 };
 
@@ -77,7 +77,7 @@ export class UCDocument {
     public readonly uri: DocumentUri;
 
     /** The current indexed TextDocument's version as reported by the client. */
-    public indexedVersion = 0;
+    public indexedVersion = -1;
 
     // TODO: Displace this with a DiagnosticCollection visitor.
     public nodes: IDiagnosticNode[] = [];

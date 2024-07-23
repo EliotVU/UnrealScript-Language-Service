@@ -75,11 +75,17 @@ export const documentsCodeIndexed$ = new Subject<UCDocument[]>();
 export function indexDocument(document: UCDocument, text?: string): void {
     const buildStart = performance.now();
     let buildTime: number;
+    let indexedVersion: number | undefined;
 
     if (typeof text === 'undefined') {
         // Let's fetch the text from the file system, but first see if we have an active text document (this ensures we retrieve the latest revision)
         const textDocument = ActiveTextDocuments.get(document.uri);
-        text = textDocument?.getText() ?? readTextByURI(document.uri);
+        if (textDocument) {
+            text = textDocument.getText();
+            indexedVersion = textDocument.version;
+        } else {
+            text = readTextByURI(document.uri);
+        }
     }
 
     try {
@@ -98,6 +104,7 @@ export function indexDocument(document: UCDocument, text?: string): void {
         const indexer = new DocumentSymbolIndexer(document);
         // We set this here to prevent any re-triggering within the following indexing process.
         document.hasBeenIndexed = true;
+        if (indexedVersion) document.indexedVersion = indexedVersion;
         document.accept(indexer);
     } catch (err) {
         console.error(

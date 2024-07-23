@@ -54,6 +54,7 @@ import {
     createPackage,
     createPackageByDir,
     documentBuilt$,
+    documentIndexed$,
     documentsCodeIndexed$,
     enumerateDocuments,
     getDocumentById,
@@ -432,6 +433,7 @@ connection.onInitialized((params) => {
                     if (process.env.NODE_ENV === 'development') {
                         connection.console.log(`Document "${document.fileName}" is already indexed.`);
                     }
+
                     return;
                 }
 
@@ -503,7 +505,7 @@ connection.onInitialized((params) => {
                     queueIndexDocument(globalUci);
                 }
 
-                // Weird, even if when we have "zero" active documents, this will array is filled?
+                // Weird, even if when we have "zero" active documents, this array is filled?
                 const activeDocuments = ActiveTextDocuments
                     .all()
                     .map(doc => getDocumentByURI(doc.uri))
@@ -735,11 +737,8 @@ async function registerPresetsWorkspace(generation: UCGeneration, licensee: UELi
         };
     }
 
-    // Always include the 'Shared' presets
     const presetsPath = path.join(__dirname, 'presets');
-    const folders: WorkspaceFolder[] = [
-        pathToWorkspaceFolder(path.join(presetsPath, 'Shared'))
-    ];
+    const folders: WorkspaceFolder[] = [];
 
     switch (generation) {
         case UCGeneration.UC1:
@@ -761,6 +760,9 @@ async function registerPresetsWorkspace(generation: UCGeneration, licensee: UELi
             // no presets that we have, but feel free to add of course!!
             break;
     }
+
+    // Always include the 'Shared' presets, included as last so that they cannot not precede any of the licensee or generation specific documents of the same name.
+    folders.push(pathToWorkspaceFolder(path.join(presetsPath, 'Shared')));
 
     // blob search all the files in the presets folder!
     const workspaceFiles = await getWorkspaceFiles(folders, 'presets');
