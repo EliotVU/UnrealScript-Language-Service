@@ -2,17 +2,20 @@ class PreprocessingTest;
 
 var bool bEnabled;
 
-`define conditionalTest2(msg, cond) if(`cond) { Test2(`msg); }
-`define ENABLED bEnabled
+`define LogConditionalMessage(msg, cond) if(`cond) { Log(`msg); }
+`define FormatBool(cond) string(`cond)
 
-function bool Test()
+`define IsEnabled bEnabled
+
+function ShouldBeValidArgumentMacroTest()
 {
-    `conditionalTest2("", bEnabled);
-
-    return `{ENABLED};
+    `LogConditionalMessage("", bEnabled);
+    `FormatBool(bEnabled);
 }
 
-function Test2(string msg)
+function bool ShouldBeValidInlineMacroTest()
 {
-    
+    return `{IsEnabled};
 }
+
+private function Log(string msg);

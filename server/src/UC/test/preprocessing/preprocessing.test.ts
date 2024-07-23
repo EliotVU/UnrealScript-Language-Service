@@ -3,7 +3,8 @@ import { readTextByURI } from "../../../workspace";
 import { UCInputStream } from "../../Parser/InputStream";
 import { UCLexer } from "../../antlr/generated/UCLexer";
 import { createPreprocessor, preprocessDocument } from "../../document";
-import { applyMacroSymbols, indexDocument } from "../../indexer";
+import { applyMacroSymbols, indexDocument, queueIndexDocument } from "../../indexer";
+import { assertDocumentInvalidFieldsAnalysis, assertDocumentValidFieldsAnalysis } from '../utils/diagnosticUtils';
 import { usingDocuments } from "../utils/utils";
 
 describe("Preprocessing", () => {
@@ -15,17 +16,17 @@ describe("Preprocessing", () => {
             "PreprocessingInclude.uci",
             'PreprocessingIncludeTest.uc'
         ],
-        ([macroDocument, macroTestDocument, macroIncludeDocument, includeTestDocument]) => {
+        ([macroGlobalsDocument, macroTestDocument, macroIncludeDocument, macroIncludeTestDocument]) => {
             const inputStream = UCInputStream.fromString(
-                readTextByURI(macroDocument.uri)
+                readTextByURI(macroGlobalsDocument.uri)
             );
             const lexer = new UCLexer(inputStream);
 
-            const macroParser = createPreprocessor(macroDocument, lexer);
+            const macroParser = createPreprocessor(macroGlobalsDocument, lexer);
             expect(macroParser).to.not.be.undefined;
 
             applyMacroSymbols({ debug: "true" });
-            preprocessDocument(macroDocument, macroParser);
+            preprocessDocument(macroGlobalsDocument, macroParser);
 
             it("macro debug !== undefined", () => {
                 const symbol = macroParser.getSymbolValue(
@@ -61,12 +62,19 @@ describe("Preprocessing", () => {
 
             // !! Currently not working (this is expecxted)
             it('should include', () => {
-                preprocessDocument(includeTestDocument, macroParser);
+                preprocessDocument(macroIncludeTestDocument, macroParser);
 
-                indexDocument(includeTestDocument);
+                indexDocument(macroIncludeTestDocument);
 
-                expect(includeTestDocument.nodes.length).to.equal(0);
+                expect(macroIncludeTestDocument.nodes.length).to.equal(0);
             });
+
+            it('should have no problems', () => {
+                queueIndexDocument(macroTestDocument);
+
+                assertDocumentValidFieldsAnalysis(macroTestDocument, /\bShould(?!BeInvalid)/i);
+                assertDocumentInvalidFieldsAnalysis(macroTestDocument, /\bShouldBeInvalid/i);
+            })
         }
     );
 });
