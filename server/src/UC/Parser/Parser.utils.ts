@@ -1,7 +1,8 @@
-import { Parser, ParserRuleContext, RuleContext, Token } from 'antlr4ts';
+import { Parser, ParserRuleContext, Token } from 'antlr4ts';
 import { ParseTree } from 'antlr4ts/tree/ParseTree';
 import { Position } from 'vscode-languageserver-textdocument';
 import { intersectsWith, rangeFromCtx } from '../helpers';
+import type { ExternalToken } from './ExternalTokenFactory';
 
 export function getTokenDebugInfo(
     token: Token | undefined,
@@ -15,7 +16,12 @@ export function getTokenDebugInfo(
         ? parser.vocabulary.getSymbolicName(token.type)
         : token.type;
 
-    return `(${token.line}:${token.charPositionInLine}) [${typeTree}] ${JSON.stringify(token.text)}`;
+    if (typeof (token as ExternalToken).externalSource !== 'undefined') {
+        const externalToken = (token as ExternalToken);
+        return `[${token.tokenIndex}] ${JSON.stringify(token.text)} (${externalToken.externalSource}:${externalToken.externalLine}:${externalToken.externalColumn + 1}) [${token.channel}:${typeTree}]`;
+    }
+
+    return `[${token.tokenIndex}] (${token.line}:${token.charPositionInLine}) [${token.channel}:${typeTree}] ${JSON.stringify(token.text)}`;
 }
 
 export function getCtxDebugInfo(

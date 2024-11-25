@@ -340,7 +340,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             // TODO: mark range?
             return undefined;
         }
-        const macro = ctx._MACRO_SYMBOL;
+        const macro = ctx._MACRO_DEFINE_SYMBOL;
         const identifier = createIdentifierFromToken(macro);
         // TODO: custom class
         const symbol = new UCMacroSymbol(identifier, rangeFromCtx(ctx));

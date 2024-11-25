@@ -7,8 +7,8 @@ export class UCInputStream extends CodePointCharStream {
         return stream;
     }
 
-	override LA(i: number): number {
-		const c = super.LA(i);
+    override LA(i: number): number {
+        const c = super.LA(i);
         return c | (Number(c >= 65 && c <= 90) << 5);
-	}
+    }
 }

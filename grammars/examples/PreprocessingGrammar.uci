@@ -1,0 +1,20 @@
+`MySymbol
+`{MyEnclosedSymbol}
+
+`MyParamSymbol(SomeText, MoreText)
+
+`include(MyFile/MyFile.uci)
+
+`define MySymbol MyText and so on... \
+    More text
+
+`define MyParamSymbol(Param1,Param2) MyText and my `Param1 text \
+    `Param2
+
+`if(`isdefined(debug))
+	`define IN_DEBUG true
+`else
+	`define IN_DEBUG false
+`endif
+
+

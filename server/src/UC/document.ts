@@ -1,4 +1,3 @@
-import { CommonTokenStream } from 'antlr4ts';
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
@@ -7,8 +6,10 @@ import { URI } from 'vscode-uri';
 
 import { UCErrorListener } from './Parser/ErrorListener';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
+import type { ExternalToken } from './Parser/ExternalTokenFactory';
 import { UCInputStream } from './Parser/InputStream';
-import { UCTokenStream } from './Parser/TokenStream';
+import { createTokenStream } from './Parser/PreprocessorParser';
+import { UCPreprocessorTokenStream } from './Parser/PreprocessorTokenStream';
 import {
     ISymbol,
     SymbolReference,
@@ -20,17 +21,14 @@ import {
     UCSymbolKind,
     isArchetypeSymbol,
     isClassSymbol,
-    isStruct,
     removeHashedSymbol,
 } from './Symbols';
 import { UCLexer } from './antlr/generated/UCLexer';
 import { Licensee, ProgramContext, UCParser } from './antlr/generated/UCParser';
-import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
 import { IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentASTWalker } from './documentASTWalker';
-import { IndexedReferencesMap, applyMacroSymbols, config } from './indexer';
+import { IndexedReferencesMap, config } from './indexer';
 import { Name, NameHash, toName } from './name';
-import { UCGeneration } from './settings';
 import { SymbolWalker } from './symbolWalker';
 
 function removeChildren(scope: UCStructSymbol) {
@@ -87,6 +85,9 @@ export class UCDocument {
     public hasBeenBuilt = false;
     public hasBeenIndexed = false;
 
+    /** Array of tokens that were processed by the lexer. Special use case for .uci files. */
+    public tokensCache?: ExternalToken[];
+
     private readonly indexReferencesMade = new Map<NameHash, Set<SymbolReference>>();
 
     // List of symbols, including macro declarations.
@@ -119,31 +120,13 @@ export class UCDocument {
 
         const inputStream = UCInputStream.fromString(text);
         const lexer = new UCLexer(inputStream);
-        lexer.removeErrorListeners();
-        const tokens = new UCTokenStream(lexer);
-
-        if (config.generation === UCGeneration.UC3) {
-            const startPreprocressing = performance.now();
-            const macroParser = createPreprocessor(this, lexer);
-            lexer.reset();
-            if (macroParser) {
-                try {
-                    const macroTree = preprocessDocument(this, macroParser);
-                    if (macroTree) {
-                        tokens.initMacroTree(macroTree);
-                    }
-                } catch (err) {
-                    console.error(err);
-                } finally {
-                    console.info(`${this.fileName}: preprocessing time ${performance.now() - startPreprocressing}`);
-                }
-            }
+        if (process.env.NODE_ENV !== 'test') {
+            lexer.removeErrorListeners();
         }
-
-        // tokens.fill();
+        const tokenStream = createTokenStream(this, lexer, config.generation);
 
         let context: ProgramContext | undefined;
-        const parser = new UCParser(tokens);
+        const parser = new UCParser(tokenStream);
         parser.generation = config.generation === '3'
             ? 3 : config.generation === '2'
                 ? 2 : config.generation === '1'
@@ -169,7 +152,7 @@ export class UCDocument {
                 );
             }
         }
-        tokens.release(tokens.mark());
+        tokenStream.release(tokenStream.mark());
         return { context: context, parser };
     }
 
@@ -180,30 +163,17 @@ export class UCDocument {
         const inputStream = UCInputStream.fromString(text);
         const lexer = new UCLexer(inputStream);
         const errorListener = new UCErrorListener();
-        lexer.removeErrorListeners(); lexer.addErrorListener(errorListener);
-        const tokenStream = new UCTokenStream(lexer);
-        const walker = new DocumentASTWalker(this, this.scope, tokenStream);
-
-        if (config.generation === UCGeneration.UC3) {
-            const startPreprocressing = performance.now();
-            const macroParser = createPreprocessor(this, lexer);
-            lexer.reset();
-            if (macroParser) {
-                try {
-                    const macroTree = preprocessDocument(this, macroParser, walker);
-                    if (macroTree) {
-                        tokenStream.initMacroTree(macroTree, errorListener);
-                    }
-                } catch (err) {
-                    console.error(err);
-                } finally {
-                    console.info(`${this.fileName}: preprocessing time ${performance.now() - startPreprocressing}`);
-                }
-            }
+        if (process.env.NODE_ENV !== 'test') {
+            lexer.removeErrorListeners();
+        }
+        lexer.addErrorListener(errorListener);
+        const tokenStream = createTokenStream(this, lexer, config.generation);
+        if (tokenStream instanceof UCPreprocessorTokenStream) {
+            tokenStream.macroParser.addErrorListener(errorListener)
         }
 
+        const walker = new DocumentASTWalker(this, this.scope, tokenStream);
         const startWalking = performance.now();
-        // tokenStream.fill();
 
         let context: ProgramContext | undefined;
         const parser = new UCParser(tokenStream);
@@ -215,7 +185,10 @@ export class UCDocument {
         try {
             parser.interpreter.setPredictionMode(PredictionMode.SLL);
             parser.errorHandler = ERROR_STRATEGY;
-            parser.removeErrorListeners(); parser.addErrorListener(errorListener);
+            if (process.env.NODE_ENV !== 'test') {
+                parser.removeErrorListeners();
+            }
+            parser.addErrorListener(errorListener);
             context = parser.program();
         } catch (err) {
             console.debug('PredictionMode SLL has failed, rolling back to LL.');
@@ -224,7 +197,10 @@ export class UCDocument {
                 parser.reset();
                 parser.interpreter.setPredictionMode(PredictionMode.LL);
                 parser.errorHandler = ERROR_STRATEGY;
-                parser.removeErrorListeners(); parser.addErrorListener(errorListener);
+                if (process.env.NODE_ENV !== 'test') {
+                    parser.removeErrorListeners();
+                }
+                parser.addErrorListener(errorListener);
                 context = parser.program();
             } catch (err) {
                 console.error(
@@ -304,41 +280,4 @@ export class UCDocument {
     accept<Result>(visitor: SymbolWalker<Result>): Result | void {
         return visitor.visitDocument(this);
     }
-}
-
-export function createPreprocessor(document: UCDocument, lexer: UCLexer) {
-    const macroStream = new CommonTokenStream(lexer, UCLexer.MACRO);
-    macroStream.fill();
-
-    if (macroStream.getNumberOfOnChannelTokens() <= 1) {
-        return undefined;
-    }
-
-    const macroParser = new UCPreprocessorParser(macroStream);
-    macroParser.filePath = document.uri;
-    return macroParser;
-}
-
-export function preprocessDocument(document: UCDocument, macroParser: UCPreprocessorParser, walker?: DocumentASTWalker) {
-    if (document.fileName.toLowerCase() === 'globals.uci') {
-        UCPreprocessorParser.globalSymbols = macroParser.currentSymbols;
-        applyMacroSymbols(config.macroSymbols);
-    }
-
-    // Cannot use document.Name, because we need to preserve lowercases and uppercases
-    const classNameMacro = { text: path.basename(document.fileName, path.extname(document.fileName)) };
-    macroParser.currentSymbols.set("classname", classNameMacro);
-
-    const packageNameMacro = { text: document.classPackage.getName().text };
-    macroParser.currentSymbols.set("packagename", packageNameMacro);
-
-    if (walker) {
-        const errorListener = new UCErrorListener();
-        macroParser.removeErrorListeners(); macroParser.addErrorListener(errorListener);
-    }
-    const macroCtx = macroParser.macroProgram();
-    if (walker) {
-        walker.visit(macroCtx);
-    }
-    return macroCtx;
 }

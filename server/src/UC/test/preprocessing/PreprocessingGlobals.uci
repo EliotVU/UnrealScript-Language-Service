@@ -1,5 +1,7 @@
+`define debugBool false
+
 `if(`isdefined(debug))
-	`define IN_DEBUG true
+	`define debugBool true
 `else
-	`define IN_DEBUG false
+    `undefine(debugBool)
 `endif

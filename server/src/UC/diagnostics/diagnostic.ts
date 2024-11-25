@@ -7,11 +7,11 @@ export interface IDiagnosticNode {
 }
 
 export class ErrorDiagnostic implements IDiagnosticNode {
-    constructor(readonly range: Range, private error: string) {
+    constructor(readonly range: Range, private message: string) {
     }
 
     toString(): string {
-        return this.error;
+        return this.message;
     }
 }
 

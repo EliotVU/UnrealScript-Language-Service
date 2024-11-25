@@ -1,0 +1,3 @@
+`include(preprocessing\PreprocessingExpandIncludeTest.uci)
+
+function test();

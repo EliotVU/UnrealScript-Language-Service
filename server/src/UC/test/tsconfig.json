@@ -2,6 +2,7 @@
     "compilerOptions": {
         "strict": false,
         "strictNullChecks": false,
-        "sourceMap": true
+        "sourceMap": true,
+        "lib": ["ES2022"]
     },
 }

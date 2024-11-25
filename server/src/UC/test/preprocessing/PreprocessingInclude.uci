@@ -1,1 +1,3 @@
-`define IncludeSymbol true
+`include(preprocessing\PreprocessingIncludeDeep.uci)
+
+function `funcType IncludedFunction ();

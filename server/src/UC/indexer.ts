@@ -20,7 +20,6 @@ import {
     UCSymbolKind,
     addHashedSymbol,
 } from './Symbols';
-import { UCPreprocessorParser } from './antlr/generated/UCPreprocessorParser';
 import { UCDocument } from './document';
 import { DocumentCodeIndexer, DocumentSymbolIndexer } from './documentCodeIndexer';
 import { Name, NameHash, toName } from './name';
@@ -46,20 +45,6 @@ export const defaultSettings: UCLanguageServerSettings = {
 };
 
 export const config: UCLanguageServerSettings = Object.assign({}, defaultSettings);
-
-export function clearMacroSymbols() {
-    UCPreprocessorParser.globalSymbols.clear();
-}
-
-export function applyMacroSymbols(symbols?: { [key: string]: string }) {
-    if (symbols) {
-        // Apply our custom-macros as global symbols (accessable in any uc file).
-        const entries = Object.entries<string>(symbols);
-        for (const [key, value] of entries) {
-            UCPreprocessorParser.globalSymbols.set(key.toLowerCase(), { text: value });
-        }
-    }
-}
 
 let pendingIndexedDocuments: UCDocument[] = [];
 
@@ -165,6 +150,19 @@ export function getPendingDocumentsCount(): number {
 }
 
 const sepRegex = RegExp(`\\${path.sep}`);
+
+export function parsePackagePathInDir(dir: string): string {
+    const directories = dir.split(sepRegex);
+    for (let i = directories.length - 1; i >= 0; --i) {
+        if (i > 0 && directories[i].match(/classes/i)) {
+            return path.join(...directories.slice(0, i));
+        }
+    }
+
+    // Use the first directory (from right to left) as the package name.
+    return path.dirname(dir);
+}
+
 export function parsePackageNameInDir(dir: string): string {
     const directories = dir.split(sepRegex);
     for (let i = directories.length - 1; i >= 0; --i) {
@@ -175,6 +173,20 @@ export function parsePackageNameInDir(dir: string): string {
 
     // Use the first directory (from right to left) as the package name.
     return path.basename(path.dirname(dir));
+}
+
+export function resolveIncludeFilePath(
+    workingPath: string,
+    includeFilePathArgument: string
+): string {
+    const isPackageDirRelative = path.dirname(includeFilePathArgument) !== '.';
+
+    const baseDir = isPackageDirRelative
+        ? parsePackagePathInDir(path.dirname(workingPath))
+        : path.dirname(workingPath);
+
+    const includeFilePath = path.resolve(path.join(baseDir, includeFilePathArgument));
+    return includeFilePath;
 }
 
 export function createPackageByDir(dir: string): UCPackage {

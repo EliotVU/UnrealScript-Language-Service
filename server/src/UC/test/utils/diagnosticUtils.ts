@@ -9,6 +9,12 @@ import { DocumentAnalyzer } from '../../diagnostics/documentAnalyzer';
 import { UCDocument } from '../../document';
 import { areRangesIntersecting } from '../../helpers';
 
+type DiagnosticMessage = {
+    range: Range;
+    code?: string | number;
+    message?: string;
+};
+
 /** Returns the text at the range, this is slow because it will load the entire document's content. */
 function getTextAtRange(document: UCDocument, range: Range): string {
     const textDocument = TextDocument.create(
@@ -29,7 +35,7 @@ function getAtSymbolDebugInfo(textDocument: TextDocument, symbol: ISymbol): stri
     return `${symbol.getPath()} (${URI.parse(textDocument.uri).fsPath}:${symbol.range.start.line + 1}:${symbol.range.start.character + 1})`;
 }
 
-function getDiagnosticsDebugInfo(textDocument: TextDocument, diagnostics: Diagnostic[]): string[] {
+function getDiagnosticsDebugInfo(textDocument: TextDocument, diagnostics: DiagnosticMessage[]): string[] {
     return diagnostics.map(p => {
         return p.code !== Number.MAX_VALUE
             ? (`UnrealScriptError: "${p.message}" for \`${textDocument.getText(p.range)}\`\n    at ${getAtRangeDebugInfo(textDocument, p.range)}`)
@@ -37,7 +43,7 @@ function getDiagnosticsDebugInfo(textDocument: TextDocument, diagnostics: Diagno
     });
 }
 
-function getDiagnosticsError(textDocument: TextDocument, diagnostics: Diagnostic[]): string {
+function getDiagnosticsError(textDocument: TextDocument, diagnostics: DiagnosticMessage[]): string {
     const errors = getDiagnosticsDebugInfo(textDocument, diagnostics);
 
     return errors
@@ -181,4 +187,19 @@ export function assertDocumentDiagnoser(diagnoser: DocumentAnalyzer) {
         .join('\n');
 
     return expect(diagnostics.count(), msg);
+}
+
+export function assertDocumentNodes(document: UCDocument) {
+    const diagnosticCollection = document.nodes;
+
+    const textDocument = TextDocument.create(
+        document.uri,
+        'unrealscript',
+        0,
+        readTextByURI(document.uri)
+    );
+
+    const problems = diagnosticCollection;
+    expect(problems.length)
+        .to.equal(0, getDiagnosticsError(textDocument, problems));
 }

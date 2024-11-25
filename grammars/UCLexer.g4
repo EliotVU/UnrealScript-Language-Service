@@ -3,77 +3,117 @@ lexer grammar UCLexer;
 channels { MACRO, COMMENTS_CHANNEL }
 
 @lexer::header {
+    import { IntStream } from 'antlr4ts';
+
     // TODO: Create a map of keyword tokens?
 }
 
 @lexer::members {
-	parensLevel: number = 0;
-	braceLevel: number = 0;
-	isDefineContext: boolean = false;
+    parensLevel: number = 0;
+    braceLevel: number = 0;
+
+    // For debugging
+
+    // override nextToken() {
+    //     const token = super.nextToken();
+
+    //     console.debug('<< ' + token.text);
+
+    //     return token;
+    // }
+
+    // override mode(m: number): void {
+    //     super.mode(m);
+
+    //     console.debug('switch mode', this.modeNames[m], this._modeStack.toArray().map(ms => this.modeNames[ms]).join('->'));
+    // }
+
+    // override popMode(): number {
+    //     const m = super.popMode();
+
+    //     console.debug('pop mode', this.modeNames[m], this._modeStack.toArray().map(ms => this.modeNames[ms]).join('->'));
+
+    //     return m;
+    // }
+
+    // override pushMode(m: number): void {
+    //     super.pushMode(m);
+
+    //     console.debug('push mode', this.modeNames[m], this._modeStack.toArray().map(ms => this.modeNames[ms]).join('->'));
+    // }
 }
 
 fragment DIGIT
-	: [0-9]
-	;
+    : [0-9]
+    ;
 
 fragment HEX_DIGIT
-	: [0-9a-fA-F]
-	;
+    : [0-9a-fA-F]
+    ;
 
 fragment SIGN
-	: [+-]
-	;
+    : [+-]
+    ;
 
 fragment EXPONENT
-	: [eE] SIGN? DIGIT+
-	;
+    : [eE] SIGN? DIGIT+
+    ;
 
 fragment FLOAT_TYPE_SUFFIX
-	: [fF]
-	;
+    : [fF]
+    ;
 
 fragment ESC_SEQ
-	: '\\' .
-	;
+    : '\\' .
+    ;
 
 fragment CALL_MACRO_CHAR
-	: '\u0060'
-	;
+    : '\u0060'
+    ;
+
+fragment MACRO_NAME_CHARACTER
+    : [a-zA-Z_\u00C0-\u00FF\u009F\u008C\u009C]
+    ;
 
 LINE_COMMENT
-	: '//' ~[\r\n]*
-	-> channel(COMMENTS_CHANNEL) //, pushMode(LINE_COMMENT_MODE)
-	;
+    : '//' ~[\r\n]*
+    -> channel(COMMENTS_CHANNEL) //, pushMode(LINE_COMMENT_MODE)
+    ;
 
 BLOCK_COMMENT
-	: '/*' (BLOCK_COMMENT|.)*? '*/'
-	-> channel(COMMENTS_CHANNEL) //, pushMode(BLOCK_COMMENT_MODE)
-	;
+    : '/*' (BLOCK_COMMENT|.)*? '*/'
+    -> channel(COMMENTS_CHANNEL) //, pushMode(BLOCK_COMMENT_MODE)
+    ;
 
 WS
-	: [ \t]+
-	-> channel(HIDDEN)
-	;
+    : [ \t]+
+    -> channel(HIDDEN)
+    ;
 
 NEWLINE
-	: '\r'? '\n'
-	-> channel(HIDDEN)
-	;
+    : '\r'? '\n'
+    -> channel(HIDDEN)
+    ;
+
+MACRO_CHAR_ENCLOSED
+    : CALL_MACRO_CHAR { this._input.LA(1) === '{'.charCodeAt(0) }?
+    -> channel(MACRO), type(MACRO_CHAR), pushMode(MACRO_ENCLOSED_MODE)
+    ;
 
 MACRO_CHAR
-	: CALL_MACRO_CHAR
-	-> channel(MACRO), pushMode(MACRO_MODE)
-	;
+    : CALL_MACRO_CHAR
+    -> channel(MACRO), pushMode(MACRO_MODE)
+    ;
 
 DECIMAL_LITERAL
-	: DIGIT+ '.' [0-9fF]* EXPONENT? FLOAT_TYPE_SUFFIX?
-	| DIGIT+ (FLOAT_TYPE_SUFFIX | EXPONENT FLOAT_TYPE_SUFFIX?)
-	;
+    : DIGIT+ '.' [0-9fF]* EXPONENT? FLOAT_TYPE_SUFFIX?
+    | DIGIT+ (FLOAT_TYPE_SUFFIX | EXPONENT FLOAT_TYPE_SUFFIX?)
+    ;
 
 INTEGER_LITERAL
-	: DIGIT+ [xX] HEX_DIGIT+
-	| DIGIT+
-	;
+    : DIGIT+ [xX] HEX_DIGIT+
+    | DIGIT+
+    ;
 
 STRING_LITERAL: '"' (~["\\] | ESC_SEQ)* '"';
 NAME_LITERAL: '\'' (~['\\] | ESC_SEQ)* '\'';
@@ -321,115 +361,232 @@ ASSIGNMENT_DIV: '/=';
 
 ERROR: . -> channel(HIDDEN);
 
-mode MACRO_MODE;
-
-MACRO_WS:         			[ \t]+                     	-> channel(HIDDEN), type(WS);
-MACRO_SINGLE_LINE_COMMENT: 	'//' ~[\r\n]*  				-> channel(COMMENTS_CHANNEL), type(LINE_COMMENT);
-MACRO_CHAR_INLINED
-	: CALL_MACRO_CHAR
-	-> channel(MACRO), type(MACRO_CHAR)
-	;
-
-MACRO_DEFINE
-	: 'define'
-	{
-		this.isDefineContext = true;
-	}
-	-> channel(MACRO)
-	;
-
-MACRO_UNDEFINE:             'undefine'                  -> channel(MACRO);
-MACRO_INCLUDE:				'include'					-> channel(MACRO);
-MACRO_IS_DEFINED:			'isdefined'                 -> channel(MACRO);
-MACRO_NOT_DEFINED:			'notdefined'                -> channel(MACRO);
-MACRO_COUNTER:				'counter'                   -> channel(MACRO);
-MACRO_GET_COUNTER:			'getcounter'                -> channel(MACRO);
-MACRO_SET_COUNTER:			'setcounter'                -> channel(MACRO);
-MACRO_IF:                  	'if'                        -> channel(MACRO), type(KW_IF);
-MACRO_ELSE:                	'else'                      -> channel(MACRO), type(KW_ELSE);
-MACRO_ELSE_IF:              'elseif'                    -> channel(MACRO);
-MACRO_END_IF:				'endif'                     -> channel(MACRO);
-MACRO_LINE:					'__LINE__'                  -> channel(MACRO);
-MACRO_FILE:					'__FILE__'                  -> channel(MACRO);
-MACRO_COMMA:				','							-> channel(MACRO), type(COMMA);
-
-MACRO_OPEN_PARENS
-	: '('
-	{
-		++ this.parensLevel;
-	}
-	-> channel(MACRO), type(OPEN_PARENS)
-	;
-
-MACRO_CLOSE_PARENS
-	: ')'
-	{
-		-- this.parensLevel;
-	}
-	-> channel(MACRO), type(CLOSE_PARENS)
-	;
+mode MACRO_ENCLOSED_MODE;
 
 MACRO_OPEN_BRACE
-	: '{'
-	{
-		++ this.braceLevel;
-	}
-	-> channel(MACRO), type(OPEN_BRACE)
-	;
+    : '{'
+    {
+        ++this.braceLevel;
+    }
+    -> channel(MACRO), type(OPEN_BRACE), mode(MACRO_MODE)
+    ;
+
+mode MACRO_MODE;
 
 MACRO_CLOSE_BRACE
-	: '}'
-	{
-		if (--this.braceLevel === 0) {
-			this.isDefineContext = false;
+    : '}'
+    {
+        if (--this.braceLevel === 0) {
             this.popMode();
-		}
-	}
-	-> channel(MACRO), type(CLOSE_BRACE)
-	;
+        }
+    }
+    -> channel(MACRO), type(CLOSE_BRACE)
+    ;
+
+// ! Valid?
+MACRO_SINGLE_LINE_COMMENT:  '//' ~[\r\n]*               -> channel(COMMENTS_CHANNEL), type(LINE_COMMENT);
+
+MACRO_INCLUDE:              'include'                   -> channel(MACRO), mode(MACRO_INVOKE_MODE);
+MACRO_DEFINE:               'define'                    -> channel(MACRO), mode(MACRO_DEFINE_MODE);
+MACRO_UNDEFINE:             'undefine'                  -> channel(MACRO), mode(MACRO_INVOKE_MODE);
+MACRO_IS_DEFINED:           'isdefined'                 -> channel(MACRO), mode(MACRO_INVOKE_MODE);
+MACRO_NOT_DEFINED:          'notdefined'                -> channel(MACRO), mode(MACRO_INVOKE_MODE);
+MACRO_COUNTER:              'counter'                   -> channel(MACRO), mode(MACRO_INVOKE_MODE);
+MACRO_GET_COUNTER:          'getcounter'                -> channel(MACRO), mode(MACRO_INVOKE_MODE);
+MACRO_SET_COUNTER:          'setcounter'                -> channel(MACRO), mode(MACRO_INVOKE_MODE);
+MACRO_IF:                   'if'                        -> channel(MACRO), mode(MACRO_INVOKE_MODE);
+MACRO_ELSE:                 'else'                      -> channel(MACRO), popMode;
+MACRO_ELSE_IF:              'elseif'                    -> channel(MACRO), mode(MACRO_INVOKE_MODE);
+MACRO_END_IF:               'endif'                     -> channel(MACRO), popMode;
+// Hardcoded (also case-sensitive), checked in the parser instead...
+// MACRO_LINE:                  '__LINE__'                  -> channel(MACRO);
+// MACRO_FILE:                  '__FILE__'                  -> channel(MACRO);
+
+MACRO_SYMBOL_INVOKE
+    : [a-zA-Z_][a-zA-Z0-9_#]*
+    { this._input.LA(1) === '('.charCodeAt(0) }?
+    -> channel(MACRO), type(MACRO_SYMBOL), mode(MACRO_INVOKE_MODE)
+    ;
 
 MACRO_SYMBOL
-	: [a-zA-Z_][a-zA-Z0-9_#]*
-	{
-		if (this.parensLevel === 0 && this.braceLevel === 0) {
-			if (this.isDefineContext) {
-				this.pushMode(UCLexer.MACRO_TEXT_MODE);
-			} else {
-				this.popMode();
-			}
-		}
-	}
-	-> channel(MACRO)
-	;
+    : [a-zA-Z_][a-zA-Z0-9_#]*
+    {
+        if (this.braceLevel === 0) {
+            this.popMode();
+        }
+    }
+    -> channel(MACRO)
+    ;
 
 MACRO_NEW_LINE
-	: [\r\n]+
-	{
-		this.parensLevel = 0;
-		this.braceLevel = 0;
-		this.isDefineContext = false;
-	}
-	-> channel(HIDDEN), popMode
-	;
+    : [\r\n]+
+    {
+        this.parensLevel = 0;
+        this.braceLevel = 0;
+    }
+    -> channel(HIDDEN), type(NEWLINE), popMode, mode(DEFAULT_MODE)
+    ;
 
-// MACRO_ERROR: . -> channel(HIDDEN);
+MACRO_END: . -> more, popMode;
 
-mode MACRO_TEXT_MODE;
+// << MACRO_CHAR 'DEFINE'
+mode MACRO_DEFINE_MODE; // >> MACRO_DEFINE_WS MACRO_DEFINE_SYMBOL[MACRO_DEFINE_PARAMS_MODE]? MACRO_TEXT_MODE?
+
+MACRO_DEFINE_WS
+    : [ \t]+
+    -> channel(HIDDEN), type(WS)
+    ;
+
+MACRO_DEFINE_CALL_SYMBOL
+    : MACRO_NAME_CHARACTER+
+    { this._input.LA(1) === '('.charCodeAt(0) }?
+    -> channel(MACRO), type(MACRO_DEFINE_SYMBOL), mode(MACRO_DEFINE_PARAMS_MODE)
+    ;
+
+MACRO_DEFINE_SYMBOL
+    : MACRO_NAME_CHARACTER+
+    -> channel(MACRO), mode(MACRO_TEXT_MODE)
+    ;
+
+// << MACRO_DEFINE_SYMBOL
+mode MACRO_DEFINE_PARAMS_MODE; // >> WS OPEN_PARENS MACRO_SYMBOL
+
+MACRO_DEFINE_PARAMS_OPEN_PARENS
+    : '('
+    -> channel(MACRO), type(OPEN_PARENS)
+    ;
+
+MACRO_DEFINE_PARAMS_SYMBOL
+    : MACRO_NAME_CHARACTER+
+    -> channel(MACRO), type(MACRO_SYMBOL)
+    ;
+
+MACRO_DEFINE_PARAMS_COMMA
+    : ','
+    -> channel(MACRO), type(COMMA)
+    ;
+
+MACRO_DEFINE_PARAMS_CLOSE_PARENS
+    : ')'
+    -> channel(MACRO), type(CLOSE_PARENS), mode(MACRO_TEXT_MODE)
+    ;
+
+MACRO_DEFINE_PARAMS_WS
+    : [ \t]+
+    -> channel(HIDDEN), type(WS)
+    ;
+
+// Unexpected, but in case of incomplete code we must fail early.
+MACRO_DEFINE_PARAMS_NEW_LINE
+    : [\r\n]+
+    {
+        this.parensLevel = 0;
+        this.braceLevel = 0;
+    }
+    -> channel(HIDDEN), type(NEWLINE), mode(DEFAULT_MODE)
+    ;
+
+// << `MACRO_SYMBOL
+mode MACRO_INVOKE_MODE; // >> (MACRO_ARGUMENTS_MODE? | \n)`
+
+MACRO_INVOKE_OPEN_PARENS
+    : '('
+    -> channel(MACRO), type(OPEN_PARENS), mode(MACRO_ARGUMENTS_MODE)
+    ;
+
+MACRO_INVOKE_CLOSE_PARENS
+    : ')'
+    -> channel(MACRO), type(CLOSE_PARENS), popMode
+    ;
+
+// << MACRO_INVOKE_MODE
+mode MACRO_ARGUMENTS_MODE; // >> MACRO_ARGUMENT_MODE [,\MACRO_ARGUMENT_MODE]
+
+MACRO_ARGUMENTS_COMMA
+    : ','
+    -> channel(MACRO), type(COMMA)
+    ;
+
+MACRO_ARGUMENTS_WS
+    : [ \t]+
+    -> channel(HIDDEN), type(WS)
+    ;
+
+// Consume all symbols untill the last ')' or first ',' (except when nested)
+MACRO_ARGUMENTS_SYMBOL
+    : .
+    // Do this stuff manually, it gets too complicated with nested modes
+    // Parses:
+    // `func(("" $ ",") $ ";", ("arg2"))
+    // >> MACRO_CHAR MACRO_SYMBOL OPEN_PARENS MACRO_SYMBOL COMMA MACRO_SYMBOL CLOSE_PARENS
+    {
+        // Undo whatever we have matched by anything char '.'
+        --(this._input as any)._position;
+
+        let nest = 0;
+
+        while (true) {
+            const charCode = this._input.LA(1);
+            switch (charCode) {
+                case IntStream.EOF:
+                    return;
+
+                case 40://'('.charCodeAt(0):
+                    ++nest;
+                    break;
+
+                case 41://')'.charCodeAt(0):
+                    // Final ')'?
+                    if (nest === 0) {
+                        this.channel = UCLexer.MACRO;
+                        this.type = UCLexer.MACRO_SYMBOL;
+                        this.mode(UCLexer.MACRO_INVOKE_MODE);
+                        this.emit();
+
+                        return;
+                    }
+
+                    --nest;
+                    break;
+
+                case 44://','.charCodeAt(0):
+                    // Argument ending ','?
+                    if (nest === 0) {
+                        this.channel = UCLexer.MACRO;
+                        this.type = UCLexer.MACRO_SYMBOL;
+                        this.emit();
+
+                        return;
+                    }
+
+                    break;
+            }
+
+            this._input.consume();
+        }
+    }
+    -> channel(MACRO), type(MACRO_SYMBOL)
+    ;
+
+mode MACRO_TEXT_MODE; // << MACRO_TEXT*
 
 MACRO_TEXT
-	: (~[\n]*? '\\' '\r'? '\n')* ~[\n]+
-	-> channel(MACRO)
-	;
+    : (~[\n]*? '\\' '\r'? '\n')* ~[\n]+
+    // Exclude the first whitespace character.
+    {
+        this.text = this.text.trimLeft();
+    }
+    -> channel(MACRO)
+    ;
 
 MACRO_TEXT_NEW_LINE
-	: [\r\n]+
-	{
-		this.parensLevel = 0;
-		this.braceLevel = 0;
-		this.isDefineContext = false;
-	}
-	-> channel(HIDDEN), type(MACRO_NEW_LINE), mode(DEFAULT_MODE)
-	;
+    : [\r\n]+
+    {
+        this.parensLevel = 0;
+        this.braceLevel = 0;
+    }
+    -> channel(HIDDEN), type(NEWLINE), popMode
+    ;
 
 mode LINE_COMMENT_MODE;
 

@@ -106,8 +106,8 @@ identifier
 	| 'until'
 	| 'do'
 	| 'while'
-	| 'else'
-	| 'if'
+	| KW_ELSE
+	| KW_IF
 	| 'ignores'
 	| 'unreliable'
 	| 'reliable'
@@ -840,7 +840,7 @@ ifStatement
 	  elseStatement?
 	;
 
-elseStatement: 'else' codeBlockOptional;
+elseStatement: KW_ELSE codeBlockOptional;
 foreachStatement: 'foreach' expr=primaryExpression codeBlockOptional;
 
 forStatement

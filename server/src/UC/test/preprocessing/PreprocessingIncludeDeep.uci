@@ -1,0 +1,3 @@
+`define func function
+`define funcName IncludedFunction
+`define funcType bool

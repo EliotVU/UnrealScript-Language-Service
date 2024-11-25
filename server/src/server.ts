@@ -47,14 +47,11 @@ import {
     VALID_ID_REGEXP,
 } from './UC/helpers';
 import {
-    applyMacroSymbols,
-    clearMacroSymbols,
     config,
     createDocumentByPath,
     createPackage,
     createPackageByDir,
     documentBuilt$,
-    documentIndexed$,
     documentsCodeIndexed$,
     enumerateDocuments,
     getDocumentById,
@@ -67,6 +64,7 @@ import {
 } from './UC/indexer';
 import { toName } from './UC/name';
 import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
+import { applyGlobalMacroSymbols, clearGlobalMacroSymbols } from './UC/Parser/PreprocessorParser';
 import { IntrinsicSymbolItemMap, UCGeneration, UELicensee } from './UC/settings';
 import {
     addHashedSymbol,
@@ -671,7 +669,7 @@ function setConfiguration(settings: UCLanguageServerSettings) {
 }
 
 function initializeConfiguration() {
-    clearMacroSymbols();
+    clearGlobalMacroSymbols();
     clearIntrinsicSymbols();
 
     // Ensure that we are working with sane values!
@@ -682,7 +680,7 @@ function initializeConfiguration() {
 }
 
 function applyConfiguration(settings: UCLanguageServerSettings) {
-    applyMacroSymbols(settings.macroSymbols);
+    applyGlobalMacroSymbols(settings.macroSymbols);
     installIntrinsicSymbols(settings.intrinsicSymbols);
     updateIgnoredCompletionTokens(settings);
     setupFilePatterns(settings);
