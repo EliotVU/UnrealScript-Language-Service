@@ -90,8 +90,6 @@ export function usingDocumentWithText(
     }
 }
 
-const TRANSIENT_DOCUMENT = new UCDocument('//transient', TRANSIENT_PACKAGE);
-
 /**
  * Asserts that the lexed tokens match the specified token sequence.
  *
@@ -101,10 +99,11 @@ const TRANSIENT_DOCUMENT = new UCDocument('//transient', TRANSIENT_PACKAGE);
 export function assertTokens(
     text: string,
     tokenSequence: (number | Partial<Token>)[],
-    document: UCDocument = TRANSIENT_DOCUMENT
+    document?: UCDocument
 ): Token[] {
-    if (document == TRANSIENT_DOCUMENT) {
-        document.invalidate(true);
+    // Create a new one for every assert test, because otherwise may run multi-threading race issues.
+    if (typeof document === 'undefined') {
+        document = new UCDocument('//transient', TRANSIENT_PACKAGE);
     }
 
     const parseData = document.parse(text);
@@ -154,6 +153,8 @@ export function assertTokens(
         console.debug(tokens.map(t => getTokenDebugInfo(t, parseData.parser)).join('\n'));
 
         throw exc;
+    } finally {
+        document.invalidate(true);
     }
 
     expect(tokens.length, 'fetched tokens count')

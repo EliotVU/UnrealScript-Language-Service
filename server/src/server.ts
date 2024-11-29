@@ -463,7 +463,6 @@ connection.onInitialized((params) => {
             }
         });
 
-    const globalsUCIFileName = toName('globals.uci');
     documentsSub = isIndexReady$
         .pipe(
             tap(value => {
@@ -497,12 +496,6 @@ connection.onInitialized((params) => {
                 'The workspace documents are being processed.',
                 true);
             try {
-                // TODO: does not respect multiple globals.uci files
-                const globalUci = getDocumentById(globalsUCIFileName);
-                if (globalUci && !globalUci.hasBeenIndexed) {
-                    queueIndexDocument(globalUci);
-                }
-
                 // Weird, even if when we have "zero" active documents, this array is filled?
                 const activeDocuments = ActiveTextDocuments
                     .all()

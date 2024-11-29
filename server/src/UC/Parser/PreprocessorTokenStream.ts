@@ -1,6 +1,7 @@
 import { type WritableToken, Token } from 'antlr4ts';
 import { UCLexer } from '../antlr/generated/UCLexer';
 import { UCPreprocessorParser } from '../antlr/generated/UCPreprocessorParser';
+import { MacroProvider } from './MacroProvider';
 import { getCtxDebugInfo, getTokenDebugInfo } from './Parser.utils';
 import { UCPreprocessorMacroTransformer } from './PreprocessorMacroTransformer';
 import { UCTokenStream } from './TokenStream';
@@ -11,16 +12,17 @@ export class UCPreprocessorTokenStream extends UCTokenStream {
     readonly macroParser: UCPreprocessorParser;
     private macroTransformer: UCPreprocessorMacroTransformer;
 
-    constructor(tokenSource: UCLexer, channel?: number) {
-        super(tokenSource, channel);
+    constructor(tokenSource: UCLexer, macroProvider: MacroProvider) {
+        super(tokenSource, undefined);
 
         this.macroParser = new UCPreprocessorParser(this);
+        this.macroParser.macroProvider = macroProvider;
 
         if (process.env.NODE_ENV !== 'test') {
             this.macroParser.removeErrorListeners();
         }
 
-        this.macroTransformer = new UCPreprocessorMacroTransformer(this);
+        this.macroTransformer = new UCPreprocessorMacroTransformer(this, macroProvider);
     }
 
     private macroDepth = 0;

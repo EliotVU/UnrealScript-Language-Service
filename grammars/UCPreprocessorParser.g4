@@ -5,23 +5,13 @@ options {
 }
 
 @parser::header {
-	interface IMacroSymbol {
-		text: string;
-		params?: string[];
-	}
+    import { MacroSymbol, MacroProvider } from '../../Parser/MacroProvider';
 }
 
 @parser::members {
-	static globalSymbols = new Map<string, IMacroSymbol>();
+    macroProvider: MacroProvider;
 
 	currentState: boolean[] = [true];
-	currentSymbols = new Map<string, IMacroSymbol>();
-
-	filePath: string;
-
-	getSymbolValue(symbolName: string): IMacroSymbol | undefined {
-		return this.currentSymbols.get(symbolName) ?? UCPreprocessorParser.globalSymbols.get(symbolName);
-	}
 
 	getCurrentState(): boolean {
 		return this.currentState.length === 0 || this.currentState.every(c => c === true);
@@ -65,14 +55,14 @@ macroPrimaryExpression returns[isActive: boolean, value: string]
 			if (id) {
 				let text = $MACRO_TEXT?.text || '';
                 // TODO: Re-factor, just wanted to get it working quickly for now.
-                const macroDef: IMacroSymbol = {
+                const macroDef: MacroSymbol = {
                     text: text,
                     params: undefined
                 };
                 if ((_localctx as MacroDefineContext)._params) {
                     macroDef.params = (_localctx as MacroDefineContext)._params.MACRO_SYMBOL()?.map(s => s.text);
                 }
-				this.currentSymbols.set(id.toLowerCase(), macroDef);
+				this.macroProvider.setSymbol(id.toLowerCase(), macroDef);
 			}
 		}
 	} # macroDefine
@@ -83,7 +73,7 @@ macroPrimaryExpression returns[isActive: boolean, value: string]
 			const symbolToken = $macroArgument.value;
 			const id = symbolToken;
 			if (id) {
-				this.currentSymbols.delete(id.toLowerCase());
+				this.macroProvider.deleteSymbol(id.toLowerCase());
 			}
 		}
 	} # macroUndefine
@@ -128,13 +118,13 @@ macroPrimaryExpression returns[isActive: boolean, value: string]
     | MACRO_CHAR MACRO_IS_DEFINED (OPEN_PARENS arg=macroArgument CLOSE_PARENS)
 	{
 		var id = $macroArgument.value;
-		$value = id && this.getSymbolValue(id.toLowerCase()) ? '1' : '';
+		$value = id && this.macroProvider.getSymbol(id.toLowerCase()) ? '1' : '';
 		$isActive = this.peekCurrentState();
 	} #macroIsDefined
 	| MACRO_CHAR MACRO_NOT_DEFINED (OPEN_PARENS arg=macroArgument CLOSE_PARENS)
 	{
 		var id = $macroArgument.value;
-		$value = id && this.getSymbolValue(id.toLowerCase()) ? '' : '1';
+		$value = id && this.macroProvider.getSymbol(id.toLowerCase()) ? '' : '1';
 		$isActive = this.peekCurrentState();
 	} # macroIsNotDefined
     // Commented out (hardcoded in PreprocessorMacroTransformer.ts), because for some reason the parser does not respect the conditional...

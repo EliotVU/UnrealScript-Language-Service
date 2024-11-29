@@ -1,4 +1,5 @@
 import { PredictionMode } from 'antlr4ts/atn/PredictionMode';
+import * as fs from 'fs';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
 import { DocumentUri } from 'vscode-languageserver';
@@ -8,6 +9,8 @@ import { UCErrorListener } from './Parser/ErrorListener';
 import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import type { ExternalToken } from './Parser/ExternalTokenFactory';
 import { UCInputStream } from './Parser/InputStream';
+import { MacroProvider, createMacroProvider } from './Parser/MacroProvider';
+import { IntrinsicGlobalMacroProvider } from './Parser/PreprocessorParser';
 import { createTokenStream } from './Parser/PreprocessorParser';
 import { UCPreprocessorTokenStream } from './Parser/PreprocessorTokenStream';
 import {
@@ -27,9 +30,11 @@ import { UCLexer } from './antlr/generated/UCLexer';
 import { Licensee, ProgramContext, UCParser } from './antlr/generated/UCParser';
 import { IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentASTWalker } from './documentASTWalker';
-import { IndexedReferencesMap, config } from './indexer';
+import { IndexedReferencesMap, config, createDocumentByPath, getDocumentById, indexDocument, queueIndexDocument, resolveGlobalsFilePath } from './indexer';
 import { Name, NameHash, toName } from './name';
+import { UCGeneration } from './settings';
 import { SymbolWalker } from './symbolWalker';
+import { NAME_CORE, NAME_OBJECT } from './names';
 
 function removeChildren(scope: UCStructSymbol) {
     for (let child = scope.children; child; child = child.next) {
@@ -88,6 +93,8 @@ export class UCDocument {
     /** Array of tokens that were processed by the lexer. Special use case for .uci files. */
     public tokensCache?: ExternalToken[];
 
+    public macroProvider?: MacroProvider;
+
     private readonly indexReferencesMade = new Map<NameHash, Set<SymbolReference>>();
 
     // List of symbols, including macro declarations.
@@ -123,7 +130,20 @@ export class UCDocument {
         if (process.env.NODE_ENV !== 'test') {
             lexer.removeErrorListeners();
         }
-        const tokenStream = createTokenStream(this, lexer, config.generation);
+
+        if (config.generation === UCGeneration.UC3) {
+            // TODO: use URI (for web version)
+            const globalsFilePath = resolveGlobalsFilePath(this.filePath);
+            let globalsDocument: UCDocument | undefined = undefined;
+            if (fs.existsSync(globalsFilePath)) {
+                globalsDocument = createDocumentByPath(globalsFilePath, this.classPackage);
+                indexDocument(globalsDocument);
+            }
+
+            this.macroProvider ??= createMacroProvider(this, undefined, globalsDocument?.macroProvider);
+        }
+
+        const tokenStream = createTokenStream(lexer, this.macroProvider);
 
         let context: ProgramContext | undefined;
         const parser = new UCParser(tokenStream);
@@ -152,7 +172,7 @@ export class UCDocument {
                 );
             }
         }
-        tokenStream.release(tokenStream.mark());
+
         return { context: context, parser };
     }
 
@@ -167,7 +187,70 @@ export class UCDocument {
             lexer.removeErrorListeners();
         }
         lexer.addErrorListener(errorListener);
-        const tokenStream = createTokenStream(this, lexer, config.generation);
+
+        if (config.generation === UCGeneration.UC3) {
+            let packageGlobalsDocument: UCDocument | undefined = undefined;
+            let superMacroProvider: MacroProvider | undefined = undefined;
+            let globalsMacroProvider: MacroProvider | undefined = undefined;
+
+            // TODO: use URI (for web version)
+            // Get the appropriate Globals.uci for this *.uc document.
+            const packageGlobalsFilePath = resolveGlobalsFilePath(this.filePath);
+            const isGlobalDocument = this.filePath === packageGlobalsFilePath;
+            const hasPackageGlobalsFile = fs.existsSync(packageGlobalsFilePath);
+
+            // Most packages don't have their own "Globals.uci" file
+            if (hasPackageGlobalsFile) {
+                packageGlobalsDocument = createDocumentByPath(packageGlobalsFilePath, this.classPackage);
+            }
+
+            // Ensure we have this macro provider before we index our "MyPackage/Globals.uci"
+            if (isGlobalDocument) {
+                if (this.classPackage.getName() === NAME_CORE) {
+                    // this is the "Core/Globals.uci" document, make it inherit from the true Globals (defined by the user)
+                    globalsMacroProvider = IntrinsicGlobalMacroProvider;
+                } else {
+                    // Find the "Core/Globals.uci" document that we have to supposedly concatenate (as per the UnrealScript compiler, but we can't really do that)
+                    // -- so that it can access the macros defined in "Core/Globals.uci"
+                    const objectDocument = getDocumentById(NAME_OBJECT);
+                    if (objectDocument) {
+                        if (!objectDocument.hasBeenBuilt
+                            && typeof objectDocument.macroProvider === 'undefined') {
+                            queueIndexDocument(objectDocument);
+                        }
+
+                        superMacroProvider = objectDocument.macroProvider?.globalsMacroProvider;
+                    }
+                }
+
+                // TODO: Should we always override? Imagine a document is updated after a new "Globals.uci" has been added?
+                this.macroProvider ??= createMacroProvider(this, superMacroProvider, globalsMacroProvider);
+            } else {
+                // No "Globals.uci" for the current class package, use the "Core/Globals.uci"
+                if (typeof packageGlobalsDocument === 'undefined') {
+                    const objectDocument = getDocumentById(NAME_OBJECT);
+                    if (objectDocument) {
+                        if (!objectDocument.hasBeenBuilt
+                            && typeof objectDocument.macroProvider === 'undefined') {
+                            queueIndexDocument(objectDocument);
+                        }
+
+                        globalsMacroProvider = objectDocument.macroProvider?.globalsMacroProvider;
+                    }
+                } else {
+                    if (!packageGlobalsDocument.hasBeenIndexed
+                        && typeof packageGlobalsDocument.macroProvider === 'undefined') {
+                        queueIndexDocument(packageGlobalsDocument);
+                    }
+
+                    globalsMacroProvider = packageGlobalsDocument?.macroProvider;
+                }
+            }
+
+            this.macroProvider ??= createMacroProvider(this, undefined, globalsMacroProvider);
+        }
+
+        const tokenStream = createTokenStream(lexer, this.macroProvider);
         if (tokenStream instanceof UCPreprocessorTokenStream) {
             tokenStream.macroParser.addErrorListener(errorListener)
         }
@@ -222,8 +305,8 @@ export class UCDocument {
             }
             console.info(`${this.fileName}: transforming time ${performance.now() - startWalking}`);
         }
-        tokenStream.release(tokenStream.mark());
         this.nodes = this.nodes.concat(errorListener.nodes);
+
         return { context: context, parser };
     }
 

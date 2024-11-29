@@ -1,7 +1,7 @@
 import { Token } from 'antlr4ts';
 import { UCLexer } from '../antlr/generated/UCLexer';
-import { UCInputStream } from './InputStream';
 import { ExternalTokenFactory, type ExternalToken } from './ExternalTokenFactory';
+import { UCInputStream } from './InputStream';
 
 const TRANSIENT_RAW_INPUT = UCInputStream.fromString('');
 const TRANSIENT_RAW_LEXER = new UCLexer(TRANSIENT_RAW_INPUT);

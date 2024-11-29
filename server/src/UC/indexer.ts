@@ -24,6 +24,9 @@ import { UCDocument } from './document';
 import { DocumentCodeIndexer, DocumentSymbolIndexer } from './documentCodeIndexer';
 import { Name, NameHash, toName } from './name';
 
+export const includeDocumentExtension = '.uci';
+export const GlobalsDocumentFileName = 'Globals.uci';
+
 // TODO: Re-work to hash documents by URI instead of file path, this would integrate easier with LSP events.
 export const documentsByPathMap = new Map<string, UCDocument>();
 export const documentsMap = new Map<NameHash, UCDocument>();
@@ -33,7 +36,7 @@ export const defaultSettings: UCLanguageServerSettings = {
     licensee: UELicensee.Epic,
     checkTypes: true,
     macroSymbols: {
-        'debug': ''
+        'debug': '...'
     },
     intrinsicSymbols: {
 
@@ -136,7 +139,7 @@ export function indexPendingDocuments(abort?: (document: UCDocument) => boolean)
     }
 
     const dependenciesSequence = pendingIndexedDocuments
-        .map(doc => doc.fileName)
+        .map(doc => `${doc.classPackage.getName().text}/${doc.fileName}`)
         .join();
     console.info(`[${dependenciesSequence}]: post indexing time ${(performance.now() - startTime)}`);
 
@@ -187,6 +190,10 @@ export function resolveIncludeFilePath(
 
     const includeFilePath = path.resolve(path.join(baseDir, includeFilePathArgument));
     return includeFilePath;
+}
+
+export function resolveGlobalsFilePath(dir: string): string {
+    return path.join(parsePackagePathInDir(dir), GlobalsDocumentFileName);
 }
 
 export function createPackageByDir(dir: string): UCPackage {

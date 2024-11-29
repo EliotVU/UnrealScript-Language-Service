@@ -5,7 +5,6 @@ import { Range } from 'vscode-languageserver-types';
 import { UCLexer } from './antlr/generated/UCLexer';
 import * as UCGrammar from './antlr/generated/UCParser';
 import { UCParserVisitor } from './antlr/generated/UCParserVisitor';
-import * as UCMacro from './antlr/generated/UCPreprocessorParser';
 import { UCPreprocessorParserVisitor } from './antlr/generated/UCPreprocessorParserVisitor';
 import { ErrorDiagnostic } from './diagnostics/diagnostic';
 import { UCDocument } from './document';
@@ -118,7 +117,6 @@ import {
     UCEventSymbol,
     UCInterfaceSymbol,
     UCLocalSymbol,
-    UCMacroSymbol,
     UCMapTypeSymbol,
     UCMethodSymbol,
     UCObjectSymbol,
@@ -333,20 +331,6 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         if (registerHash) {
             addHashedSymbol(symbol);
         }
-    }
-
-    visitMacroDefine(ctx: UCMacro.MacroDefineContext) {
-        if (!ctx.isActive) {
-            // TODO: mark range?
-            return undefined;
-        }
-        const macro = ctx._MACRO_DEFINE_SYMBOL;
-        const identifier = createIdentifierFromToken(macro);
-        // TODO: custom class
-        const symbol = new UCMacroSymbol(identifier, rangeFromCtx(ctx));
-        this.document.addSymbol(symbol);
-
-        return symbol;
     }
 
     visitIdentifier(ctx: UCGrammar.IdentifierContext): Identifier {

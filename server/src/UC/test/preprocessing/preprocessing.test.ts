@@ -1,16 +1,15 @@
 import { expect } from "chai";
 import { readTextByURI } from "../../../workspace";
 import { UCInputStream } from "../../Parser/InputStream";
-import { getTokenDebugInfo } from '../../Parser/Parser.utils';
-import { applyGlobalMacroSymbols, createTokenStream } from '../../Parser/PreprocessorParser';
-import { type UCPreprocessorTokenStream } from "../../Parser/PreprocessorTokenStream";
+import { createMacroProvider } from '../../Parser/MacroProvider';
+import { createTokenStream } from '../../Parser/PreprocessorParser';
 import { textToTokens } from '../../Parser/preprocessor';
-import { UCSymbolKind } from '../../Symbols';
+import { TRANSIENT_PACKAGE, UCSymbolKind } from '../../Symbols';
 import { UCLexer } from "../../antlr/generated/UCLexer";
 import { UCParser } from '../../antlr/generated/UCParser';
-import { queueIndexDocument } from "../../indexer";
+import { UCDocument } from '../../document';
+import { indexDocument, queueIndexDocument } from "../../indexer";
 import { toName } from '../../name';
-import { UCGeneration } from '../../settings';
 import { assertDocumentFieldSymbol } from '../utils/codeAsserts';
 import { assertDocumentInvalidFieldsAnalysis, assertDocumentNodes, assertDocumentValidFieldsAnalysis } from '../utils/diagnosticUtils';
 import { assertTokens, usingDocuments } from "../utils/utils";
@@ -45,7 +44,9 @@ describe("Preprocessing", () => {
     });
 
     it('should expand `macro #1', () => {
-        applyGlobalMacroSymbols({ macro: "private" });
+        const testDocument = new UCDocument('//transient', TRANSIENT_PACKAGE);
+        testDocument.macroProvider = createMacroProvider(testDocument);
+        testDocument.macroProvider.setSymbol('macro', { text: 'private' });
 
         assertTokens(`\`macro\n`, [
             UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL,
@@ -57,7 +58,7 @@ describe("Preprocessing", () => {
             UCLexer.NEWLINE,
 
             UCLexer.EOF
-        ]);
+        ], testDocument);
 
         assertTokens(`\`macro\t`, [
             UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL,
@@ -69,7 +70,7 @@ describe("Preprocessing", () => {
             UCLexer.WS,
 
             UCLexer.EOF
-        ]);
+        ], testDocument);
 
         // Validate that the expansion does not leak to the proceding parenthesises.
         assertTokens(`\`macro\tfunction();\n`, [
@@ -84,11 +85,13 @@ describe("Preprocessing", () => {
             UCLexer.KW_FUNCTION, UCLexer.OPEN_PARENS, UCLexer.CLOSE_PARENS, UCLexer.SEMICOLON,
             UCLexer.NEWLINE,
             UCLexer.EOF
-        ]);
+        ], testDocument);
     });
 
     it('should expand `macro #2 inlined', () => {
-        applyGlobalMacroSymbols({ macro: "private" });
+        const testDocument = new UCDocument('//transient', TRANSIENT_PACKAGE);
+        testDocument.macroProvider = createMacroProvider(testDocument);
+        testDocument.macroProvider.setSymbol('macro', { text: 'private' });
 
         assertTokens(`native(400) static \`macro function Log();\n`, [
             UCLexer.KW_NATIVE, UCLexer.OPEN_PARENS, UCLexer.INTEGER_LITERAL, UCLexer.CLOSE_PARENS, UCLexer.WS,
@@ -107,7 +110,7 @@ describe("Preprocessing", () => {
             UCLexer.NEWLINE,
 
             UCLexer.EOF
-        ]);
+        ], testDocument);
     });
 
     // Parses correctly, but does not yet handle the actual processing of its arguments
@@ -199,7 +202,9 @@ describe("Preprocessing", () => {
     });
 
     it('should expand `{macro}', () => {
-        applyGlobalMacroSymbols({ macro: "mysymbol" });
+        const testDocument = new UCDocument('//transient', TRANSIENT_PACKAGE);
+        testDocument.macroProvider = createMacroProvider(testDocument);
+        testDocument.macroProvider.setSymbol('macro', { text: 'mysymbol' });
 
         assertTokens(`\`{macro}`, [
             UCLexer.MACRO_CHAR, UCLexer.OPEN_BRACE, UCLexer.MACRO_SYMBOL, UCLexer.CLOSE_BRACE,
@@ -211,11 +216,13 @@ describe("Preprocessing", () => {
             },
 
             UCLexer.EOF
-        ]);
+        ], testDocument);
     });
 
     it('should expand `{prefix}Identifier', () => {
-        applyGlobalMacroSymbols({ prefix: "Concatenated" });
+        const testDocument = new UCDocument('//transient', TRANSIENT_PACKAGE);
+        testDocument.macroProvider = createMacroProvider(testDocument);
+        testDocument.macroProvider.setSymbol('prefix', { text: 'Concatenated' });
 
         assertTokens(`function \`{prefix}Identifier myFunction();\n`, [
             UCLexer.KW_FUNCTION, UCLexer.WS,
@@ -238,7 +245,7 @@ describe("Preprocessing", () => {
 
             UCLexer.NEWLINE,
             UCLexer.EOF
-        ]);
+        ], testDocument);
     });
 
     it('should process `define macro text', () => {
@@ -268,15 +275,18 @@ describe("Preprocessing", () => {
     });
 
     it('should process `isdefined(macro)', () => {
+        const testDocument = new UCDocument('//transient', TRANSIENT_PACKAGE);
+        testDocument.macroProvider = createMacroProvider(testDocument);
+
         assertTokens(`\`isdefined(macro)\n`, [
             UCLexer.MACRO_CHAR, UCLexer.MACRO_IS_DEFINED,
             UCLexer.OPEN_PARENS, { type: UCLexer.MACRO_SYMBOL, text: 'macro' }, UCLexer.CLOSE_PARENS,
             UCLexer.NEWLINE,
 
             UCLexer.EOF
-        ]);
+        ], testDocument);
 
-        applyGlobalMacroSymbols({ macro: "text" });
+        testDocument.macroProvider.setSymbol('macro', { text: 'text' });
 
         assertTokens(`\`isdefined(macro)\n`, [
             UCLexer.MACRO_CHAR, UCLexer.MACRO_IS_DEFINED,
@@ -287,10 +297,13 @@ describe("Preprocessing", () => {
 
             // !! FIXME: Parser stops eating tokens
             // UCLexer.EOF
-        ]);
+        ], testDocument);
     });
 
     it('should process `notdefined(macro)', () => {
+        const testDocument = new UCDocument('//transient', TRANSIENT_PACKAGE);
+        testDocument.macroProvider = createMacroProvider(testDocument);
+
         assertTokens(`\`notdefined(macro)\n`, [
             UCLexer.MACRO_CHAR, UCLexer.MACRO_NOT_DEFINED,
             UCLexer.OPEN_PARENS, { type: UCLexer.MACRO_SYMBOL, text: 'macro' }, UCLexer.CLOSE_PARENS,
@@ -300,9 +313,9 @@ describe("Preprocessing", () => {
 
             // !! FIXME: Parser stops eating tokens
             // UCLexer.EOF
-        ]);
+        ], testDocument);
 
-        applyGlobalMacroSymbols({ macro: "text" });
+        testDocument.macroProvider.setSymbol('macro', { text: 'text' });
 
         assertTokens(`\`notdefined(macro)\n`, [
             UCLexer.MACRO_CHAR, UCLexer.MACRO_NOT_DEFINED,
@@ -310,7 +323,7 @@ describe("Preprocessing", () => {
             UCLexer.NEWLINE,
 
             UCLexer.EOF
-        ]);
+        ], testDocument);
     });
 
     it('should expand `include #1', () => {
@@ -459,44 +472,57 @@ describe("Preprocessing", () => {
         usingDocuments(
             __dirname,
             [
+                "Globals.uci",
                 "PreprocessingGlobals.uci",
             ],
-            ([macroGlobalsDocument]) => {
+            ([packageGlobalsDocument, macroGlobalsDocument]) => {
+                indexDocument(packageGlobalsDocument);
+
                 const inputStream = UCInputStream.fromString(
                     readTextByURI(macroGlobalsDocument.uri)
                 );
                 const globalsLexer = new UCLexer(inputStream);
-                const globalsStream = createTokenStream(macroGlobalsDocument, globalsLexer, UCGeneration.UC3);
-                const globalsMacroParser = (<UCPreprocessorTokenStream>globalsStream).macroParser;
+                const globalsMacroProvider = createMacroProvider(macroGlobalsDocument, undefined, packageGlobalsDocument.macroProvider);
+                const globalsStream = createTokenStream(globalsLexer, globalsMacroProvider);
+                // const globalsMacroParser = (<UCPreprocessorTokenStream>globalsStream).macroParser;
 
-                applyGlobalMacroSymbols({ debug: "true" });
+                globalsMacroProvider.setSymbol('debug', { text: 'true' });
 
                 const ucParser = new UCParser(globalsStream);
                 const ucProgram = ucParser.program();
 
-                console.info(globalsStream.getTokens().map(t => getTokenDebugInfo(t, globalsMacroParser)));
-                if (ucProgram.children) for (const ctx of ucProgram.children) {
-                    console.info(ctx.toStringTree(ucParser));
-                }
+                // console.info(globalsStream.getTokens().map(t => getTokenDebugInfo(t, globalsMacroParser)));
+                // if (ucProgram.children) for (const ctx of ucProgram.children) {
+                //     console.info(ctx.toStringTree(ucParser));
+                // }
 
-                globalsMacroParser.currentSymbols.forEach((value, key) => console.info('symbol', key, value));
+                // Workspace globals
 
-                expect(globalsMacroParser.getSymbolValue("debug"))
+                expect(globalsMacroProvider.getSymbol("debug"))
                     .to.not.equal(undefined, 'debug !== undefined');
 
-                expect(globalsMacroParser.getSymbolValue("classname").text.toLowerCase())
+                // Package globals
+
+                expect(globalsMacroProvider.getSymbol("global").text)
+                    .to.equal('true', 'global === true');
+
+                // Class symbols
+
+                expect(globalsMacroProvider.getSymbol("classname").text.toLowerCase())
                     .to.equal(
                         path.basename(macroGlobalsDocument.fileName, path.extname(macroGlobalsDocument.fileName)).toLowerCase(),
                         'classname'
                     );
 
-                expect(globalsMacroParser.getSymbolValue("packagename").text.toLowerCase())
+                expect(globalsMacroProvider.getSymbol("packagename").text.toLowerCase())
                     .to.equal(
                         macroGlobalsDocument.classPackage.getName().text.toLowerCase(),
                         'packagename'
                     );
 
-                const inDebugSymbol = globalsMacroParser.getSymbolValue("debugBool".toLowerCase());
+                // Document symbols
+
+                const inDebugSymbol = globalsMacroProvider.getSymbol("debugBool".toLowerCase());
                 expect(inDebugSymbol)
                     .to.not.equal(undefined, 'debugBool');
 

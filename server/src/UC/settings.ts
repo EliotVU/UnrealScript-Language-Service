@@ -33,13 +33,13 @@ export type UCLanguageSettings = {
      * Globally defined preprocessor macro symbols, e.g. "debug"
      */
     macroSymbols?: {
-        [key: string]: string;
+        [key: string]: string | { params: string[], text: string };
     };
 
     /**
      * Pre-defined intrinsic symbols that have no UnrealScript counter-part.
      * For instance the class USound in Unreal Engine 1.
-     * 
+     *
      * Alternatively, one could just include a folder with the pseudo counter-parts to the workspace.
      * This would allow one to define more complicated structures.
      */

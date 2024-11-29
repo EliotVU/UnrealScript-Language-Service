@@ -7,6 +7,7 @@ import { MacroArgumentContext, MacroEmptyArgumentContext, type MacroCallContext,
 import type { UCPreprocessorParserVisitor } from '../antlr/generated/UCPreprocessorParserVisitor';
 import { getDocumentByURI, resolveIncludeFilePath } from '../indexer';
 import type { ExternalToken } from './ExternalTokenFactory';
+import type { MacroProvider } from './MacroProvider';
 import { textToTokens } from './preprocessor';
 import { type UCPreprocessorTokenStream } from './PreprocessorTokenStream';
 
@@ -25,7 +26,9 @@ export class UCPreprocessorMacroTransformer
 
     readonly evaluatedTokens = new Map<number, ExternalToken[]>();
 
-    constructor(readonly tokenStream: UCPreprocessorTokenStream) {
+    constructor(
+        readonly tokenStream: UCPreprocessorTokenStream,
+        readonly macroProvider: MacroProvider) {
         super();
     }
 
@@ -57,7 +60,7 @@ export class UCPreprocessorMacroTransformer
             return undefined;
         }
 
-        const includeFilePath = resolveIncludeFilePath(this.tokenStream.macroParser.filePath, includeFilePathArgument);
+        const includeFilePath = resolveIncludeFilePath(this.macroProvider.filePath, includeFilePathArgument);
         const includeFileUri = URI.file(includeFilePath).toString();
 
         if (!pathExistsByURI(includeFileUri)) {
@@ -167,8 +170,7 @@ export class UCPreprocessorMacroTransformer
                 return this.visitMacroSymbolFile(ctx);
         }
 
-        const symbolValue = this.tokenStream
-            .macroParser.getSymbolValue(macroName.toLowerCase());
+        const symbolValue = this.macroProvider.getSymbol(macroName.toLowerCase());
 
         if (typeof symbolValue === 'undefined') {
             console.error(`Unknown macro '${macroName}'`);
@@ -194,13 +196,13 @@ export class UCPreprocessorMacroTransformer
 
                 if (ctx._args.children![i] instanceof MacroArgumentContext) {
                     const argText = ctx._args.children![i].text;
-                    definedText = definedText.replaceAll(`\`${symbolValue.params[j]}`, argText);
+                    definedText = definedText.replaceAll(/`\`${symbolValue.params[j]}`/gi, argText);
 
                     ++j;
                 } else if (ctx._args.children![i] instanceof MacroEmptyArgumentContext) {
                     // FIXME: What should happen to params with an undefined argument?
                     // consider this: "`define log(msg,cond,tag) `if(`cond) if(`cond) `endif Log(msg, tag)"
-                    definedText = definedText.replaceAll(`\`${symbolValue.params[j]}`, `\`isdefined(${symbolValue.params[j]})`);
+                    definedText = definedText.replaceAll(/`\`${symbolValue.params[j]}`/gi, `\`isdefined(${symbolValue.params[j]})`);
 
                     ++j;
                 }
@@ -240,8 +242,7 @@ export class UCPreprocessorMacroTransformer
     }
 
     private visitMacroSymbolFile(ctx: MacroExpressionContext): MacroTransformation | undefined {
-        const tokens = textToTokens(this.tokenStream
-            .macroParser.filePath.replaceAll('\\', '\\\\'));
+        const tokens = textToTokens(this.macroProvider.filePath.replaceAll('\\', '\\\\'));
 
         return {
             tokens
