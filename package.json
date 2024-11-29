@@ -180,7 +180,39 @@
                     "type": "object",
                     "description": "A map of predefined preprocessor symbols.",
                     "default": {
-                        "debug": ""
+                        "debug": "...",
+                        "logd": {
+                            "params": [
+                                "msg",
+                                "cond",
+                                "tag"
+                            ],
+                            "text": "`if(`cond)if (`cond) `{endif}LogInternal(`msg`if(`tag),`tag`endif)"
+                        },
+                        "Log": {
+                            "params": [
+                                "msg",
+                                "cond",
+                                "tag"
+                            ],
+                            "text": "`if(`cond)if (`cond) `{endif}LogInternal(`msg`if(`tag),`tag`endif)"
+                        },
+                        "Warn": {
+                            "params": [
+                                "msg",
+                                "cond"
+                            ],
+                            "text": "`if(`cond)if (`cond) `{endif}WarnInternal(`msg)"
+                        },
+                        "Assert": {
+                            "params": [
+                                "cond"
+                            ],
+                            "text": "Assert(`cond)"
+                        },
+                        "Date": "\"mm/dd/yy\"",
+                        "Time": "\"hh:mm:ss\"",
+                        "GameName": "\"MyGameName\""
                     }
                 },
                 "unrealscript.intrinsicSymbols": {
