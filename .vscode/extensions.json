@@ -6,6 +6,10 @@
         "amodio.tsl-problem-matcher",
         "rbbit.typescript-hero",
         "nicoespeon.abracadabra",
-        "connor4312.esbuild-problem-matchers"
+        "connor4312.esbuild-problem-matchers",
+        "hbenl.vscode-test-explorer",
+        "hbenl.vscode-mocha-test-adapter",
+        "aaron-bond.better-comments",
+        "editorconfig.editorconfig"
     ]
 }
