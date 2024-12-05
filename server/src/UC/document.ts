@@ -22,6 +22,7 @@ import {
     UCPackage,
     UCStructSymbol,
     UCSymbolKind,
+    findOrIndexClassSymbol,
     isArchetypeSymbol,
     isClassSymbol,
     removeHashedSymbol,
@@ -30,7 +31,7 @@ import { UCLexer } from './antlr/generated/UCLexer';
 import { Licensee, ProgramContext, UCParser } from './antlr/generated/UCParser';
 import { IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentASTWalker } from './documentASTWalker';
-import { IndexedReferencesMap, config, createDocumentByPath, getDocumentById, indexDocument, queueIndexDocument, resolveGlobalsFilePath } from './indexer';
+import { IndexedReferencesMap, config, createDocumentByPath, findOrIndexDocument, getDocumentById, indexDocument, queueIndexDocument, resolveGlobalsFilePath } from './indexer';
 import { Name, NameHash, toName } from './name';
 import { UCGeneration } from './settings';
 import { SymbolWalker } from './symbolWalker';
@@ -212,14 +213,9 @@ export class UCDocument {
                 } else {
                     // Find the "Core/Globals.uci" document that we have to supposedly concatenate (as per the UnrealScript compiler, but we can't really do that)
                     // -- so that it can access the macros defined in "Core/Globals.uci"
-                    const objectDocument = getDocumentById(NAME_OBJECT);
-                    if (objectDocument) {
-                        if (!objectDocument.hasBeenBuilt
-                            && typeof objectDocument.macroProvider === 'undefined') {
-                            queueIndexDocument(objectDocument);
-                        }
-
-                        superMacroProvider = objectDocument.macroProvider?.globalsMacroProvider;
+                    const objectDocument = this.name !== NAME_OBJECT && findOrIndexDocument(NAME_OBJECT);
+                    if (objectDocument && typeof objectDocument.macroProvider !== 'undefined') {
+                        superMacroProvider = objectDocument.macroProvider.globalsMacroProvider;
                     }
                 }
 
@@ -228,22 +224,18 @@ export class UCDocument {
             } else {
                 // No "Globals.uci" for the current class package, use the "Core/Globals.uci"
                 if (typeof packageGlobalsDocument === 'undefined') {
-                    const objectDocument = getDocumentById(NAME_OBJECT);
-                    if (objectDocument) {
-                        if (!objectDocument.hasBeenBuilt
-                            && typeof objectDocument.macroProvider === 'undefined') {
-                            queueIndexDocument(objectDocument);
-                        }
-
-                        globalsMacroProvider = objectDocument.macroProvider?.globalsMacroProvider;
+                    const objectDocument = this.name !== NAME_OBJECT && findOrIndexDocument(NAME_OBJECT);
+                    if (objectDocument &&
+                        typeof objectDocument.macroProvider !== 'undefined') {
+                        globalsMacroProvider = objectDocument.macroProvider.globalsMacroProvider;
                     }
                 } else {
-                    if (!packageGlobalsDocument.hasBeenIndexed
-                        && typeof packageGlobalsDocument.macroProvider === 'undefined') {
-                        queueIndexDocument(packageGlobalsDocument);
+                    if (!packageGlobalsDocument.hasBeenIndexed &&
+                        typeof packageGlobalsDocument.macroProvider === 'undefined') {
+                        indexDocument(packageGlobalsDocument);
                     }
 
-                    globalsMacroProvider = packageGlobalsDocument?.macroProvider;
+                    globalsMacroProvider = packageGlobalsDocument.macroProvider;
                 }
             }
 

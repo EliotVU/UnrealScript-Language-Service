@@ -1,4 +1,4 @@
-import { getDocumentById, indexDocument } from '../indexer';
+import { findOrIndexDocument } from '../indexer';
 import { Name, NameHash } from '../name';
 import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
@@ -195,16 +195,7 @@ export function removeHashedSymbol(symbol: UCObjectSymbol) {
  * @returns the class symbol if any, when undefined the document is either not registered or the document is missing a class declaration.
  */
 export function findOrIndexClassSymbol(id: Name): UCClassSymbol | undefined {
-    const document = getDocumentById(id);
-    if (document) {
-        if (!document.hasBeenIndexed) {
-            indexDocument(document);
-        }
-
-        return document.class;
-    }
-
-    return undefined;
+    return findOrIndexDocument(id)?.class;
 }
 
 export function tryFindSymbolInPackage<T extends UCObjectSymbol>(id: Name, pkg: UCPackage, kind?: UCSymbolKind): ISymbol | undefined {

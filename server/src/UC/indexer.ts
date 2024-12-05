@@ -152,6 +152,27 @@ export function getPendingDocumentsCount(): number {
     return pendingIndexedDocuments.length;
 }
 
+/**
+ * Finds a registered document by name.
+ *
+ * if the document had not been indexed yet, the indexing will begin and end before returning the document.
+ *
+ * @param id document name (without the extension)
+ * @returns the document if any.
+ */
+export function findOrIndexDocument(id: Name): UCDocument | undefined {
+    const document = getDocumentById(id);
+    if (document) {
+        if (!document.hasBeenIndexed) {
+            indexDocument(document);
+        }
+
+        return document;
+    }
+
+    return undefined;
+}
+
 const sepRegex = RegExp(`\\${path.sep}`);
 
 export function parsePackagePathInDir(dir: string): string {
