@@ -512,6 +512,11 @@ MACRO_ARGUMENTS_WS
     -> channel(HIDDEN), type(WS)
     ;
 
+MACRO_ARGUMENTS_NEWLINE
+    : [\r\n]+
+    -> channel(HIDDEN), type(NEWLINE)
+    ;
+
 // Consume all symbols untill the last ')' or first ',' (except when nested)
 MACRO_ARGUMENTS_SYMBOL
     : .
@@ -559,6 +564,13 @@ MACRO_ARGUMENTS_SYMBOL
                         return;
                     }
 
+                    break;
+
+                case 10: // '\n'
+                    // Skip for escaped '\n'
+                    if (this._input.LA(-1) === 92) break;
+
+                    this.line++;
                     break;
             }
 

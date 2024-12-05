@@ -164,6 +164,30 @@ describe("Preprocessing", () => {
 
             UCLexer.EOF
         ]);
+
+        // Test with preceding NEWLINE
+        assertTokens(`\`macroInvoke(\nargument1,\nargument2)`, [
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL,
+            UCLexer.OPEN_PARENS,
+            UCLexer.NEWLINE,
+            UCLexer.MACRO_SYMBOL,
+            UCLexer.COMMA,
+            UCLexer.NEWLINE,
+            UCLexer.MACRO_SYMBOL,
+            UCLexer.CLOSE_PARENS,
+
+            UCLexer.EOF
+        ]);
+
+        assertTokens(`\`macroInvoke(a \n$ b \n$ c)`, [
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL,
+            UCLexer.OPEN_PARENS,
+            UCLexer.MACRO_SYMBOL,
+            // Ensure the new lines were counted.
+            { type: UCLexer.CLOSE_PARENS, line: 3 },
+
+            UCLexer.EOF
+        ]);
     });
 
     // Test ambiguous parenthesises.
