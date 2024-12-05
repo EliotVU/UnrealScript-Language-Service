@@ -522,13 +522,14 @@ MACRO_ARGUMENTS_SYMBOL
     : .
     // Do this stuff manually, it gets too complicated with nested modes
     // Parses:
-    // `func(("" $ ",") $ ";", ("arg2"))
+    // `func(("\")" $ ",") $ ";", ("arg2"))
     // >> MACRO_CHAR MACRO_SYMBOL OPEN_PARENS MACRO_SYMBOL COMMA MACRO_SYMBOL CLOSE_PARENS
     {
         // Undo whatever we have matched by anything char '.'
         --(this._input as any)._position;
 
         let nest = 0;
+        let isInQuote = false;
 
         while (true) {
             const charCode = this._input.LA(1);
@@ -536,11 +537,27 @@ MACRO_ARGUMENTS_SYMBOL
                 case IntStream.EOF:
                     return;
 
+                case 34: // '"'
+                    // '\\'
+                    if (this._input.LA(-1) === 92) break;
+
+                    if (isInQuote) {
+                        isInQuote = false;
+                        break;
+                    }
+
+                    isInQuote = true;
+                    break;
+
                 case 40://'('.charCodeAt(0):
+                    if (isInQuote) break;
+
                     ++nest;
                     break;
 
                 case 41://')'.charCodeAt(0):
+                    if (isInQuote) break;
+
                     // Final ')'?
                     if (nest === 0) {
                         this.channel = UCLexer.MACRO;
@@ -555,6 +572,8 @@ MACRO_ARGUMENTS_SYMBOL
                     break;
 
                 case 44://','.charCodeAt(0):
+                    if (isInQuote) break;
+
                     // Argument ending ','?
                     if (nest === 0) {
                         this.channel = UCLexer.MACRO;

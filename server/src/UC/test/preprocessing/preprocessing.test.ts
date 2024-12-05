@@ -211,11 +211,10 @@ describe("Preprocessing", () => {
 
             UCLexer.EOF
         ]);
-        // ! FIXME: argument mode is not repeating properly
-        assertTokens(`\`macroInvoke(("argument1", "argument2"), (arg2))`, [
+        assertTokens(`\`macroInvoke(("\"argument1\",", "(argument2),"), (arg2))`, [
             UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL,
             UCLexer.OPEN_PARENS,
-            { type: UCLexer.MACRO_SYMBOL, text: '("argument1", "argument2")' },
+            { type: UCLexer.MACRO_SYMBOL, text: '("\"argument1\",", "(argument2),")' },
             UCLexer.COMMA,
             UCLexer.WS,
             { type: UCLexer.MACRO_SYMBOL, text: '(arg2)' },
