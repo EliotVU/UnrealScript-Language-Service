@@ -395,9 +395,24 @@ MACRO_COUNTER:              'counter'                   -> channel(MACRO), mode(
 MACRO_GET_COUNTER:          'getcounter'                -> channel(MACRO), mode(MACRO_INVOKE_MODE);
 MACRO_SET_COUNTER:          'setcounter'                -> channel(MACRO), mode(MACRO_INVOKE_MODE);
 MACRO_IF:                   'if'                        -> channel(MACRO), mode(MACRO_INVOKE_MODE);
-MACRO_ELSE:                 'else'                      -> channel(MACRO), popMode;
+MACRO_ELSE
+    : 'else'
+    {
+        // Don't pop on '`{else}'
+        if (this.braceLevel === 0) {
+            this.popMode();
+        }
+    }
+    -> channel(MACRO);
 MACRO_ELSE_IF:              'elseif'                    -> channel(MACRO), mode(MACRO_INVOKE_MODE);
-MACRO_END_IF:               'endif'                     -> channel(MACRO), popMode;
+MACRO_END_IF
+    : 'endif'
+    {
+        if (this.braceLevel === 0) {
+            this.popMode();
+        }
+    }
+    -> channel(MACRO);
 // Hardcoded (also case-sensitive), checked in the parser instead...
 // MACRO_LINE:                  '__LINE__'                  -> channel(MACRO);
 // MACRO_FILE:                  '__FILE__'                  -> channel(MACRO);
@@ -418,13 +433,14 @@ MACRO_SYMBOL
     -> channel(MACRO)
     ;
 
-MACRO_NEW_LINE
-    : [\r\n]+
-    {
-        this.parensLevel = 0;
-        this.braceLevel = 0;
-    }
-    -> channel(HIDDEN), type(NEWLINE), popMode, mode(DEFAULT_MODE)
+MACRO_WS
+    : [ \t]+ { this.braceLevel > 0 }?
+    -> channel(HIDDEN), type(WS)
+    ;
+
+MACRO_NEWLINE
+    : [\r\n]+ { this.braceLevel > 0 }?
+    -> channel(HIDDEN), type(NEWLINE)
     ;
 
 MACRO_END: . -> more, popMode;

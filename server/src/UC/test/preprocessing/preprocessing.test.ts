@@ -240,6 +240,30 @@ describe("Preprocessing", () => {
 
             UCLexer.EOF
         ], testDocument);
+
+
+        // FIXME: Lines do not match, perhaps the macro should be expanded inplace.
+        assertTokens(`\`{\n\tmacro\n}`, [
+            UCLexer.MACRO_CHAR, UCLexer.OPEN_BRACE,
+            UCLexer.NEWLINE, UCLexer.WS, UCLexer.MACRO_SYMBOL,
+            UCLexer.NEWLINE, UCLexer.CLOSE_BRACE,
+            // Should expand to:
+            /* ---- */ {
+                type: UCLexer.ID,
+                text: 'mysymbol',
+                channel: UCLexer.DEFAULT_TOKEN_CHANNEL
+            },
+
+            UCLexer.EOF
+        ], testDocument);
+    });
+
+    it('should process `{endif}', () => {
+        assertTokens(`\`{endif}`, [
+            UCLexer.MACRO_CHAR, UCLexer.OPEN_BRACE, UCLexer.MACRO_END_IF, UCLexer.CLOSE_BRACE,
+
+            UCLexer.EOF
+        ]);
     });
 
     it('should expand `{prefix}Identifier', () => {
