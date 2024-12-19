@@ -71,8 +71,8 @@ fragment CALL_MACRO_CHAR
     : '\u0060'
     ;
 
-fragment MACRO_NAME_CHARACTER
-    : [a-zA-Z_\u00C0-\u00FF\u009F\u008C\u009C]
+fragment MACRO_NAME_ID
+    : [a-zA-Z_\u00C0-\u00FF\u009F\u008C\u009C][a-zA-Z_\u00C0-\u00FF\u009F\u008C\u009C0-9]*
     ;
 
 LINE_COMMENT
@@ -454,13 +454,13 @@ MACRO_DEFINE_WS
     ;
 
 MACRO_DEFINE_CALL_SYMBOL
-    : MACRO_NAME_CHARACTER+
+    : MACRO_NAME_ID
     { this._input.LA(1) === '('.charCodeAt(0) }?
     -> channel(MACRO), type(MACRO_DEFINE_SYMBOL), mode(MACRO_DEFINE_PARAMS_MODE)
     ;
 
 MACRO_DEFINE_SYMBOL
-    : MACRO_NAME_CHARACTER+
+    : MACRO_NAME_ID
     -> channel(MACRO), mode(MACRO_TEXT_MODE)
     ;
 
@@ -473,7 +473,7 @@ MACRO_DEFINE_PARAMS_OPEN_PARENS
     ;
 
 MACRO_DEFINE_PARAMS_SYMBOL
-    : MACRO_NAME_CHARACTER+
+    : MACRO_NAME_ID
     -> channel(MACRO), type(MACRO_SYMBOL)
     ;
 
