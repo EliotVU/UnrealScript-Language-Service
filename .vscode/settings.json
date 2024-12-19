@@ -14,7 +14,7 @@
     "mochaExplorer.watch": "server/**/*.test.ts",
     "mochaExplorer.ignore": "server/node_modules/**/*.test.ts",
     // "mochaExplorer.launcherScript": "node_modules/mocha-explorer-launcher-scripts/vscode-test",
-    "mochaExplorer.autoload": false,
+    "mochaExplorer.autoload": true,
     "mochaExplorer.esmLoader": false,
     // "mochaExplorer.ipcRole": "server",
     "mochaExplorer.env": {
@@ -42,5 +42,6 @@
     },
     "yaml.schemas": {
         "https://json.schemastore.org/tmlanguage.json": "*.YAML-tmLanguage"
-    }
+    },
+    "mochaExplorer.exit": true
 }
