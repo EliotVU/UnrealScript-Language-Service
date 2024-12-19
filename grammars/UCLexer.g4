@@ -9,7 +9,6 @@ channels { MACRO, COMMENTS_CHANNEL }
 }
 
 @lexer::members {
-    parensLevel: number = 0;
     braceLevel: number = 0;
 
     // For debugging
@@ -373,6 +372,14 @@ MACRO_OPEN_BRACE
 
 mode MACRO_MODE;
 
+// MACRO_OPEN_BRACE
+//     : '{'
+//     {
+//         ++this.braceLevel;
+//     }
+//     -> channel(MACRO), type(OPEN_BRACE)
+//     ;
+
 MACRO_CLOSE_BRACE
     : '}'
     {
@@ -383,9 +390,6 @@ MACRO_CLOSE_BRACE
     -> channel(MACRO), type(CLOSE_BRACE)
     ;
 
-// ! Valid?
-MACRO_SINGLE_LINE_COMMENT:  '//' ~[\r\n]*               -> channel(COMMENTS_CHANNEL), type(LINE_COMMENT);
-
 MACRO_INCLUDE:              'include'                   -> channel(MACRO), mode(MACRO_INVOKE_MODE);
 MACRO_DEFINE:               'define'                    -> channel(MACRO), mode(MACRO_DEFINE_MODE);
 MACRO_UNDEFINE:             'undefine'                  -> channel(MACRO), mode(MACRO_INVOKE_MODE);
@@ -395,6 +399,7 @@ MACRO_COUNTER:              'counter'                   -> channel(MACRO), mode(
 MACRO_GET_COUNTER:          'getcounter'                -> channel(MACRO), mode(MACRO_INVOKE_MODE);
 MACRO_SET_COUNTER:          'setcounter'                -> channel(MACRO), mode(MACRO_INVOKE_MODE);
 MACRO_IF:                   'if'                        -> channel(MACRO), mode(MACRO_INVOKE_MODE);
+MACRO_ELSE_IF:              'elseif'                    -> channel(MACRO), mode(MACRO_INVOKE_MODE);
 MACRO_ELSE
     : 'else'
     {
@@ -404,7 +409,6 @@ MACRO_ELSE
         }
     }
     -> channel(MACRO);
-MACRO_ELSE_IF:              'elseif'                    -> channel(MACRO), mode(MACRO_INVOKE_MODE);
 MACRO_END_IF
     : 'endif'
     {
@@ -464,6 +468,12 @@ MACRO_DEFINE_SYMBOL
     -> channel(MACRO), mode(MACRO_TEXT_MODE)
     ;
 
+// Unexpected, but in case of incomplete code we must fail early.
+MACRO_DEFINE_NEW_LINE
+    : [\r\n]+
+    -> channel(HIDDEN), type(NEWLINE), popMode
+    ;
+
 // << MACRO_DEFINE_SYMBOL
 mode MACRO_DEFINE_PARAMS_MODE; // >> WS OPEN_PARENS MACRO_SYMBOL
 
@@ -495,11 +505,7 @@ MACRO_DEFINE_PARAMS_WS
 // Unexpected, but in case of incomplete code we must fail early.
 MACRO_DEFINE_PARAMS_NEW_LINE
     : [\r\n]+
-    {
-        this.parensLevel = 0;
-        this.braceLevel = 0;
-    }
-    -> channel(HIDDEN), type(NEWLINE), mode(DEFAULT_MODE)
+    -> channel(HIDDEN), type(NEWLINE), popMode
     ;
 
 // << `MACRO_SYMBOL
@@ -628,10 +634,6 @@ MACRO_TEXT
 
 MACRO_TEXT_NEW_LINE
     : [\r\n]+
-    {
-        this.parensLevel = 0;
-        this.braceLevel = 0;
-    }
     -> channel(HIDDEN), type(NEWLINE), popMode
     ;
 
