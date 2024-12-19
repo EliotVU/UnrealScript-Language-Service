@@ -113,7 +113,6 @@ describe("Preprocessing", () => {
         ], testDocument);
     });
 
-    // Parses correctly, but does not yet handle the actual processing of its arguments
     it('should expand `macroInvoke(...arguments)', () => {
         assertTokens(`\`define macroInvoke(arg) \`arg\n\`macroInvoke(argument1)`, [
             UCLexer.MACRO_CHAR, UCLexer.MACRO_DEFINE, UCLexer.WS,
@@ -190,8 +189,67 @@ describe("Preprocessing", () => {
         ]);
     });
 
+    // FIXME: Does not work yet (complicated nesting)
+    it('should expand nested `macroInvoke(`macro)', () => {
+        const testDocument = new UCDocument('//transient', TRANSIENT_PACKAGE);
+        testDocument.macroProvider = createMacroProvider(testDocument);
+        testDocument.macroProvider.setSymbol('logtest', { text: '`text', params: ['text'] });
+        testDocument.macroProvider.setSymbol('location', { text: 'macroinvoke' });
+
+        assertTokens(`\`LogTest(\`Location $ "text")`, [
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, UCLexer.OPEN_PARENS,
+            // \`Location $ "text"
+            UCLexer.MACRO_SYMBOL,
+            UCLexer.CLOSE_PARENS,
+
+            // Should expand to:
+            /* ---- */ UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL,
+            /* ---- */ // Should expand to:
+            /* ---- ---- */ UCLexer.ID, UCLexer.WS, UCLexer.DOLLAR, UCLexer.WS, UCLexer.STRING_LITERAL,
+
+            UCLexer.EOF
+        ], testDocument);
+
+        assertTokens(`
+            \`define combine(a1,a2) \`a1\`a2
+            \`define duplicate(a) \`a,\`a
+            \`combine(\`duplicate(pa))`, [
+            // \`define combine(a1,a2) \`a1\`a2
+            UCLexer.NEWLINE, UCLexer.WS, UCLexer.MACRO_CHAR, UCLexer.MACRO_DEFINE, UCLexer.WS, UCLexer.MACRO_DEFINE_SYMBOL,
+            UCLexer.OPEN_PARENS, UCLexer.MACRO_SYMBOL, UCLexer.COMMA, UCLexer.MACRO_SYMBOL, UCLexer.CLOSE_PARENS, UCLexer.MACRO_TEXT,
+
+            // \`define duplicate(a) \`a,\`a
+            UCLexer.NEWLINE, UCLexer.WS, UCLexer.MACRO_CHAR, UCLexer.MACRO_DEFINE, UCLexer.WS, UCLexer.MACRO_DEFINE_SYMBOL,
+            UCLexer.OPEN_PARENS, UCLexer.MACRO_SYMBOL, UCLexer.CLOSE_PARENS, UCLexer.MACRO_TEXT,
+
+            // \`combine(\`duplicate(pa))`
+            UCLexer.NEWLINE, UCLexer.WS, UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL,
+            UCLexer.OPEN_PARENS,
+            UCLexer.MACRO_SYMBOL,
+            UCLexer.CLOSE_PARENS,
+
+            /* ---- */ // \`duplicate(pa)
+            /* ---- */ UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, UCLexer.OPEN_PARENS, UCLexer.MACRO_SYMBOL, UCLexer.CLOSE_PARENS,
+            /* ---- */ // Should expand to:
+            /* ---- ---- */ UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL,
+            /* ---- ---- */ UCLexer.COMMA,
+            /* ---- ---- */ UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL,
+            /* ---- ---- ---- */ // Should expand to:
+            /* ---- ---- ---- */ { type: UCLexer.ID, text: 'papa' },
+
+            UCLexer.EOF
+        ]);
+    });
+
     // Test ambiguous parenthesises.
     it('should lexer ambiguous `macroInvoke(...arguments)', () => {
+        assertTokens(`\`macroInvoke()`, [
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL,
+            UCLexer.OPEN_PARENS,
+            UCLexer.CLOSE_PARENS,
+
+            UCLexer.EOF
+        ]);
         assertTokens(`\`macroInvoke((("argument1", "argument2")))`, [
             UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL,
             UCLexer.OPEN_PARENS,
@@ -243,9 +301,9 @@ describe("Preprocessing", () => {
 
 
         // FIXME: Lines do not match, perhaps the macro should be expanded inplace.
-        assertTokens(`\`{\n\tmacro\n}`, [
+        assertTokens(`\`{macro\n}`, [
             UCLexer.MACRO_CHAR, UCLexer.OPEN_BRACE,
-            UCLexer.NEWLINE, UCLexer.WS, UCLexer.MACRO_SYMBOL,
+            UCLexer.MACRO_SYMBOL,
             UCLexer.NEWLINE, UCLexer.CLOSE_BRACE,
             // Should expand to:
             /* ---- */ {
@@ -367,6 +425,27 @@ describe("Preprocessing", () => {
         assertTokens(`\`notdefined(macro)\n`, [
             UCLexer.MACRO_CHAR, UCLexer.MACRO_NOT_DEFINED,
             UCLexer.OPEN_PARENS, { type: UCLexer.MACRO_SYMBOL, text: 'macro' }, UCLexer.CLOSE_PARENS,
+            UCLexer.NEWLINE,
+
+            UCLexer.EOF
+        ], testDocument);
+    });
+
+    it('should process `if(`notdefined(macro))', () => {
+        const testDocument = new UCDocument('//transient', TRANSIENT_PACKAGE);
+        testDocument.macroProvider = createMacroProvider(testDocument);
+
+        assertTokens(`\`if(\`notdefined(macro))\n`, [
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_IF,
+            UCLexer.OPEN_PARENS,
+
+            // `notdefined(macro)
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_NOT_DEFINED,
+            UCLexer.OPEN_PARENS, { type: UCLexer.MACRO_SYMBOL, text: 'macro' }, UCLexer.CLOSE_PARENS,
+            // Should expand to:
+            /* ---- */ { type: UCLexer.INTEGER_LITERAL, text: '1' },
+
+            UCLexer.CLOSE_PARENS,
             UCLexer.NEWLINE,
 
             UCLexer.EOF

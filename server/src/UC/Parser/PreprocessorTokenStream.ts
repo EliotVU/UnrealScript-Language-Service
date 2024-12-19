@@ -58,15 +58,21 @@ export class UCPreprocessorTokenStream extends UCTokenStream {
         }
 
         let token = this.tokens[i];
-        while (token.channel !== channel) {
+        // If we are looking for a macro channel token, but hit another macro invoke character...
+        // e.g. `mymacro in `if(`mymacro)
+        while (token.channel !== channel || (token.type === UCLexer.MACRO_CHAR)) {
             if (token.type === Token.EOF) {
                 return i;
             }
 
             // Sanity check to ensure that it never starts processing the same macro more than once.
-            // Can occurr when the parser failed to predict the grammar. e.g. "local `boolType localBool;"
+            // Can occurr unintentionally when the parser failed to predict the grammar. e.g. "local `boolType localBool;"
+            // But is also expected to occur on the macro token that we are actively preprocessing.
             if (token.channel === PROCESSED_MACRO_CHANNEL) {
-                // console.warn('Unexpected macro token');
+                // We actually want to return this one! (but without preprocessing it)
+                if (channel === UCLexer.MACRO) {
+                    return i;
+                }
 
                 this.sync(++i);
                 token = this.tokens[i];
@@ -103,37 +109,6 @@ export class UCPreprocessorTokenStream extends UCTokenStream {
                 return i;
             }
 
-            // While parsing a macro statement, ensure to stop the loop at the first token of a DEFAULT_TOKEN_CHANNEL
-            // if (channel === UCLexer.MACRO && token.channel === UCLexer.DEFAULT_TOKEN_CHANNEL) {
-            //     if (process.env.NODE_ENV === 'test') {
-            //         console.debug(this.macroDepth,
-            //             'Non macro token detected, ending macro channel',
-            //             getTokenDebugInfo(token, this.macroParser)
-            //         );
-            //     }
-
-            //     // Step back to the last preceded hidden token.
-            //     for (let j = i - 1; j >= 0; --j) {
-            //         if (this.tokens[j].channel === UCLexer.HIDDEN) {
-            //             console.debug('backstepping scanning index on default token', i, j);
-            //             i = j;
-            //         }
-
-            //         if (j + 1 === i) {
-            //             // this.channel = UCLexer.DEFAULT_TOKEN_CHANNEL;
-
-            //             return i;
-            //         }
-
-
-            //         break;
-            //     }
-
-            //     // this.channel = UCLexer.DEFAULT_TOKEN_CHANNEL;
-
-            //     return i;
-            // }
-
             if (token.type !== UCLexer.MACRO_CHAR) {
                 this.sync(++i);
                 token = this.tokens[i];
@@ -155,13 +130,12 @@ export class UCPreprocessorTokenStream extends UCTokenStream {
                 this.p = i;
                 // Begin parsing and fetch all macro tokens until the first occurance of a DEFAULT_CHANNEL token.
                 this.channel = UCLexer.MACRO;
-                const macroCtx = this.macroParser.macroPrimaryExpression();
-                this.macroDepth--;
-
-                // Prevent this token from bein preprocessed twice.
-                // ! FIXME: happens when inlined between default tokens e.g. "static \`macro function"
+                // Prevent this token from being preprocessed/expanded again.
                 (<WritableToken>token).channel = PROCESSED_MACRO_CHANNEL;
+                const macroCtx = this.macroParser.macroExpression();
+                // Return to picking up default tokens.
                 this.channel = UCLexer.DEFAULT_TOKEN_CHANNEL;
+                this.macroDepth--;
 
                 const finalMacroToken = macroCtx.stop ?? this.macroParser.currentToken;
                 if (typeof finalMacroToken === 'undefined') {

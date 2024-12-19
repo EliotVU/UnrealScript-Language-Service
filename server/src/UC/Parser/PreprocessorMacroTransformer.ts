@@ -1,15 +1,31 @@
-import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
-import type { ErrorNode } from 'antlr4ts/tree/ErrorNode';
-import { URI } from 'vscode-uri';
-import { pathExistsByURI, readTextByURI } from '../../workspace';
-import { UCLexer } from '../antlr/generated/UCLexer';
-import { MacroArgumentContext, MacroEmptyArgumentContext, type MacroCallContext, type MacroDefineContext, type MacroExpressionContext, type MacroIfContext, type MacroIncludeContext, type MacroIsDefinedContext, type MacroIsNotDefinedContext, type MacroPrimaryExpressionContext, type MacroUndefineContext } from '../antlr/generated/UCPreprocessorParser';
-import type { UCPreprocessorParserVisitor } from '../antlr/generated/UCPreprocessorParserVisitor';
-import { getDocumentByURI, resolveIncludeFilePath } from '../indexer';
-import type { ExternalToken } from './ExternalTokenFactory';
-import type { MacroProvider } from './MacroProvider';
-import { textToTokens } from './preprocessor';
-import { type UCPreprocessorTokenStream } from './PreprocessorTokenStream';
+import { AbstractParseTreeVisitor } from "antlr4ts/tree/AbstractParseTreeVisitor";
+import type { ErrorNode } from "antlr4ts/tree/ErrorNode";
+import { URI } from "vscode-uri";
+import { pathExistsByURI, readTextByURI } from "../../workspace";
+import { UCLexer } from "../antlr/generated/UCLexer";
+import {
+    MacroArgumentContext,
+    MacroEmptyArgumentContext,
+    type MacroDefineContext,
+    type MacroElseIfContext,
+    type MacroExpressionContext,
+    type MacroIfContext,
+    type MacroIncludeContext,
+    type MacroInvocationContext,
+    type MacroIsDefinedContext,
+    type MacroIsNotDefinedContext,
+    type MacroPrimaryExpressionContext,
+    type MacroSecondaryExpressionContext,
+    type MacroUndefineContext,
+} from "../antlr/generated/UCPreprocessorParser";
+import type { UCPreprocessorParserVisitor } from "../antlr/generated/UCPreprocessorParserVisitor";
+import { getDocumentByURI, resolveIncludeFilePath } from "../indexer";
+import type { ExternalToken } from "./ExternalTokenFactory";
+import type { MacroProvider } from "./MacroProvider";
+import { textToTokens } from "./preprocessor";
+import { type UCPreprocessorTokenStream } from "./PreprocessorTokenStream";
+import { getCtxDebugInfo } from './Parser.utils';
+import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 
 export type MacroTransformation = {
     /**
@@ -43,11 +59,11 @@ export class UCPreprocessorMacroTransformer
     }
 
     visitMacroIf(ctx: MacroIfContext): MacroTransformation | undefined {
-        if (!ctx.isActive) {
-            return undefined;
-        }
+        return undefined;
+    }
 
-        return ctx._macroExpression.accept(this);
+    visitMacroElseIf(ctx: MacroElseIfContext): MacroTransformation | undefined {
+        return undefined;
     }
 
     visitMacroInclude(ctx: MacroIncludeContext): MacroTransformation | undefined {
@@ -143,11 +159,19 @@ export class UCPreprocessorMacroTransformer
         return undefined;
     }
 
+    visitMacroExpression(ctx: MacroExpressionContext): MacroTransformation | undefined {
+        return ctx._expr.accept(this);
+    }
+
     visitMacroPrimaryExpression(ctx: MacroPrimaryExpressionContext): MacroTransformation | undefined {
+        return ctx._macroInvocation ? ctx._macroInvocation.accept(this) : ctx._macroSecondaryExpression.accept(this);
+    }
+
+    visitMacroSecondaryExpression(ctx: MacroSecondaryExpressionContext): MacroTransformation | undefined {
         throw new Error("Invalid visit");
     }
 
-    visitMacroExpression(ctx: MacroExpressionContext): MacroTransformation | undefined {
+    visitMacroInvocation(ctx: MacroInvocationContext): MacroTransformation | undefined {
         let definedText: string | undefined;
 
         const macroSymbol = ctx._MACRO_SYMBOL;
@@ -173,7 +197,7 @@ export class UCPreprocessorMacroTransformer
         const symbolValue = this.macroProvider.getSymbol(macroName.toLowerCase());
 
         if (typeof symbolValue === 'undefined') {
-            console.error(`Unknown macro '${macroName}'`);
+            console.error(`Unknown macro '${macroName}'`, getCtxDebugInfo(ctx));
 
             return undefined;
         }
@@ -184,29 +208,33 @@ export class UCPreprocessorMacroTransformer
         }
 
         // FIXME: Terrible approach, but it does the job for now :)
-        if (typeof ctx._args !== 'undefined') {
-            if (typeof symbolValue.params === 'undefined') {
-                return undefined;
+        // TODO: Cannot replace `{param1}
+        if (typeof symbolValue.params !== 'undefined') {
+            const args = ctx._args;
+            for (let i = 0, j = 0; i < symbolValue.params.length; ++i) {
+                if (args && j < args.childCount) {
+                    // Skip past any ','
+                    if (args.children![j] instanceof TerminalNode) {
+                        ++j;
+                    }
+
+                    if (args.children![j] instanceof MacroArgumentContext) {
+                        const argText = args.children![j].text;
+                        definedText = definedText.replaceAll(new RegExp(`\`${symbolValue.params[i]}`, 'gi'), argText);
+                    } else if (args.children![j] instanceof MacroEmptyArgumentContext) {
+                        // FIXME: What should happen to params with an undefined argument?
+                        // consider this: "`define log(msg,cond,tag) `if(`cond) if(`cond) `endif Log(msg, tag)"
+                        // definedText = definedText.replaceAll(new RegExp(`\`${symbolValue.params[i]}`, 'gi'), '0');
+                    }
+                    ++j;
+                } else {
+                    // empty arg
+                    // Do nothing, the macro parameter should not expand to anything
+                    // definedText = definedText.replaceAll(new RegExp(`\`${symbolValue.params[i]}`, 'gi'), '0');
+                }
             }
 
-            for (let i = 0, j = 0; i < ctx._args.children!.length; ++i) {
-                if (j >= symbolValue.params.length) {
-                    break;
-                }
-
-                if (ctx._args.children![i] instanceof MacroArgumentContext) {
-                    const argText = ctx._args.children![i].text;
-                    definedText = definedText.replaceAll(/`\`${symbolValue.params[j]}`/gi, argText);
-
-                    ++j;
-                } else if (ctx._args.children![i] instanceof MacroEmptyArgumentContext) {
-                    // FIXME: What should happen to params with an undefined argument?
-                    // consider this: "`define log(msg,cond,tag) `if(`cond) if(`cond) `endif Log(msg, tag)"
-                    definedText = definedText.replaceAll(/`\`${symbolValue.params[j]}`/gi, `\`isdefined(${symbolValue.params[j]})`);
-
-                    ++j;
-                }
-            }
+            definedText = definedText.replaceAll(new RegExp(`\`\#`, 'gi'), symbolValue.params.length.toString());
         }
 
         // Remove the trailing new line '\'
@@ -218,15 +246,7 @@ export class UCPreprocessorMacroTransformer
         };
     }
 
-    visitMacroCall(ctx: MacroCallContext): MacroTransformation | undefined {
-        if (!ctx.isActive) {
-            return undefined;
-        }
-
-        return ctx._expr.accept(this);
-    }
-
-    private visitMacroSymbolLine(ctx: MacroExpressionContext): MacroTransformation | undefined {
+    private visitMacroSymbolLine(ctx: MacroInvocationContext): MacroTransformation | undefined {
         const token = <ExternalToken>this.tokenStream
             .tokenSource.tokenFactory.createSimple(
                 UCLexer.INTEGER_LITERAL,
@@ -241,7 +261,7 @@ export class UCPreprocessorMacroTransformer
         };
     }
 
-    private visitMacroSymbolFile(ctx: MacroExpressionContext): MacroTransformation | undefined {
+    private visitMacroSymbolFile(ctx: MacroInvocationContext): MacroTransformation | undefined {
         const tokens = textToTokens(this.macroProvider.filePath.replaceAll('\\', '\\\\'));
 
         return {

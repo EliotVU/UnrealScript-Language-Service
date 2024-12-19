@@ -10,6 +10,7 @@ channels { MACRO, COMMENTS_CHANNEL }
 
 @lexer::members {
     braceLevel: number = 0;
+    passNestedMacro: boolean = false;
 
     // For debugging
 
@@ -96,6 +97,7 @@ NEWLINE
 
 MACRO_CHAR_ENCLOSED
     : CALL_MACRO_CHAR { this._input.LA(1) === '{'.charCodeAt(0) }?
+    { this.passNestedMacro = false; }
     -> channel(MACRO), type(MACRO_CHAR), pushMode(MACRO_ENCLOSED_MODE)
     ;
 
@@ -424,6 +426,7 @@ MACRO_END_IF
 MACRO_SYMBOL_INVOKE
     : [a-zA-Z_][a-zA-Z0-9_#]*
     { this._input.LA(1) === '('.charCodeAt(0) }?
+    { this.passNestedMacro = true; }
     -> channel(MACRO), type(MACRO_SYMBOL), mode(MACRO_INVOKE_MODE)
     ;
 
@@ -523,6 +526,32 @@ MACRO_INVOKE_CLOSE_PARENS
 
 // << MACRO_INVOKE_MODE
 mode MACRO_ARGUMENTS_MODE; // >> MACRO_ARGUMENT_MODE [,\MACRO_ARGUMENT_MODE]
+
+MACRO_ARGUMENTS_MACRO
+    : CALL_MACRO_CHAR
+    {
+        // Consume the macro char as part of the argument, e.g. `Log(`Location $ "str")
+        if (this.passNestedMacro) {
+            this.more();
+
+            return;
+        }
+
+        // Otherwise, we may be in a `if(`isdefined) here we do wan't to separate the macro char.
+
+        this.channel = UCLexer.MACRO;
+        this.type = UCLexer.MACRO_CHAR;
+        this.pushMode(UCLexer.MACRO_MODE);
+    }
+    ;
+
+// May occur if we pop from a 'MACRO_MODE' when a macro is expanded within another macro like say: `if(`notdefined(MACRO_SYMBOL))
+// Or no arguments were passed `macroInvoke() (this is not a bad thing, but undesired with `notdefined)
+// Without this, an empty MACRO_SYMBOL would be created when matching ')'
+MACRO_ARGUMENTS_CLOSE_PARENS
+    : ')'
+    -> channel(MACRO), type(CLOSE_PARENS), popMode
+    ;
 
 MACRO_ARGUMENTS_COMMA
     : ','

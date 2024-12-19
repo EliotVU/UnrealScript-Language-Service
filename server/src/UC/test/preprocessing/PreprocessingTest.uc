@@ -68,18 +68,21 @@ function bool ShouldBeValidReturnMacroTest()
 native(112) static final operator(40) string $  ( coerce string A, coerce string B );
 
 // ! TODO: Support non-macro code inbetween `if and `endif and enclosed `{endif}
-`define	Log(msg,cond,tag)	`if(`cond)if(`cond)`endif Log(`msg`if(`tag),`tag`endif)
+`define	Log(msg,cond,tag)	`if(`cond)if(`cond)`{endif} Log(`msg`if(`tag),`tag`{endif})
 `define	Location	"("$Name$") `{ClassName}::"$Name
 
 function ShouldBeValidInceptionMacroTest()
 {
     // FIXME: No condition doesn't work yet
-    //  `Log(`location $ "string",,'tag');
+    // `Log("");
 
-    `Log(`location $ "string", true,'tag');
+    `Log(`location $ "string", true, 'tag');
+
     `Log("a"
         $ "b"
         $ "c"
-        $ "d", true, 'tag'
+        $ "d",
+        true,
+        'tag'
     );
 }
