@@ -1,6 +1,6 @@
-import { type WritableToken, Token } from 'antlr4ts';
+import { Token, type WritableToken } from 'antlr4ts';
 import { UCLexer } from '../antlr/generated/UCLexer';
-import { UCPreprocessorParser } from '../antlr/generated/UCPreprocessorParser';
+import { UCPreprocessorParser, type MacroExpressionContext } from '../antlr/generated/UCPreprocessorParser';
 import { MacroProvider } from './MacroProvider';
 import { getCtxDebugInfo, getTokenDebugInfo } from './Parser.utils';
 import { UCPreprocessorMacroTransformer } from './PreprocessorMacroTransformer';
@@ -132,10 +132,14 @@ export class UCPreprocessorTokenStream extends UCTokenStream {
                 this.channel = UCLexer.MACRO;
                 // Prevent this token from being preprocessed/expanded again.
                 (<WritableToken>token).channel = PROCESSED_MACRO_CHANNEL;
-                const macroCtx = this.macroParser.macroExpression();
-                // Return to picking up default tokens.
-                this.channel = UCLexer.DEFAULT_TOKEN_CHANNEL;
-                this.macroDepth--;
+                let macroCtx: MacroExpressionContext;
+                try {
+                    macroCtx = this.macroParser.macroExpression();
+                } finally {
+                    // Return to picking up default tokens.
+                    this.channel = UCLexer.DEFAULT_TOKEN_CHANNEL;
+                    this.macroDepth--;
+                }
 
                 const finalMacroToken = macroCtx.stop ?? this.macroParser.currentToken;
                 if (typeof finalMacroToken === 'undefined') {
@@ -268,10 +272,27 @@ export class UCPreprocessorTokenStream extends UCTokenStream {
                     );
                 }
             } catch (exc) {
-                console.error(this.macroDepth,
-                    'macro transformation parsing error', exc);
+                const contextToken = this.macroParser.currentToken;
 
-                throw exc;
+                console.error('macro transformation parsing error on depth',
+                    this.macroDepth, exc,
+                    `\n\t\toccurred at token ${getTokenDebugInfo(contextToken, this.macroParser)}`
+                );
+
+                while (
+                    this.tokens.length > this.p &&
+                    this.tokens[this.p++].channel === UCLexer.MACRO
+                );
+
+                if (i === this.p) {
+                    throw exc;
+                }
+
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn('Re-starting at token', getTokenDebugInfo(this.tokens[this.p]));
+                }
+
+                i = this.p;
             }
         }
 

@@ -322,6 +322,11 @@ describe("Preprocessing", () => {
 
             UCLexer.EOF
         ]);
+        assertTokens(`\`endif`, [
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_END_IF,
+
+            UCLexer.EOF
+        ]);
     });
 
     it('should expand `{prefix}Identifier', () => {
