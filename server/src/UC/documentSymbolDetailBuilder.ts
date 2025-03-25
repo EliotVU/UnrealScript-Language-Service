@@ -1,8 +1,8 @@
-import { SymbolDetailBuilderVisitor } from './SymbolDetailBuilderVisitor';
+import { SymbolDetailBuilder } from './SymbolDetailBuilder';
 import { UCObjectSymbol } from './Symbols';
 
-const SymbolDetailBuilder = new SymbolDetailBuilderVisitor();
+const symbolDetailBuilder = new SymbolDetailBuilder();
 
 export function getSymbolDetail(symbol: UCObjectSymbol): string {
-    return symbol.accept(SymbolDetailBuilder) as string;
+    return symbol.accept(symbolDetailBuilder) as string;
 }

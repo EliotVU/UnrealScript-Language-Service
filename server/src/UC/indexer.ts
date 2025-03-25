@@ -24,8 +24,8 @@ import { UCDocument } from './document';
 import { DocumentCodeIndexer, DocumentSymbolIndexer } from './documentCodeIndexer';
 import { Name, NameHash, toName } from './name';
 
-export const includeDocumentExtension = '.uci';
-export const GlobalsDocumentFileName = 'Globals.uci';
+const includeDocumentExtension = '.uci';
+const globalsDocumentFileName = 'Globals.uci';
 
 // TODO: Re-work to hash documents by URI instead of file path, this would integrate easier with LSP events.
 export const documentsByPathMap = new Map<string, UCDocument>();
@@ -214,7 +214,7 @@ export function resolveIncludeFilePath(
 }
 
 export function resolveGlobalsFilePath(dir: string): string {
-    return path.join(parsePackagePathInDir(dir), GlobalsDocumentFileName);
+    return path.join(parsePackagePathInDir(dir), globalsDocumentFileName);
 }
 
 export function createPackageByDir(dir: string): UCPackage {

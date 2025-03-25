@@ -1,7 +1,8 @@
 import { expect } from 'chai';
 import path = require('path');
 
-import { getDocumentSymbol, getDocumentTooltip } from '../src/UC/helpers';
+import { getDocumentHover } from '../src/documentHover';
+import { getDocumentSymbol } from '../src/UC/helpers';
 import { createDocumentByPath, createPackageByDir, indexDocument } from '../src/UC/indexer';
 
 // TODO: E2E tests, write VSCode client tests instead.
@@ -20,7 +21,7 @@ describe('getDocumentTooltip', () => {
     });
 
     it('should retrieve the class symbol display info', async () => {
-        const hoverInfo = await getDocumentTooltip(testPackageDocument, classSymbol.id.range.start);
+        const hoverInfo = await getDocumentHover(testPackageDocument, classSymbol.id.range.start);
         expect(hoverInfo)
             .to.not.be.undefined;
     });

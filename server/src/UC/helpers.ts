@@ -1,7 +1,10 @@
 import { ParserRuleContext, Token, TokenStream } from 'antlr4ts';
-import { Hover, Location, MarkupKind, Position, Range } from 'vscode-languageserver';
+import { Position, Range } from 'vscode-languageserver';
 import { DocumentUri } from 'vscode-languageserver-textdocument';
 
+import { UCLexer } from './antlr/generated/UCLexer';
+import { UCDocument } from './document';
+import { getDocumentById, getDocumentByURI } from './indexer';
 import { commentTokensToStrings } from './Parser/TokenStream';
 import {
     ISymbol,
@@ -16,9 +19,6 @@ import {
     isStruct,
     supportsRef,
 } from './Symbols';
-import { UCLexer } from './antlr/generated/UCLexer';
-import { UCDocument } from './document';
-import { getDocumentById, getDocumentByURI } from './indexer';
 import { ModifierFlags } from './Symbols/ModifierFlags';
 
 export const VALID_ID_REGEXP = RegExp(/^([a-zA-Z_][a-zA-Z_0-9]*)$/);
@@ -184,41 +184,6 @@ export function getDocumentContext(document: UCDocument, position: Position): UC
     return undefined;
 }
 
-export async function getDocumentTooltip(document: UCDocument, position: Position): Promise<Hover | undefined> {
-    const symbol = getDocumentSymbol(document, position);
-    if (!symbol) {
-        return undefined;
-    }
-
-    const definitionSymbol = resolveSymbolToRef(symbol);
-    if (!definitionSymbol) {
-        return undefined;
-    }
-
-    const tooltip = getSymbolTooltip(definitionSymbol);
-    const output = [`\`\`\`unrealscript`, tooltip, `\`\`\``,];
-    const documentation = getSymbolDocumentation(definitionSymbol);
-    if (documentation) {
-        output.push(
-            '___',
-            documentation.join('\n\n')
-        );
-    }
-    return {
-        contents: {
-            kind: MarkupKind.Markdown,
-            value: output.join('\n')
-        },
-        range: symbol.id.range
-    };
-}
-
-// placeholder, we'll use a visitor pattern eventually.
-export function getSymbolTooltip(symbol: ISymbol): string | undefined {
-    const tooltipText = symbol.getTooltip();
-    return tooltipText;
-}
-
 export function getSymbolDocumentation(symbol: ISymbol): string[] | undefined {
     const documentation = symbol instanceof UCObjectSymbol && symbol.getDocumentation();
     if (documentation) {
@@ -226,28 +191,6 @@ export function getSymbolDocumentation(symbol: ISymbol): string[] | undefined {
     }
 
     return undefined;
-}
-
-/**
- * Returns a location that represents the definition at a given position within the document.
- *
- * If a symbol is found at the position, then the symbol's definition location will be returned instead.
- **/
-export function getDocumentDefinition(document: UCDocument, position: Position): Location | undefined {
-    const symbol = getDocumentSymbol(document, position);
-    if (!symbol) {
-        return undefined;
-    }
-
-    const symbolRef = resolveSymbolToRef(symbol);
-    if (!symbolRef) {
-        return undefined;
-    }
-
-    const externalDocument = getSymbolDocument(symbolRef);
-    return externalDocument?.uri
-        ? Location.create(externalDocument.uri, symbolRef.id.range)
-        : undefined;
 }
 
 export function getSymbolDefinition(uri: DocumentUri, position: Position): ISymbol | undefined {

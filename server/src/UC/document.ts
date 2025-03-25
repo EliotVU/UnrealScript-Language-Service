@@ -10,8 +10,7 @@ import { ERROR_STRATEGY } from './Parser/ErrorStrategy';
 import type { ExternalToken } from './Parser/ExternalTokenFactory';
 import { UCInputStream } from './Parser/InputStream';
 import { MacroProvider, createMacroProvider } from './Parser/MacroProvider';
-import { IntrinsicGlobalMacroProvider } from './Parser/PreprocessorParser';
-import { createTokenStream } from './Parser/PreprocessorParser';
+import { IntrinsicGlobalMacroProvider, createTokenStream } from './Parser/PreprocessorParser';
 import { UCPreprocessorTokenStream } from './Parser/PreprocessorTokenStream';
 import {
     ISymbol,
@@ -22,7 +21,6 @@ import {
     UCPackage,
     UCStructSymbol,
     UCSymbolKind,
-    findOrIndexClassSymbol,
     isArchetypeSymbol,
     isClassSymbol,
     removeHashedSymbol,
@@ -31,11 +29,11 @@ import { UCLexer } from './antlr/generated/UCLexer';
 import { Licensee, ProgramContext, UCParser } from './antlr/generated/UCParser';
 import { IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentASTWalker } from './documentASTWalker';
-import { IndexedReferencesMap, config, createDocumentByPath, findOrIndexDocument, getDocumentById, indexDocument, queueIndexDocument, resolveGlobalsFilePath } from './indexer';
+import { IndexedReferencesMap, config, createDocumentByPath, findOrIndexDocument, indexDocument, resolveGlobalsFilePath } from './indexer';
 import { Name, NameHash, toName } from './name';
+import { NAME_CORE, NAME_OBJECT } from './names';
 import { UCGeneration } from './settings';
 import { SymbolWalker } from './symbolWalker';
-import { NAME_CORE, NAME_OBJECT } from './names';
 
 function removeChildren(scope: UCStructSymbol) {
     for (let child = scope.children; child; child = child.next) {
