@@ -21,6 +21,7 @@ import {
 } from 'vscode-languageserver/node';
 
 import { executeCommand, getCommand, getCommands } from 'commands';
+import { getDocumentDefinition } from 'documentDefinition';
 import { getDocumentRenameEdit } from 'rename';
 import { ActiveTextDocuments } from './activeTextDocuments';
 import { getDocumentCodeActions } from './codeActions';
@@ -33,6 +34,7 @@ import {
 import { EAnalyzeOption, UCLanguageServerSettings } from './configuration';
 import { getDocumentDiagnostics } from './documentDiagnostics';
 import { getDocumentHighlights } from './documentHighlight';
+import { getDocumentHover } from './documentHover';
 import { getDocumentSymbols } from './documentSymbol';
 import { getDocumentSemanticTokens } from './documentTokenSemantics';
 import { getReferences } from './references';
@@ -40,8 +42,6 @@ import { UCDocument } from './UC/document';
 import { createTypeFromQualifiedIdentifier } from './UC/documentASTWalker';
 import { TokenModifiers, TokenTypes } from './UC/documentSemanticsBuilder';
 import {
-    getDocumentDefinition,
-    getDocumentTooltip,
     getSymbol,
     resolveSymbolToRef,
     VALID_ID_REGEXP,
@@ -890,7 +890,7 @@ function setupFilePatterns(settings: UCLanguageServerSettings) {
 connection.onHover(async (e) => {
     const document = await awaitDocumentDelivery(e.textDocument, 5000);
     if (document) {
-        return getDocumentTooltip(document, e.position);
+        return getDocumentHover(document, e.position);
     }
 
     return undefined;

@@ -30,6 +30,7 @@ import { IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentASTWalker } from './documentASTWalker';
 import { IndexedReferencesMap, applyMacroSymbols, config } from './indexer';
 import { Name, NameHash, toName } from './name';
+import { NAME_CORE, NAME_OBJECT } from './names';
 import { UCGeneration } from './settings';
 import { SymbolWalker } from './symbolWalker';
 

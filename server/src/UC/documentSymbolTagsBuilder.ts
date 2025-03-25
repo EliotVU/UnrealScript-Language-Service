@@ -1,10 +1,10 @@
 import { SymbolTag } from 'vscode-languageserver';
 
 import { ISymbol } from './Symbols';
-import { SymbolTagsBuilderVisitor } from './SymbolTagsBuilderVisitor';
+import { SymbolTagsBuilder } from './SymbolTagsBuilder';
 
-const SymbolTagsBuilder = new SymbolTagsBuilderVisitor();
+const symbolTagsBuilder = new SymbolTagsBuilder();
 
 export function getSymbolTags(symbol: ISymbol): SymbolTag[] | undefined {
-    return symbol.accept(SymbolTagsBuilder) as SymbolTag[] | undefined;
+    return symbol.accept(symbolTagsBuilder) as SymbolTag[] | undefined;
 }

@@ -17,9 +17,12 @@ function diagnosticsFromNodes(nodes: IDiagnosticNode[]) {
         });
 }
 
-export function getDocumentDiagnostics(document: UCDocument): Diagnostic[] {
+export function getDocumentDiagnostics(
+    document: UCDocument
+): Diagnostic[] {
     const diagnoser = new DocumentAnalyzer(document);
     document.accept(diagnoser);
     const diagnostics = diagnoser.getDiagnostics();
+
     return diagnosticsFromNodes(document.nodes).concat(diagnostics.toDiagnostic());
 }
