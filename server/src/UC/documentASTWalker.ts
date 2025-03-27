@@ -248,6 +248,7 @@ function createQualifiedType(ctx: UCGrammar.QualifiedIdentifierContext, kind?: U
                 rightType.setExpectedKind(UCSymbolKind.Delegate);
                 break;
 
+            case UCSymbolKind.Interface:
             case UCSymbolKind.Class:
                 leftType.setExpectedKind(UCSymbolKind.Package);
                 break;
