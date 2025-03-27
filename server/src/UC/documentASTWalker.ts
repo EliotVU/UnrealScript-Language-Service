@@ -445,19 +445,30 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitInterfaceDecl(ctx: UCGrammar.InterfaceDeclContext) {
-        if (this.document.class) {
-            this.document.nodes.push(new ErrorDiagnostic(rangeFromCtx(ctx), 'Cannot declare an interface within an interface!'));
-            return undefined;
-        }
+        const symbolIdentifier: Identifier = createIdentifier(ctx.identifier());
+        const symbolRange = rangeFromBounds(ctx.start, ctx.stop);
 
-        const identifier: Identifier = createIdentifier(ctx.identifier());
-        const symbol = new UCInterfaceSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
-        symbol.outer = this.document.classPackage;
-        this.document.class = symbol; // Important!, must be assigned before further parsing.
-
-        if (this.document.class) {
+        // The intention here, is to keep re-using the same allocated class symbol, when re-indexing the class declaration.
+        let symbol: UCClassSymbol | undefined = this.document.class;
+        if (typeof symbol === 'undefined'
+            || symbol.id.name !== symbolIdentifier.name
+            || areRangesIdentical(symbol.range, symbolRange) === false) {
+            symbol = new UCInterfaceSymbol(symbolIdentifier, symbolRange);
+            this.document.class = symbol; // Important!, must be assigned before further parsing.
             addHashedSymbol(symbol);
+        } else {
+            symbol.modifiers = UCInterfaceSymbol.prototype.modifiers;
+            symbol.classModifiers = UCInterfaceSymbol.prototype.classModifiers;
+            symbol.super = undefined;
+            symbol.within = undefined;
+            symbol.children = undefined;
+            symbol.next = undefined;
+            symbol.operators = undefined;
+            symbol.block = undefined;
+            symbol.labels = undefined;
         }
+
+        symbol.outer = this.document.classPackage;
         this.declare(symbol, ctx);
 
         const extendsNode = ctx.qualifiedExtendsClause();
