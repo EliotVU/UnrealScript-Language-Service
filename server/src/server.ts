@@ -52,6 +52,8 @@ import {
     createPackage,
     createPackageByDir,
     documentBuilt$,
+    documentCodeIndexed$,
+    documentIndexed$,
     documentsCodeIndexed$,
     enumerateDocuments,
     getDocumentById,
@@ -253,6 +255,42 @@ async function awaitDocumentBuilt(uri: DocumentUri, timeoutEach = 1000 * 60): Pr
     }
 
     return firstValueFrom(documentBuilt$
+        .pipe(
+            filter(doc => doc.uri === uri),
+            timeout({
+                each: timeoutEach,
+                with: () => {
+                    return of(undefined);
+                }
+            })
+        ));
+}
+
+async function awaitDocumentIndexed(uri: DocumentUri, timeoutEach = 1000 * 60): Promise<UCDocument | undefined> {
+    const document = getDocumentByURI(uri);
+    if (document?.hasBeenIndexed) {
+        return document;
+    }
+
+    return firstValueFrom(documentIndexed$
+        .pipe(
+            filter(doc => doc.uri === uri),
+            timeout({
+                each: timeoutEach,
+                with: () => {
+                    return of(undefined);
+                }
+            })
+        ));
+}
+
+async function awaitDocumentCodeIndexed(uri: DocumentUri, timeoutEach = 1000 * 60): Promise<UCDocument | undefined> {
+    const document = getDocumentByURI(uri);
+    if (document?.hasBeenPostIndexed) {
+        return document;
+    }
+
+    return firstValueFrom(documentCodeIndexed$
         .pipe(
             filter(doc => doc.uri === uri),
             timeout({
