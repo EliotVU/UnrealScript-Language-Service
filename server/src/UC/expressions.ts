@@ -35,6 +35,7 @@ import {
     StaticErrorType,
     StaticMetaType,
     StaticNoneType,
+    StaticObjectType,
     StaticRangeType,
     StaticRotatorType,
     StaticVectorType,
@@ -74,6 +75,7 @@ import {
     resolveElementType,
     resolveType,
     tryFindClassSymbol,
+    type UCFieldSymbol,
 } from './Symbols';
 import { ModifierFlags } from './Symbols/ModifierFlags';
 import { UCDocument } from './document';
@@ -81,6 +83,7 @@ import { intersectsWith } from './helpers';
 import { config, getConstSymbol, getEnumMember } from './indexer';
 import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_STRUCT, NAME_VECTOR } from './names';
 import { SymbolWalker } from './symbolWalker';
+import { UCGeneration } from './settings';
 
 export interface IExpression extends INode, IWithInnerSymbols {
     /**
@@ -776,6 +779,8 @@ export class UCMemberExpression extends UCExpression {
             return;
         }
 
+        let member: UCFieldSymbol | undefined = undefined;
+
         const id = this.id.name;
 
         const contextType = info?.contextType;
@@ -788,44 +793,55 @@ export class UCMemberExpression extends UCExpression {
                 return;
             }
         }
+        // MyEnum == MyEnum_EnumTag
+        else if (contextTypeKind === UCTypeKind.Enum) {
+            member = contextType!.getRef<UCEnumSymbol>()?.findSuperSymbol(id);
+        }
+        // MyByte === ET_EnumTag
+        else if (config.generation == UCGeneration.UC3 && (
+            contextTypeKind === UCTypeKind.Byte ||
+            contextTypeKind === UCTypeKind.Int)) {
+            member = getEnumMember(id);
+        }
 
         // findSuperSymbol() here also picks up enum tags, thus we don't have to check for a contextTypeKind
         // Note: The UnrealScript compiles this as an integer literal, but as a byte if an enum context was given.
         // We treat both scenarios as a byte.
-        let member = isStruct(context) && context.findSuperSymbol(id);
-        if (!member) {
-            // Look for a context-less enum tag reference, e.g. (myLocalByte === ET_EnumTag)
-            // Follow the compilers behavior:
-            // - Tags are only visible when we have a context hint that is compatible with an enum.
-            if (config.checkTypes) {
-                if (contextTypeKind === UCTypeKind.Byte ||
-                    contextTypeKind === UCTypeKind.Int ||
-                    contextTypeKind === UCTypeKind.Enum) {
-                    member = getEnumMember(id);
-                }
-            } else {
-                member = getEnumMember(id);
-            }
-        } else if (member.getName() === NAME_CLASS && areIdentityMatch(member.outer, IntrinsicObject)) {
+        if (member === undefined && isStruct(context)) {
+            member = context.findSuperSymbol(id);
+        }
+
+        if (member === undefined) {
+            return;
+        }
+
+        if (member.getName() === NAME_CLASS && areIdentityMatch(member.outer, IntrinsicObject)) {
             const classContext = getContext<UCClassSymbol>(context, UCSymbolKind.Class)!;
+
+            const baseType = new UCObjectTypeSymbol(classContext.id, undefined, UCSymbolKind.Class, ModifierFlags.ReadOnly);
+            baseType.setRefNoIndex(classContext);
+
             const coercedType = new UCObjectTypeSymbol(IntrinsicClass.id, undefined, UCSymbolKind.Class, ModifierFlags.ReadOnly);
-            coercedType.baseType = new UCObjectTypeSymbol(classContext.id, undefined, UCSymbolKind.Class, ModifierFlags.ReadOnly);
-            (coercedType.baseType as UCObjectTypeSymbol).setRefNoIndex(classContext);
             coercedType.setRefNoIndex(IntrinsicClass);
+            coercedType.baseType = baseType;
             this.coercedType = coercedType;
         } else if (member.getName() === NAME_OUTER && areIdentityMatch(member.outer, IntrinsicObject)) {
             const classContext = getContext<UCClassSymbol>(context, UCSymbolKind.Class)!;
-            this.coercedType = classContext.withinType;
+            const superWithinClassType = classContext.getSuperWithinClassType();
+            if (typeof superWithinClassType === 'undefined') {
+                // nothing to do
+                // this.coercedType = StaticObjectType;
+            } else {
+                this.coercedType = superWithinClassType;
+            }
         }
 
-        if (member) {
-            const type = new UCObjectTypeSymbol(this.id, undefined, undefined, member.modifiers & ModifierFlags.TypeFlags);
-            const symbolRef = type.setRef(member, document)!;
-            if (info?.inAssignment) {
-                symbolRef.flags |= SymbolReferenceFlags.Assignment;
-            }
-            this.type = type;
+        const type = new UCObjectTypeSymbol(this.id, undefined, undefined, member.modifiers & ModifierFlags.TypeFlags);
+        const symbolRef = type.setRef(member, document)!;
+        if (info?.inAssignment) {
+            symbolRef.flags |= SymbolReferenceFlags.Assignment;
         }
+        this.type = type;
     }
 }
 

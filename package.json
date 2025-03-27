@@ -2,7 +2,7 @@
     "name": "uc",
     "description": "UnrealScript Language support",
     "displayName": "UnrealScript",
-    "version": "0.8.2",
+    "version": "0.8.3",
     "author": {
         "name": "Eliot van Uytfanghe",
         "url": "https://EliotVU.com"
@@ -41,6 +41,10 @@
     "capabilities": {
         "virtualWorkspaces": {
             "supported": false
+        },
+        "untrustedWorkspaces": {
+            "supported": true,
+            "description": ""
         }
     },
     "dependencies": {
@@ -49,19 +53,19 @@
         "syntaxes": "file:syntaxes"
     },
     "devDependencies": {
-        "@tsconfig/recommended": "^1.0.6",
-        "@types/node": "^20.14.12",
-        "@typescript-eslint/eslint-plugin": "^7.12.0",
-        "@typescript-eslint/parser": "^7.17.0",
+        "@tsconfig/recommended": "^1.0.8",
+        "@types/node": "^22.13.13",
+        "@typescript-eslint/eslint-plugin": "^8.28.0",
+        "@typescript-eslint/parser": "^8.28.0",
         "antlr4ts-cli": "0.5.0-alpha.4",
-        "esbuild": "^0.23.0",
-        "eslint": "^9.7.0",
-        "gulp": "^4.0.2",
+        "esbuild": "^0.25.1",
+        "eslint": "^9.23.0",
+        "gulp": "^5.0.0",
         "mocha-explorer-launcher-scripts": "^0.4.0",
         "rimraf": "^6.0.1",
-        "ts-loader": "^9.5.1",
+        "ts-loader": "^9.5.2",
         "ts-node": "^10.9.2",
-        "typescript": "^5.5.4",
+        "typescript": "^5.8.2",
         "typescript-eslint-language-service": "^5.0.5",
         "yaml-convert": "^1.0.1"
     },

@@ -56,6 +56,8 @@ export const IntrinsicObject = new UCClassSymbol({ name: NAME_OBJECT, range: DEF
 IntrinsicObject.modifiers |= ModifierFlags.Native | ModifierFlags.Abstract;
 IntrinsicObject.outer = CORE_PACKAGE;
 
+StaticObjectType.setRefNoIndex(IntrinsicObject);
+
 export const IntrinsicVectorHash = getSymbolOuterHash(NAME_VECTOR.hash, NAME_OBJECT.hash);
 export const IntrinsicVector = new UCScriptStructSymbol({ name: NAME_VECTOR, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicVector.modifiers |= ModifierFlags.Native;
@@ -137,7 +139,7 @@ IntrinsicEnum.outer = CORE_PACKAGE;
 
 export const IntrinsicProperty = new UCClassSymbol({ name: NAME_PROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);
 IntrinsicProperty.modifiers |= ModifierFlags.Intrinsic;
-IntrinsicProperty.super = IntrinsicObject;
+IntrinsicProperty.super = IntrinsicField;
 IntrinsicProperty.outer = CORE_PACKAGE;
 
 export const IntrinsicObjectProperty = new UCClassSymbol({ name: NAME_OBJECTPROPERTY, range: DEFAULT_RANGE }, DEFAULT_RANGE);

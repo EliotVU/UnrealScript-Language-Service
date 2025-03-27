@@ -1,4 +1,4 @@
-import { SymbolTag } from 'vscode-languageserver';
+import { SymbolTag, type DocumentSymbol } from 'vscode-languageserver';
 
 import { UCClassSymbol, UCFieldSymbol, UCMethodSymbol, UCPropertySymbol } from './Symbols';
 import { ModifierFlags } from './Symbols/ModifierFlags';
@@ -9,10 +9,17 @@ function visitField(symbol: UCFieldSymbol): SymbolTag[] | undefined {
     if (symbol.modifiers & ModifierFlags.Deprecated) {
         return [SymbolTag.Deprecated];
     }
+
     return undefined;
 }
 
-export class SymbolTagsBuilderVisitor extends DumbSymbolWalker<SymbolTag[] | undefined> {
+/**
+ * A visitor to build the "tags" property for any particular symbol.
+ *
+ * @see DocumentSymbol.tags
+ * @see SymbolTag
+ */
+export class SymbolTagsBuilder extends DumbSymbolWalker<SymbolTag[] | undefined> {
     override visitClass(symbol: UCClassSymbol) {
         return visitField(symbol);
     }

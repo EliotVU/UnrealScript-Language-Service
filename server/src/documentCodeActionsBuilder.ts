@@ -1,9 +1,9 @@
 import { CodeAction, CodeActionKind, Command } from 'vscode-languageserver';
 
-import { IExpression, UCLiteral } from 'UC/expressions';
 import { CommandIdentifier } from 'commands';
 import { UCObjectTypeSymbol, UCSymbolKind, isConstSymbol, tryFindClassSymbol } from './UC/Symbols';
 import { UCDocument } from './UC/document';
+import { IExpression, UCLiteral } from './UC/expressions';
 import { DefaultSymbolWalker } from './UC/symbolWalker';
 
 export class DocumentCodeActionsBuilder extends DefaultSymbolWalker<undefined> {

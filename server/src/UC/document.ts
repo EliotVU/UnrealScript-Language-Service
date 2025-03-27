@@ -30,6 +30,7 @@ import { IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentASTWalker } from './documentASTWalker';
 import { IndexedReferencesMap, applyMacroSymbols, config } from './indexer';
 import { Name, NameHash, toName } from './name';
+import { NAME_CORE, NAME_OBJECT } from './names';
 import { UCGeneration } from './settings';
 import { SymbolWalker } from './symbolWalker';
 
@@ -86,6 +87,7 @@ export class UCDocument {
     public class?: UCClassSymbol = undefined;
     public hasBeenBuilt = false;
     public hasBeenIndexed = false;
+    public hasBeenPostIndexed = false;
 
     private readonly indexReferencesMade = new Map<NameHash, Set<SymbolReference>>();
 
@@ -261,11 +263,13 @@ export class UCDocument {
                 removeChildren(this.class);
             }
         }
-        this.class = undefined;
+        // Commented out, because we will be re-using the class symbol.
+        // this.class = undefined;
         this.scope.clear();
         this.nodes = []; // clear
         this.hasBeenBuilt = false;
         this.hasBeenIndexed = false;
+        this.hasBeenPostIndexed = false;
 
         // Clear all the indexed references that we have made.
         for (const [key, value] of this.indexReferencesMade) {

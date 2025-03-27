@@ -1,5 +1,12 @@
 # UnrealScript Language Service
 
+## 0.8.3 (March 27, 2025)
+
+- Fixed [#193](https://github.com/EliotVU/UnrealScript-Language-Service/issues/193)
+- Fixed [#194](https://github.com/EliotVU/UnrealScript-Language-Service/issues/194)
+- Fixed [#195](https://github.com/EliotVU/UnrealScript-Language-Service/issues/195)
+- Fixed 11dad37d and dd613e69
+
 ## 0.8.2 (July 24, 2024)
 
 This hotfix mostly addresses problems with type checking (when 'check types' is enabled) and other minor issues:

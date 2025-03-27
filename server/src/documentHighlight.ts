@@ -6,7 +6,10 @@ import { getDocumentSymbol, resolveSymbolToRef } from './UC/helpers';
 import { getDocumentByURI } from './UC/indexer';
 import { ISymbol, SymbolReference, SymbolReferenceFlags } from './UC/Symbols';
 
-export async function getDocumentHighlights(uri: DocumentUri, position: Position): Promise<DocumentHighlight[] | undefined> {
+export async function getDocumentHighlights(
+    uri: DocumentUri,
+    position: Position
+): Promise<DocumentHighlight[] | undefined> {
     const document = getDocumentByURI(uri);
     const symbol = document && getDocumentSymbol(document, position);
     if (!symbol) {
@@ -21,7 +24,10 @@ export async function getDocumentHighlights(uri: DocumentUri, position: Position
     return getSymbolDocumentHighlights(document, symbolRef);
 }
 
-export function getSymbolDocumentHighlights(document: UCDocument, symbol: ISymbol): DocumentHighlight[] | undefined {
+export function getSymbolDocumentHighlights(
+    document: UCDocument,
+    symbol: ISymbol
+): DocumentHighlight[] | undefined {
     const references = document.getReferencesToSymbol(symbol);
     if (!references) {
         return undefined;

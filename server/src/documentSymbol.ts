@@ -27,7 +27,9 @@ export const SymbolKindMap = new Map<UCSymbolKind, SymbolKind>([
     [UCSymbolKind.DefaultPropertiesBlock, SymbolKind.Constructor],
 ]);
 
-export function getDocumentSymbols(document: UCDocument): DocumentSymbol[] | undefined {
+export function getDocumentSymbols(
+    document: UCDocument
+): DocumentSymbol[] | undefined {
     const documentSymbols: DocumentSymbol[] = [];
 
     // Little hack, lend a hand and push all the class's children to the top.
@@ -36,7 +38,7 @@ export function getDocumentSymbols(document: UCDocument): DocumentSymbol[] | und
         if (isSymbolDefined(symbol)) {
             const documentSymbol = toDocumentSymbol(symbol);
             documentSymbols.push(documentSymbol);
-            // Special case for UnrealScript's weird class declaration. 
+            // Special case for UnrealScript's weird class declaration.
             // The range of a class does not encapsulate its children, so we'll insert these independently.
             if (isClass(symbol) && documentSymbol.children) {
                 documentSymbols.push(...documentSymbol.children);
@@ -47,7 +49,10 @@ export function getDocumentSymbols(document: UCDocument): DocumentSymbol[] | und
 
     return documentSymbols;
 
-    function buildDocumentSymbols(container: UCStructSymbol, symbols: DocumentSymbol[]) {
+    function buildDocumentSymbols(
+        container: UCStructSymbol,
+        symbols: DocumentSymbol[]
+    ) {
         for (let child = container.children; child; child = child.next) {
             if (isSymbolDefined(child)) {
                 symbols.push(toDocumentSymbol(child));
@@ -55,7 +60,9 @@ export function getDocumentSymbols(document: UCDocument): DocumentSymbol[] | und
         }
     }
 
-    function toDocumentSymbol(symbol: UCObjectSymbol): DocumentSymbol {
+    function toDocumentSymbol(
+        symbol: UCObjectSymbol
+    ): DocumentSymbol {
         let children: DocumentSymbol[] | undefined;
         if (isStruct(symbol)) {
             children = [];
@@ -74,6 +81,7 @@ export function getDocumentSymbols(document: UCDocument): DocumentSymbol[] | und
             selectionRange: selectionRange,
             children,
         };
+
         return documentSymbol;
     }
 }
