@@ -69,7 +69,10 @@ export const documentBuilt$ = new Subject<UCDocument>();
 /** Emits a document that has been indexed. */
 export const documentIndexed$ = new Subject<UCDocument>();
 
-/** Emits an array of documents that have been post-indexed (code indexing). */
+/** Emits a document that has been post-indexed (code indexing). */
+export const documentCodeIndexed$ = new Subject<UCDocument>();
+
+/** Emits an array of post-indexed (code indexing) documents after all documents have been post-indexed. */
 export const documentsCodeIndexed$ = new Subject<UCDocument[]>();
 
 export function indexDocument(document: UCDocument, text?: string): void {
@@ -91,6 +94,7 @@ export function indexDocument(document: UCDocument, text?: string): void {
     try {
         document.build(text);
         document.hasBeenBuilt = true;
+
         documentBuilt$.next(document);
     } catch (err) {
         console.error(`(build error) in document "${document.uri}"; Indexing has been annulled.`, err);
@@ -114,6 +118,7 @@ export function indexDocument(document: UCDocument, text?: string): void {
     } finally {
         console.info(`${document.fileName}: build time: ${buildTime}; indexing time ${performance.now() - indexStart}`);
         pendingIndexedDocuments.push(document);
+
         documentIndexed$.next(document);
     }
 }
@@ -123,6 +128,9 @@ function postIndexDocument(document: UCDocument) {
     try {
         const indexer = new DocumentCodeIndexer(document);
         document.accept(indexer);
+        document.hasBeenPostIndexed = true;
+
+        documentCodeIndexed$.next(document);
     } catch (err) {
         console.error(
             `(post-index error) in document "${document.uri}"`,
