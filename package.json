@@ -2,7 +2,7 @@
     "name": "uc",
     "description": "UnrealScript Language support",
     "displayName": "UnrealScript",
-    "version": "0.8.2",
+    "version": "0.8.3",
     "author": {
         "name": "Eliot van Uytfanghe",
         "url": "https://EliotVU.com"
