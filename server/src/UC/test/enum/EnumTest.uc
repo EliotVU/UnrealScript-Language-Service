@@ -44,6 +44,11 @@ struct ParentStructTest
     } MyEnum;
 };
 
+enum EAmbiguousEnum
+{
+    FunctionName,
+};
+
 struct EnumUsageInStructTest extends ParentStructTest
 {
     // Test ArrayDim by constant.
@@ -145,6 +150,14 @@ function EEnumTest ShouldHintConditionalTest(bool bOther)
     return bOther == true
         ? ET_Other
         : ET_None;
+}
+
+private function FunctionName();
+
+function EAmbiguousEnum ShouldBeValidAmbiguousEnumTagTest()
+{
+    // Should match the enum tag instead of the function of the same name.
+    return FunctionName;
 }
 
 defaultproperties

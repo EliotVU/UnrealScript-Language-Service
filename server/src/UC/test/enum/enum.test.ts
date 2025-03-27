@@ -22,8 +22,7 @@ describe('EnumSymbol usage', () => {
             expect(enumTestSymbol.getSymbol<UCEnumMemberSymbol>(NAME_ENUMCOUNT).value)
                 .to.equal(3);
 
-            assertDocumentValidFieldsAnalysis(testDocument);
-            // assertDocumentValidFieldsAnalysis(testDocument, /\bShould(?!BeInvalid)/i);
+            assertDocumentValidFieldsAnalysis(testDocument, /\bShould(?!BeInvalid)/i);
             // assertDocumentInvalidFieldsAnalysis(testDocument, /\bInvalid/);
             // assertDocumentValidSymbolAnalysis(testDocument, testDocument.class!.getSymbol(NAME_DEFAULTPROPERTIES));
         });
