@@ -151,6 +151,13 @@ export function areRangesIntersecting(a: Range, b: Range): boolean {
     return true;
 }
 
+export function areRangesIdentical(a: Range, b: Range): boolean {
+    return a.start.line === b.start.line
+        && a.start.character === b.start.character
+        && a.end.line === b.end.line
+        && a.end.character === b.end.character;
+}
+
 export function getDocumentSymbol(document: UCDocument, position: Position): ISymbol | undefined {
     const symbols = document.enumerateSymbols();
     for (const symbol of symbols) {
