@@ -47,7 +47,7 @@ import {
     UCSuperExpression,
     UCVectLiteral,
 } from './expressions';
-import { rangeFromBound, rangeFromBounds, rangeFromCtx } from './helpers';
+import { areRangesIdentical, rangeFromBound, rangeFromBounds, rangeFromCtx } from './helpers';
 import { config, setEnumMember } from './indexer';
 import { toName } from './name';
 import {
@@ -298,6 +298,13 @@ const TypeKeywordToTypeKindMap: { [key: number]: UCTypeKind } = {
     [UCLexer.KW_BUTTON]: UCTypeKind.Button
 };
 
+const ClassModifierKeywordToModifierFlags: { [key: number]: ModifierFlags } = {
+    [UCLexer.KW_NATIVE]: ModifierFlags.Native,
+    [UCLexer.KW_TRANSIENT]: ModifierFlags.Transient,
+    [UCLexer.KW_ABSTRACT]: ModifierFlags.Abstract,
+    [UCLexer.KW_DEPRECATED]: ModifierFlags.Deprecated,
+};
+
 export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements UCPreprocessorParserVisitor<any>, UCParserVisitor<any> {
     private scopes: ISymbolContainer<ISymbol>[] = [];
 
@@ -493,47 +500,51 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     }
 
     visitClassDecl(ctx: UCGrammar.ClassDeclContext) {
-        // Most of the time a document's tree is invalid as the end-user is writing code.
-        // Therefor the parser may mistake "class'Object' <stuff here>;"" for a construction of a class declaration, this then leads to a messed up scope stack.
-        // Or alternatively someone literally did try to declare another class?
-        if (this.document.class) {
-            this.document.nodes.push(new ErrorDiagnostic(rangeFromCtx(ctx), 'Cannot declare a class within a class!'));
-            return undefined;
-        }
+        const symbolIdentifier: Identifier = createIdentifier(ctx.identifier());
+        const symbolRange = rangeFromBounds(ctx.start, ctx.stop);
 
-        const identifier: Identifier = createIdentifier(ctx.identifier());
-        const symbol = new UCClassSymbol(identifier, rangeFromBounds(ctx.start, ctx.stop));
-        symbol.outer = this.document.classPackage;
-        this.document.class = symbol; // Important!, must be assigned before further parsing.
-
-        if (this.document.class) {
+        // The intention here, is to keep re-using the same allocated class symbol, when re-indexing the class declaration.
+        let symbol: UCClassSymbol | undefined = this.document.class;
+        if (typeof symbol === 'undefined'
+            || symbol.id.name !== symbolIdentifier.name
+            || areRangesIdentical(symbol.range, symbolRange) === false) {
+            symbol = new UCClassSymbol(symbolIdentifier, symbolRange);
+            this.document.class = symbol; // Important!, must be assigned before further parsing.
             addHashedSymbol(symbol);
+        } else {
+            symbol.modifiers = UCClassSymbol.prototype.modifiers;
+            symbol.classModifiers = UCClassSymbol.prototype.classModifiers;
+            symbol.super = undefined;
+            symbol.within = undefined;
+            symbol.children = undefined;
+            symbol.next = undefined;
+            symbol.operators = undefined;
+            symbol.block = undefined;
+            symbol.labels = undefined;
         }
+
+        symbol.outer = this.document.classPackage;
         this.declare(symbol, ctx);
 
         const extendsNode = ctx.qualifiedExtendsClause();
-        if (extendsNode) {
-            symbol.extendsType = createQualifiedType(extendsNode._id, UCSymbolKind.Class);
-        }
+        symbol.extendsType = extendsNode
+            ? createQualifiedType(extendsNode._id, UCSymbolKind.Class)
+            : undefined;
 
         const withinNode = ctx.qualifiedWithinClause();
-        if (withinNode) {
-            symbol.withinType = createQualifiedType(withinNode._id, UCSymbolKind.Class);
-        }
+        symbol.withinType = withinNode
+            ? createQualifiedType(withinNode._id, UCSymbolKind.Class)
+            : undefined;
 
         // Need to push before visiting modifiers.
         this.push(symbol);
+
         const modifierNodes = ctx.classModifier();
         for (const modifierNode of modifierNodes) {
-            switch (modifierNode.start.type) {
-                case UCGrammar.UCParser.KW_NATIVE:
-                    symbol.modifiers |= ModifierFlags.Native;
-                    break;
-
-                case UCGrammar.UCParser.KW_TRANSIENT:
-                    symbol.modifiers |= ModifierFlags.Transient;
-                    break;
-
+            const modifiers = ClassModifierKeywordToModifierFlags[modifierNode.start.type];
+            if (typeof modifiers === 'number') {
+                symbol.modifiers |= modifiers;
+            } else switch (modifierNode.start.type) {
                 case UCGrammar.UCParser.KW_DEPENDSON:
                     this.visitDependsOnModifier(modifierNode as UCGrammar.DependsOnModifierContext);
                     break;
@@ -541,40 +552,35 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
                 case UCGrammar.UCParser.KW_IMPLEMENTS:
                     this.visitImplementsModifier(modifierNode as UCGrammar.ImplementsModifierContext);
                     break;
-
-                case UCGrammar.UCParser.KW_ABSTRACT:
-                    symbol.modifiers |= ModifierFlags.Abstract;
-                    break;
-
-                case UCGrammar.UCParser.KW_DEPRECATED:
-                    symbol.modifiers |= ModifierFlags.Deprecated;
-                    break;
             }
         }
 
-        if (config.generation === UCGeneration.UC3) {
-            const defaultId: Identifier = {
-                name: toName(`Default__${identifier.name.text}`),
-                range: identifier.range
-            };
+        if (typeof symbol.defaults === 'undefined') {
+            if (config.generation === UCGeneration.UC3) {
+                const className = symbol.id;
+                const defaultId: Identifier = {
+                    name: toName(`Default__${className.name.text}`),
+                    range: className.range
+                };
 
-            const defaults = new UCArchetypeSymbol(defaultId, identifier.range);
-            defaults.modifiers |= ModifierFlags.Generated;
-            // the archetype has this symbol as class !!
-            defaults.super = symbol;
+                const defaults = new UCArchetypeSymbol(defaultId, className.range);
+                defaults.modifiers |= ModifierFlags.Generated;
+                // the archetype has this symbol as class !!
+                defaults.super = symbol;
 
-            // Don't register nor hash (in UE these objects are generated in the third pass)
-            // this.declare(defaults);
+                // Don't register nor hash (in UE these objects are generated in the third pass)
+                // this.declare(defaults);
 
-            // The 'defaults' archetype is expected to reside in the class's package instead of the usual behavior i.e. the class.
-            defaults.outer = this.document.classPackage;
+                // The 'defaults' archetype is expected to reside in the class's package instead of the usual behavior i.e. the class.
+                defaults.outer = this.document.classPackage;
 
-            defaults.document = this.document;
+                defaults.document = this.document;
 
-            symbol.defaults = defaults;
-        } else {
-            // point to self for UC1, UC2
-            symbol.defaults = symbol;
+                symbol.defaults = defaults;
+            } else {
+                // point to self for UC1, UC2
+                symbol.defaults = symbol;
+            }
         }
 
         return symbol;
@@ -583,28 +589,28 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
     visitDependsOnModifier(ctx: UCGrammar.DependsOnModifierContext) {
         const symbol = this.scope<UCClassSymbol>();
         const modifierArgumentNodes = ctx.identifierArguments?.();
-        if (modifierArgumentNodes) {
-            symbol.dependsOnTypes = modifierArgumentNodes
+        symbol.dependsOnTypes = modifierArgumentNodes
+            ? modifierArgumentNodes
                 .identifier()
                 .map(valueNode => {
                     const identifier: Identifier = valueNode.accept(this);
                     const typeSymbol = new UCObjectTypeSymbol(identifier, undefined, UCSymbolKind.Class);
                     return typeSymbol;
-                });
-        }
+                })
+            : undefined;
     }
 
     visitImplementsModifier(ctx: UCGrammar.ImplementsModifierContext) {
         const symbol = this.scope<UCClassSymbol>();
         const modifierArgumentNodes = ctx.qualifiedIdentifierArguments?.();
-        if (modifierArgumentNodes) {
-            symbol.implementsTypes = modifierArgumentNodes
+        symbol.implementsTypes = modifierArgumentNodes
+            ? modifierArgumentNodes
                 .qualifiedIdentifier()
                 .map(valueNode => {
                     const typeSymbol = createQualifiedType(valueNode, UCSymbolKind.Interface);
                     return typeSymbol;
-                });
-        }
+                })
+            : undefined;
     }
 
     visitConstDecl(ctx: UCGrammar.ConstDeclContext) {
