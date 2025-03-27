@@ -35,6 +35,7 @@ import {
     StaticErrorType,
     StaticMetaType,
     StaticNoneType,
+    StaticObjectType,
     StaticRangeType,
     StaticRotatorType,
     StaticVectorType,
@@ -808,14 +809,23 @@ export class UCMemberExpression extends UCExpression {
             }
         } else if (member.getName() === NAME_CLASS && areIdentityMatch(member.outer, IntrinsicObject)) {
             const classContext = getContext<UCClassSymbol>(context, UCSymbolKind.Class)!;
+
+            const baseType = new UCObjectTypeSymbol(classContext.id, undefined, UCSymbolKind.Class, ModifierFlags.ReadOnly);
+            baseType.setRefNoIndex(classContext);
+
             const coercedType = new UCObjectTypeSymbol(IntrinsicClass.id, undefined, UCSymbolKind.Class, ModifierFlags.ReadOnly);
-            coercedType.baseType = new UCObjectTypeSymbol(classContext.id, undefined, UCSymbolKind.Class, ModifierFlags.ReadOnly);
-            (coercedType.baseType as UCObjectTypeSymbol).setRefNoIndex(classContext);
             coercedType.setRefNoIndex(IntrinsicClass);
+            coercedType.baseType = baseType;
             this.coercedType = coercedType;
         } else if (member.getName() === NAME_OUTER && areIdentityMatch(member.outer, IntrinsicObject)) {
             const classContext = getContext<UCClassSymbol>(context, UCSymbolKind.Class)!;
-            this.coercedType = classContext.withinType;
+            const superWithinClassType = classContext.getSuperWithinClassType();
+            if (typeof superWithinClassType === 'undefined') {
+                // nothing to do
+                // this.coercedType = StaticObjectType;
+            } else {
+                this.coercedType = superWithinClassType;
+            }
         }
 
         if (member) {

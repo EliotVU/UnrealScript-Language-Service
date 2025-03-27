@@ -167,4 +167,13 @@ export class UCClassSymbol extends UCStructSymbol {
     override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
         return visitor.visitClass(this);
     }
+
+    /**
+     * Retrieves the inherited 'within' class type.
+     *
+     * @returns The inherited 'within' class type or undefined if none.
+     */
+    getSuperWithinClassType(): ITypeSymbol | undefined {
+        return this.withinType ?? this.super?.getSuperWithinClassType();
+    }
 }
