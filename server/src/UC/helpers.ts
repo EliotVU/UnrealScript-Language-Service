@@ -18,6 +18,7 @@ import {
     isField,
     isStruct,
     supportsRef,
+    type UCInterfaceSymbol,
 } from './Symbols';
 import { ModifierFlags } from './Symbols/ModifierFlags';
 
@@ -228,7 +229,8 @@ export function getSymbolDocument(symbol: ISymbol): UCDocument | undefined {
         return symbol.document;
     }
 
-    const documentClass = getContext<UCClassSymbol>(symbol, UCSymbolKind.Class);
+    const documentClass = getContext<UCClassSymbol>(symbol, UCSymbolKind.Class)
+        ?? getContext<UCInterfaceSymbol>(symbol, UCSymbolKind.Interface);
     const document = documentClass && getDocumentById(documentClass.id.name);
     return document;
 }
