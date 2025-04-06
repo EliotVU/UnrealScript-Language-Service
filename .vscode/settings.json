@@ -9,7 +9,7 @@
     "mochaExplorer.nodePath": null,
     "mochaExplorer.cwd": "server",
     "mochaExplorer.mochaPath": "server/node_modules/mocha",
-    "mochaExplorer.require": "node_modules/ts-node/register",
+    "mochaExplorer.require": "esbuild-runner/register",
     "mochaExplorer.files": "server/**/*.test.ts",
     "mochaExplorer.watch": "server/**/*.test.ts",
     "mochaExplorer.ignore": "server/node_modules/**/*.test.ts",
