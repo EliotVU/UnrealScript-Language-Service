@@ -216,6 +216,7 @@ identifier
 	| 'atomicwhencooked'
 	| 'immutable'
 	| 'immutablewhencooked'
+    | 'constructive'
 	| 'virtual'
 	| 'server'
 	| 'client'
@@ -502,6 +503,7 @@ structModifier
 	| { this.generation === 3 }? 'atomicwhencooked'
 	| { this.generation === 3 }? 'immutable'
 	| { this.generation === 3 }? 'immutablewhencooked'
+    | { this.generation === 3 }? 'constructive'
 	;
 
 arrayDimRefer
