@@ -247,6 +247,7 @@ KW_ATOMIC: 'atomic';
 KW_ATOMICWHENCOOKED: 'atomicwhencooked';
 KW_IMMUTABLE: 'immutable';
 KW_IMMUTABLEWHENCOOKED: 'immutablewhencooked';
+KM_CONSTRUCTIVE: 'constructive';
 KW_VIRTUAL: 'virtual';
 KW_SERVER: 'server';
 KW_CLIENT: 'client';
