@@ -694,7 +694,7 @@ repository:
     patterns:
       - include: '#comment'
 
-      - match: \b((?i)native|intrinsic|transient|export|strictconfig|atomic|atomicwhencooked|immutable|immutablewhencooked|init|long)\b
+      - match: \b((?i)native|intrinsic|transient|export|strictconfig|atomic|atomicwhencooked|immutable|immutablewhencooked|constructive|init|long)\b
         name: storage.modifier.uc
 
       - match: \b((?i)extends|expands)\b(?:\s+(\w+)(?:\s*\.\s*(\w+))?)?
