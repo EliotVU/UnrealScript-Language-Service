@@ -5,9 +5,11 @@ options {
 }
 
 @header {
+    /** Licensee engine branch. */
     export const enum Licensee {
         Epic = 'Epic',
-        XCom = 'XCom'
+        XCom = 'XCom',
+        Lineage2 = 'Lineage2'
     }
 }
 
@@ -216,6 +218,7 @@ identifier
 	| 'atomicwhencooked'
 	| 'immutable'
 	| 'immutablewhencooked'
+	| 'constructive' // Lineage2
 	| 'virtual'
 	| 'server'
 	| 'client'
@@ -502,6 +505,7 @@ structModifier
 	| { this.generation === 3 }? 'atomicwhencooked'
 	| { this.generation === 3 }? 'immutable'
 	| { this.generation === 3 }? 'immutablewhencooked'
+	| { this.licensee === Licensee.Lineage2 }? 'constructive'
 	;
 
 arrayDimRefer
