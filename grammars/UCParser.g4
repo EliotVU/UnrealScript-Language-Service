@@ -259,7 +259,7 @@ directive
 	: SHARP { const i = this.getIndex(); } identifier? { this.skipLine(i); }
 	;
 
-program: member* | EOF;
+program: member* EOF;
 
 member
 	: classDecl

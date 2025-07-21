@@ -1,9 +1,13 @@
 lexer grammar UCLexer;
 
-channels { MACRO, COMMENTS_CHANNEL }
+channels {
+    MACRO,
+    MACRO_HIDDEN,
+    COMMENTS_CHANNEL
+}
 
 @lexer::header {
-    import { IntStream } from 'antlr4ts';
+    import { IntStream, LexerNoViableAltException } from 'antlr4ts';
 
     // TODO: Create a map of keyword tokens?
 }
@@ -360,7 +364,10 @@ ASSIGNMENT_STAR: '*=';
 ASSIGNMENT_CARET: '^=';
 ASSIGNMENT_DIV: '/=';
 
-ERROR: . -> channel(HIDDEN);
+ERROR
+    : .
+    { this.notifyListeners(new LexerNoViableAltException(this, this._input, this._input.index, undefined)); }
+    -> channel(HIDDEN);
 
 mode MACRO_ENCLOSED_MODE;
 
@@ -450,7 +457,10 @@ MACRO_NEWLINE
     -> channel(HIDDEN), type(NEWLINE)
     ;
 
-MACRO_END: . -> more, popMode;
+MACRO_INVALID
+    : .
+    { console.debug('invalid tokens'); this.notifyListeners(new LexerNoViableAltException(this, this._input, this._input.index, undefined)); }
+    -> channel(MACRO), popMode;
 
 // << MACRO_CHAR 'DEFINE'
 mode MACRO_DEFINE_MODE; // >> MACRO_DEFINE_WS MACRO_DEFINE_SYMBOL[MACRO_DEFINE_PARAMS_MODE]? MACRO_TEXT_MODE?
@@ -474,6 +484,7 @@ MACRO_DEFINE_SYMBOL
 // Unexpected, but in case of incomplete code we must fail early.
 MACRO_DEFINE_NEW_LINE
     : [\r\n]+
+    // { this.notifyListeners(new LexerNoViableAltException(this, this._input, this._input.index, undefined)); }
     -> channel(HIDDEN), type(NEWLINE), popMode
     ;
 
@@ -508,6 +519,7 @@ MACRO_DEFINE_PARAMS_WS
 // Unexpected, but in case of incomplete code we must fail early.
 MACRO_DEFINE_PARAMS_NEW_LINE
     : [\r\n]+
+    // { this.notifyListeners(new LexerNoViableAltException(this, this._input, this._input.index, undefined)); }
     -> channel(HIDDEN), type(NEWLINE), popMode
     ;
 
@@ -653,7 +665,7 @@ MACRO_ARGUMENTS_SYMBOL
 mode MACRO_TEXT_MODE; // << MACRO_TEXT*
 
 MACRO_TEXT
-    : (~[\n]*? '\\' '\r'? '\n')* ~[\n]+
+    : (~[\r\n]*? '\\' '\r'? '\n')* ~[\r\n]+
     // Exclude the first whitespace character.
     {
         this.text = this.text.trimLeft();

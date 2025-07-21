@@ -1,5 +1,6 @@
 import { AbstractParseTreeVisitor } from "antlr4ts/tree/AbstractParseTreeVisitor";
 import type { ErrorNode } from "antlr4ts/tree/ErrorNode";
+import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 import { URI } from "vscode-uri";
 import { pathExistsByURI, readTextByURI } from "../../workspace";
 import { UCLexer } from "../antlr/generated/UCLexer";
@@ -11,21 +12,19 @@ import {
     type MacroExpressionContext,
     type MacroIfContext,
     type MacroIncludeContext,
-    type MacroInvocationContext,
+    type MacroInvokeContext,
     type MacroIsDefinedContext,
     type MacroIsNotDefinedContext,
     type MacroPrimaryExpressionContext,
-    type MacroSecondaryExpressionContext,
     type MacroUndefineContext,
 } from "../antlr/generated/UCPreprocessorParser";
 import type { UCPreprocessorParserVisitor } from "../antlr/generated/UCPreprocessorParserVisitor";
 import { getDocumentByURI, resolveIncludeFilePath } from "../indexer";
 import type { ExternalToken } from "./ExternalTokenFactory";
 import type { MacroProvider } from "./MacroProvider";
+import { getCtxDebugInfo } from './Parser.utils';
 import { textToTokens } from "./preprocessor";
 import { type UCPreprocessorTokenStream } from "./PreprocessorTokenStream";
-import { getCtxDebugInfo } from './Parser.utils';
-import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 
 export type MacroTransformation = {
     /**
@@ -67,10 +66,6 @@ export class UCPreprocessorMacroTransformer
     }
 
     visitMacroInclude(ctx: MacroIncludeContext): MacroTransformation | undefined {
-        if (!ctx.isActive) {
-            return undefined;
-        }
-
         const includeFilePathArgument = ctx._arg.text;
         if (!includeFilePathArgument) {
             return undefined;
@@ -160,18 +155,19 @@ export class UCPreprocessorMacroTransformer
     }
 
     visitMacroExpression(ctx: MacroExpressionContext): MacroTransformation | undefined {
-        return ctx._expr.accept(this);
+        if (!this.tokenStream.macroParser.macroState.isActive()) {
+            return undefined;
+        }
+
+        // _expr is undefined when the expression text is missing.
+        return ctx._expr?.accept(this);
     }
 
     visitMacroPrimaryExpression(ctx: MacroPrimaryExpressionContext): MacroTransformation | undefined {
-        return ctx._macroInvocation ? ctx._macroInvocation.accept(this) : ctx._macroSecondaryExpression.accept(this);
-    }
-
-    visitMacroSecondaryExpression(ctx: MacroSecondaryExpressionContext): MacroTransformation | undefined {
         throw new Error("Invalid visit");
     }
 
-    visitMacroInvocation(ctx: MacroInvocationContext): MacroTransformation | undefined {
+    visitMacroInvoke(ctx: MacroInvokeContext): MacroTransformation | undefined {
         let definedText: string | undefined;
 
         const macroSymbol = ctx._MACRO_SYMBOL;
@@ -195,7 +191,6 @@ export class UCPreprocessorMacroTransformer
         }
 
         const symbolValue = this.macroProvider.getSymbol(macroName.toLowerCase());
-
         if (typeof symbolValue === 'undefined') {
             console.error(`Unknown macro '${macroName}'`, getCtxDebugInfo(ctx));
 
@@ -246,7 +241,7 @@ export class UCPreprocessorMacroTransformer
         };
     }
 
-    private visitMacroSymbolLine(ctx: MacroInvocationContext): MacroTransformation | undefined {
+    private visitMacroSymbolLine(ctx: MacroInvokeContext): MacroTransformation | undefined {
         const token = <ExternalToken>this.tokenStream
             .tokenSource.tokenFactory.createSimple(
                 UCLexer.INTEGER_LITERAL,
@@ -261,7 +256,7 @@ export class UCPreprocessorMacroTransformer
         };
     }
 
-    private visitMacroSymbolFile(ctx: MacroInvocationContext): MacroTransformation | undefined {
+    private visitMacroSymbolFile(ctx: MacroInvokeContext): MacroTransformation | undefined {
         const tokens = textToTokens(this.macroProvider.filePath.replaceAll('\\', '\\\\'));
 
         return {

@@ -140,7 +140,7 @@ export class UCDocument {
                 indexDocument(globalsDocument);
             }
 
-            this.macroProvider ??= createMacroProvider(this, undefined, globalsDocument?.macroProvider);
+            this.macroProvider ??= createMacroProvider(this, undefined, globalsDocument?.macroProvider ?? IntrinsicGlobalMacroProvider);
         }
 
         const tokenStream = createTokenStream(lexer, this.macroProvider);

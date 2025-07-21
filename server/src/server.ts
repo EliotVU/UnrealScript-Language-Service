@@ -31,7 +31,7 @@ import {
     getSignatureHelp,
     updateIgnoredCompletionTokens,
 } from './completion';
-import { EAnalyzeOption, UCLanguageServerSettings } from './configuration';
+import { applyUserDefinedMacroSymbols, EAnalyzeOption, UCLanguageServerSettings } from './configuration';
 import { getDocumentDiagnostics } from './documentDiagnostics';
 import { getDocumentHighlights } from './documentHighlight';
 import { getDocumentHover } from './documentHover';
@@ -66,7 +66,8 @@ import {
 } from './UC/indexer';
 import { toName } from './UC/name';
 import { NAME_ARRAY, NAME_CLASS, NAME_FUNCTION, NAME_NONE } from './UC/names';
-import { applyGlobalMacroSymbols, clearGlobalMacroSymbols } from './UC/Parser/PreprocessorParser';
+import type { MacroProvider } from './UC/Parser/MacroProvider';
+import { IntrinsicGlobalMacroProvider } from './UC/Parser/PreprocessorParser';
 import { IntrinsicSymbolItemMap, UCGeneration, UELicensee } from './UC/settings';
 import {
     addHashedSymbol,
@@ -700,7 +701,7 @@ function setConfiguration(settings: UCLanguageServerSettings) {
 }
 
 function initializeConfiguration() {
-    clearGlobalMacroSymbols();
+    IntrinsicGlobalMacroProvider.clearSymbols();
     clearIntrinsicSymbols();
 
     // Ensure that we are working with sane values!
@@ -711,7 +712,7 @@ function initializeConfiguration() {
 }
 
 function applyConfiguration(settings: UCLanguageServerSettings) {
-    applyGlobalMacroSymbols(settings.macroSymbols);
+    applyUserDefinedMacroSymbols(IntrinsicGlobalMacroProvider, settings.macroSymbols);
     installIntrinsicSymbols(settings.intrinsicSymbols);
     updateIgnoredCompletionTokens(settings);
     setupFilePatterns(settings);

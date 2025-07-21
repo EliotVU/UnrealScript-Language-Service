@@ -10,6 +10,7 @@ import { createDocumentByPath, createPackageByDir, getDocumentById, removeDocume
 import { toName } from '../../name';
 import { getTokenDebugInfo } from '../../Parser/Parser.utils';
 import { CORE_PACKAGE, TRANSIENT_PACKAGE } from '../../Symbols';
+import { UCLexer } from '../../antlr/generated/UCLexer';
 
 export function registerDocuments(
     baseDir: string,
@@ -107,12 +108,15 @@ export function assertTokens(
     }
 
     const parseData = document.parse(text);
+
     const tokens = (<CommonTokenStream>parseData.parser.inputStream).getTokens();
+    if (tokens.length > 0 && tokens.at(-1).type !== UCLexer.EOF) {
+        fail('EOF token not found.');
+    }
 
     try {
         for (let i = 0; i < tokens.length; ++i) {
             let token: Partial<Token>;
-
             if (typeof tokenSequence[i] === 'number') {
                 token = {
                     text: undefined,

@@ -507,6 +507,12 @@ async function buildCompletionItems(
         return undefined;
     }
 
+    if (carretToken.channel === UCLexer.MACRO ||
+        carretToken.channel === -1 // processed
+    ) {
+        return undefined;
+    }
+
     let leadingToken = carretToken;
     // Skip ahead one token for any of these tokens
     if (leadingToken.type === UCLexer.OPEN_PARENS
@@ -570,11 +576,11 @@ async function buildCompletionItems(
 
     let candidates: c3.CandidatesCollection;
     try {
-        const timeOut = setTimeout(() => {
-            throw new Error('c3 timeout');
-        }, 300);
-
         candidates = await new Promise<c3.CandidatesCollection>((resolve, reject) => {
+            const timeOut = setTimeout(() => {
+                reject(new Error('c3 timeout'));
+            }, 300);
+
             setImmediate(() => {
                 let candidates = cc.collectCandidates(leadingToken.tokenIndex, scopeRuleContext);
                 if (candidates.rules.size === 0 && scopeRuleContext !== carretRuleContext) {
@@ -587,11 +593,10 @@ async function buildCompletionItems(
                     }
                 }
 
+                clearTimeout(timeOut);
                 resolve(candidates);
             });
         });
-
-        clearTimeout(timeOut);
     } catch (err) {
         console.error('c3 collecting candidates error %s', err);
         candidates = {

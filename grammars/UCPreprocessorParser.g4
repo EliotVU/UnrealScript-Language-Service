@@ -6,20 +6,35 @@ options {
 
 @parser::header {
     import { MacroSymbol, MacroProvider } from '../../Parser/MacroProvider';
+
+    export class MacroState {
+        private stack: boolean[] = [];
+
+        push(state: boolean): void {
+            this.stack.push(state);
+        }
+
+        pop(): void {
+            this.stack.pop();
+        }
+
+        peek(): boolean {
+            return this.stack.length === 0 || this.stack[this.stack.length - 1];
+        }
+
+        isActive(): boolean {
+            return this.stack.every(c => c === true);
+        }
+
+        isNeutral(): boolean {
+            return this.stack.length === 0;
+        }
+    }
 }
 
 @parser::members {
     macroProvider: MacroProvider;
-
-    currentState: boolean[] = [true];
-
-    getCurrentState(): boolean {
-        return this.currentState.length === 0 || this.currentState.every(c => c === true);
-    }
-
-    peekCurrentState(): boolean {
-        return this.currentState.length === 0 || this.currentState[this.currentState.length - 1];
-    }
+    macroState: MacroState;
 }
 
 macroProgram: macroExpression* EOF;
@@ -51,23 +66,13 @@ macroExpression returns[value: string]
     { $value = $macroPrimaryExpression.value; }
     | MACRO_CHAR expr=macroPrimaryExpression
     { $value = $macroPrimaryExpression.value; }
+    | MACRO_CHAR { throw new RecognitionException (undefined, this._input); }
     ;
 
-macroPrimaryExpression returns[value: string]
-    : macroInvocation
-    {
-        $value = $macroInvocation.value;
-    }
-    | macroSecondaryExpression
-    {
-        $value = $macroSecondaryExpression.value;
-    }
-    ;
-
-macroSecondaryExpression returns[isActive: boolean, value: string]
+macroPrimaryExpression returns[isActive: boolean, value: string]
     : MACRO_DEFINE MACRO_DEFINE_SYMBOL (OPEN_PARENS params=macroParameters CLOSE_PARENS)? MACRO_TEXT?
     {
-        $isActive = this.getCurrentState();
+        $isActive = this.macroState.isActive();
         if ($isActive) {
             const symbolToken = $MACRO_DEFINE_SYMBOL;
             const id = symbolToken && symbolToken.text;
@@ -87,7 +92,7 @@ macroSecondaryExpression returns[isActive: boolean, value: string]
     } # macroDefine
     | MACRO_UNDEFINE (OPEN_PARENS arg=macroArgument CLOSE_PARENS)
     {
-        $isActive = this.getCurrentState();
+        $isActive = this.macroState.isActive();
         if ($isActive) {
             const symbolToken = $macroArgument.value;
             const id = symbolToken;
@@ -98,76 +103,78 @@ macroSecondaryExpression returns[isActive: boolean, value: string]
     } # macroUndefine
     | MACRO_IF (OPEN_PARENS arg=macroExpression CLOSE_PARENS)
     {
-        $isActive = this.getCurrentState()
+        $isActive = this.macroState.isActive()
             && typeof $macroExpression.value === 'string'
             && $macroExpression.value.length > 0
             && $macroExpression.value !== '0'
             && $macroExpression.value.toLowerCase() !== 'false'
             ;
-        this.currentState.push($isActive);
+        this.macroState.push($isActive);
+        console.info('if push');
     } # macroIf
     | MACRO_ELSE_IF (OPEN_PARENS arg=macroExpression CLOSE_PARENS)
     {
-        if (this.peekCurrentState()) {
-            this.currentState.pop();
-            this.currentState.push(false);
+        if (this.macroState.isActive()) {
+            this.macroState.pop();
+            this.macroState.push(false);
             $isActive = false;
          } else {
-            const isActive = !!$macroExpression.value;
-            this.currentState.pop();
-            this.currentState.push(isActive);
-
-            $isActive = isActive && this.getCurrentState();
+            this.macroState.pop();
+            $isActive = this.macroState.isActive()
+                && typeof $macroExpression.value === 'string'
+                && $macroExpression.value.length > 0
+                && $macroExpression.value !== '0'
+                && $macroExpression.value.toLowerCase() !== 'false'
+                ;
+            this.macroState.push($isActive);
         }
+        console.info('if push');
     } # macroElseIf
     | MACRO_ELSE
     {
-        if (this.peekCurrentState()) {
-            this.currentState.pop();
-            this.currentState.push(false);
+        if (this.macroState.isActive()) {
+            this.macroState.pop();
+            this.macroState.push(false);
             $isActive = false;
         } else {
-            this.currentState.pop();
-            $isActive = this.getCurrentState();
-            this.currentState.push(true);
+            this.macroState.pop();
+            this.macroState.push(true);
+            $isActive = this.macroState.isActive();
         }
+        console.info('else pop');
     } # macroElse
     | MACRO_END_IF
     {
-        $isActive = this.peekCurrentState();
-        this.currentState.pop();
+        $isActive = this.macroState.isActive();
+        this.macroState.pop();
+        console.info('endif pop');
     } #macroEndIf
     | MACRO_INCLUDE (OPEN_PARENS arg=macroArgument CLOSE_PARENS)
-    { $isActive = this.peekCurrentState(); } #macroInclude
+    {
+        $isActive = this.macroState.isActive();
+    } #macroInclude
     | MACRO_IS_DEFINED (OPEN_PARENS arg=macroArgument CLOSE_PARENS)
     {
         var id = $macroArgument.value;
         $value = id && this.macroProvider.getSymbol(id.toLowerCase()) ? '1' : '';
-        $isActive = this.peekCurrentState();
+        $isActive = this.macroState.isActive();
     } #macroIsDefined
     | MACRO_NOT_DEFINED (OPEN_PARENS arg=macroArgument CLOSE_PARENS)
     {
         var id = $macroArgument.value;
         $value = id && this.macroProvider.getSymbol(id.toLowerCase()) ? '' : '1';
-        $isActive = this.peekCurrentState();
+        $isActive = this.macroState.isActive();
     } # macroIsNotDefined
     // Commented out (hardcoded in PreprocessorMacroTransformer.ts), because for some reason the parser does not respect the conditional...
     // | macro=MACRO_SYMBOL { $macro && $macro.text === '__LINE__' }?
-    // { $isActive = this.peekCurrentState(); } # macroSymbolLine
+    // { $isActive = this.macroState.isActive(); } # macroSymbolLine
     // Commented out (hardcoded in PreprocessorMacroTransformer.ts), because for some reason the parser does not respect the conditional...
     // | macro=MACRO_SYMBOL { $macro && $macro.text === '__FILE__' }?
-    // { $isActive = this.peekCurrentState(); } # macroSymbolFile
-    ;
-
-macroInvocation returns[value: string]
-    : MACRO_SYMBOL
+    // { $isActive = this.macroState.isActive(); } # macroSymbolFile
+    | MACRO_SYMBOL (OPEN_PARENS args=macroArguments CLOSE_PARENS)?
     {
         var symbolToken = $MACRO_SYMBOL;
-        $value = symbolToken && symbolToken.text || '';
-    }
-    | MACRO_SYMBOL (OPEN_PARENS args=macroArguments? CLOSE_PARENS)
-    {
-        var symbolToken = $MACRO_SYMBOL;
-        $value = symbolToken && symbolToken.text || '';
-    }
+        $value = this.macroProvider.getSymbol(symbolToken.text.toLowerCase()) ?? '';
+        $isActive = !!$value;
+    } # macroInvoke
     ;

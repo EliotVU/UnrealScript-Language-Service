@@ -36,7 +36,39 @@ export const defaultSettings: UCLanguageServerSettings = {
     licensee: UELicensee.Epic,
     checkTypes: true,
     macroSymbols: {
-        'debug': '...'
+        "debug": "...",
+        "logd": {
+            params: [
+                "msg",
+                "cond",
+                "tag"
+            ],
+            text: "`if(`cond)if (`cond) `{endif}LogInternal(`msg`if(`tag),`tag`endif)"
+        },
+        "Log": {
+            params: [
+                "msg",
+                "cond",
+                "tag"
+            ],
+            text: "`if(`cond)if (`cond) `{endif}LogInternal(`msg`if(`tag),`tag`endif)"
+        },
+        "Warn": {
+            params: [
+                "msg",
+                "cond"
+            ],
+            text: "`if(`cond)if (`cond) `{endif}WarnInternal(`msg)"
+        },
+        "Assert": {
+            params: [
+                "cond"
+            ],
+            text: "Assert(`cond)"
+        },
+        "Date": "\"mm/dd/yy\"",
+        "Time": "\"hh:mm:ss\"",
+        "GameName": "\"MyGameName\""
     },
     intrinsicSymbols: {
 

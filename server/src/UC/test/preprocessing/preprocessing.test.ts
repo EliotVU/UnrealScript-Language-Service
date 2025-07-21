@@ -1,14 +1,15 @@
 import { expect } from "chai";
+import { applyUserDefinedMacroSymbols } from '../../../configuration';
 import { readTextByURI } from "../../../workspace";
 import { UCInputStream } from "../../Parser/InputStream";
-import { createMacroProvider } from '../../Parser/MacroProvider';
+import { createMacroProvider, MacroProvider } from '../../Parser/MacroProvider';
 import { createTokenStream } from '../../Parser/PreprocessorParser';
 import { textToTokens } from '../../Parser/preprocessor';
 import { TRANSIENT_PACKAGE, UCSymbolKind } from '../../Symbols';
 import { UCLexer } from "../../antlr/generated/UCLexer";
 import { UCParser } from '../../antlr/generated/UCParser';
 import { UCDocument } from '../../document';
-import { indexDocument, queueIndexDocument } from "../../indexer";
+import { config, indexDocument, queueIndexDocument } from "../../indexer";
 import { toName } from '../../name';
 import { assertDocumentFieldSymbol } from '../utils/codeAsserts';
 import { assertDocumentInvalidFieldsAnalysis, assertDocumentNodes, assertDocumentValidFieldsAnalysis } from '../utils/diagnosticUtils';
@@ -16,6 +17,15 @@ import { assertTokens, usingDocuments } from "../utils/utils";
 import path = require('node:path');
 
 describe("Preprocessing", () => {
+    it('should be invalid `\s', () => {
+        assertTokens(`\` \nsomecode`, [
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_INVALID, UCLexer.NEWLINE,
+            UCLexer.ID,
+
+            UCLexer.EOF
+        ]);
+    });
+
     it('should expand `__LINE__', () => {
         assertTokens(`\`__LINE__`, [
             UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL,
@@ -282,6 +292,45 @@ describe("Preprocessing", () => {
         ]);
     });
 
+    it('should expand global macros', () => {
+        const testDocument = new UCDocument('//transient', TRANSIENT_PACKAGE);
+        testDocument.macroProvider = new MacroProvider(testDocument.filePath);
+        applyUserDefinedMacroSymbols(testDocument.macroProvider, config.macroSymbols);
+
+        // `if(`cond)if (`cond) `{endif}LogInternal(`msg`if(`tag),`tag`endif)
+        assertTokens(`\`Log("message")`, [
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, UCLexer.OPEN_PARENS, UCLexer.MACRO_SYMBOL, UCLexer.CLOSE_PARENS,
+            // Should expand to:
+            /* ---- */ UCLexer.MACRO_CHAR, UCLexer.MACRO_IF, UCLexer.OPEN_PARENS, UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, UCLexer.CLOSE_PARENS,
+            /* ---- ---- */ { type: UCLexer.KW_IF, channel: UCLexer.MACRO_HIDDEN }, UCLexer.WS, UCLexer.OPEN_PARENS, UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, UCLexer.CLOSE_PARENS, UCLexer.WS,
+            /* ---- */ UCLexer.MACRO_CHAR, UCLexer.OPEN_BRACE, UCLexer.MACRO_END_IF, UCLexer.CLOSE_BRACE,
+
+            /* ---- */ UCLexer.ID, UCLexer.OPEN_PARENS,
+            /* ---- */ { type: UCLexer.STRING_LITERAL, text: '"message"' }, UCLexer.MACRO_CHAR, UCLexer.MACRO_IF, UCLexer.OPEN_PARENS,
+
+            /* ---- */ UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, UCLexer.CLOSE_PARENS, { type: UCLexer.COMMA, channel: UCLexer.MACRO_HIDDEN },
+            /* ---- */ UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, UCLexer.MACRO_CHAR, UCLexer.MACRO_END_IF, UCLexer.CLOSE_PARENS,
+
+            UCLexer.EOF
+        ], testDocument);
+
+        assertTokens(`\`Log("message",,'TagName')`, [
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, UCLexer.OPEN_PARENS, UCLexer.MACRO_SYMBOL, UCLexer.COMMA, UCLexer.COMMA, UCLexer.MACRO_SYMBOL, UCLexer.CLOSE_PARENS,
+            // Should expand to:
+            /* ---- */ UCLexer.MACRO_CHAR, UCLexer.MACRO_IF, UCLexer.OPEN_PARENS, UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, UCLexer.CLOSE_PARENS,
+            /* ---- ---- */ { type: UCLexer.KW_IF, channel: UCLexer.MACRO_HIDDEN }, UCLexer.WS, UCLexer.OPEN_PARENS, UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, UCLexer.CLOSE_PARENS, UCLexer.WS,
+            /* ---- */ UCLexer.MACRO_CHAR, UCLexer.OPEN_BRACE, UCLexer.MACRO_END_IF, UCLexer.CLOSE_BRACE,
+
+            /* ---- */ UCLexer.ID, UCLexer.OPEN_PARENS,
+            /* ---- */ { type: UCLexer.STRING_LITERAL, text: '"message"' }, UCLexer.MACRO_CHAR, UCLexer.MACRO_IF, UCLexer.OPEN_PARENS,
+
+            /* ---- */ UCLexer.NAME_LITERAL, UCLexer.CLOSE_PARENS, { type: UCLexer.COMMA, channel: UCLexer.MACRO_HIDDEN },
+            /* ---- */ UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, UCLexer.MACRO_CHAR, UCLexer.MACRO_END_IF, UCLexer.CLOSE_PARENS,
+
+            UCLexer.EOF
+        ], testDocument);
+    });
+
     it('should expand `{macro}', () => {
         const testDocument = new UCDocument('//transient', TRANSIENT_PACKAGE);
         testDocument.macroProvider = createMacroProvider(testDocument);
@@ -316,7 +365,39 @@ describe("Preprocessing", () => {
         ], testDocument);
     });
 
-    it('should process `{endif}', () => {
+    it('should process `if and `endif', () => {
+        assertTokens(`\`if(\`false)\ntrue\n\`else\nfalse\n\`endif\nsometrailingcode`, [
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_IF, UCLexer.OPEN_PARENS, UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, UCLexer.CLOSE_PARENS, UCLexer.NEWLINE,
+            /*  */ { type: UCLexer.BOOLEAN_LITERAL, channel: UCLexer.MACRO_HIDDEN }, UCLexer.NEWLINE,
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_ELSE, UCLexer.NEWLINE,
+            /*  */ { type: UCLexer.BOOLEAN_LITERAL, channel: UCLexer.DEFAULT_TOKEN_CHANNEL }, UCLexer.NEWLINE,
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_END_IF, UCLexer.NEWLINE,
+
+            { type: UCLexer.ID, channel: UCLexer.DEFAULT_TOKEN_CHANNEL },
+
+            UCLexer.EOF
+        ]);
+
+        // Define the macro, so that we can actually test the `if statement with a positive value.
+        const testDocument = new UCDocument('//transient', TRANSIENT_PACKAGE);
+        testDocument.macroProvider = createMacroProvider(testDocument);
+        testDocument.macroProvider.setSymbol('true', { text: '1' });
+
+        // Swapped
+        assertTokens(`\`if(\`true)\nfalse\n\`else\ntrue\n\`endif\nsometrailingcode`, [
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_IF, UCLexer.OPEN_PARENS, UCLexer.MACRO_CHAR, UCLexer.MACRO_SYMBOL, /**expansion*/UCLexer.INTEGER_LITERAL, UCLexer.CLOSE_PARENS, UCLexer.NEWLINE,
+            /*  */ { type: UCLexer.BOOLEAN_LITERAL, channel: UCLexer.DEFAULT_TOKEN_CHANNEL }, UCLexer.NEWLINE,
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_ELSE, UCLexer.NEWLINE,
+            /*  */ { type: UCLexer.BOOLEAN_LITERAL, channel: UCLexer.MACRO_HIDDEN }, UCLexer.NEWLINE,
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_END_IF, UCLexer.NEWLINE,
+
+            { type: UCLexer.ID, channel: UCLexer.DEFAULT_TOKEN_CHANNEL },
+
+            UCLexer.EOF
+        ], testDocument);
+    });
+
+    it('should process wrapped `{endif}', () => {
         assertTokens(`\`{endif}`, [
             UCLexer.MACRO_CHAR, UCLexer.OPEN_BRACE, UCLexer.MACRO_END_IF, UCLexer.CLOSE_BRACE,
 
@@ -359,6 +440,14 @@ describe("Preprocessing", () => {
     });
 
     it('should process `define macro text', () => {
+        assertTokens(`\`define func\n`, [
+            UCLexer.MACRO_CHAR, UCLexer.MACRO_DEFINE, UCLexer.WS,
+            { type: UCLexer.MACRO_DEFINE_SYMBOL, text: 'func' },
+
+            UCLexer.NEWLINE,
+            UCLexer.EOF
+        ]);
+
         assertTokens(`\`define func function\n\`func\n\`undefine(func)\n\`func\n`, [
             UCLexer.MACRO_CHAR, UCLexer.MACRO_DEFINE, UCLexer.WS,
             { type: UCLexer.MACRO_DEFINE_SYMBOL, text: 'func' },
@@ -406,7 +495,7 @@ describe("Preprocessing", () => {
             UCLexer.NEWLINE,
 
             // !! FIXME: Parser stops eating tokens
-            // UCLexer.EOF
+            UCLexer.EOF
         ], testDocument);
     });
 
@@ -422,7 +511,7 @@ describe("Preprocessing", () => {
             UCLexer.NEWLINE,
 
             // !! FIXME: Parser stops eating tokens
-            // UCLexer.EOF
+            UCLexer.EOF
         ], testDocument);
 
         testDocument.macroProvider.setSymbol('macro', { text: 'text' });
