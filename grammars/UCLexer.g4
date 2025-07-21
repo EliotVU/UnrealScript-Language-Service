@@ -251,7 +251,7 @@ KW_ATOMIC: 'atomic';
 KW_ATOMICWHENCOOKED: 'atomicwhencooked';
 KW_IMMUTABLE: 'immutable';
 KW_IMMUTABLEWHENCOOKED: 'immutablewhencooked';
-KM_CONSTRUCTIVE: 'constructive';
+KM_CONSTRUCTIVE: 'constructive'; // Lineage2
 KW_VIRTUAL: 'virtual';
 KW_SERVER: 'server';
 KW_CLIENT: 'client';

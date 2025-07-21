@@ -137,7 +137,8 @@
                     "type": "string",
                     "enum": [
                         "Epic",
-                        "XCom"
+                        "XCom",
+                        "Lineage2"
                     ],
                     "default": "Epic",
                     "description": "The licensee's UnrealScript edition your project is working with. Changing this value requires a restart."
