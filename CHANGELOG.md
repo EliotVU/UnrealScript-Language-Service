@@ -1,5 +1,14 @@
 # UnrealScript Language Service
 
+## 0.8.4 (October 11, 2025)
+
+This hotfix addresses problems with false-positive 'not found' errors, by suppressing errors when a type is not expected to be known at all times.
+
+- Fixed [#139](https://github.com/EliotVU/UnrealScript-Language-Service/issues/139)
+- Fixed [#196](https://github.com/EliotVU/UnrealScript-Language-Service/issues/196)
+
+Additonally, a fix for Lineage2 has been integrated by @ProjackL2
+
 ## 0.8.3 (March 27, 2025)
 
 - Fixed [#193](https://github.com/EliotVU/UnrealScript-Language-Service/issues/193)
