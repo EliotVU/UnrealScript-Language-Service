@@ -1,65 +1,5 @@
 import { DiagnosticSeverity, Range } from 'vscode-languageserver';
 
-import {
-    ArrayIterator,
-    Array_LengthProperty,
-    ClassModifierFlags,
-    ContextInfo,
-    ITypeSymbol,
-    IntrinsicClass,
-    IntrinsicClassConstructor,
-    IntrinsicEnum,
-    IntrinsicNewOperator,
-    MethodFlags,
-    StaticBoolType,
-    StaticDelegateType,
-    StaticIntType,
-    StaticMetaType,
-    StaticNameType,
-    TypeMatchFlags,
-    TypeMatchReport,
-    UCArchetypeSymbol,
-    UCArrayTypeSymbol,
-    UCClassSymbol,
-    UCConstSymbol,
-    UCConversionCost,
-    UCDelegateSymbol,
-    UCDelegateTypeSymbol,
-    UCEnumMemberSymbol,
-    UCEnumSymbol,
-    UCInterfaceSymbol,
-    UCMethodSymbol,
-    UCObjectTypeSymbol,
-    UCParamSymbol,
-    UCPropertySymbol,
-    UCQualifiedTypeSymbol,
-    UCScriptStructSymbol,
-    UCStateSymbol,
-    UCStructSymbol,
-    UCSymbolKind,
-    UCTypeKind,
-    areDescendants,
-    areIdentityMatch,
-    areMethodsCompatible,
-    getBinaryOperatorConversionCost,
-    getConversionCost,
-    getOperatorsByName,
-    isArrayTypeSymbol,
-    isClass,
-    isDelegateSymbol,
-    isEnumSymbol,
-    isEnumTagSymbol,
-    isField,
-    isFixedArrayTypeSymbol,
-    isFunction,
-    isMethodSymbol,
-    isStateSymbol,
-    isStruct,
-    resolveType,
-    typesMatch,
-    type ISymbol,
-} from '../Symbols';
-import { ModifierFlags } from '../Symbols/ModifierFlags';
 import { UCDocument } from '../document';
 import {
     IExpression,
@@ -108,6 +48,69 @@ import {
     UCSwitchStatement,
     UCWhileStatement,
 } from '../statements';
+import {
+    ArrayIterator,
+    Array_LengthProperty,
+    ClassModifierFlags,
+    ContextInfo,
+    ITypeSymbol,
+    IntrinsicClass,
+    IntrinsicClassConstructor,
+    IntrinsicEnum,
+    IntrinsicMaterial,
+    IntrinsicNewOperator,
+    IntrinsicTexture,
+    MethodFlags,
+    StaticBoolType,
+    StaticDelegateType,
+    StaticIntType,
+    StaticMetaType,
+    StaticNameType,
+    TypeMatchFlags,
+    TypeMatchReport,
+    UCArchetypeSymbol,
+    UCArrayTypeSymbol,
+    UCClassSymbol,
+    UCConstSymbol,
+    UCConversionCost,
+    UCDelegateSymbol,
+    UCDelegateTypeSymbol,
+    UCEnumMemberSymbol,
+    UCEnumSymbol,
+    UCInterfaceSymbol,
+    UCMethodSymbol,
+    UCObjectTypeSymbol,
+    UCParamSymbol,
+    UCPropertySymbol,
+    UCQualifiedTypeSymbol,
+    UCScriptStructSymbol,
+    UCStateSymbol,
+    UCStructSymbol,
+    UCSymbolKind,
+    UCTypeKind,
+    areDescendants,
+    areIdentityMatch,
+    areMethodsCompatible,
+    getBinaryOperatorConversionCost,
+    getConversionCost,
+    getOperatorsByName,
+    hasDefinedBaseType,
+    isArrayTypeSymbol,
+    isClass,
+    isDelegateSymbol,
+    isEnumSymbol,
+    isEnumTagSymbol,
+    isField,
+    isFixedArrayTypeSymbol,
+    isFunction,
+    isMethodSymbol,
+    isPackage,
+    isStateSymbol,
+    isStruct,
+    resolveType,
+    typesMatch,
+} from '../Symbols';
+import { ModifierFlags } from '../Symbols/ModifierFlags';
 import { DefaultSymbolWalker } from '../symbolWalker';
 import { DiagnosticCollection, createExpectedTypeMessage, createTypeCannotBeAssignedToMessage, symbolKindToDisplayString, typeToDisplayString } from './diagnostic';
 import * as diagnosticMessages from './diagnosticMessages.json';
@@ -207,9 +210,19 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
     }
 
     override visitQualifiedType(symbol: UCQualifiedTypeSymbol) {
-        symbol.left?.accept(this);
-        if (symbol.left && !symbol.left.getRef()) {
-            return;
+        if (symbol.left) {
+            symbol.left.accept(this);
+
+            const referredSymbol = symbol.left.getRef();
+            if (!referredSymbol) {
+                // Suppress multiple 'not found' errors.
+                return;
+            }
+
+            if (isPackage(referredSymbol) && (referredSymbol.flags & ModifierFlags.Imported)) {
+                // Suppress errors for imported packages.
+                return;
+            }
         }
         symbol.type.accept(this);
     }
@@ -1551,6 +1564,18 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
                 if (report <= 0) {
                     // Produce a more specific warning for incompatible classes.
                     if (report === TypeMatchReport.ClassMismatch || report === TypeMatchReport.MetaClassMismatch) {
+                        // Be silent about unresolved base types (Class<baseType>, Class'unresolved' etc)
+                        // Note for non-base types, the suppression is handled within 'typesMatch',
+                        // but we won't handle this case there,
+                        // because, it's still useful for non-analytical purposes.
+                        if (hasDefinedBaseType(letType) && letType.baseType.getTypeKind() === UCTypeKind.Error) {
+                            return;
+                        }
+
+                        if (hasDefinedBaseType(valueType) && valueType.baseType.getTypeKind() === UCTypeKind.Error) {
+                            return;
+                        }
+
                         this.diagnostics.add({
                             range: expr.range,
                             message: {
@@ -1596,10 +1621,21 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
 
             if (!expr.type) {
                 if (this.context) {
+                    // No #exec import for UE3
+                    if (config.generation != UCGeneration.UC3) {
+                        const classSymbol = this.state.contextType.getRef(); // allegedly...
+                        if (classSymbol &&
+                            (classSymbol.id.name === IntrinsicTexture.id.name ||
+                            classSymbol.id.name === IntrinsicMaterial.id.name)) {
+                            // shush... too many of these for now, due them being common as imports.
+                            return;
+                        }
+                    }
+
                     this.diagnostics.add({
                         range: expr.range,
                         message: {
-                            text: diagnosticMessages.ID_0_DOES_NOT_EXIST_ON_TYPE_1.text,
+                            text: diagnosticMessages.COULDNT_FIND_0.text,
                             severity: DiagnosticSeverity.Error
                         },
                         args: [expr.id.name.text, this.context.getPath()]
@@ -1666,19 +1702,23 @@ export class DocumentAnalyzer extends DefaultSymbolWalker<void> {
             expr.arguments?.forEach(arg => arg?.accept(this));
         } else if (expr instanceof UCObjectLiteral) {
             // TODO: verify class type by inheritance
-            const classSymbol = expr.classRef.getRef();
+            const classSymbol = expr.classType.getRef();
             if (typeof classSymbol === 'undefined') {
+                // FIXME: If one is misspells Material as 'Materail', there won't be any errors.
+                // but, on the other hand, if we are to produce errors for this,
+                // then it'll bombard the user for missing intrinsic classes.
+
                 // Let's not validate the object reference if we have no class reference.
                 return;
             }
 
-            expr.classRef.accept(this);
-            const objectSymbol = expr.classRef.baseType?.getRef();
+            expr.classType.accept(this);
+            const objectSymbol = expr.classType.baseType?.getRef();
             if (config.checkTypes && objectSymbol) {
                 if (classSymbol === IntrinsicClass && !(isClass(objectSymbol))) {
-                    this.pushError(expr.classRef.id.range, `Type of '${objectSymbol.getPath()}' is not a Class.`);
+                    this.pushError(expr.classType.id.range, `Type of '${objectSymbol.getPath()}' is not a Class.`);
                 } else if (classSymbol === IntrinsicEnum && !(isEnumSymbol(objectSymbol))) {
-                    this.pushError(expr.classRef.id.range, `Type of '${objectSymbol.getPath()}' is not an Enum.`);
+                    this.pushError(expr.classType.id.range, `Type of '${objectSymbol.getPath()}' is not an Enum.`);
                 }
             }
         } else if (expr instanceof UCArrayCountExpression) {

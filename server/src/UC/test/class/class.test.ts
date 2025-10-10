@@ -13,8 +13,9 @@ describe("ClassSymbol usage", () => {
                 "MyBaseClass.uc",
                 "MyExtendedWithinClassTest.uc",
                 "MyWithinClass.uc",
+                "ObjectLiteralTest.uc"
             ],
-            ([_, MyExtendedWithinClassTest]) => {
+            ([, MyExtendedWithinClassTest,, ObjectLiteralTest]) => {
                 queueIndexDocument(MyExtendedWithinClassTest);
                 assertDocumentValidFieldsAnalysis(
                     MyExtendedWithinClassTest,
@@ -24,6 +25,10 @@ describe("ClassSymbol usage", () => {
                     MyExtendedWithinClassTest,
                     /\bShouldBeInvalid/i
                 );
+
+                queueIndexDocument(ObjectLiteralTest);
+                assertDocumentValidFieldsAnalysis(ObjectLiteralTest, /\bShould(?!BeInvalid)/i);
+                assertDocumentInvalidFieldsAnalysis(ObjectLiteralTest, /\bShouldBeInvalid/i);
             }
         );
     });

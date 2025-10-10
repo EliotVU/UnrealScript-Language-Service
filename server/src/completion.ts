@@ -51,6 +51,7 @@ import {
     isPackage,
     isProperty,
     isQualifiedType,
+    isQualifiedTypeSymbol,
     isStateSymbol,
     isStruct,
     isTypeSymbol,
@@ -1203,10 +1204,15 @@ async function buildCompletionItems(
 
                     case UCParser.RULE_constDecl:
                     case UCParser.RULE_enumDecl:
-                    case UCParser.RULE_enumMember:
-                    case UCParser.RULE_structDecl: {
+                    case UCParser.RULE_enumMember: {
                         // Suggest general text.
                         return undefined;
+                    }
+
+                    case UCParser.RULE_structDecl: {
+                        shouldIncludeTokenKeywords = true; // may be toggled off when writing an inline struct.
+
+                        break;
                     }
 
                     case UCParser.RULE_stateDecl: {
@@ -1308,8 +1314,11 @@ async function buildCompletionItems(
                     }
 
                     case UCParser.RULE_variable: {
-                        // this would be nice, but this condition is also true when writing the 'typeDecl'
-                        // return;
+                        if (candidates.rules.size == 1) {
+                            // Suggest general text.
+
+                            return undefined;
+                        }
 
                         break;
                     }
@@ -1462,7 +1471,7 @@ async function buildCompletionItems(
                     case UCParser.RULE_typeDecl: {
                         let contextSymbol: ISymbol | undefined;
                         if (carretContextSymbol) {
-                            if (UCQualifiedTypeSymbol.is(carretContextSymbol)) {
+                            if (isQualifiedTypeSymbol(carretContextSymbol)) {
                                 contextSymbol = carretContextSymbol.left?.getRef();
                             } else if (isTypeSymbol(carretContextSymbol)) {
                                 contextSymbol = carretContextSymbol.getRef();

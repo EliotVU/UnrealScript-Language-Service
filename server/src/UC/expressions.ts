@@ -13,6 +13,7 @@ import {
     Identifier,
     IntrinsicClass,
     IntrinsicClassConstructor,
+    IntrinsicInterface,
     IntrinsicNewOperator,
     IntrinsicObject,
     IntrinsicRngLiteral,
@@ -35,7 +36,6 @@ import {
     StaticErrorType,
     StaticMetaType,
     StaticNoneType,
-    StaticObjectType,
     StaticRangeType,
     StaticRotatorType,
     StaticVectorType,
@@ -48,7 +48,6 @@ import {
     UCNodeKind,
     UCObjectSymbol,
     UCObjectTypeSymbol,
-    UCPackage,
     UCQualifiedTypeSymbol,
     UCStructSymbol,
     UCSymbolKind,
@@ -60,8 +59,6 @@ import {
     findOverloadedPreOperator,
     findSuperStructSymbol,
     getContext,
-    getSymbolHash,
-    getSymbolOuterHash,
     hasDefinedBaseType,
     isArchetypeSymbol,
     isArrayTypeSymbol,
@@ -69,21 +66,22 @@ import {
     isFunction,
     isOperator,
     isProperty,
-    isQualifiedType,
+    isQualifiedTypeSymbol,
     isStateSymbol,
     isStruct,
     resolveElementType,
     resolveType,
     tryFindClassSymbol,
+    tryFindQualifiedObjectSymbol,
     type UCFieldSymbol,
 } from './Symbols';
 import { ModifierFlags } from './Symbols/ModifierFlags';
 import { UCDocument } from './document';
 import { intersectsWith } from './helpers';
-import { config, getConstSymbol, getEnumMember } from './indexer';
+import { config, findOrIndexDocument, getConstSymbol, getEnumMember } from './indexer';
 import { NAME_CLASS, NAME_OUTER, NAME_ROTATOR, NAME_STRUCT, NAME_VECTOR } from './names';
-import { SymbolWalker } from './symbolWalker';
 import { UCGeneration } from './settings';
+import { SymbolWalker } from './symbolWalker';
 
 export interface IExpression extends INode, IWithInnerSymbols {
     /**
@@ -1411,7 +1409,7 @@ export class UCIntLiteral extends UCLiteral {
 }
 
 /**
- * Represents an expression `Identifier'QualifiedIdentifier'` as `classRef'classRef.baseType'`
+ * Represents an expression `Identifier'QualifiedIdentifier'` as `classType'classType.baseType'`
  *
  * e.g.
  * ```UnrealScript
@@ -1424,76 +1422,72 @@ export class UCIntLiteral extends UCLiteral {
 export class UCObjectLiteral extends UCLiteral {
     /**
      * The class specifier in the literal, i.e. Class for Class'MyClass'.
-     * @property classRef.baseType should represent the object reference.
+     * @property classType.baseType should represent the object reference.
      **/
-    public classRef: UCObjectTypeSymbol<UCQualifiedTypeSymbol | UCObjectTypeSymbol>;
+    public classType: UCObjectTypeSymbol<UCQualifiedTypeSymbol | UCObjectTypeSymbol>;
 
     override getMemberSymbol() {
-        return this.classRef;
+        return this.classType;
     }
 
     override getType() {
-        return this.classRef;
+        return this.classType;
     }
 
     override getContainedSymbolAtPos(position: Position) {
-        return this.classRef.getContainedSymbolAtPos(position);
+        return this.classType.getContainedSymbolAtPos(position);
     }
 
     override index(document: UCDocument, context: UCStructSymbol) {
-        const classSymbol = tryFindClassSymbol(this.classRef.id.name);
+        const classSymbol = tryFindClassSymbol(this.classType.id.name);
         if (!classSymbol) {
             return;
         }
 
-        this.classRef.setRef(classSymbol, document);
+        this.classType.setRef(classSymbol, document);
 
-        const objectRefType = this.classRef.baseType;
-        if (!objectRefType) {
+        const objectType = this.classType.baseType;
+        if (!objectType) { // no base type means we have `Class''`
             return;
         }
 
-        // TODO: Implement StaticClass logic, so we can properly fetch the correct object by hash.
+        // FIXME: Hacky solution, but, when lazy indexing is enabled, let's first see if the reference is a potential class that we haven't indexed yet.
+        // - this way we can ensure that the next qualified lookup may succeed.
+        const objectName = objectType.getName();
+        // e.g. `Class|Interface'Engine.Admin'`, but not any class like `Property'Engine.AdminBase.bAdmin'`
+        if ((classSymbol.kind === UCSymbolKind.Class && classSymbol === IntrinsicClass) ||
+            (classSymbol.kind === UCSymbolKind.Interface && classSymbol === IntrinsicInterface)) {
+            // Also don't use this symbol as a reference, because, it may be an ambigiuous match.
+            // -- So we must still perform the hash-lookup below.
+            findOrIndexDocument(objectName);
+        }
 
-        if (isQualifiedType(objectRefType)) {
-            for (let next: UCQualifiedTypeSymbol | undefined = objectRefType; next; next = next.left) {
-                let symbol: ISymbol | undefined;
-                if (next.left) {
-                    const hash = getSymbolOuterHash(getSymbolHash(next), getSymbolHash(next.left));
-                    symbol = OuterObjectsTable.getSymbol(hash, classSymbol.kind);
-                } else {
-                    const hash = getSymbolHash(next);
-                    symbol = ObjectsTable.getSymbol<UCPackage>(hash, UCSymbolKind.Package);
-                }
-                if (symbol) {
-                    next.type.setRef(symbol, document);
-                }
-            }
+        if (isQualifiedTypeSymbol(objectType)) {
+            tryFindQualifiedObjectSymbol(objectType, this.classType, ((objectSymbol, objectTypeSymbol) => {
+                objectTypeSymbol.setRef(objectSymbol, document);
+            }));
 
             return;
         }
 
-        let symbol: ISymbol | undefined = undefined;
-
-        const objectName = objectRefType.getName();
-        symbol = tryFindClassSymbol(objectName)
-            ?? ObjectsTable.getSymbol(objectName, classSymbol.kind)
-            // FIXME: Hacky case for literals like Property'TempColor', only enums and structs are added to the objects table.
+        const symbol: ISymbol | undefined = ObjectsTable.getSymbol<UCObjectSymbol>(objectName, classSymbol.kind)
+            // FIXME: Hacky case for literals like Property'TempColor'
+            // -- only enums and structs are added to the objects table.
             ?? context.findSuperSymbol(objectName);
 
         if (symbol) {
-            objectRefType.setRef(symbol, document);
+            objectType.setRef(symbol, document);
         }
     }
 
     override getValue() {
-        const classRef = this.classRef.getRef();
+        const classRef = this.classType.getRef();
         if (typeof classRef === 'undefined') {
             return 'None';
         }
 
-        const objectRef = this.classRef.baseType?.getRef();
-        return `${this.classRef.getName().text}'${objectRef?.getPath() ?? 'None'}'`;
+        const objectRef = this.classType.baseType?.getRef();
+        return `${this.classType.getName().text}'${objectRef?.getPath() ?? 'None'}'`;
     }
 
     override toString() {

@@ -21,6 +21,7 @@ import {
 } from 'vscode-languageserver/node';
 
 import { executeCommand, getCommand, getCommands } from 'commands';
+import { EAnalyzeOption, type UCLanguageServerSettings } from 'configuration';
 import { getDocumentDefinition } from 'documentDefinition';
 import { getDocumentRenameEdit } from 'rename';
 import { ActiveTextDocuments } from './activeTextDocuments';
@@ -31,7 +32,6 @@ import {
     getSignatureHelp,
     updateIgnoredCompletionTokens,
 } from './completion';
-import { EAnalyzeOption, UCLanguageServerSettings } from './configuration';
 import { getDocumentDiagnostics } from './documentDiagnostics';
 import { getDocumentHighlights } from './documentHighlight';
 import { getDocumentHover } from './documentHover';
@@ -76,6 +76,7 @@ import {
     IntrinsicArray,
     isClass,
     isField,
+    isQualifiedTypeSymbol,
     ObjectsTable,
     tryFindClassSymbol,
     tryFindSymbolInPackage,
@@ -168,6 +169,8 @@ function createPackageFromPath(filePath: string): UCPackage {
     const ext = path.extname(filePath);
     const fileName = path.basename(filePath, ext);
     const pkg = createPackage(fileName);
+    pkg.flags = ModifierFlags.Imported;
+    pkg.filePath = filePath;
     return pkg;
 }
 
@@ -898,7 +901,7 @@ function installIntrinsicSymbols(intrinsicSymbols: IntrinsicSymbolItemMap) {
     // FIXME: We cannot pass these to an indexer, because we need a document for that :(
     classSymbols.forEach(symbol => {
         if (symbol.extendsType) {
-            if (UCQualifiedTypeSymbol.is(symbol.extendsType)) {
+            if (isQualifiedTypeSymbol(symbol.extendsType)) {
                 const parentClassPackage = ObjectsTable.getSymbol<UCPackage>(symbol.extendsType.left!.getName(), UCSymbolKind.Package);
                 if (parentClassPackage) {
                     const parentClass = tryFindSymbolInPackage(symbol.extendsType.type.getName(), parentClassPackage);

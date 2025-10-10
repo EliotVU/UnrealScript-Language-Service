@@ -90,6 +90,7 @@ import {
     addHashedSymbol,
     DEFAULT_RANGE,
     getOuter,
+    getSymbolOuterHash,
     hasNoKind,
     Identifier,
     isStatement,
@@ -102,6 +103,7 @@ import {
     Object_NameProperty,
     Object_NamePropertyHash,
     OuterObjectsTable,
+    removeHashedSymbol,
     StaticErrorType,
     StaticNameType,
     UCArchetypeSymbol,
@@ -520,7 +522,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         if (typeof symbol === 'undefined'
             || symbol.id.name !== symbolIdentifier.name
             || areRangesIdentical(symbol.range, symbolRange) === false) {
+            if (symbol) {
+                removeHashedSymbol(symbol);
+            }
             symbol = new UCClassSymbol(symbolIdentifier, symbolRange);
+            symbol.outer = this.document.classPackage; // important, must be set before the call to 'addHashedSymbol'
             this.document.class = symbol; // Important!, must be assigned before further parsing.
             addHashedSymbol(symbol);
         } else {
@@ -533,9 +539,11 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
             symbol.operators = undefined;
             symbol.block = undefined;
             symbol.labels = undefined;
+            // because, document invalidation removes all hashed objects.
+            // -- yes pretty stupid ¯\(°_o)/¯
+            addHashedSymbol(symbol);
         }
 
-        symbol.outer = this.document.classPackage;
         this.declare(symbol, ctx);
 
         const extendsNode = ctx.qualifiedExtendsClause();
@@ -2009,7 +2017,7 @@ export class DocumentASTWalker extends AbstractParseTreeVisitor<any> implements 
         const classReferenceType = new UCObjectTypeSymbol<UCQualifiedTypeSymbol | UCObjectTypeSymbol>(createIdentifier(ctx._classRef), undefined, UCSymbolKind.Class);
         classReferenceType.flags = ModifierFlags.ReadOnly;
         classReferenceType.baseType = createTypeFromIdentifiers(identifiers);
-        expression.classRef = classReferenceType;
+        expression.classType = classReferenceType;
 
         return expression;
     }

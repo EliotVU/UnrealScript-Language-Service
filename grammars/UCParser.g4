@@ -5,9 +5,11 @@ options {
 }
 
 @header {
+    /** Licensee engine branch. */
     export const enum Licensee {
         Epic = 'Epic',
-        XCom = 'XCom'
+        XCom = 'XCom',
+        Lineage2 = 'Lineage2'
     }
 }
 
@@ -216,6 +218,7 @@ identifier
 	| 'atomicwhencooked'
 	| 'immutable'
 	| 'immutablewhencooked'
+	| 'constructive' // Lineage2
 	| 'virtual'
 	| 'server'
 	| 'client'
@@ -359,8 +362,8 @@ classModifier
 	| { this.generation >= 2 }? 'dependson'
         // Multiple arguments starting with UC3
         (OPEN_PARENS identifierArguments CLOSE_PARENS)                                              #dependsOnModifier
-	| { this.generation >= 2 }? 'collapsecategories' modifierArguments                              #collapsecategoriesModifier
-	| { this.generation >= 2 }? 'dontcollapsecategories' modifierArguments?                         #dontcollapsecategoriesModifier
+	| { this.generation >= 2 }? 'collapsecategories'                                                #collapsecategoriesModifier
+	| { this.generation >= 2 }? 'dontcollapsecategories'                                            #dontcollapsecategoriesModifier
 	| { this.generation >= 2 }? 'showcategories' modifierArguments                                  #showcategoriesModifier
 	| { this.generation >= 2 }? 'hidecategories' modifierArguments                                  #hidecategoriesModifier
 	| { this.generation < 3 }? 'guid'
@@ -502,6 +505,7 @@ structModifier
 	| { this.generation === 3 }? 'atomicwhencooked'
 	| { this.generation === 3 }? 'immutable'
 	| { this.generation === 3 }? 'immutablewhencooked'
+	| { this.licensee === Licensee.Lineage2 }? 'constructive'
 	;
 
 arrayDimRefer

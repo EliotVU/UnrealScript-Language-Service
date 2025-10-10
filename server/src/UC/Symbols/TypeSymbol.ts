@@ -596,6 +596,7 @@ export class UCQualifiedTypeSymbol implements ITypeSymbol {
         this.range = type.id.range;
     }
 
+    /** @deprecated */
     static is(symbol: ISymbol): symbol is UCQualifiedTypeSymbol {
         return Object.prototype.hasOwnProperty.call(symbol, 'type');
     }
@@ -1410,6 +1411,11 @@ export function isFixedArrayTypeSymbol(symbol: ISymbol): symbol is ITypeSymbol {
     return isTypeSymbol(symbol) && !!(symbol.arrayDimension && symbol.arrayDimension > 1);
 }
 
+/** @deprecated Use isQualifiedTypeSymbol instead. */
 export function isQualifiedType(symbol?: ISymbol): symbol is UCQualifiedTypeSymbol {
     return symbol instanceof UCQualifiedTypeSymbol;
+}
+
+export function isQualifiedTypeSymbol(symbol: ISymbol): symbol is UCQualifiedTypeSymbol {
+    return isTypeSymbol(symbol) && Object.hasOwn(symbol, 'type');
 }
