@@ -1,7 +1,8 @@
-import { type Position, Location } from 'vscode-languageserver';
+import { Location, LocationLink, type Definition, type DefinitionLink, type Position } from 'vscode-languageserver';
+import { URI } from 'vscode-uri';
 import type { UCDocument } from './UC/document';
 import { getDocumentSymbol, getSymbolDocument, resolveSymbolToRef } from './UC/helpers';
-import type { ISymbol } from './UC/Symbols';
+import { DEFAULT_RANGE, isPackage, type ISymbol } from './UC/Symbols';
 
 /**
  * Returns a `Location` that represents the definition at a given position within the document.
@@ -11,7 +12,7 @@ import type { ISymbol } from './UC/Symbols';
 export async function getDocumentDefinition(
     document: UCDocument,
     position: Position
-): Promise<Location | undefined> {
+): Promise<Definition | DefinitionLink[] | undefined> {
     const symbol = getDocumentSymbol(document, position);
     if (!symbol) {
         return undefined;
@@ -26,10 +27,15 @@ export async function getDocumentDefinition(
 export function getSymbolDocumentDefinition(
     document: UCDocument, // placeholder
     symbol: ISymbol
-): Location | undefined {
+): Definition | DefinitionLink[] | undefined {
     const symbolRef = resolveSymbolToRef(symbol);
     if (!symbolRef) {
         return undefined;
+    }
+
+    if (isPackage(symbolRef) && typeof symbolRef.filePath === 'string') {
+        const uri = URI.file(symbolRef.filePath).toString();
+        return [LocationLink.create(uri, DEFAULT_RANGE, DEFAULT_RANGE)];
     }
 
     const externalDocument = getSymbolDocument(symbolRef);

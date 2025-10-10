@@ -27,6 +27,9 @@ export abstract class UCFieldSymbol extends UCObjectSymbol {
         if (this.modifiers & ModifierFlags.Generated) {
             return '(generated)';
         }
+        if (this.modifiers & ModifierFlags.Imported) {
+            return '(imported)';
+        }
         return undefined;
     }
 

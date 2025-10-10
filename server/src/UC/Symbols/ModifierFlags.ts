@@ -84,6 +84,9 @@ export const enum ModifierFlags {
     /** The field is marked as 'deprecated' */
     Deprecated = 1 << 21,
 
+    /** The field is an imported symbol, such as from an external package like a '.u' file. */
+    Imported = 1 << 22,
+
     // A private method can however be re-defined!
     NonOverridable = Private | Intrinsic,
 

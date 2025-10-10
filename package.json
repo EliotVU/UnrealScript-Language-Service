@@ -2,7 +2,7 @@
     "name": "uc",
     "description": "UnrealScript Language support",
     "displayName": "UnrealScript",
-    "version": "0.8.3",
+    "version": "0.8.4",
     "author": {
         "name": "Eliot van Uytfanghe",
         "url": "https://EliotVU.com"
@@ -53,23 +53,26 @@
         "syntaxes": "file:syntaxes"
     },
     "devDependencies": {
-        "@tsconfig/recommended": "^1.0.8",
-        "@types/node": "^22.13.13",
-        "@typescript-eslint/eslint-plugin": "^8.28.0",
-        "@typescript-eslint/parser": "^8.28.0",
+        "@tsconfig/recommended": "^1.0.10",
+        "@types/node": "^24.7.1",
+        "@typescript-eslint/eslint-plugin": "^8.46.0",
+        "@typescript-eslint/parser": "^8.46.0",
+        "@vscode/test-cli": "^0.0.12",
+        "@vscode/test-electron": "^2.5.2",
         "antlr4ts-cli": "0.5.0-alpha.4",
-        "esbuild": "^0.25.1",
-        "eslint": "^9.23.0",
-        "gulp": "^5.0.0",
+        "esbuild": "^0.25.10",
+        "esbuild-runner": "^2.2.2",
+        "eslint": "^9.37.0",
+        "gulp": "^5.0.1",
         "mocha-explorer-launcher-scripts": "^0.4.0",
         "rimraf": "^6.0.1",
-        "ts-loader": "^9.5.2",
-        "ts-node": "^10.9.2",
-        "typescript": "^5.8.2",
+        "ts-loader": "^9.5.4",
+        "typescript": "^5.9.3",
         "typescript-eslint-language-service": "^5.0.5",
         "yaml-convert": "^1.0.1"
     },
     "scripts": {
+        "vscode:test": "vscode-test",
         "vscode:prepublish": "npm run build",
         "build": "npm run clean && npx gulp && npm run compile:grammar && npm run compile:preprocessor && npm run compile -- --minify --define:process.env.NODE_ENV=\\\"production\\\" && npm run compile:syntax",
         "compile": "npx esbuild ./client/src/extension.ts ./server/src/server.ts --color --bundle --outdir=out --entry-names=[name] --chunk-names=vendor --format=cjs --external:vscode --platform=node",
@@ -137,7 +140,8 @@
                     "type": "string",
                     "enum": [
                         "Epic",
-                        "XCom"
+                        "XCom",
+                        "Lineage2"
                     ],
                     "default": "Epic",
                     "description": "The licensee's UnrealScript edition your project is working with. Changing this value requires a restart."

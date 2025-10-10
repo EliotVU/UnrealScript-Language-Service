@@ -20,7 +20,6 @@ import {
     UCSymbolKind,
     isArchetypeSymbol,
     isClassSymbol,
-    isStruct,
     removeHashedSymbol,
 } from './Symbols';
 import { UCLexer } from './antlr/generated/UCLexer';
@@ -30,42 +29,8 @@ import { IDiagnosticNode } from './diagnostics/diagnostic';
 import { DocumentASTWalker } from './documentASTWalker';
 import { IndexedReferencesMap, applyMacroSymbols, config } from './indexer';
 import { Name, NameHash, toName } from './name';
-import { NAME_CORE, NAME_OBJECT } from './names';
 import { UCGeneration } from './settings';
 import { SymbolWalker } from './symbolWalker';
-
-function removeChildren(scope: UCStructSymbol) {
-    for (let child = scope.children; child; child = child.next) {
-        switch (child.kind) {
-            case UCSymbolKind.Enum:
-                removeHashedSymbol(child);
-                break;
-
-            case UCSymbolKind.ScriptStruct:
-                // inner structs...
-                removeChildren(child as UCStructSymbol);
-                removeHashedSymbol(child);
-                break;
-
-            case UCSymbolKind.Archetype:
-                // inner archetypes...
-                removeChildren(child as UCStructSymbol);
-                removeHashedSymbol(child);
-                break;
-        }
-    }
-
-    if (isClassSymbol(scope) && isArchetypeSymbol(scope.defaults)) {
-        removeChildren(scope.defaults);
-    }
-
-    removeHashedSymbol(scope);
-}
-
-export type DocumentParseData = {
-    context: ProgramContext | undefined;
-    parser: UCParser;
-};
 
 export class UCDocument {
     /** File name and extension. */
@@ -91,7 +56,11 @@ export class UCDocument {
 
     private readonly indexReferencesMade = new Map<NameHash, Set<SymbolReference>>();
 
-    // List of symbols, including macro declarations.
+    /**
+     * Object symbols table (the document's class, and the class fields).
+     *
+     * Includes macro declarations.
+     **/
     private readonly scope = new SymbolsTable<UCObjectSymbol>();
 
     constructor(readonly filePath: string, public readonly classPackage: UCPackage) {
@@ -260,7 +229,7 @@ export class UCDocument {
             // This however does not invoke any invalidation calls to dependencies.
             // TODO: Merge this with scope.clear();
             if (this.class) {
-                removeChildren(this.class);
+                removeIndexedObjects(this.class);
             }
         }
         // Commented out, because we will be re-using the class symbol.
@@ -282,6 +251,38 @@ export class UCDocument {
         }
         this.indexReferencesMade.clear();
         // console.info(`${this.fileName}: cleaning time ${performance.now() - startCleaning}`);
+
+        /**
+         * Removes all hashed object symbols from the global objects table, that may have been indexed by the given scope.
+         * @param scope the scope with hashed objects to unregister.
+         */
+        function removeIndexedObjects(scope: UCStructSymbol) {
+            for (let child = scope.children; child; child = child.next) {
+                switch (child.kind) {
+                    case UCSymbolKind.Enum:
+                        removeHashedSymbol(child);
+                        break;
+
+                    case UCSymbolKind.ScriptStruct:
+                        // inner structs...
+                        removeIndexedObjects(child as UCStructSymbol);
+                        removeHashedSymbol(child);
+                        break;
+
+                    case UCSymbolKind.Archetype:
+                        // inner archetypes...
+                        removeIndexedObjects(child as UCStructSymbol);
+                        removeHashedSymbol(child);
+                        break;
+                }
+            }
+
+            if (isClassSymbol(scope) && isArchetypeSymbol(scope.defaults)) {
+                removeIndexedObjects(scope.defaults);
+            }
+
+            removeHashedSymbol(scope);
+        }
     }
 
     indexReference(symbol: ISymbol, ref: SymbolReference) {
@@ -309,6 +310,12 @@ export class UCDocument {
         return visitor.visitDocument(this);
     }
 }
+
+/** Retained data of the parsed document, used for auto-completion. */
+export type DocumentParseData = {
+    context: ProgramContext | undefined;
+    parser: UCParser;
+};
 
 export function createPreprocessor(document: UCDocument, lexer: UCLexer) {
     const macroStream = new CommonTokenStream(lexer, UCLexer.MACRO);

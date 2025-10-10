@@ -21,7 +21,30 @@
                 "script": "watch",
             },
             "request": "launch",
-            "type": "extensionHost",
+            "type": "extensionHost"
+        },
+                {
+            "name": "Test Client (Build)",
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceRoot}"
+            ],
+            "testConfiguration": "${workspaceRoot}/.vscode-test.js",
+            "outFiles": [
+                "${workspaceRoot}/out/extension.js",
+                "${workspaceRoot}/out/server.js",
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "sourceMaps": true,
+            "autoAttachChildProcesses": true,
+            "preLaunchTask": {
+                "type": "npm",
+                "script": "build",
+            },
+            "request": "launch",
+            "type": "extensionHost"
         },
         {
             "name": "Gulp (Watch)",

@@ -1,4 +1,4 @@
-import { getDocumentById, indexDocument } from '../indexer';
+import { findOrIndexDocument, getDocumentById, indexDocument } from '../indexer';
 import { Name, NameHash } from '../name';
 import { NAME_NONE } from '../names';
 import { SymbolWalker } from '../symbolWalker';
@@ -10,7 +10,11 @@ import {
     UCObjectSymbol,
     UCSymbolKind,
     UCTypeKind,
+    type ITypeSymbol,
+    type UCObjectTypeSymbol,
+    type UCQualifiedTypeSymbol,
 } from './';
+import { ModifierFlags } from './ModifierFlags';
 
 export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
     protected readonly symbols = new Map<NameHash, T>();
@@ -125,6 +129,9 @@ export class SymbolsTable<T extends ISymbol> implements ISymbolContainer<T> {
 export class UCPackage extends UCObjectSymbol {
     override kind = UCSymbolKind.Package;
 
+    flags: ModifierFlags = ModifierFlags.None;
+    filePath?: string;
+
     constructor(name: Name) {
         super({ name, range: DEFAULT_RANGE }, DEFAULT_RANGE);
     }
@@ -134,9 +141,10 @@ export class UCPackage extends UCObjectSymbol {
     }
 
     override getTooltip(): string {
-        return `package ${this.getName().text}`;
+        return this.filePath && (this.flags & ModifierFlags.Imported)
+            ? `(imported) package ${this.filePath}`
+            : `package ${this.getName().text}`;
     }
-
     override accept<Result>(visitor: SymbolWalker<Result>): Result | void {
         return visitor.visitPackage(this);
     }
@@ -163,7 +171,7 @@ export function getSymbolOuterHash(symbolHash: NameHash, outerHash: NameHash) {
 export function getSymbolPathHash(symbol: ISymbol): NameHash {
     let hash: NameHash = symbol.id.name.hash;
     for (let outer = symbol.outer; outer; outer = outer.outer) {
-        hash = hash ^ (outer.id.name.hash >> 4);
+        hash ^= outer.id.name.hash >> 4;
     }
     return hash;
 }
@@ -195,19 +203,14 @@ export function removeHashedSymbol(symbol: UCObjectSymbol) {
  * @returns the class symbol if any, when undefined the document is either not registered or the document is missing a class declaration.
  */
 export function findOrIndexClassSymbol(id: Name): UCClassSymbol | undefined {
-    const document = getDocumentById(id);
-    if (document) {
-        if (!document.hasBeenIndexed) {
-            indexDocument(document);
-        }
-
-        return document.class;
-    }
-
-    return undefined;
+    return findOrIndexDocument(id)?.class;
 }
 
-export function tryFindSymbolInPackage<T extends UCObjectSymbol>(id: Name, pkg: UCPackage, kind?: UCSymbolKind): ISymbol | undefined {
+export function tryFindSymbolInPackage<T extends UCObjectSymbol>(
+    id: Name,
+    pkg: UCPackage,
+    kind?: UCSymbolKind
+): ISymbol | undefined {
     const key = getSymbolOuterHash(id.hash, getSymbolHash(pkg));
     const symbol = OuterObjectsTable.getSymbol<T>(key, kind, pkg);
     if (!symbol) {
@@ -223,9 +226,69 @@ export function tryFindSymbolInPackage<T extends UCObjectSymbol>(id: Name, pkg: 
     return undefined;
 }
 
-export function tryFindClassSymbol(id: Name, kind: UCSymbolKind = UCSymbolKind.Class): UCClassSymbol | undefined {
-    const symbol = ObjectsTable.getSymbol<UCClassSymbol>(id.hash, kind) ?? findOrIndexClassSymbol(id);
+/**
+ * Attempts to lookup a class symbol of a given name.
+ *
+ * If the class symbol is not found,
+ * then a potential document with a matching name will indexed before returning, if any.
+ * @see findOrIndexClassSymbol
+ */
+export function tryFindClassSymbol(
+    id: Name,
+    kind: UCSymbolKind = UCSymbolKind.Class
+): UCClassSymbol | undefined {
+    const symbol = ObjectsTable.getSymbol<UCClassSymbol>(id.hash, kind)
+        // Maybe not yet indexed?
+        ?? findOrIndexClassSymbol(id);
     return symbol;
+}
+
+/**
+ * Attempts to lookup the object symbol of a qualified type symbol, i.e. `Core.Object.Vector.X`
+ *
+ * The lookup will attempt to pre-load (and index) any potential class documents
+ * before proceeding to lookup the actual object symbol.
+ * @see findOrIndexDocument
+ *
+ * @param objectType the qualifed type to use for the lookup.
+ * @param classType the type to use a filter for the lookup.
+ * @param onResolved Called for each symbol match in the qualified type, from right to left.
+ */
+export function tryFindQualifiedObjectSymbol(
+    objectType: UCQualifiedTypeSymbol,
+    classType: ITypeSymbol,
+    onResolved: (symbol: UCObjectSymbol, type: UCObjectTypeSymbol) => void
+): void {
+    // TODO: Implement StaticClass logic, so we can properly fetch the correct object by hash.
+    let symbol: UCObjectSymbol | undefined;
+    for (let next: UCQualifiedTypeSymbol | undefined = objectType; next; next = next.left) {
+        const objectHash = getSymbolHash(next.type);
+        if (next.left) {
+            // FIXME: Hacky solution for lazy loading classes that may be appearing inbetween a qualified identifier.
+            // e.g. `Property'Engine.AdminBase.bAdmin', let's try index AdminBase as a class, then continue matching.
+            // obv', a better solution would be to pre-hash ALL .uc documents as potential classes.
+            // -- but then we would still be missing the property I suppose, we'd still have to force-index it.
+            findOrIndexDocument(next.left.type.id.name); // discard return value
+
+            // normal route
+            const outerObjectHash = getSymbolOuterHash(
+                objectHash,
+                getSymbolHash(next.left.type)
+            );
+            symbol = OuterObjectsTable.getSymbol<UCObjectSymbol>(outerObjectHash);
+        } else {
+            symbol = ObjectsTable.getSymbol<UCObjectSymbol>(
+                objectHash,
+                // Couldn't match with outer, so fallback to package matching instead.
+                symbol
+                    ? undefined
+                    : UCSymbolKind.Package,
+                symbol
+            );
+        }
+
+        if (symbol) onResolved(symbol, next.type);
+    }
 }
 
 /** Enumerates all global objects, including the chain linked objects. */

@@ -431,7 +431,7 @@ export class DocumentSemanticsBuilder extends DefaultSymbolWalker<undefined> {
         } else if (expr instanceof UCDefaultStructLiteral) {
             expr.arguments?.forEach(arg => arg?.accept(this));
         } else if (expr instanceof UCObjectLiteral) {
-            expr.classRef?.accept(this);
+            expr.classType?.accept(this);
         } else if (expr instanceof UCArrayCountExpression) {
             expr.argument?.accept(this);
         } else if (expr instanceof UCNameOfExpression) {
